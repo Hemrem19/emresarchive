@@ -1,0 +1,38 @@
+/* For better font rendering */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Default settings for Material Symbols */
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Toast animation */
+.toast {
+    animation: toast-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both, 
+               toast-out 0.5s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.5s both;
+}
+
+@keyframes toast-in {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes toast-out {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
