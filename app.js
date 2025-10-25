@@ -1,10 +1,10 @@
-import { openDB } from '/db.js';
-import { views as templates } from '/views.js';
-import { highlightActiveSidebarLink, sortPapers } from '/ui.js';
-import { dashboardView } from '/dashboard.view.js';
-import { detailsView } from '/details.view.js';
-import { formView } from '/form.view.js';
-import { settingsView } from '/settings.view.js';
+import { openDB } from './db.js';
+import { views as templates } from './views.js';
+import { highlightActiveSidebarLink, sortPapers, renderPaperList } from './ui.js';
+import { dashboardView } from './dashboard.view.js';
+import { detailsView } from './details.view.js';
+import { formView } from './form.view.js';
+import { settingsView } from './settings.view.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 

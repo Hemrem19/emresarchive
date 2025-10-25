@@ -1,7 +1,7 @@
-import { getPaperById, updatePaper, getAllPapers } from '/db.js';
-import { escapeHtml, showToast } from '/ui.js';
-import { views as templates } from '/views.js';
-import { generateCitation } from '/citation.js';
+import { getPaperById, updatePaper, getAllPapers } from './db.js';
+import { escapeHtml, showToast } from './ui.js';
+import { views as templates } from './views.js';
+import { generateCitation } from './citation.js';
 
 export const detailsView = {
     pdfUrl: null,

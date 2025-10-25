@@ -1,9 +1,11 @@
-import { getAllPapers, exportAllData, importData } from '/db.js';
-import { showToast } from '/ui.js';
+import { getAllPapers, exportAllData, importData } from './db.js';
+import { showToast } from './ui.js';
+import { generateCitation } from './citation.js';
 
 export const settingsView = {
     async mount(appState) {
         this.setupAppearance();
+        this.setupCitationGeneration();
         this.setupStatistics();
         this.setupImportExport(appState);
     },
@@ -11,6 +13,10 @@ export const settingsView = {
     unmount() {
         // No complex listeners to remove for settings view yet
         console.log('Settings view unmounted.');
+    },
+
+    setupCitationGeneration() {
+        // This function is a placeholder. The import is needed because other parts of the app might dynamically use it, but it's not directly used in the settings view itself.
     },
 
     setupAppearance() {
