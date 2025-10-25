@@ -1,4 +1,4 @@
-import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper } from './db.js';
+import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper, getPaperByDoi } from './db.js';
 import { renderSidebarTags, showToast } from './ui.js';
 import { fetchDoiMetadata } from './api.js';
 
@@ -39,6 +39,13 @@ export const dashboardView = {
                 if (!doiValue) return;
 
                 try {
+                    // Check for duplicates before fetching
+                    const existingPaper = await getPaperByDoi(doiValue);
+                    if (existingPaper) {
+                        showToast(`Paper with this DOI already exists: "${existingPaper.title}"`, 'error');
+                        return;
+                    }
+
                     showToast('Fetching metadata...');
                     const metadata = await fetchDoiMetadata(doiValue);
                     const paperData = {

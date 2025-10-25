@@ -73,6 +73,7 @@ export const views = {
                                 <label for="tags" class="block text-sm font-medium text-stone-700 dark:text-stone-300">Tags</label>
                                 <input type="text" name="tags" id="tags" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm">
                                 <p class="mt-2 text-sm text-stone-500">Comma-separated list of tags.</p>
+                                <div id="tag-suggestions" class="mt-2 flex flex-wrap gap-2"></div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-stone-700 dark:text-stone-300">PDF File</label>
@@ -174,12 +175,40 @@ export const views = {
                     <section>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Reading Statuses</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Drag and drop to reorder the reading statuses. This will affect sorting and dropdown lists.</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <ul id="status-order-list" class="space-y-2">
+                                    <!-- Draggable status items will be rendered here -->
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
+                    <section>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Import Library</h3>
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Restore your library from a backup file. <strong class="font-semibold text-yellow-600 dark:text-yellow-500">Warning: This will replace all current data.</strong></p>
                             </div>
                             <div class="flex items-start md:col-span-2">
                                 <button id="import-btn" class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">Import from File</button>
                                 <input type="file" id="import-file-input" class="hidden" accept=".json">
+                            </div>
+                        </div>
+                    </section>
+                    <div class="border-t border-red-500/30 dark:border-red-500/20"></div>
+                    <section>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-red-500">Danger Zone</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">This action is permanent and cannot be undone. Please export your data first if you want to keep a backup.</p>
+                            </div>
+                            <div class="flex items-start md:col-span-2">
+                                <button id="clear-data-btn" class="rounded-lg border border-red-500 bg-red-500/10 px-5 py-2.5 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-500/20 dark:border-red-500/50 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20">
+                                    Clear All Data
+                                </button>
                             </div>
                         </div>
                     </section>

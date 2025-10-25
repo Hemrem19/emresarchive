@@ -5,6 +5,7 @@ import { dashboardView } from './dashboard.view.js';
 import { detailsView } from './details.view.js';
 import { formView } from './form.view.js';
 import { settingsView } from './settings.view.js';
+import { getStatusOrder } from './config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -19,7 +20,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     applyTheme(); // Apply theme on initial load
+    
+    const renderSidebarStatusLinks = () => {
+        const desktopList = document.getElementById('sidebar-status-list');
+        const mobileList = document.getElementById('mobile-sidebar-status-list');
+        const statusOrder = getStatusOrder();
+        const statusColors = {
+            'Reading': 'bg-blue-500',
+            'To Read': 'bg-yellow-500',
+            'Finished': 'bg-green-500',
+            'Archived': 'bg-stone-500',
+        };
 
+        const linksHtml = statusOrder.map(status => `
+            <a href="#/status/${encodeURIComponent(status)}" data-status="${status}" class="sidebar-status-link flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                <span class="h-2 w-2 rounded-full ${statusColors[status] || 'bg-gray-400'}"></span>
+                <span class="text-sm font-medium">${status}</span>
+            </a>
+        `).join('');
+
+        if (desktopList) desktopList.innerHTML = linksHtml;
+        if (mobileList) mobileList.innerHTML = linksHtml;
+    };
+
+    renderSidebarStatusLinks(); // Initial render on page load
+    
     const app = document.getElementById('app');
     const appState = {
         allPapersCache: [],
@@ -72,13 +97,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Apply search filter
         if (searchTerm) {
-            filtered = filtered.filter(paper => {
-                const titleMatch = paper.title.toLowerCase().includes(searchTerm);
-                const authorMatch = paper.authors.some(author => author.toLowerCase().includes(searchTerm));
-                const tagMatch = paper.tags?.some(tag => tag.toLowerCase().includes(searchTerm));
-                const notesMatch = paper.notes?.toLowerCase().includes(searchTerm);
-                return titleMatch || authorMatch || tagMatch || notesMatch;
-            });
+            const isExactMatch = searchTerm.startsWith('"') && searchTerm.endsWith('"');
+
+            if (isExactMatch) {
+                const phrase = searchTerm.substring(1, searchTerm.length - 1);
+                if (phrase) { // Only filter if there's a phrase inside the quotes
+                    filtered = filtered.filter(paper =>
+                        paper.title.toLowerCase().includes(phrase) ||
+                        paper.authors.some(author => author.toLowerCase().includes(phrase)) ||
+                        paper.tags?.some(tag => tag.toLowerCase().includes(phrase)) ||
+                        paper.notes?.toLowerCase().includes(phrase)
+                    );
+                }
+            } else {
+                // For non-exact search, match all words in the query
+                const searchWords = searchTerm.split(' ').filter(w => w);
+                filtered = filtered.filter(paper => {
+                    return searchWords.every(word =>
+                        paper.title.toLowerCase().includes(word) ||
+                        paper.authors.some(author => author.toLowerCase().includes(word)) ||
+                        paper.tags?.some(tag => tag.toLowerCase().includes(word)) ||
+                        paper.notes?.toLowerCase().includes(word)
+                    );
+                });
+            }
         }
         return filtered;
     };
@@ -88,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let filteredPapers = getFilteredPapersByCurrentRoute(appState.allPapersCache);
         
         const sortedPapers = sortPapers(filteredPapers, appState.currentSortBy);
-        renderPaperList(sortedPapers);
+        renderPaperList(sortedPapers, appState.currentSearchTerm);
     };
 
     // --- GLOBAL EVENT LISTENERS ---
@@ -178,7 +220,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderView(templates.add, () => appState.currentView.mount(id, appState));
         } else if (requestedPath === '/settings') {
             appState.currentView = settingsView;
-            renderView(templates.settings, () => appState.currentView.mount(appState));
+            renderView(templates.settings, async () => {
+                await appState.currentView.mount(appState);
+                renderSidebarStatusLinks(); // Re-render in case order changed
+            });
         } else if (requestedPath === '/' || requestedPath.startsWith('/tag/') || requestedPath.startsWith('/status/')) {
             appState.currentView = dashboardView; // Set the new current view
             // All dashboard-like views

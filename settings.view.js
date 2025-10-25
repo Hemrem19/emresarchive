@@ -1,13 +1,16 @@
-import { getAllPapers, exportAllData, importData } from './db.js';
+import { getAllPapers, exportAllData, importData, clearAllData } from './db.js';
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
+import { getStatusOrder, saveStatusOrder } from './config.js';
 
 export const settingsView = {
     async mount(appState) {
         this.setupAppearance();
         this.setupCitationGeneration();
         this.setupStatistics();
+        this.setupStatusReordering();
         this.setupImportExport(appState);
+        this.setupDangerZone(appState);
     },
 
     unmount() {
@@ -56,7 +59,7 @@ export const settingsView = {
                 </div>
                 `;
 
-                const statusOrder = ['Reading', 'To Read', 'Finished', 'Archived', 'Unknown'];
+                const statusOrder = [...getStatusOrder(), 'Unknown'];
                 const statusColors = {
                     'Reading': 'text-blue-500',
                     'To Read': 'text-yellow-500',
@@ -80,6 +83,72 @@ export const settingsView = {
                 statsList.innerHTML = `<p class="text-red-500">Failed to load statistics.</p>`;
             }
         }
+    },
+
+    setupStatusReordering() {
+        const container = document.getElementById('status-order-list');
+        if (!container) return;
+
+        let draggedItem = null;
+
+        const render = () => {
+            const statuses = getStatusOrder();
+            container.innerHTML = statuses.map(status => `
+                <li draggable="true" class="status-item flex items-center justify-between p-3 bg-stone-100 dark:bg-stone-800/50 rounded-lg cursor-grab active:cursor-grabbing">
+                    <span class="font-medium">${status}</span>
+                    <span class="material-symbols-outlined text-stone-400 dark:text-stone-500">drag_indicator</span>
+                </li>
+            `).join('');
+        };
+
+        container.addEventListener('dragstart', (e) => {
+            draggedItem = e.target;
+            setTimeout(() => {
+                e.target.classList.add('opacity-50');
+            }, 0);
+        });
+
+        container.addEventListener('dragend', (e) => {
+            e.target.classList.remove('opacity-50');
+            draggedItem = null;
+        });
+
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(container, e.clientY);
+            const currentItems = [...container.querySelectorAll('.status-item:not(.opacity-50)')];
+            
+            if (afterElement == null) {
+                container.appendChild(draggedItem);
+            } else {
+                container.insertBefore(draggedItem, afterElement);
+            }
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const newOrder = [...container.querySelectorAll('.status-item')].map(item => item.querySelector('span').textContent);
+            saveStatusOrder(newOrder);
+            showToast('Status order saved!');
+            // Re-render to ensure clean state
+            render();
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.status-item:not(.opacity-50)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        render();
     },
 
     setupImportExport(appState) {
@@ -141,6 +210,29 @@ export const settingsView = {
                 reader.readAsText(file);
             };
             importFileInput.addEventListener('change', fileChangeHandler);
+        }
+    },
+
+    setupDangerZone(appState) {
+        const clearDataBtn = document.getElementById('clear-data-btn');
+        if (clearDataBtn) {
+            clearDataBtn.addEventListener('click', async () => {
+                const confirmation = prompt('This action is irreversible. You will lose all your papers, notes, and files.\n\nTo confirm, please type "DELETE" in the box below.');
+                if (confirmation === 'DELETE') {
+                    try {
+                        await clearAllData();
+                        appState.allPapersCache = []; // Clear the global cache
+                        showToast('All data has been permanently deleted.');
+                        // Redirect to home page to reflect the empty state
+                        window.location.hash = '#/';
+                    } catch (error) {
+                        showToast('Failed to clear data.', 'error');
+                        console.error('Error clearing data:', error);
+                    }
+                } else {
+                    showToast('Action cancelled.', 'success');
+                }
+            });
         }
     }
 };

@@ -34,11 +34,14 @@ const formatAuthorsIEEE = (authors) => {
     const formatted = authors.map(name => {
         const parts = name.trim().split(' ');
         const lastName = parts.pop();
-        const initials = parts.map(part => `${part.charAt(0)}.`).join('');
+        const initials = parts.map(part => `${part.charAt(0)}.`).join(' ');
         return `${initials} ${lastName}`;
     });
 
     if (formatted.length === 1) return formatted[0];
+    if (formatted.length === 2) return formatted.join(' and ');
+    
+    // For 3 or more authors, use a comma before 'and'
     return `${formatted.slice(0, -1).join(', ')}, and ${formatted.slice(-1)}`;
 };
 

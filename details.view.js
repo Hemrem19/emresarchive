@@ -237,12 +237,32 @@ export const detailsView = {
         }
         const relatedPapers = await Promise.all(currentPaper.relatedPaperIds.map(id => getPaperById(id)));
         relatedPapersList.innerHTML = relatedPapers
-            .filter(p => p)
-            .map(p => `<a href="#/details/${p.id}" class="block text-sm text-primary hover:underline">${escapeHtml(p.title)}</a>`)
+            .filter(p => p) // Filter out any null papers if a linked paper was deleted
+            .map(p => `
+                <div class="flex justify-between items-center group -mx-1 px-1 py-0.5 rounded-md hover:bg-stone-100 dark:hover:bg-stone-800/50">
+                    <a href="#/details/${p.id}" class="block text-sm text-primary hover:underline truncate pr-2">${escapeHtml(p.title)}</a>
+                    <button class="remove-link-btn p-1 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" data-remove-id="${p.id}" title="Remove link">
+                        <span class="material-symbols-outlined text-base">link_off</span>
+                    </button>
+                </div>
+            `)
             .join('');
     };
 
     await renderRelatedPapers();
+
+    relatedPapersList.addEventListener('click', async (e) => {
+        const removeBtn = e.target.closest('.remove-link-btn');
+        if (removeBtn) {
+            e.preventDefault();
+            const idToRemove = parseInt(removeBtn.dataset.removeId, 10);
+            const currentPaper = await getPaperById(paper.id);
+            const updatedRelatedIds = (currentPaper.relatedPaperIds || []).filter(id => id !== idToRemove);
+            await updatePaper(paper.id, { relatedPaperIds: updatedRelatedIds });
+            await renderRelatedPapers();
+            showToast('Paper link removed.');
+        }
+    });
 
     addLinkBtn.addEventListener('click', async () => {
         // Add modal to the DOM only when needed

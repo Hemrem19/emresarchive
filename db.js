@@ -1,7 +1,7 @@
 // c:/Users/hasan/Python Projects/research/db.js
 
 const DB_NAME = 'EmresArchiveDB';
-const DB_VERSION = 2; // Increment this version number if you change the schema
+const DB_VERSION = 3; // Increment this version number if you change the schema
 const STORE_NAME_PAPERS = 'papers';
 
 let db = null;
@@ -36,6 +36,10 @@ async function openDB() {
             // Add new index for related papers in version 2
             if (!paperStore.indexNames.contains('relatedPaperIds')) {
                 paperStore.createIndex('relatedPaperIds', 'relatedPaperIds', { unique: false, multiEntry: true });
+            }
+            // Add new index for DOI in version 3
+            if (!paperStore.indexNames.contains('doi')) {
+                paperStore.createIndex('doi', 'doi', { unique: false });
             }
             // Future object stores for notes, etc., would go here
         };
@@ -108,6 +112,30 @@ async function getPaperById(id) {
         request.onsuccess = (event) => resolve(event.target.result);
         request.onerror = (event) => {
             console.error(`Error fetching paper with ID ${id}:`, event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+/**
+ * Retrieves a single paper by its DOI.
+ * @param {string} doi - The DOI of the paper to retrieve.
+ * @returns {Promise<Object|undefined>} A promise that resolves with the paper object, or undefined if not found.
+ */
+async function getPaperByDoi(doi) {
+    // An empty or null DOI can't be a duplicate.
+    if (!doi) return Promise.resolve(undefined);
+
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction([STORE_NAME_PAPERS], 'readonly');
+        const store = transaction.objectStore(STORE_NAME_PAPERS);
+        const index = store.index('doi');
+        const request = index.get(doi);
+
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onerror = (event) => {
+            console.error(`Error fetching paper with DOI ${doi}:`, event.target.error);
             reject(event.target.error);
         };
     });
@@ -232,5 +260,24 @@ async function importData(papersToImport) {
     });
 }
 
+/**
+ * Clears all data from the 'papers' object store.
+ * @returns {Promise<void>} A promise that resolves when the store is cleared.
+ */
+async function clearAllData() {
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME_PAPERS);
+        const request = store.clear();
+
+        request.onsuccess = () => resolve();
+        request.onerror = (event) => {
+            console.error('Error clearing data:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
 // Export functions for use in other modules
-export { openDB, addPaper, getAllPapers, getPaperById, updatePaper, deletePaper, exportAllData, importData, STORE_NAME_PAPERS };
+export { openDB, addPaper, getAllPapers, getPaperById, getPaperByDoi, updatePaper, deletePaper, exportAllData, importData, clearAllData, STORE_NAME_PAPERS };

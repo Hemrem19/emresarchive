@@ -1,3 +1,5 @@
+import { getStatusOrder } from './config.js';
+
 export const escapeHtml = (unsafe) => unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
 export const showToast = (message, type = 'success') => {
@@ -36,8 +38,8 @@ export const sortPapers = (papers, sortBy) => {
             sortedPapers.sort((a, b) => (b.year || 0) - (a.year || 0));
             break;
         case 'status_asc':
-            const statusOrder = { 'Reading': 1, 'To Read': 2, 'Finished': 3, 'Archived': 4 };
-            sortedPapers.sort((a, b) => (statusOrder[a.readingStatus] || 99) - (statusOrder[b.readingStatus] || 99));
+            const customStatusOrder = getStatusOrder();
+            sortedPapers.sort((a, b) => (customStatusOrder.indexOf(a.readingStatus) ?? 99) - (customStatusOrder.indexOf(b.readingStatus) ?? 99));
             break;
         case 'date_added':
         default:
@@ -47,10 +49,25 @@ export const sortPapers = (papers, sortBy) => {
     return sortedPapers;
 };
 
-export const renderPaperList = (papers) => {
+/**
+ * Highlights occurrences of a search term within a text string.
+ * @param {string} text - The text to highlight.
+ * @param {string} term - The search term to highlight.
+ * @returns {string} The text with matching terms wrapped in <mark> tags.
+ */
+const highlightText = (text, term) => {
+    if (!term || !text) return escapeHtml(text || '');
+    // Escape special regex characters from the search term
+    const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedTerm})`, 'gi');
+    // Escape the full text to prevent XSS, then apply highlighting
+    return escapeHtml(text).replace(regex, `<mark class="bg-yellow-200 dark:bg-yellow-500/50 rounded-sm px-0.5 py-px">$1</mark>`);
+};
+
+export const renderPaperList = (papers, searchTerm = '') => {
     const paperListContainer = document.getElementById('paper-list');
     if (!paperListContainer) return;
-
+    
     if (papers.length === 0) {
         paperListContainer.innerHTML = `<p class="text-stone-500 dark:text-stone-400">No papers found for the current filter.</p>`;
         return;
@@ -63,6 +80,8 @@ export const renderPaperList = (papers) => {
         'Archived': 'bg-stone-500',
     };
 
+    const statusOrder = getStatusOrder();
+
     const paperItemsHtml = papers.map(paper => `
         <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div class="flex-grow">
@@ -71,9 +90,9 @@ export const renderPaperList = (papers) => {
                         class="h-2.5 w-2.5 rounded-full flex-shrink-0 ${statusColors[paper.readingStatus] || 'bg-stone-400'}" 
                         title="Status: ${paper.readingStatus}"
                     ></span>
-                    <a href="#/details/${paper.id}" class="font-bold text-lg text-stone-900 dark:text-stone-100 hover:text-primary dark:hover:text-primary transition-colors">${paper.title}</a>
+                    <a href="#/details/${paper.id}" class="font-bold text-lg text-stone-900 dark:text-stone-100 hover:text-primary dark:hover:text-primary transition-colors">${highlightText(paper.title, searchTerm)}</a>
                 </div>
-                <p class="text-sm text-stone-500 dark:text-stone-400 mb-2">${paper.authors.join(', ')} - ${paper.year || 'N/A'}</p>
+                <p class="text-sm text-stone-500 dark:text-stone-400 mb-2">${highlightText(paper.authors.join(', '), searchTerm)} - ${paper.year || 'N/A'}</p>
                 ${paper.tags && paper.tags.length > 0 ? `
                     <div class="flex flex-wrap gap-2">
                         ${paper.tags.map(tag => `<span class="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">#${tag}</span>`).join('')}
@@ -82,10 +101,7 @@ export const renderPaperList = (papers) => {
             </div>
             <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2 sm:mt-0 flex-shrink-0 w-full sm:w-auto">
                 <select class="reading-status-select w-full sm:w-32 h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100" data-id="${paper.id}">
-                    <option value="To Read" ${paper.readingStatus === 'To Read' ? 'selected' : ''}>To Read</option>
-                    <option value="Reading" ${paper.readingStatus === 'Reading' ? 'selected' : ''}>Reading</option>
-                    <option value="Finished" ${paper.readingStatus === 'Finished' ? 'selected' : ''}>Finished</option>
-                    <option value="Archived" ${paper.readingStatus === 'Archived' ? 'selected' : ''}>Archived</option>
+                    ${statusOrder.map(status => `<option value="${status}" ${paper.readingStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
                 </select>
                 <div class="flex items-center gap-1 self-end">
                     ${paper.hasPdf ? `<span class="material-symbols-outlined text-stone-400 dark:text-stone-500 text-lg" title="PDF attached">attachment</span>` : ''}
