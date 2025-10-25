@@ -23,14 +23,49 @@ export const showToast = (message, type = 'success') => {
 };
 
 /**
+ * Formats a date as a relative time string (e.g., "2 days ago", "just now").
+ * @param {Date|string} date - The date to format.
+ * @returns {string} A human-readable relative time string.
+ */
+export const formatRelativeTime = (date) => {
+    if (!date) return 'Never';
+    
+    const now = new Date();
+    const then = date instanceof Date ? date : new Date(date);
+    const diffMs = now - then;
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    if (diffSeconds < 60) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    if (diffWeeks < 4) return `${diffWeeks} week${diffWeeks > 1 ? 's' : ''} ago`;
+    if (diffMonths < 12) return `${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+    return `${diffYears} year${diffYears > 1 ? 's' : ''} ago`;
+};
+
+/**
  * Sorts an array of papers based on a given key.
  * @param {Array<Object>} papers - The array of papers to sort.
- * @param {string} sortBy - The key to sort by ('date_added', 'title_asc', 'year_desc', 'status_asc').
+ * @param {string} sortBy - The key to sort by ('date_added', 'last_updated', 'title_asc', 'year_desc', 'status_asc').
  * @returns {Array<Object>} A new array with the sorted papers.
  */
 export const sortPapers = (papers, sortBy) => {
     let sortedPapers = [...papers]; // Create a shallow copy to avoid mutating the original array
     switch (sortBy) {
+        case 'last_updated':
+            sortedPapers.sort((a, b) => {
+                const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                return bTime - aTime; // Most recently updated first
+            });
+            break;
         case 'title_asc':
             sortedPapers.sort((a, b) => a.title.localeCompare(b.title));
             break;

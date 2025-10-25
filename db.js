@@ -21,7 +21,10 @@ async function openDB() {
 
         request.onupgradeneeded = (event) => {
             const dbInstance = event.target.result;
+            const transaction = event.target.transaction;
+            const oldVersion = event.oldVersion;
             let paperStore;
+            
             // Create 'papers' object store
             if (!dbInstance.objectStoreNames.contains(STORE_NAME_PAPERS)) {
                 paperStore = dbInstance.createObjectStore(STORE_NAME_PAPERS, { keyPath: 'id', autoIncrement: true });
@@ -31,16 +34,34 @@ async function openDB() {
                 paperStore.createIndex('year', 'year', { unique: false });
                 paperStore.createIndex('tags', 'tags', { unique: false, multiEntry: true }); // multiEntry for array of tags
             } else {
-                paperStore = event.target.transaction.objectStore(STORE_NAME_PAPERS);
+                paperStore = transaction.objectStore(STORE_NAME_PAPERS);
             }
+            
             // Add new index for related papers in version 2
             if (!paperStore.indexNames.contains('relatedPaperIds')) {
                 paperStore.createIndex('relatedPaperIds', 'relatedPaperIds', { unique: false, multiEntry: true });
             }
+            
             // Add new index for DOI in version 3
             if (!paperStore.indexNames.contains('doi')) {
                 paperStore.createIndex('doi', 'doi', { unique: false });
             }
+            
+            // Migration for version 3: Add updatedAt to existing papers
+            if (oldVersion < 3) {
+                const getAllRequest = paperStore.getAll();
+                getAllRequest.onsuccess = () => {
+                    const papers = getAllRequest.result;
+                    papers.forEach(paper => {
+                        if (!paper.updatedAt) {
+                            // If paper doesn't have updatedAt, set it to createdAt or current date
+                            paper.updatedAt = paper.createdAt || new Date();
+                            paperStore.put(paper);
+                        }
+                    });
+                };
+            }
+            
             // Future object stores for notes, etc., would go here
         };
 

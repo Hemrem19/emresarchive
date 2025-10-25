@@ -16,6 +16,7 @@ export const views = {
                     <h2 class="text-2xl font-bold">All Papers</h2>
                     <select id="sort-select" class="w-full sm:w-auto h-10 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-sm text-stone-900 dark:text-stone-100">
                         <option value="date_added">Sort by Date Added</option>
+                        <option value="last_updated">Sort by Last Updated</option>
                         <option value="title_asc">Sort by Title (A-Z)</option>
                         <option value="year_desc">Sort by Publication Year</option>
                         <option value="status_asc">Sort by Status</option>
