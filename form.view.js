@@ -68,7 +68,64 @@ export const formView = {
     },
 
     setupFileUpload() {
-        // ... file upload logic from setupAddEditPaperForm
+        const fileInput = document.getElementById('file-upload');
+        const dropzone = document.getElementById('file-upload-dropzone');
+        const filePreview = document.getElementById('file-preview');
+        const fileName = document.getElementById('file-name');
+        const removeFileBtn = document.getElementById('remove-file-btn');
+
+        if (!fileInput || !dropzone || !filePreview || !fileName || !removeFileBtn) return;
+
+        const handleFileSelect = (file) => {
+            if (file && file.type === 'application/pdf') {
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast('File size exceeds 10MB limit.', 'error');
+                    return;
+                }
+                fileName.textContent = file.name;
+                filePreview.classList.remove('hidden');
+                dropzone.classList.add('hidden');
+            } else {
+                showToast('Please select a PDF file.', 'error');
+            }
+        };
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFileSelect(file);
+        });
+
+        // Drag and drop
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('border-primary', 'bg-primary/5');
+        });
+
+        dropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('border-primary', 'bg-primary/5');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('border-primary', 'bg-primary/5');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                // Manually set the file to the input for form submission
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+                handleFileSelect(file);
+            }
+        });
+
+        // Remove file
+        removeFileBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            filePreview.classList.add('hidden');
+            dropzone.classList.remove('hidden');
+        });
     },
 
     setupDoiFetch(appState) {
@@ -161,6 +218,8 @@ export const formView = {
         const tagsInput = document.getElementById('tags');
         const suggestionsContainer = document.getElementById('tag-suggestions');
 
+        if (!titleInput || !tagsInput || !suggestionsContainer) return;
+
         const STOP_WORDS = new Set(['a', 'an', 'the', 'and', 'or', 'in', 'on', 'of', 'for', 'to', 'with', 'by', 'as', 'is', 'are', 'was', 'were', 'from', 'about', 'using', 'based', 'via']);
 
         const generateSuggestions = (title) => {
@@ -174,11 +233,11 @@ export const formView = {
             suggestionsContainer.innerHTML = '';
             if (suggestions.length === 0) return;
 
-            const existingTags = new Set(tagsInput.value.split(',').map(t => t.trim().toLowerCase()));
+            const existingTags = new Set(tagsInput.value.split(',').map(t => t.trim().toLowerCase()).filter(t => t));
             const filteredSuggestions = suggestions.filter(s => !existingTags.has(s));
 
             if (filteredSuggestions.length > 0) {
-                suggestionsContainer.innerHTML = `<p class="text-xs text-stone-500 w-full mb-1">Suggestions:</p>`;
+                suggestionsContainer.innerHTML = `<p class="text-xs text-stone-500 dark:text-stone-400 w-full mb-1">Suggested tags from title:</p>`;
             }
 
             filteredSuggestions.forEach(suggestion => {
@@ -196,8 +255,16 @@ export const formView = {
             renderSuggestions(suggestions);
         };
 
+        // Listen to title input changes
         titleInput.addEventListener('input', this.titleInputHandler);
 
+        // Also listen to tags input changes to update suggestions
+        tagsInput.addEventListener('input', () => {
+            const suggestions = generateSuggestions(titleInput.value);
+            renderSuggestions(suggestions);
+        });
+
+        // Handle clicking on suggestion buttons
         suggestionsContainer.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (!button || !button.dataset.tag) return;
@@ -211,5 +278,11 @@ export const formView = {
             // Manually trigger input event to mark form as having unsaved changes
             tagsInput.dispatchEvent(new Event('input', { bubbles: true }));
         });
+
+        // Show initial suggestions if title already has content (useful when editing)
+        if (titleInput.value.trim()) {
+            const initialSuggestions = generateSuggestions(titleInput.value);
+            renderSuggestions(initialSuggestions);
+        }
     }
 };
