@@ -1,6 +1,6 @@
-import { getPaperById, addPaper, updatePaper } from '../db.js';
-import { showToast } from '../ui.js';
-import { fetchDoiMetadata } from '../api.js';
+import { getPaperById, addPaper, updatePaper } from '/db.js';
+import { showToast } from '/ui.js';
+import { fetchDoiMetadata } from '/api.js';
 
 export const formView = {
     isEditMode: false,

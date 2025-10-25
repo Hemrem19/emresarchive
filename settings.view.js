@@ -1,6 +1,5 @@
-import { getAllPapers, exportAllData, importData } from '../db.js';
-import { showToast } from '../ui.js';
-import { generateCitation } from '../citation.js';
+import { getAllPapers, exportAllData, importData } from '/db.js';
+import { showToast } from '/ui.js';
 
 export const settingsView = {
     async mount(appState) {

@@ -1,6 +1,6 @@
-import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper } from '../db.js';
-import { renderSidebarTags, showToast, renderPaperList } from '../ui.js';
-import { fetchDoiMetadata } from '../api.js';
+import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper } from '/db.js';
+import { renderSidebarTags, showToast } from '/ui.js';
+import { fetchDoiMetadata } from '/api.js';
 
 export const dashboardView = {
     // Store handlers to be able to remove them in unmount
