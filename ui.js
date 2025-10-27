@@ -99,7 +99,69 @@ const highlightText = (text, term) => {
     return escapeHtml(text).replace(regex, `<mark class="bg-yellow-200 dark:bg-yellow-500/50 rounded-sm px-0.5 py-px">$1</mark>`);
 };
 
-export const renderPaperList = (papers, searchTerm = '') => {
+/**
+ * Extracts a snippet from notes containing the search term.
+ * @param {string} notes - The full notes text.
+ * @param {string} searchTerm - The search term to find.
+ * @param {number} maxLength - Maximum length of the snippet.
+ * @returns {string} The extracted snippet or empty string if no match.
+ */
+const extractNoteSnippet = (notes, searchTerm, maxLength = 150) => {
+    if (!notes || !searchTerm) return '';
+    
+    const notesLower = notes.toLowerCase();
+    const termLower = searchTerm.toLowerCase().trim();
+    
+    // Handle exact phrase search
+    const isExactMatch = termLower.startsWith('"') && termLower.endsWith('"');
+    const searchPhrase = isExactMatch ? termLower.substring(1, termLower.length - 1) : termLower;
+    
+    // Find the first occurrence of the search term
+    const index = notesLower.indexOf(searchPhrase.split(' ')[0]);
+    if (index === -1) return '';
+    
+    // Extract snippet around the match
+    const start = Math.max(0, index - 50);
+    const end = Math.min(notes.length, index + maxLength);
+    let snippet = notes.substring(start, end);
+    
+    // Trim to word boundaries
+    if (start > 0) {
+        const firstSpace = snippet.indexOf(' ');
+        if (firstSpace > 0) snippet = '...' + snippet.substring(firstSpace);
+    }
+    if (end < notes.length) {
+        const lastSpace = snippet.lastIndexOf(' ');
+        if (lastSpace > 0) snippet = snippet.substring(0, lastSpace) + '...';
+    }
+    
+    return snippet;
+};
+
+/**
+ * Checks if search term matches in notes for a given paper.
+ * @param {Object} paper - The paper object.
+ * @param {string} searchTerm - The search term.
+ * @returns {boolean} True if notes contain the search term.
+ */
+const hasNotesMatch = (paper, searchTerm) => {
+    if (!searchTerm || !paper.notes) return false;
+    
+    const notesLower = paper.notes.toLowerCase();
+    const termLower = searchTerm.toLowerCase().trim();
+    
+    const isExactMatch = termLower.startsWith('"') && termLower.endsWith('"');
+    
+    if (isExactMatch) {
+        const phrase = termLower.substring(1, termLower.length - 1);
+        return notesLower.includes(phrase);
+    } else {
+        const searchWords = termLower.split(' ').filter(w => w);
+        return searchWords.every(word => notesLower.includes(word));
+    }
+};
+
+export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()) => {
     const paperListContainer = document.getElementById('paper-list');
     if (!paperListContainer) return;
     
@@ -117,19 +179,39 @@ export const renderPaperList = (papers, searchTerm = '') => {
 
     const statusOrder = getStatusOrder();
 
-    const paperItemsHtml = papers.map(paper => `
-        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+    const paperItemsHtml = papers.map(paper => {
+        const isSelected = selectedIds.has(paper.id);
+        const showNoteSnippet = searchTerm && hasNotesMatch(paper, searchTerm);
+        const noteSnippet = showNoteSnippet ? extractNoteSnippet(paper.notes, searchTerm) : '';
+        
+        return `
+        <div class="paper-card bg-white dark:bg-stone-900 border-2 ${isSelected ? 'border-primary/50 bg-primary/5 dark:bg-primary/10' : 'border-stone-200 dark:border-stone-800'} rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-all duration-200" data-paper-id="${paper.id}">
+            <div class="flex items-center gap-3 sm:flex-shrink-0">
+                <input type="checkbox" class="paper-checkbox w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800 cursor-pointer" data-paper-id="${paper.id}" ${isSelected ? 'checked' : ''}>
+                <span 
+                    class="h-2.5 w-2.5 rounded-full flex-shrink-0 ${statusColors[paper.readingStatus] || 'bg-stone-400'}" 
+                    title="Status: ${paper.readingStatus}"
+                ></span>
+            </div>
             <div class="flex-grow">
                 <div class="flex items-center gap-2 mb-1">
-                    <span 
-                        class="h-2.5 w-2.5 rounded-full flex-shrink-0 ${statusColors[paper.readingStatus] || 'bg-stone-400'}" 
-                        title="Status: ${paper.readingStatus}"
-                    ></span>
+                    ${showNoteSnippet ? `<span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mr-1" title="Match found in notes">description</span>` : ''}
                     <a href="#/details/${paper.id}" class="font-bold text-lg text-stone-900 dark:text-stone-100 hover:text-primary dark:hover:text-primary transition-colors">${highlightText(paper.title, searchTerm)}</a>
                 </div>
                 <p class="text-sm text-stone-500 dark:text-stone-400 mb-2">${highlightText(paper.authors.join(', '), searchTerm)} - ${paper.year || 'N/A'}</p>
+                ${showNoteSnippet && noteSnippet ? `
+                    <div class="mt-2 mb-3 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 rounded-md">
+                        <div class="flex items-start gap-2">
+                            <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mt-0.5 flex-shrink-0">notes</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-medium text-green-800 dark:text-green-300 mb-1">Match found in notes:</p>
+                                <p class="text-sm text-stone-700 dark:text-stone-300 italic leading-relaxed">${highlightText(noteSnippet, searchTerm)}</p>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
                 ${paper.tags && paper.tags.length > 0 ? `
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-wrap gap-2 ${showNoteSnippet ? 'mt-2' : ''}">
                         ${paper.tags.map(tag => `<span class="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">#${tag}</span>`).join('')}
                     </div>
                 ` : ''}
@@ -149,7 +231,8 @@ export const renderPaperList = (papers, searchTerm = '') => {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     paperListContainer.innerHTML = paperItemsHtml;
 };
@@ -189,6 +272,7 @@ export const renderSidebarTags = (papers) => {
 export const highlightActiveSidebarLink = () => {
     const path = window.location.hash;
     
+    // Reset all links to inactive state
     document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link').forEach(el => {
         el.classList.remove('text-primary', 'bg-primary/10', 'dark:bg-primary/20');
         el.classList.add('text-stone-500', 'dark:text-stone-400', 'hover:text-stone-900', 'dark:hover:text-stone-100', 'hover:bg-stone-100', 'dark:hover:bg-stone-800');
@@ -201,11 +285,31 @@ export const highlightActiveSidebarLink = () => {
         });
     };
 
-    if (path.startsWith('#/status/')) {
-        setActive(`.sidebar-status-link[data-status="${decodeURIComponent(path.split('/')[2])}"]`);
-    } else if (path.startsWith('#/tag/')) {
-        setActive(`.sidebar-tag[data-tag="${decodeURIComponent(path.split('/')[2])}"]`);
-    } else if (path === '#/' || path === '') {
+    // Handle compound filters: #/filter/status:Reading/tag:ml
+    if (path.startsWith('#/filter/')) {
+        const parts = path.substring(9).split('/'); // Remove '#/filter/'
+        parts.forEach(part => {
+            if (part.startsWith('status:')) {
+                const status = decodeURIComponent(part.substring(7));
+                setActive(`.sidebar-status-link[data-status="${status}"]`);
+            } else if (part.startsWith('tag:')) {
+                const tag = decodeURIComponent(part.substring(4));
+                setActive(`.sidebar-tag[data-tag="${tag}"]`);
+            }
+        });
+    }
+    // Handle single status filter: #/status/Reading
+    else if (path.startsWith('#/status/')) {
+        const status = decodeURIComponent(path.split('/')[2]);
+        setActive(`.sidebar-status-link[data-status="${status}"]`);
+    }
+    // Handle single tag filter: #/tag/ml
+    else if (path.startsWith('#/tag/')) {
+        const tag = decodeURIComponent(path.split('/')[2]);
+        setActive(`.sidebar-tag[data-tag="${tag}"]`);
+    }
+    // No filters active - highlight "All Papers"
+    else if (path === '#/' || path === '') {
         setActive('.sidebar-all-papers-link');
     }
 };

@@ -2,18 +2,68 @@ export const views = {
     home: `
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="max-w-7xl mx-auto mb-8">
-                <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 flex items-center gap-4">
-                    <label for="quick-add-doi" class="text-sm font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap">Quick Add by DOI</label>
-                    <input type="text" id="quick-add-doi" class="block w-full h-10 rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm" placeholder="Enter DOI and press Enter...">
-                    <button type="submit" class="flex items-center justify-center gap-2 h-10 px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors">
-                        <span class="material-symbols-outlined">add</span>
-                        <span class="hidden sm:inline">Add</span>
-                    </button>
+                <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div class="flex items-center gap-4 flex-1 w-full">
+                        <label for="quick-add-doi" class="text-sm font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap">Quick Add by DOI</label>
+                        <input type="text" id="quick-add-doi" class="block w-full h-10 rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm" placeholder="Enter DOI and press Enter...">
+                        <button type="submit" class="flex items-center justify-center gap-2 h-10 px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap">
+                            <span class="material-symbols-outlined">add</span>
+                            <span class="hidden sm:inline">Add</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2 self-end sm:self-auto">
+                        <span class="text-xs font-medium text-stone-600 dark:text-stone-400 whitespace-nowrap">Search in:</span>
+                        <div class="flex bg-stone-100 dark:bg-stone-800 rounded-lg p-1">
+                            <button type="button" id="search-mode-all" class="search-mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-white dark:bg-stone-700 text-primary shadow-sm">
+                                All Fields
+                            </button>
+                            <button type="button" id="search-mode-notes" class="search-mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100">
+                                Notes Only
+                            </button>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="max-w-7xl mx-auto">
+                <!-- Filter Chips (hidden by default) -->
+                <div id="filter-chips-container" class="hidden mb-4"></div>
+                <!-- Batch Action Toolbar (hidden by default) -->
+                <div id="batch-action-toolbar" class="hidden bg-primary/10 dark:bg-primary/20 border border-primary/30 dark:border-primary/30 rounded-lg p-4 mb-6">
+                    <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">check_circle</span>
+                            <span id="selected-count" class="text-sm font-semibold text-stone-900 dark:text-stone-100">0 selected</span>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2 flex-1">
+                            <div class="flex items-center gap-2">
+                                <label for="batch-status-select" class="text-xs font-medium text-stone-700 dark:text-stone-300 whitespace-nowrap">Change Status:</label>
+                                <select id="batch-status-select" class="h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100">
+                                    <option value="">Select...</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="batch-add-tags-input" class="text-xs font-medium text-stone-700 dark:text-stone-300 whitespace-nowrap">Add Tags:</label>
+                                <input type="text" id="batch-add-tags-input" placeholder="tag1, tag2" class="h-8 px-2 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100">
+                                <button id="batch-add-tags-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors">Add</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="batch-remove-tags-input" class="text-xs font-medium text-stone-700 dark:text-stone-300 whitespace-nowrap">Remove Tags:</label>
+                                <input type="text" id="batch-remove-tags-input" placeholder="tag1, tag2" class="h-8 px-2 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100">
+                                <button id="batch-remove-tags-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors">Remove</button>
+                            </div>
+                            <button id="batch-delete-btn" class="h-8 px-3 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 transition-colors">Delete Selected</button>
+                        </div>
+                        <button id="clear-selection-btn" class="self-end lg:self-auto text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline">Clear Selection</button>
+                    </div>
+                </div>
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-                    <h2 class="text-2xl font-bold">All Papers</h2>
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="select-all-checkbox" class="w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800">
+                            <span class="ml-2 text-sm font-medium text-stone-700 dark:text-stone-300">Select All</span>
+                        </label>
+                        <h2 class="text-2xl font-bold">All Papers</h2>
+                    </div>
                     <select id="sort-select" class="w-full sm:w-auto h-10 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-sm text-stone-900 dark:text-stone-100">
                         <option value="date_added">Sort by Date Added</option>
                         <option value="last_updated">Sort by Last Updated</option>
@@ -25,6 +75,28 @@ export const views = {
                 <div class="space-y-4" id="paper-list">
                     <!-- Paper list will be rendered here by JavaScript -->
                     <p class="text-stone-500 dark:text-stone-400">No papers yet. Click "Add Paper" to get started!</p>
+                </div>
+                <!-- Pagination Controls -->
+                <div id="pagination-container" class="hidden mt-8">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-4">
+                        <div class="flex items-center gap-4">
+                            <span id="pagination-info" class="text-sm text-stone-600 dark:text-stone-400">
+                                Showing <span class="font-semibold text-stone-900 dark:text-stone-100">1-25</span> of <span class="font-semibold text-stone-900 dark:text-stone-100">100</span> papers
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <label for="items-per-page" class="text-sm text-stone-600 dark:text-stone-400 whitespace-nowrap">Per page:</label>
+                                <select id="items-per-page" class="h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-sm text-stone-900 dark:text-stone-100">
+                                    <option value="10">10</option>
+                                    <option value="25" selected>25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+                        <nav id="pagination-nav" class="flex items-center gap-1">
+                            <!-- Pagination buttons will be rendered here -->
+                        </nav>
+                    </div>
                 </div>
             </div>
         </div>
