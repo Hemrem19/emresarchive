@@ -56,8 +56,21 @@ export const dashboardView = {
     },
 
     async mount(appState, applyFiltersAndRender) {
-        appState.allPapersCache = await getAllPapers();
-        renderSidebarTags(appState.allPapersCache);
+        try {
+            appState.allPapersCache = await getAllPapers();
+            renderSidebarTags(appState.allPapersCache);
+        } catch (error) {
+            console.error('Error loading papers:', error);
+            showToast(error.message || 'Failed to load papers. Please refresh the page.', 'error', {
+                duration: 0, // Persistent toast
+                actions: [{
+                    label: 'Refresh',
+                    onClick: () => window.location.reload()
+                }]
+            });
+            appState.allPapersCache = [];
+            return; // Early exit if papers can't be loaded
+        }
 
         // Clear selections when mounting dashboard (e.g., when navigating back)
         appState.selectedPaperIds.clear();
@@ -92,13 +105,18 @@ export const dashboardView = {
 
                 try {
                     // Check for duplicates before fetching
-                    const existingPaper = await getPaperByDoi(doiValue);
-                    if (existingPaper) {
-                        showToast(`Paper with this DOI already exists: "${existingPaper.title}"`, 'error');
-                        return;
+                    try {
+                        const existingPaper = await getPaperByDoi(doiValue);
+                        if (existingPaper) {
+                            showToast(`Paper with this DOI already exists: "${existingPaper.title}"`, 'error', { duration: 5000 });
+                            return;
+                        }
+                    } catch (duplicateError) {
+                        console.error('Error checking for duplicate:', duplicateError);
+                        // Continue with add if duplicate check fails
                     }
 
-                    showToast('Fetching metadata...');
+                    showToast('Fetching metadata...', 'info', { duration: 10000 });
                     const metadata = await fetchDoiMetadata(doiValue);
                     const paperData = {
                         ...metadata,
@@ -108,12 +126,19 @@ export const dashboardView = {
                     const newPaperId = await addPaper(paperData);
                     const newPaper = await getPaperById(newPaperId);
                     appState.allPapersCache.unshift(newPaper);
-                    showToast('Paper added successfully!');
+                    showToast('Paper added successfully!', 'success');
                     doiInput.value = '';
                     applyFiltersAndRender();
                 } catch (error) {
-                    showToast('Failed to add paper from DOI.', 'error');
                     console.error('Quick add error:', error);
+                    // Show user-friendly error message
+                    showToast(error.message || 'Failed to add paper from DOI. Please try again.', 'error', {
+                        duration: 5000,
+                        actions: [{
+                            label: 'Retry',
+                            onClick: () => quickAddForm.requestSubmit()
+                        }]
+                    });
                 }
             };
             quickAddForm.addEventListener('submit', this.quickAddHandler);
@@ -162,22 +187,37 @@ export const dashboardView = {
 
                 try {
                     const selectedIds = Array.from(appState.selectedPaperIds);
-                    showToast(`Updating ${selectedIds.length} paper(s)...`);
+                    showToast(`Updating ${selectedIds.length} paper(s)...`, 'info', { duration: 10000 });
+
+                    let successCount = 0;
+                    let errorCount = 0;
 
                     for (const paperId of selectedIds) {
-                        await updatePaper(paperId, { readingStatus: newStatus });
-                        const paperIndex = appState.allPapersCache.findIndex(p => p.id === paperId);
-                        if (paperIndex > -1) {
-                            appState.allPapersCache[paperIndex].readingStatus = newStatus;
+                        try {
+                            await updatePaper(paperId, { readingStatus: newStatus });
+                            const paperIndex = appState.allPapersCache.findIndex(p => p.id === paperId);
+                            if (paperIndex > -1) {
+                                appState.allPapersCache[paperIndex].readingStatus = newStatus;
+                            }
+                            successCount++;
+                        } catch (paperError) {
+                            console.error(`Error updating paper ${paperId}:`, paperError);
+                            errorCount++;
                         }
                     }
 
-                    showToast(`Updated status for ${selectedIds.length} paper(s).`);
+                    if (successCount > 0) {
+                        showToast(`Updated ${successCount} paper(s) to "${newStatus}"${errorCount > 0 ? ` (${errorCount} failed)` : ''}.`, 
+                            errorCount > 0 ? 'warning' : 'success');
+                    } else {
+                        showToast('Failed to update any papers. Please try again.', 'error');
+                    }
+                    
                     e.target.value = ''; // Reset select
                     applyFiltersAndRender();
                 } catch (error) {
-                    showToast('Error updating status.', 'error');
                     console.error('Batch status update error:', error);
+                    showToast(error.message || 'Error updating status. Please try again.', 'error');
                 }
             };
             batchStatusSelect.addEventListener('change', this.batchStatusChangeHandler);
@@ -267,22 +307,40 @@ export const dashboardView = {
 
                 try {
                     const selectedIds = Array.from(appState.selectedPaperIds);
-                    showToast(`Deleting ${count} paper(s)...`);
+                    showToast(`Deleting ${count} paper(s)...`, 'info', { duration: 10000 });
+
+                    let successCount = 0;
+                    let errorCount = 0;
+                    const successfulDeletes = [];
 
                     for (const paperId of selectedIds) {
-                        await deletePaper(paperId);
+                        try {
+                            await deletePaper(paperId);
+                            successfulDeletes.push(paperId);
+                            successCount++;
+                        } catch (paperError) {
+                            console.error(`Error deleting paper ${paperId}:`, paperError);
+                            errorCount++;
+                        }
                     }
 
-                    appState.allPapersCache = appState.allPapersCache.filter(p => !selectedIds.includes(p.id));
+                    // Remove successfully deleted papers from cache
+                    appState.allPapersCache = appState.allPapersCache.filter(p => !successfulDeletes.includes(p.id));
                     appState.selectedPaperIds.clear();
                     
-                    showToast(`Deleted ${count} paper(s) successfully.`);
+                    if (successCount > 0) {
+                        showToast(`Deleted ${successCount} paper(s)${errorCount > 0 ? ` (${errorCount} failed)` : ''}.`, 
+                            errorCount > 0 ? 'warning' : 'success');
+                    } else {
+                        showToast('Failed to delete any papers. Please try again.', 'error');
+                    }
+                    
                     renderSidebarTags(appState.allPapersCache); // Update sidebar tags
                     this.updateBatchToolbar(appState);
                     applyFiltersAndRender();
                 } catch (error) {
-                    showToast('Error deleting papers.', 'error');
                     console.error('Batch delete error:', error);
+                    showToast(error.message || 'Error deleting papers. Please try again.', 'error');
                 }
             };
             batchDeleteBtn.addEventListener('click', this.batchDeleteHandler);

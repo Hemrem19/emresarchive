@@ -2,24 +2,123 @@ import { getStatusOrder } from './config.js';
 
 export const escapeHtml = (unsafe) => unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
-export const showToast = (message, type = 'success') => {
+/**
+ * Displays a toast notification with support for different types and actions.
+ * @param {string} message - The message to display.
+ * @param {string} type - Type of toast: 'success', 'error', 'warning', 'info'.
+ * @param {Object} options - Additional options.
+ * @param {number} options.duration - Duration in ms (default: 3000, 0 = persistent).
+ * @param {Array} options.actions - Array of action objects {label, onClick}.
+ */
+export const showToast = (message, type = 'success', options = {}) => {
     const container = document.getElementById('toast-container');
-    if (!container) return;
+    if (!container) {
+        console.error('Toast container not found');
+        return;
+    }
+
+    const { duration = 3000, actions = [] } = options;
+
+    // Define colors and icons for each toast type
+    const toastStyles = {
+        success: {
+            bg: 'bg-green-500',
+            icon: 'check_circle',
+            iconColor: 'text-white'
+        },
+        error: {
+            bg: 'bg-red-500',
+            icon: 'error',
+            iconColor: 'text-white'
+        },
+        warning: {
+            bg: 'bg-yellow-500',
+            icon: 'warning',
+            iconColor: 'text-white'
+        },
+        info: {
+            bg: 'bg-blue-500',
+            icon: 'info',
+            iconColor: 'text-white'
+        }
+    };
+
+    const style = toastStyles[type] || toastStyles.success;
 
     const toast = document.createElement('div');
-    const bgColor = type === 'error' ? 'bg-red-500' : 'bg-green-500';
-    
-    toast.className = `toast p-4 rounded-lg shadow-lg text-white ${bgColor}`;
-    toast.textContent = message;
+    toast.className = `toast ${style.bg} p-4 rounded-lg shadow-lg text-white flex items-start gap-3 min-w-[300px] max-w-md`;
+
+    // Build toast content
+    let toastContent = `
+        <span class="material-symbols-outlined ${style.iconColor} flex-shrink-0">${style.icon}</span>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium leading-relaxed break-words">${escapeHtml(message)}</p>
+    `;
+
+    // Add action buttons if provided
+    if (actions.length > 0) {
+        toastContent += `
+            <div class="flex gap-2 mt-2">
+                ${actions.map((action, idx) => `
+                    <button class="toast-action-btn text-xs font-semibold px-3 py-1 rounded bg-white/20 hover:bg-white/30 transition-colors" data-action-idx="${idx}">
+                        ${escapeHtml(action.label)}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    toastContent += `</div>`;
+
+    // Add close button for persistent toasts
+    if (duration === 0) {
+        toastContent += `
+            <button class="toast-close-btn flex-shrink-0 p-1 hover:bg-white/20 rounded transition-colors" title="Close">
+                <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+        `;
+    }
+
+    toast.innerHTML = toastContent;
+
+    // Attach action button event listeners
+    actions.forEach((action, idx) => {
+        const btn = toast.querySelector(`[data-action-idx="${idx}"]`);
+        if (btn && action.onClick) {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                action.onClick();
+                // Auto-remove toast after action
+                removeToast(toast);
+            });
+        }
+    });
+
+    // Attach close button listener for persistent toasts
+    const closeBtn = toast.querySelector('.toast-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => removeToast(toast));
+    }
 
     container.appendChild(toast);
 
+    // Auto-remove after duration (if not persistent)
+    if (duration > 0) {
+        setTimeout(() => removeToast(toast), duration);
+    }
+};
+
+/**
+ * Helper to remove a toast with animation.
+ * @param {HTMLElement} toast - The toast element to remove.
+ */
+const removeToast = (toast) => {
+    if (!toast || !toast.parentElement) return;
+    
+    toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
     setTimeout(() => {
-        toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
-        setTimeout(() => {
-            toast.remove();
-        }, 500);
-    }, 3000);
+        toast.remove();
+    }, 500);
 };
 
 /**

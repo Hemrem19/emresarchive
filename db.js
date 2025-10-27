@@ -7,115 +7,218 @@ const STORE_NAME_PAPERS = 'papers';
 let db = null;
 
 /**
- * Opens the IndexedDB database.
+ * Opens the IndexedDB database with comprehensive error handling.
  * If the database doesn't exist or the version is upgraded, it creates/updates the object stores.
  * @returns {Promise<IDBDatabase>} A promise that resolves with the database instance.
+ * @throws {Error} Throws descriptive errors for various failure scenarios.
  */
 async function openDB() {
     if (db) {
         return db; // Return existing instance if already open
     }
 
+    // Check if IndexedDB is supported
+    if (!window.indexedDB) {
+        const error = new Error('Database not supported: Your browser does not support IndexedDB. Please use a modern browser like Chrome, Firefox, Safari, or Edge.');
+        console.error('IndexedDB not available:', error);
+        throw error;
+    }
+
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        let request;
+        
+        try {
+            request = indexedDB.open(DB_NAME, DB_VERSION);
+        } catch (error) {
+            console.error('Error opening IndexedDB:', error);
+            reject(new Error('Database error: Unable to open database. Your browser may be in private mode or have storage disabled.'));
+            return;
+        }
 
         request.onupgradeneeded = (event) => {
-            const dbInstance = event.target.result;
-            const transaction = event.target.transaction;
-            const oldVersion = event.oldVersion;
-            let paperStore;
-            
-            // Create 'papers' object store
-            if (!dbInstance.objectStoreNames.contains(STORE_NAME_PAPERS)) {
-                paperStore = dbInstance.createObjectStore(STORE_NAME_PAPERS, { keyPath: 'id', autoIncrement: true });
-                // Define indexes for common queries
-                paperStore.createIndex('title', 'title', { unique: false });
-                paperStore.createIndex('authors', 'authors', { unique: false });
-                paperStore.createIndex('year', 'year', { unique: false });
-                paperStore.createIndex('tags', 'tags', { unique: false, multiEntry: true }); // multiEntry for array of tags
-            } else {
-                paperStore = transaction.objectStore(STORE_NAME_PAPERS);
+            try {
+                const dbInstance = event.target.result;
+                const transaction = event.target.transaction;
+                const oldVersion = event.oldVersion;
+                let paperStore;
+                
+                // Create 'papers' object store
+                if (!dbInstance.objectStoreNames.contains(STORE_NAME_PAPERS)) {
+                    paperStore = dbInstance.createObjectStore(STORE_NAME_PAPERS, { keyPath: 'id', autoIncrement: true });
+                    // Define indexes for common queries
+                    paperStore.createIndex('title', 'title', { unique: false });
+                    paperStore.createIndex('authors', 'authors', { unique: false });
+                    paperStore.createIndex('year', 'year', { unique: false });
+                    paperStore.createIndex('tags', 'tags', { unique: false, multiEntry: true }); // multiEntry for array of tags
+                } else {
+                    paperStore = transaction.objectStore(STORE_NAME_PAPERS);
+                }
+                
+                // Add new index for related papers in version 2
+                if (!paperStore.indexNames.contains('relatedPaperIds')) {
+                    paperStore.createIndex('relatedPaperIds', 'relatedPaperIds', { unique: false, multiEntry: true });
+                }
+                
+                // Add new index for DOI in version 3
+                if (!paperStore.indexNames.contains('doi')) {
+                    paperStore.createIndex('doi', 'doi', { unique: false });
+                }
+                
+                // Migration for version 3: Add updatedAt to existing papers
+                if (oldVersion < 3) {
+                    const getAllRequest = paperStore.getAll();
+                    getAllRequest.onsuccess = () => {
+                        const papers = getAllRequest.result;
+                        papers.forEach(paper => {
+                            if (!paper.updatedAt) {
+                                // If paper doesn't have updatedAt, set it to createdAt or current date
+                                paper.updatedAt = paper.createdAt || new Date();
+                                paperStore.put(paper);
+                            }
+                        });
+                    };
+                    getAllRequest.onerror = (err) => {
+                        console.error('Migration error:', err);
+                        // Don't fail the upgrade, just log the error
+                    };
+                }
+                
+                // Future object stores for notes, etc., would go here
+            } catch (error) {
+                console.error('Error during database upgrade:', error);
+                transaction.abort();
+                reject(new Error(`Database upgrade failed: ${error.message}. Your data is safe, but the application may not function correctly.`));
             }
-            
-            // Add new index for related papers in version 2
-            if (!paperStore.indexNames.contains('relatedPaperIds')) {
-                paperStore.createIndex('relatedPaperIds', 'relatedPaperIds', { unique: false, multiEntry: true });
-            }
-            
-            // Add new index for DOI in version 3
-            if (!paperStore.indexNames.contains('doi')) {
-                paperStore.createIndex('doi', 'doi', { unique: false });
-            }
-            
-            // Migration for version 3: Add updatedAt to existing papers
-            if (oldVersion < 3) {
-                const getAllRequest = paperStore.getAll();
-                getAllRequest.onsuccess = () => {
-                    const papers = getAllRequest.result;
-                    papers.forEach(paper => {
-                        if (!paper.updatedAt) {
-                            // If paper doesn't have updatedAt, set it to createdAt or current date
-                            paper.updatedAt = paper.createdAt || new Date();
-                            paperStore.put(paper);
-                        }
-                    });
-                };
-            }
-            
-            // Future object stores for notes, etc., would go here
         };
 
         request.onsuccess = (event) => {
             db = event.target.result;
+            
+            // Add error handler for database connection
+            db.onerror = (event) => {
+                console.error('Database error:', event.target.error);
+            };
+            
+            // Handle version change (when another tab upgrades the DB)
+            db.onversionchange = () => {
+                db.close();
+                db = null;
+                console.warn('Database version changed. Please refresh the page.');
+            };
+            
             resolve(db);
         };
 
         request.onerror = (event) => {
-            console.error('IndexedDB error:', event.target.errorCode);
-            reject(new Error('Failed to open IndexedDB.'));
+            const error = event.target.error;
+            console.error('IndexedDB error:', error);
+            
+            let errorMessage = 'Database error: Unable to open database. ';
+            
+            if (error.name === 'QuotaExceededError') {
+                errorMessage = 'Storage quota exceeded: Your browser storage is full. Please free up space or remove old papers.';
+            } else if (error.name === 'VersionError') {
+                errorMessage = 'Database version error: The database is in an inconsistent state. Please refresh the page.';
+            } else if (error.name === 'InvalidStateError') {
+                errorMessage = 'Database state error: The database is in an invalid state. Try refreshing the page.';
+            } else {
+                errorMessage += error.message || 'Unknown error occurred.';
+            }
+            
+            reject(new Error(errorMessage));
+        };
+
+        request.onblocked = () => {
+            console.warn('Database blocked: Close other tabs with this app open');
+            reject(new Error('Database blocked: Please close other tabs with this application open and try again.'));
         };
     });
 }
 
 /**
- * Adds a new paper record to the database.
+ * Adds a new paper record to the database with validation and error handling.
  * @param {Object} paperData - The data for the paper to add.
  * @returns {Promise<number>} A promise that resolves with the ID of the newly added paper.
+ * @throws {Error} Throws descriptive errors for validation or storage failures.
  */
 async function addPaper(paperData) {
-    const database = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME_PAPERS);
-        const request = store.add(paperData); // paperData can now include pdfFile (Blob)
+    // Validate paper data
+    if (!paperData || typeof paperData !== 'object') {
+        throw new Error('Invalid paper data: Paper data must be a valid object.');
+    }
+    
+    if (!paperData.title || !paperData.title.trim()) {
+        throw new Error('Invalid paper data: Title is required.');
+    }
 
-        // Ensure paperData includes a default readingStatus if not provided
-        request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror = (event) => {
-            console.error('Error adding paper:', event.target.error);
-            reject(event.target.error);
-        };
-    });
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+            const request = store.add(paperData);
+
+            request.onsuccess = (event) => resolve(event.target.result);
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error adding paper:', error);
+                
+                let errorMessage = 'Failed to add paper: ';
+                
+                if (error.name === 'QuotaExceededError') {
+                    errorMessage = 'Storage quota exceeded: Your browser storage is full. Please delete old papers or reduce PDF file sizes.';
+                } else if (error.name === 'ConstraintError') {
+                    errorMessage = 'Duplicate paper: This paper already exists in your library.';
+                } else if (error.name === 'DataError') {
+                    errorMessage = 'Invalid paper data: The paper data contains invalid values.';
+                } else {
+                    errorMessage += error.message || 'Unknown error occurred while saving.';
+                }
+                
+                reject(new Error(errorMessage));
+            };
+        });
+    } catch (error) {
+        console.error('Error in addPaper:', error);
+        throw error;
+    }
 }
 
 /**
  * Retrieves all papers from the database, sorted by creation date descending.
  * @returns {Promise<Array<Object>>} A promise that resolves with an array of all paper objects.
+ * @throws {Error} Throws descriptive errors if retrieval fails.
  */
 async function getAllPapers() {
-    const database = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction([STORE_NAME_PAPERS], 'readonly');
-        const store = transaction.objectStore(STORE_NAME_PAPERS);
-        const request = store.getAll();
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+            const request = store.getAll();
 
-        request.onsuccess = (event) => {
-            // Sort by creation date, newest first
-            resolve(event.target.result.sort((a, b) => b.createdAt - a.createdAt));
-        };
+            request.onsuccess = (event) => {
+                try {
+                    const papers = event.target.result || [];
+                    // Sort by creation date, newest first
+                    resolve(papers.sort((a, b) => b.createdAt - a.createdAt));
+                } catch (sortError) {
+                    console.error('Error sorting papers:', sortError);
+                    // Return unsorted if sorting fails
+                    resolve(event.target.result || []);
+                }
+            };
 
-        request.onerror = (event) => reject(event.target.error);
-    });
+            request.onerror = (event) => {
+                console.error('Error fetching papers:', event.target.error);
+                reject(new Error('Failed to retrieve papers: Database read error. Please refresh and try again.'));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getAllPapers:', error);
+        throw error;
+    }
 }
 
 /**
@@ -163,122 +266,291 @@ async function getPaperByDoi(doi) {
 }
 
 /**
- * Updates an existing paper record in the database.
+ * Updates an existing paper record in the database with validation and error handling.
  * @param {number} id - The ID of the paper to update.
  * @param {Object} updateData - An object containing the fields to update.
  * @returns {Promise<number>} A promise that resolves with the ID of the updated paper.
+ * @throws {Error} Throws descriptive errors for validation or update failures.
  */
 async function updatePaper(id, updateData) {
-    const database = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME_PAPERS);
+    // Validate inputs
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid paper ID: ID must be a valid number or string.');
+    }
+    
+    if (!updateData || typeof updateData !== 'object') {
+        throw new Error('Invalid update data: Update data must be a valid object.');
+    }
 
-        const getRequest = store.get(id);
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
 
-        getRequest.onerror = (event) => reject(event.target.error);
+            const getRequest = store.get(Number(id));
 
-        getRequest.onsuccess = (event) => {
-            const paper = event.target.result;
-            if (!paper) {
-                return reject(new Error(`Paper with ID ${id} not found.`));
-            }
+            getRequest.onerror = (event) => {
+                console.error('Error fetching paper for update:', event.target.error);
+                reject(new Error('Failed to update: Could not retrieve paper from database.'));
+            };
 
-            const updatedPaper = { ...paper, ...updateData, updatedAt: new Date() };
-            const putRequest = store.put(updatedPaper);
-            putRequest.onsuccess = (event) => resolve(event.target.result);
-            putRequest.onerror = (event) => reject(event.target.error);
-        };
-    });
+            getRequest.onsuccess = (event) => {
+                const paper = event.target.result;
+                if (!paper) {
+                    return reject(new Error(`Paper not found: No paper exists with ID ${id}.`));
+                }
+
+                const updatedPaper = { ...paper, ...updateData, updatedAt: new Date() };
+                const putRequest = store.put(updatedPaper);
+                
+                putRequest.onsuccess = (event) => resolve(event.target.result);
+                
+                putRequest.onerror = (event) => {
+                    const error = event.target.error;
+                    console.error('Error updating paper:', error);
+                    
+                    let errorMessage = 'Failed to update paper: ';
+                    
+                    if (error.name === 'QuotaExceededError') {
+                        errorMessage = 'Storage quota exceeded: Unable to save changes. Please delete old papers or reduce file sizes.';
+                    } else if (error.name === 'DataError') {
+                        errorMessage = 'Invalid data: The update contains invalid values.';
+                    } else {
+                        errorMessage += error.message || 'Unknown error occurred.';
+                    }
+                    
+                    reject(new Error(errorMessage));
+                };
+            };
+        });
+    } catch (error) {
+        console.error('Error in updatePaper:', error);
+        throw error;
+    }
 }
 
 /**
- * Deletes a paper record from the database.
+ * Deletes a paper record from the database with error handling.
  * @param {number} id - The ID of the paper to delete.
  * @returns {Promise<void>} A promise that resolves when the paper is deleted.
+ * @throws {Error} Throws descriptive errors if deletion fails.
  */
 async function deletePaper(id) {
-    const database = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME_PAPERS);
-        const request = store.delete(id);
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid paper ID: ID must be a valid number or string.');
+    }
 
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => {
-            console.error(`Error deleting paper with ID ${id}:`, event.target.error);
-            reject(event.target.error);
-        };
-    });
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+            const request = store.delete(Number(id));
+
+            request.onsuccess = () => resolve();
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error(`Error deleting paper with ID ${id}:`, error);
+                reject(new Error(`Failed to delete paper: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in deletePaper:', error);
+        throw error;
+    }
 }
 
 /**
- * Exports all data from the database into a serializable format.
+ * Exports all data from the database into a serializable format with error handling.
  * Converts any Blob data (like PDFs) into Base64 strings.
  * @returns {Promise<Array<Object>>} A promise that resolves with an array of all paper objects, ready for JSON serialization.
+ * @throws {Error} Throws descriptive errors if export fails.
  */
 async function exportAllData() {
-    const papers = await getAllPapers();
-    const serializablePapers = [];
-
-    for (const paper of papers) {
-        const serializablePaper = { ...paper };
-        if (paper.pdfFile instanceof Blob) {
-            // Convert Blob to Base64 string to make it JSON-serializable
-            serializablePaper.pdfFile = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(paper.pdfFile);
-            });
+    try {
+        const papers = await getAllPapers();
+        
+        if (!papers || papers.length === 0) {
+            console.warn('No papers to export');
+            return [];
         }
-        serializablePapers.push(serializablePaper);
+
+        const serializablePapers = [];
+
+        for (const paper of papers) {
+            try {
+                const serializablePaper = { ...paper };
+                
+                // Convert Blob to Base64 string if present
+                if (paper.pdfFile instanceof Blob) {
+                    try {
+                        serializablePaper.pdfFile = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.onerror = () => reject(new Error('Failed to read PDF file'));
+                            reader.readAsDataURL(paper.pdfFile);
+                        });
+                    } catch (pdfError) {
+                        console.error(`Error converting PDF for paper "${paper.title}":`, pdfError);
+                        // Skip PDF but include paper metadata
+                        serializablePaper.pdfFile = null;
+                        serializablePaper._pdfExportError = true;
+                    }
+                }
+                
+                // Convert dates to ISO strings for JSON serialization
+                if (serializablePaper.createdAt instanceof Date) {
+                    serializablePaper.createdAt = serializablePaper.createdAt.toISOString();
+                }
+                if (serializablePaper.updatedAt instanceof Date) {
+                    serializablePaper.updatedAt = serializablePaper.updatedAt.toISOString();
+                }
+                
+                serializablePapers.push(serializablePaper);
+            } catch (paperError) {
+                console.error(`Error exporting paper "${paper?.title || 'Unknown'}":`, paperError);
+                // Continue with other papers
+            }
+        }
+
+        if (serializablePapers.length === 0 && papers.length > 0) {
+            throw new Error('Export failed: Unable to export any papers. Please try again.');
+        }
+
+        return serializablePapers;
+    } catch (error) {
+        console.error('Error in exportAllData:', error);
+        if (error.message.includes('retrieve papers')) {
+            throw error; // Re-throw database errors
+        }
+        throw new Error(`Export failed: ${error.message || 'Unknown error occurred.'}`);
     }
-    return serializablePapers;
 }
 
 /**
- * Imports data from a backup file, overwriting all existing data.
+ * Imports data from a backup file with validation and error handling.
+ * Overwrites all existing data.
  * @param {Array<Object>} papersToImport - An array of paper objects to import.
  * @returns {Promise<void>} A promise that resolves when the import is complete.
+ * @throws {Error} Throws descriptive errors if import fails.
  */
 async function importData(papersToImport) {
-    const database = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME_PAPERS);
+    // Validate input
+    if (!Array.isArray(papersToImport)) {
+        throw new Error('Invalid import data: Data must be an array of papers.');
+    }
 
-        // 1. Clear all existing data
-        const clearRequest = store.clear();
-        clearRequest.onerror = (event) => reject(event.target.error);
+    if (papersToImport.length === 0) {
+        throw new Error('Invalid import data: No papers found in import file.');
+    }
 
-        clearRequest.onsuccess = async () => {
-            // 2. Add all new papers
-            try {
-                const paperPromises = papersToImport.map(async (paper) => {
-                    const paperToStore = { ...paper };
-                    // Convert Base64 back to Blob if it exists
-                    if (paperToStore.pdfFile && typeof paperToStore.pdfFile === 'string' && paperToStore.pdfFile.startsWith('data:')) {
-                        const fetchRes = await fetch(paperToStore.pdfFile);
-                        paperToStore.pdfFile = await fetchRes.blob();
+    // Validate paper structure
+    for (let i = 0; i < papersToImport.length; i++) {
+        const paper = papersToImport[i];
+        if (!paper || typeof paper !== 'object') {
+            throw new Error(`Invalid import data: Paper at index ${i} is not a valid object.`);
+        }
+        if (!paper.title) {
+            throw new Error(`Invalid import data: Paper at index ${i} is missing required title field.`);
+        }
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+
+            // 1. Clear all existing data
+            const clearRequest = store.clear();
+            
+            clearRequest.onerror = (event) => {
+                console.error('Error clearing database for import:', event.target.error);
+                reject(new Error('Import failed: Unable to clear existing data. Please try again.'));
+            };
+
+            clearRequest.onsuccess = async () => {
+                // 2. Add all new papers
+                try {
+                    let successCount = 0;
+                    let errorCount = 0;
+
+                    for (const paper of papersToImport) {
+                        try {
+                            const paperToStore = { ...paper };
+                            
+                            // Convert Base64 back to Blob if it exists
+                            if (paperToStore.pdfFile && typeof paperToStore.pdfFile === 'string' && paperToStore.pdfFile.startsWith('data:')) {
+                                try {
+                                    const fetchRes = await fetch(paperToStore.pdfFile);
+                                    paperToStore.pdfFile = await fetchRes.blob();
+                                } catch (pdfError) {
+                                    console.warn(`Failed to convert PDF for "${paper.title}":`, pdfError);
+                                    paperToStore.pdfFile = null;
+                                    paperToStore.hasPdf = false;
+                                }
+                            }
+                            
+                            // Convert ISO date strings back to Date objects
+                            if (paperToStore.createdAt && typeof paperToStore.createdAt === 'string') {
+                                paperToStore.createdAt = new Date(paperToStore.createdAt);
+                            }
+                            if (paperToStore.updatedAt && typeof paperToStore.updatedAt === 'string') {
+                                paperToStore.updatedAt = new Date(paperToStore.updatedAt);
+                            }
+                            
+                            await new Promise((resolveAdd, rejectAdd) => {
+                                const addRequest = store.add(paperToStore);
+                                addRequest.onsuccess = () => resolveAdd();
+                                addRequest.onerror = (event) => rejectAdd(event.target.error);
+                            });
+                            
+                            successCount++;
+                        } catch (paperError) {
+                            console.error(`Error importing paper "${paper.title}":`, paperError);
+                            errorCount++;
+                            // Continue with next paper
+                        }
                     }
-                    return store.add(paperToStore);
-                });
-                await Promise.all(paperPromises);
-            } catch (error) {
-                transaction.abort();
-                reject(error);
-            }
-        };
 
-        transaction.oncomplete = () => {
-            resolve();
-        };
+                    if (successCount === 0) {
+                        transaction.abort();
+                        reject(new Error('Import failed: Unable to import any papers. Please check the file format and try again.'));
+                    } else if (errorCount > 0) {
+                        console.warn(`Import completed with ${errorCount} errors out of ${papersToImport.length} papers`);
+                    }
+                } catch (error) {
+                    transaction.abort();
+                    console.error('Error during import:', error);
+                    reject(new Error(`Import failed: ${error.message || 'Unknown error occurred.'}`));
+                }
+            };
 
-        transaction.onerror = (event) => {
-            reject(event.target.error);
-        };
-    });
+            transaction.oncomplete = () => {
+                resolve();
+            };
+
+            transaction.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Import transaction error:', error);
+                
+                let errorMessage = 'Import failed: ';
+                
+                if (error.name === 'QuotaExceededError') {
+                    errorMessage = 'Storage quota exceeded: The import file is too large for your browser storage. Try importing fewer papers or with smaller PDF files.';
+                } else {
+                    errorMessage += error.message || 'Database error occurred during import.';
+                }
+                
+                reject(new Error(errorMessage));
+            };
+        });
+    } catch (error) {
+        console.error('Error in importData:', error);
+        throw error;
+    }
 }
 
 /**

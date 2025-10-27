@@ -149,10 +149,18 @@ export const formView = {
                     document.getElementById('journal').value = data.journal;
                     document.getElementById('year').value = data.year || '';
                     doiInput.value = data.doi;
-                    showToast('Metadata fetched successfully!');
+                    showToast('Metadata fetched successfully!', 'success');
                     appState.hasUnsavedChanges = true;
                 } catch (error) {
-                    showToast('Failed to fetch metadata.', 'error');
+                    console.error('DOI fetch error:', error);
+                    // Show user-friendly error message from the API
+                    showToast(error.message || 'Failed to fetch metadata. Please try again.', 'error', {
+                        duration: 5000,
+                        actions: [{
+                            label: 'Retry',
+                            onClick: () => fetchDoiBtn.click()
+                        }]
+                    });
                 } finally {
                     fetchDoiBtn.textContent = 'Fetch';
                     fetchDoiBtn.disabled = false;
@@ -188,26 +196,38 @@ export const formView = {
                 if (this.isEditMode) {
                     await updatePaper(this.paperId, paperData);
                     appState.allPapersCache = appState.allPapersCache.map(p => p.id === this.paperId ? { ...p, ...paperData } : p);
-                    showToast('Paper updated successfully!');
+                    showToast('Paper updated successfully!', 'success');
                 } else {
                     // Check for duplicate DOI before adding a new paper
-                    const existingPaper = await getPaperByDoi(paperData.doi);
-                    if (existingPaper) {
-                        showToast(`A paper with this DOI already exists: "${existingPaper.title}"`, 'error');
-                        return; // Stop the submission
+                    try {
+                        const existingPaper = await getPaperByDoi(paperData.doi);
+                        if (existingPaper) {
+                            showToast(`A paper with this DOI already exists: "${existingPaper.title}"`, 'error', { duration: 5000 });
+                            return; // Stop the submission
+                        }
+                    } catch (duplicateCheckError) {
+                        console.error('Error checking for duplicate DOI:', duplicateCheckError);
+                        // Continue with add if duplicate check fails
                     }
 
                     paperData.createdAt = new Date();
                     paperData.readingStatus = 'To Read';
                     if (!paperData.hasPdf) paperData.hasPdf = false;
                     await addPaper(paperData);
-                    showToast('Paper added successfully!');
+                    showToast('Paper added successfully!', 'success');
                 }
                 appState.hasUnsavedChanges = false;
                 window.location.hash = '#/';
             } catch (error) {
-                showToast('Failed to save paper.', 'error');
                 console.error('Failed to save paper:', error);
+                // Show user-friendly error message from database
+                showToast(error.message || 'Failed to save paper. Please try again.', 'error', {
+                    duration: 5000,
+                    actions: [{
+                        label: 'Retry',
+                        onClick: () => form.requestSubmit()
+                    }]
+                });
             }
         };
         form.addEventListener('submit', this.formSubmitHandler);

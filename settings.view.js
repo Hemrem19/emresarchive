@@ -159,8 +159,14 @@ export const settingsView = {
         if (exportBtn && importBtn && importFileInput) {
             const exportHandler = async () => {
                 try {
-                    showToast('Exporting data... Please wait.');
+                    showToast('Exporting data... Please wait.', 'info', { duration: 10000 });
                     const data = await exportAllData();
+                    
+                    if (!data || data.length === 0) {
+                        showToast('No papers to export. Your library is empty.', 'warning');
+                        return;
+                    }
+                    
                     const jsonString = JSON.stringify(data, null, 2);
                     const blob = new Blob([jsonString], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -172,10 +178,16 @@ export const settingsView = {
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                    showToast('Export complete!');
+                    showToast(`Export complete! ${data.length} paper(s) exported.`, 'success');
                 } catch (error) {
-                    showToast('Export failed.', 'error');
                     console.error('Export failed:', error);
+                    showToast(error.message || 'Export failed. Please try again.', 'error', {
+                        duration: 5000,
+                        actions: [{
+                            label: 'Retry',
+                            onClick: () => exportHandler()
+                        }]
+                    });
                 }
             };
             exportBtn.addEventListener('click', exportHandler);
@@ -197,16 +209,38 @@ export const settingsView = {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
-                        const papersToImport = JSON.parse(e.target.result);
+                        showToast('Importing data... Please wait.', 'info', { duration: 10000 });
+                        
+                        let papersToImport;
+                        try {
+                            papersToImport = JSON.parse(e.target.result);
+                        } catch (parseError) {
+                            throw new Error('Invalid file format: Unable to parse JSON. Please use a valid backup file.');
+                        }
+                        
                         await importData(papersToImport);
-                        showToast('Import successful! Library has been restored.');
+                        showToast('Import successful! Library has been restored.', 'success');
                         appState.allPapersCache = []; // Clear cache in app state
-                        window.location.hash = '#/';
+                        
+                        // Reload page to ensure clean state
+                        setTimeout(() => {
+                            window.location.hash = '#/';
+                            window.location.reload();
+                        }, 1000);
                     } catch (error) {
-                        showToast('Import failed. The file may be corrupt or in the wrong format.', 'error');
                         console.error('Import failed:', error);
+                        showToast(error.message || 'Import failed. The file may be corrupt or in the wrong format.', 'error', {
+                            duration: 7000
+                        });
+                        importFileInput.value = ''; // Clear file input
                     }
                 };
+                
+                reader.onerror = () => {
+                    showToast('Failed to read file. Please try again.', 'error');
+                    importFileInput.value = '';
+                };
+                
                 reader.readAsText(file);
             };
             importFileInput.addEventListener('change', fileChangeHandler);
@@ -220,17 +254,30 @@ export const settingsView = {
                 const confirmation = prompt('This action is irreversible. You will lose all your papers, notes, and files.\n\nTo confirm, please type "DELETE" in the box below.');
                 if (confirmation === 'DELETE') {
                     try {
+                        showToast('Clearing all data...', 'warning', { duration: 5000 });
                         await clearAllData();
                         appState.allPapersCache = []; // Clear the global cache
-                        showToast('All data has been permanently deleted.');
+                        showToast('All data has been permanently deleted.', 'success');
+                        
                         // Redirect to home page to reflect the empty state
-                        window.location.hash = '#/';
+                        setTimeout(() => {
+                            window.location.hash = '#/';
+                            window.location.reload();
+                        }, 1000);
                     } catch (error) {
-                        showToast('Failed to clear data.', 'error');
                         console.error('Error clearing data:', error);
+                        showToast(error.message || 'Failed to clear data. Please try again.', 'error', {
+                            duration: 5000,
+                            actions: [{
+                                label: 'Retry',
+                                onClick: () => clearDataBtn.click()
+                            }]
+                        });
                     }
+                } else if (confirmation !== null && confirmation !== '') {
+                    showToast('Deletion cancelled. You must type "DELETE" to confirm.', 'info');
                 } else {
-                    showToast('Action cancelled.', 'success');
+                    showToast('Action cancelled.', 'info');
                 }
             });
         }
