@@ -162,8 +162,12 @@ export const settingsView = {
                     showToast('Exporting data... Please wait.', 'info', { duration: 10000 });
                     const data = await exportAllData();
                     
-                    if (!data || data.length === 0) {
-                        showToast('No papers to export. Your library is empty.', 'warning');
+                    // data is now an object with papers and collections arrays
+                    const paperCount = (data.papers || []).length;
+                    const collectionCount = (data.collections || []).length;
+                    
+                    if (paperCount === 0 && collectionCount === 0) {
+                        showToast('No data to export. Your library is empty.', 'warning');
                         return;
                     }
                     
@@ -178,7 +182,14 @@ export const settingsView = {
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                    showToast(`Export complete! ${data.length} paper(s) exported.`, 'success');
+                    
+                    let message = 'Export complete! ';
+                    if (paperCount > 0) message += `${paperCount} paper(s)`;
+                    if (paperCount > 0 && collectionCount > 0) message += ' and ';
+                    if (collectionCount > 0) message += `${collectionCount} collection(s)`;
+                    message += ' exported.';
+                    
+                    showToast(message, 'success');
                 } catch (error) {
                     console.error('Export failed:', error);
                     showToast(error.message || 'Export failed. Please try again.', 'error', {
