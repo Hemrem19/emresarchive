@@ -1,4 +1,4 @@
-import { getPaperById, updatePaper, getAllPapers } from './db.js';
+import { getPaperById, updatePaper, getAllPapers, getAnnotationsByPaperId, addAnnotation, deleteAnnotation } from './db.js';
 import { escapeHtml, showToast, formatRelativeTime } from './ui.js';
 import { views as templates } from './views.js';
 import { generateCitation } from './citation.js';
@@ -213,6 +213,19 @@ export const detailsView = {
                                     </div>
                                 </div>
                                 
+                                <!-- Highlight Controls -->
+                                <div class="flex items-center gap-1 border-l border-stone-300 dark:border-stone-700 pl-2">
+                                    <button id="pdf-highlight-toggle" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Toggle Highlight Mode" data-active="false">
+                                        <span class="material-symbols-outlined">highlighter_size_3</span>
+                                    </button>
+                                    <div id="pdf-highlight-colors" class="hidden flex items-center gap-1 border-l border-stone-300 dark:border-stone-700 pl-1">
+                                        <button class="highlight-color w-6 h-6 rounded border-2 border-transparent hover:border-stone-400" data-color="yellow" style="background-color: #fef08a;" title="Yellow"></button>
+                                        <button class="highlight-color w-6 h-6 rounded border-2 border-transparent hover:border-stone-400" data-color="orange" style="background-color: #fed7aa;" title="Orange"></button>
+                                        <button class="highlight-color w-6 h-6 rounded border-2 border-transparent hover:border-stone-400" data-color="green" style="background-color: #bbf7d0;" title="Green"></button>
+                                        <button class="highlight-color w-6 h-6 rounded border-2 border-stone-400" data-color="blue" style="background-color: #bfdbfe;" title="Blue (Selected)"></button>
+                                    </div>
+                                </div>
+                                
                                 <!-- Additional Controls -->
                                 <div class="flex items-center gap-2">
                                     <button id="pdf-rotate" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Rotate">
@@ -356,7 +369,12 @@ export const detailsView = {
         searchQuery: '',
         searchMatches: [],
         currentMatchIndex: -1,
-        pageTextCache: new Map() // Cache extracted text per page
+        pageTextCache: new Map(), // Cache extracted text per page
+        // Annotation state
+        highlightMode: false,
+        selectedColor: 'blue',
+        annotations: [], // All annotations for this paper
+        annotationsOnCurrentPage: [] // Filtered annotations for current page
     };
 
     // PDF.js Rendering Function
@@ -426,6 +444,9 @@ export const detailsView = {
                 setTimeout(() => highlightSearchResults(), 50);
             }
             
+            // Render saved annotations for current page
+            setTimeout(() => renderAnnotations(), 50);
+            
         } catch (error) {
             console.error('Error rendering PDF page:', error);
             showToast('Failed to render PDF page', 'error');
@@ -455,10 +476,165 @@ export const detailsView = {
             await renderPdfPage(1);
             
             console.log(`PDF loaded: ${pdfState.totalPages} pages`);
+            
+            // Load annotations for this paper
+            await loadAnnotations();
         } catch (error) {
             console.error('Error loading PDF:', error);
             showToast('Failed to load PDF document', 'error');
         }
+    };
+
+    // ====================  ANNOTATION FUNCTIONS ====================
+    
+    // Load all annotations for the current paper
+    const loadAnnotations = async () => {
+        try {
+            pdfState.annotations = await getAnnotationsByPaperId(paper.id);
+            console.log(`Loaded ${pdfState.annotations.length} annotations`);
+        } catch (error) {
+            console.error('Error loading annotations:', error);
+            pdfState.annotations = [];
+        }
+    };
+    
+    // Render annotations on the current page
+    const renderAnnotations = () => {
+        const annotationsLayer = document.getElementById('pdf-annotations-layer');
+        if (!annotationsLayer || !pdfState.pdfDoc) return;
+        
+        // Clear existing annotations
+        annotationsLayer.innerHTML = '';
+        
+        // Filter annotations for current page
+        const pageAnnotations = pdfState.annotations.filter(
+            ann => ann.pageNumber === pdfState.currentPage && ann.type === 'highlight'
+        );
+        
+        // Render each highlight
+        pageAnnotations.forEach(annotation => {
+            if (annotation.rects && annotation.rects.length > 0) {
+                annotation.rects.forEach(rect => {
+                    const highlight = document.createElement('div');
+                    highlight.className = 'pdf-highlight';
+                    highlight.dataset.annotationId = annotation.id;
+                    highlight.style.position = 'absolute';
+                    highlight.style.left = `${rect.x}px`;
+                    highlight.style.top = `${rect.y}px`;
+                    highlight.style.width = `${rect.width}px`;
+                    highlight.style.height = `${rect.height}px`;
+                    highlight.style.backgroundColor = getHighlightColor(annotation.color);
+                    highlight.style.opacity = '0.4';
+                    highlight.style.cursor = 'pointer';
+                    highlight.style.pointerEvents = 'auto';
+                    highlight.title = `${annotation.color} highlight - Click to delete`;
+                    
+                    // Delete on click
+                    highlight.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (confirm('Delete this highlight?')) {
+                            await deleteHighlight(annotation.id);
+                        }
+                    });
+                    
+                    annotationsLayer.appendChild(highlight);
+                });
+            }
+        });
+    };
+    
+    // Create highlight from text selection
+    const createHighlightFromSelection = async () => {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+            showToast('Please select some text to highlight', 'info');
+            return;
+        }
+        
+        const selectedText = selection.toString().trim();
+        if (!selectedText) return;
+        
+        try {
+            // Extract text content with positions for current page
+            const page = await pdfState.pdfDoc.getPage(pdfState.currentPage);
+            const textContent = await page.getTextContent();
+            const viewport = page.getViewport({ scale: pdfState.scale, rotation: pdfState.rotation });
+            
+            // Find the selected text in PDF text layer
+            const rects = [];
+            let searchText = '';
+            
+            for (let i = 0; i < textContent.items.length; i++) {
+                const item = textContent.items[i];
+                searchText += item.str;
+                
+                if (searchText.includes(selectedText)) {
+                    // Calculate bounding box for this text item
+                    const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+                    const x = tx[4];
+                    const y = viewport.height - tx[5] - item.height;
+                    const width = item.width;
+                    const height = item.height;
+                    
+                    rects.push({ x, y, width, height });
+                    break;
+                }
+            }
+            
+            if (rects.length === 0) {
+                showToast('Could not locate selected text in PDF', 'warning');
+                return;
+            }
+            
+            // Save annotation to database
+            const annotation = {
+                paperId: paper.id,
+                type: 'highlight',
+                pageNumber: pdfState.currentPage,
+                color: pdfState.selectedColor,
+                textContent: selectedText,
+                rects: rects
+            };
+            
+            const id = await addAnnotation(annotation);
+            annotation.id = id;
+            pdfState.annotations.push(annotation);
+            
+            // Re-render annotations
+            renderAnnotations();
+            
+            // Clear selection
+            selection.removeAllRanges();
+            
+            showToast(`Highlighted in ${pdfState.selectedColor}`, 'success');
+        } catch (error) {
+            console.error('Error creating highlight:', error);
+            showToast('Failed to create highlight', 'error');
+        }
+    };
+    
+    // Delete a highlight
+    const deleteHighlight = async (annotationId) => {
+        try {
+            await deleteAnnotation(annotationId);
+            pdfState.annotations = pdfState.annotations.filter(ann => ann.id !== annotationId);
+            renderAnnotations();
+            showToast('Highlight deleted', 'success');
+        } catch (error) {
+            console.error('Error deleting highlight:', error);
+            showToast('Failed to delete highlight', 'error');
+        }
+    };
+    
+    // Get color value for highlight
+    const getHighlightColor = (colorName) => {
+        const colors = {
+            yellow: '#fef08a',
+            orange: '#fed7aa',
+            green: '#bbf7d0',
+            blue: '#bfdbfe'
+        };
+        return colors[colorName] || colors.blue;
     };
 
     // Tab Switching
@@ -596,6 +772,61 @@ export const detailsView = {
             const icon = fullscreenBtn.querySelector('.material-symbols-outlined');
             if (icon) {
                 icon.textContent = document.fullscreenElement ? 'fullscreen_exit' : 'fullscreen';
+            }
+        });
+    }
+
+    // PDF Highlight Controls
+    const highlightToggle = document.getElementById('pdf-highlight-toggle');
+    const highlightColors = document.getElementById('pdf-highlight-colors');
+    
+    if (highlightToggle) {
+        highlightToggle.addEventListener('click', () => {
+            pdfState.highlightMode = !pdfState.highlightMode;
+            highlightToggle.dataset.active = pdfState.highlightMode;
+            
+            if (pdfState.highlightMode) {
+                highlightToggle.classList.add('bg-primary', 'text-white');
+                highlightToggle.classList.remove('text-stone-600', 'dark:text-stone-300');
+                highlightColors.classList.remove('hidden');
+                showToast('Highlight mode ON - Select text to highlight', 'info');
+            } else {
+                highlightToggle.classList.remove('bg-primary', 'text-white');
+                highlightToggle.classList.add('text-stone-600', 'dark:text-stone-300');
+                highlightColors.classList.add('hidden');
+                showToast('Highlight mode OFF', 'info');
+            }
+        });
+    }
+    
+    // Color selection buttons
+    if (highlightColors) {
+        const colorButtons = highlightColors.querySelectorAll('.highlight-color');
+        colorButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update selected color
+                pdfState.selectedColor = btn.dataset.color;
+                
+                // Update UI to show selected color
+                colorButtons.forEach(b => {
+                    b.classList.remove('border-2', 'border-stone-400');
+                    b.classList.add('border-2', 'border-transparent');
+                });
+                btn.classList.remove('border-transparent');
+                btn.classList.add('border-stone-400');
+            });
+        });
+    }
+    
+    // Listen for mouseup on PDF canvas to create highlights
+    const pdfCanvasContainer = document.getElementById('pdf-canvas-container');
+    if (pdfCanvasContainer) {
+        pdfCanvasContainer.addEventListener('mouseup', async (e) => {
+            if (pdfState.highlightMode && pdfState.pdfDoc) {
+                // Small delay to ensure selection is complete
+                setTimeout(() => {
+                    createHighlightFromSelection();
+                }, 100);
             }
         });
     }
