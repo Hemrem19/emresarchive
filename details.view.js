@@ -560,6 +560,7 @@ export const detailsView = {
                     highlight.style.height = `${height}px`;
                     highlight.style.backgroundColor = getHighlightColor(annotation.color);
                     highlight.style.opacity = '0.4';
+                    highlight.style.mixBlendMode = 'multiply'; // Prevents transparency stacking
                     highlight.style.cursor = 'pointer';
                     highlight.style.pointerEvents = 'auto';
                     highlight.title = `${annotation.color} highlight - Click to delete`;
@@ -575,6 +576,51 @@ export const detailsView = {
                     annotationsLayer.appendChild(highlight);
                 });
             }
+        });
+    };
+    
+    // Render a single highlight (used when creating new highlights to avoid full re-render)
+    const renderSingleHighlight = (annotation) => {
+        const annotationsLayer = document.getElementById('pdf-annotations-layer');
+        const canvas = document.getElementById('pdf-canvas');
+        if (!annotationsLayer || !canvas || !annotation.rects) return;
+        
+        // Get current canvas dimensions
+        const displayWidth = parseFloat(canvas.style.width);
+        const displayHeight = parseFloat(canvas.style.height);
+        
+        // Render each rectangle for this highlight
+        annotation.rects.forEach(normalizedRect => {
+            // Convert normalized coordinates (0-1) to actual pixel positions
+            const x = normalizedRect.x * displayWidth;
+            const y = normalizedRect.y * displayHeight;
+            const width = normalizedRect.width * displayWidth;
+            const height = normalizedRect.height * displayHeight;
+            
+            const highlight = document.createElement('div');
+            highlight.className = 'pdf-highlight';
+            highlight.dataset.annotationId = annotation.id;
+            highlight.style.position = 'absolute';
+            highlight.style.left = `${x}px`;
+            highlight.style.top = `${y}px`;
+            highlight.style.width = `${width}px`;
+            highlight.style.height = `${height}px`;
+            highlight.style.backgroundColor = getHighlightColor(annotation.color);
+            highlight.style.opacity = '0.4';
+            highlight.style.mixBlendMode = 'multiply'; // Prevents transparency stacking
+            highlight.style.cursor = 'pointer';
+            highlight.style.pointerEvents = 'auto';
+            highlight.title = `${annotation.color} highlight - Click to delete`;
+            
+            // Delete on click
+            highlight.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm('Delete this highlight?')) {
+                    await deleteHighlight(annotation.id);
+                }
+            });
+            
+            annotationsLayer.appendChild(highlight);
         });
     };
     
@@ -616,11 +662,8 @@ export const detailsView = {
                 return;
             }
             
-            // Get current viewport for normalization
-            const page = await pdfState.pdfDoc.getPage(pdfState.currentPage);
-            const viewport = page.getViewport({ scale: 1.0, rotation: pdfState.rotation });
-            
-            // Convert DOM rectangles to normalized coordinates (0-1 range based on unscaled page)
+            // Convert DOM rectangles to normalized coordinates (0-1 range)
+            // Store as percentage of current canvas dimensions
             const rects = [];
             for (let i = 0; i < domRects.length; i++) {
                 const domRect = domRects[i];
@@ -629,7 +672,7 @@ export const detailsView = {
                 const relativeX = domRect.left - canvasRect.left;
                 const relativeY = domRect.top - canvasRect.top;
                 
-                // Normalize to 0-1 range based on current viewport
+                // Normalize to 0-1 range based on current canvas dimensions
                 const normalizedRect = {
                     x: relativeX / canvasRect.width,
                     y: relativeY / canvasRect.height,
@@ -660,11 +703,11 @@ export const detailsView = {
             annotation.id = id;
             pdfState.annotations.push(annotation);
             
-            // Re-render annotations
-            renderAnnotations();
-            
-            // Clear selection
+            // Clear selection first to avoid visual glitches
             selection.removeAllRanges();
+            
+            // Render just the new highlight instead of re-rendering all
+            renderSingleHighlight(annotation);
             
             showToast(`Highlighted in ${pdfState.selectedColor}`, 'success');
         } catch (error) {
