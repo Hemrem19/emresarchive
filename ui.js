@@ -175,6 +175,18 @@ export const sortPapers = (papers, sortBy) => {
             const customStatusOrder = getStatusOrder();
             sortedPapers.sort((a, b) => (customStatusOrder.indexOf(a.readingStatus) ?? 99) - (customStatusOrder.indexOf(b.readingStatus) ?? 99));
             break;
+        case 'progress_desc':
+            sortedPapers.sort((a, b) => {
+                // Calculate percentage for each paper
+                const aProgress = a.readingProgress?.totalPages > 0 
+                    ? ((a.readingProgress?.currentPage || 0) / a.readingProgress.totalPages) * 100 
+                    : -1; // Papers without progress go to the end
+                const bProgress = b.readingProgress?.totalPages > 0 
+                    ? ((b.readingProgress?.currentPage || 0) / b.readingProgress.totalPages) * 100 
+                    : -1;
+                return bProgress - aProgress; // Highest progress first
+            });
+            break;
         case 'date_added':
         default:
             sortedPapers.sort((a, b) => b.createdAt - a.createdAt);
@@ -312,6 +324,20 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                 ${paper.tags && paper.tags.length > 0 ? `
                     <div class="flex flex-wrap gap-2 ${showNoteSnippet ? 'mt-2' : ''}">
                         ${paper.tags.map(tag => `<span class="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">#${tag}</span>`).join('')}
+                    </div>
+                ` : ''}
+                ${paper.readingStatus === 'Reading' && paper.readingProgress?.totalPages > 0 ? `
+                    <div class="mt-2 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-sm">auto_stories</span>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between gap-2 text-xs text-stone-600 dark:text-stone-400 mb-1">
+                                <span>Page ${paper.readingProgress.currentPage || 0} of ${paper.readingProgress.totalPages}</span>
+                                <span class="font-bold text-primary">${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-primary transition-all duration-300" style="width: ${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%"></div>
+                            </div>
+                        </div>
                     </div>
                 ` : ''}
             </div>

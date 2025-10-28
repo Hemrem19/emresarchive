@@ -75,8 +75,29 @@ export const detailsView = {
                         <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Journal:</span><span class="text-stone-700 dark:text-stone-300 text-right">${escapeHtml(paper.journal || 'N/A')}</span></div>
                         <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Year:</span><span class="text-stone-700 dark:text-stone-300">${paper.year || 'N/A'}</span></div>
                         <div class="flex justify-between items-start"><span class="font-medium text-stone-500 dark:text-stone-400">DOI/URL:</span><a class="text-primary hover:underline truncate text-right" href="${paper.doi ? `https://doi.org/${paper.doi}` : '#'}" target="_blank" rel="noopener noreferrer">${escapeHtml(paper.doi || 'N/A')}</a></div>
+                        <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Status:</span><span class="text-stone-700 dark:text-stone-300">${escapeHtml(paper.readingStatus || 'N/A')}</span></div>
                         ${paper.updatedAt ? `<div class="flex justify-between items-center pt-2 border-t border-stone-200 dark:border-stone-700"><span class="font-medium text-stone-500 dark:text-stone-400">Last updated:</span><span class="text-stone-600 dark:text-stone-400 text-sm">${formatRelativeTime(paper.updatedAt)}</span></div>` : ''}
                     </div>
+                    ${paper.readingStatus === 'Reading' ? `
+                        <div>
+                            <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">Reading Progress</h3>
+                            <div class="space-y-3">
+                                <div class="flex gap-2 items-center">
+                                    <div class="flex-1">
+                                        <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Current Page</label>
+                                        <input type="number" id="current-page-input" min="0" value="${paper.readingProgress?.currentPage || 0}" class="w-full h-10 px-3 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                                    </div>
+                                    <div class="flex-1">
+                                        <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Total Pages</label>
+                                        <input type="number" id="total-pages-input" min="1" value="${paper.readingProgress?.totalPages || 0}" class="w-full h-10 px-3 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
+                                    </div>
+                                </div>
+                                <div id="progress-display" class="p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg">
+                                    ${this.renderProgressBar(paper.readingProgress)}
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                     ${paper.tags && paper.tags.length > 0 ? `
                         <div>
                             <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">Tags</h3>
@@ -181,6 +202,66 @@ export const detailsView = {
                 URL.revokeObjectURL(url);
             });
         }
+    }
+
+    // Reading Progress Event Listeners
+    const currentPageInput = document.getElementById('current-page-input');
+    const totalPagesInput = document.getElementById('total-pages-input');
+    
+    if (currentPageInput && totalPagesInput) {
+        const updateProgress = async () => {
+            const currentPage = parseInt(currentPageInput.value) || 0;
+            const totalPages = parseInt(totalPagesInput.value) || 0;
+            
+            // Validate inputs
+            if (currentPage < 0 || totalPages < 0) {
+                showToast('Page numbers must be positive', 'warning');
+                return;
+            }
+            
+            if (currentPage > totalPages && totalPages > 0) {
+                showToast('Current page cannot exceed total pages', 'warning');
+                return;
+            }
+            
+            try {
+                // Update the paper with new progress
+                await updatePaper(paperId, {
+                    readingProgress: {
+                        currentPage,
+                        totalPages
+                    }
+                });
+                
+                // Update the progress display
+                const progressDisplay = document.getElementById('progress-display');
+                if (progressDisplay) {
+                    progressDisplay.innerHTML = this.renderProgressBar({ currentPage, totalPages });
+                }
+                
+                console.log(`Progress updated for paper ${paperId}: ${currentPage}/${totalPages}`);
+            } catch (error) {
+                console.error('Error updating reading progress:', error);
+                showToast('Failed to save reading progress', 'error');
+            }
+        };
+        
+        currentPageInput.addEventListener('blur', updateProgress);
+        totalPagesInput.addEventListener('blur', updateProgress);
+        
+        // Also update on Enter key
+        currentPageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                updateProgress();
+            }
+        });
+        totalPagesInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                updateProgress();
+            }
+        });
     }
 
     const notesToolbar = document.getElementById('notes-toolbar');
@@ -397,5 +478,35 @@ export const detailsView = {
             });
         });
     }
-}
-}
+    },
+
+    // Helper method to render progress bar
+    renderProgressBar(readingProgress) {
+        const current = readingProgress?.currentPage || 0;
+        const total = readingProgress?.totalPages || 0;
+        
+        if (total === 0 || current === 0) {
+            return `<p class="text-sm text-stone-500 dark:text-stone-400 text-center">Set page numbers to track progress</p>`;
+        }
+        
+        const percentage = Math.min(Math.round((current / total) * 100), 100);
+        
+        return `
+            <div class="space-y-2">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-stone-600 dark:text-stone-300 font-medium">Page ${current} of ${total}</span>
+                    <span class="text-primary font-bold">${percentage}%</span>
+                </div>
+                <div class="w-full h-2 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-primary transition-all duration-300" style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
+    },
+
+    // Helper method to calculate progress percentage
+    calculateProgress(current, total) {
+        if (!current || !total || total === 0) return 0;
+        return Math.min(Math.round((current / total) * 100), 100);
+    }
+};

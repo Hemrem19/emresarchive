@@ -70,6 +70,7 @@ export const views = {
                         <option value="title_asc">Sort by Title (A-Z)</option>
                         <option value="year_desc">Sort by Publication Year</option>
                         <option value="status_asc">Sort by Status</option>
+                        <option value="progress_desc">Sort by Reading Progress</option>
                     </select>
                 </div>
                 <div class="space-y-4" id="paper-list">
