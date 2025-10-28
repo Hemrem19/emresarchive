@@ -80,3 +80,17 @@ body {
 .dark .command-palette-item.selected {
     background-color: rgba(var(--primary-rgb), 0.2);
 }
+
+/* PDF Viewer Fullscreen Styles */
+#pdf-panel:fullscreen {
+    background-color: #f6f7f8; /* Light mode background */
+}
+
+.dark #pdf-panel:fullscreen {
+    background-color: #101922; /* Dark mode background */
+}
+
+/* Ensure canvas container takes full height in fullscreen */
+#pdf-panel:fullscreen #pdf-canvas-container {
+    max-height: calc(100vh - 60px); /* Subtract toolbar height */
+}

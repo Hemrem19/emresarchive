@@ -344,21 +344,28 @@ export const detailsView = {
             const canvas = document.getElementById('pdf-canvas');
             const ctx = canvas.getContext('2d');
             
-            // Calculate viewport with rotation
-            let viewport = page.getViewport({ scale: pdfState.scale, rotation: pdfState.rotation });
+            // Get device pixel ratio for high-DPI displays (Retina, etc.)
+            const pixelRatio = window.devicePixelRatio || 1;
             
-            // Set canvas dimensions
+            // Calculate viewport with rotation and device pixel ratio
+            let viewport = page.getViewport({ scale: pdfState.scale * pixelRatio, rotation: pdfState.rotation });
+            
+            // Set canvas dimensions with pixel ratio for crisp rendering
             canvas.height = viewport.height;
             canvas.width = viewport.width;
             
-            // Update annotations layer size
+            // Scale canvas display size back to CSS pixels
+            canvas.style.width = `${viewport.width / pixelRatio}px`;
+            canvas.style.height = `${viewport.height / pixelRatio}px`;
+            
+            // Update annotations layer size (use CSS pixels)
             const annotationsLayer = document.getElementById('pdf-annotations-layer');
             if (annotationsLayer) {
-                annotationsLayer.style.width = `${viewport.width}px`;
-                annotationsLayer.style.height = `${viewport.height}px`;
+                annotationsLayer.style.width = `${viewport.width / pixelRatio}px`;
+                annotationsLayer.style.height = `${viewport.height / pixelRatio}px`;
             }
             
-            // Render PDF page
+            // Render PDF page with high-DPI support
             const renderContext = {
                 canvasContext: ctx,
                 viewport: viewport
@@ -528,13 +535,25 @@ export const detailsView = {
     const fullscreenBtn = document.getElementById('pdf-fullscreen');
     if (fullscreenBtn) {
         fullscreenBtn.addEventListener('click', () => {
-            const container = document.getElementById('pdf-canvas-container');
-            if (container) {
+            // Use the entire PDF panel (includes toolbar) for fullscreen
+            const pdfPanel = document.getElementById('pdf-panel');
+            if (pdfPanel) {
                 if (!document.fullscreenElement) {
-                    container.requestFullscreen();
+                    pdfPanel.requestFullscreen().catch(err => {
+                        console.error('Error attempting to enable fullscreen:', err);
+                        showToast('Failed to enter fullscreen mode', 'error');
+                    });
                 } else {
                     document.exitFullscreen();
                 }
+            }
+        });
+        
+        // Update fullscreen icon when entering/exiting fullscreen
+        document.addEventListener('fullscreenchange', () => {
+            const icon = fullscreenBtn.querySelector('.material-symbols-outlined');
+            if (icon) {
+                icon.textContent = document.fullscreenElement ? 'fullscreen_exit' : 'fullscreen';
             }
         });
     }
