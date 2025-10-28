@@ -404,12 +404,7 @@ export const renderSidebarCollections = (collections) => {
 
     if (!collectionsSection || !mobileCollectionsSection) return;
 
-    if (!collections || collections.length === 0) {
-        collectionsSection.innerHTML = '';
-        mobileCollectionsSection.innerHTML = '';
-        return;
-    }
-
+    // Always show the Collections header and + button, even if no collections exist
     const collectionsHtml = `
         <div class="flex items-center justify-between px-3 mb-2">
             <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider">Collections</h3>
@@ -417,17 +412,24 @@ export const renderSidebarCollections = (collections) => {
                 <span class="material-symbols-outlined text-sm text-stone-500 dark:text-stone-400">add_circle</span>
             </button>
         </div>
-        <div class="space-y-1">
-            ${collections.map(collection => `
-                <div class="collection-item group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors" data-collection-id="${collection.id}">
-                    <span class="material-symbols-outlined text-lg ${collection.color || 'text-primary'}">${collection.icon || 'folder'}</span>
-                    <span class="flex-1 text-sm font-medium text-stone-700 dark:text-stone-300 collection-name">${escapeHtml(collection.name)}</span>
-                    <button class="edit-collection-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-all" data-collection-id="${collection.id}" title="Edit collection">
-                        <span class="material-symbols-outlined text-sm text-stone-500 dark:text-stone-400">edit</span>
-                    </button>
-                </div>
-            `).join('')}
-        </div>
+        ${(!collections || collections.length === 0) ? `
+            <div class="px-3 py-4 text-center">
+                <p class="text-xs text-stone-500 dark:text-stone-400">No saved collections yet.</p>
+                <p class="text-xs text-stone-400 dark:text-stone-500 mt-1">Apply filters and click + to save</p>
+            </div>
+        ` : `
+            <div class="space-y-1">
+                ${collections.map(collection => `
+                    <div class="collection-item group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors" data-collection-id="${collection.id}">
+                        <span class="material-symbols-outlined text-lg ${collection.color || 'text-primary'}">${collection.icon || 'folder'}</span>
+                        <span class="flex-1 text-sm font-medium text-stone-700 dark:text-stone-300 collection-name">${escapeHtml(collection.name)}</span>
+                        <button class="edit-collection-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-all" data-collection-id="${collection.id}" title="Edit collection">
+                            <span class="material-symbols-outlined text-sm text-stone-500 dark:text-stone-400">edit</span>
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        `}
     `;
 
     collectionsSection.innerHTML = collectionsHtml;
