@@ -430,8 +430,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     activeElement.id === 'command-palette-input' // Exclude command palette
                 );
 
-                // Allow Esc even when typing
-                if (e.key === 'Escape' && !isTyping) {
+                // Handle Esc key - ALWAYS works, even when typing
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    
+                    // If typing in an input/textarea, blur it first
+                    if (isTyping && activeElement) {
+                        activeElement.blur();
+                        // Don't proceed with other Esc actions - just blur
+                        return;
+                    }
+                    
+                    // If not typing, handle normal Esc behavior
                     this.handleEscape();
                     return;
                 }
