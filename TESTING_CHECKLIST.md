@@ -1,8 +1,8 @@
 # Testing Checklist - Phase 2 Features
 
-**Version:** 1.5  
-**Database Version:** 4  
-**Features to Test:** Collections (A1) + Command Palette (B2) + Keyboard Shortcuts (B3) + Reading Progress (A3)  
+**Version:** 1.6  
+**Database Version:** 5  
+**Features to Test:** Collections (A1) + Command Palette (B2) + Keyboard Shortcuts (B3) + Reading Progress (A3) + Enhanced PDF Viewer (A4) + Paper Network Graph (A2)  
 **Priority:** HIGH - All features are untested in production environment
 
 ---
@@ -660,9 +660,201 @@ ___________________________________________
 
 ---
 
+## 🕸️ Feature A2: Paper Network Graph View
+
+### Test Category 15: Graph Rendering & Navigation ✅
+
+#### 15.1 Basic Graph Display
+- [ ] Navigate to "Paper Network" (sidebar or Ctrl+K → "Paper Network")
+- [ ] Verify graph renders without errors
+- [ ] Verify stats bar shows correct counts (papers, connections, visible)
+- [ ] Verify nodes are color-coded (Blue=Reading, Yellow=To Read, Green=Finished)
+- [ ] Verify nodes are sized appropriately (larger = more connections)
+- [ ] Try in dark mode - verify colors adapt correctly
+
+**Expected:** Graph displays all papers as nodes with correct colors and sizes
+
+#### 15.2 Graph Empty State
+- [ ] On a fresh database with NO linked papers
+- [ ] Navigate to "Paper Network"
+- [ ] Verify empty state appears with helpful message
+- [ ] Click "Browse Papers" link - verify navigates to dashboard
+
+**Expected:** Empty state shown when no connections exist
+
+#### 15.3 Node Interactions
+- [ ] Hover over a node
+- [ ] Verify tooltip appears with paper info (title, authors, status, tags)
+- [ ] Verify tooltip text is plain text (no HTML tags like `<strong>`)
+- [ ] Click on a node
+- [ ] Verify navigates to that paper's details view
+- [ ] Go back to graph - verify graph state is maintained
+
+**Expected:** Hover shows tooltip, click navigates to details
+
+#### 15.4 Graph Controls
+- [ ] Click "Zoom In" button (floating control, bottom-right)
+- [ ] Verify graph zooms in
+- [ ] Click "Zoom Out" button
+- [ ] Verify graph zooms out
+- [ ] Click "Fit to Screen" button
+- [ ] Verify graph fits all visible nodes on screen
+- [ ] Try panning (click and drag background)
+- [ ] Verify graph pans smoothly
+
+**Expected:** All controls work smoothly, graph is interactive
+
+### Test Category 16: Graph Filters & Search ✅
+
+#### 16.1 Search Filter
+- [ ] Type a paper title in search box
+- [ ] Verify only matching nodes are visible
+- [ ] Verify stats update (visible count changes)
+- [ ] Clear search
+- [ ] Verify all nodes reappear
+
+**Expected:** Search filters nodes in real-time
+
+#### 16.2 Status Filter
+- [ ] Select "Reading" from status dropdown
+- [ ] Verify only Reading papers are visible (blue nodes)
+- [ ] Verify edges connected to hidden nodes are also hidden
+- [ ] Verify stats update
+- [ ] Select "All Status"
+- [ ] Verify all nodes reappear
+
+**Expected:** Status filter works correctly
+
+#### 16.3 Tag Filter
+- [ ] Select a tag from tag dropdown
+- [ ] Verify only papers with that tag are visible
+- [ ] Verify stats update
+- [ ] Combine tag filter with status filter
+- [ ] Verify both filters apply simultaneously
+- [ ] Click "Reset View"
+- [ ] Verify all filters clear, graph fits to screen
+
+**Expected:** Tag filter works, filters combine correctly, reset clears all
+
+#### 16.4 Combined Filters
+- [ ] Apply search + status filter + tag filter simultaneously
+- [ ] Verify only nodes matching ALL criteria are visible
+- [ ] Verify edges update correctly
+- [ ] Verify stats show correct counts
+- [ ] Click "Reset View"
+- [ ] Verify everything resets
+
+**Expected:** Multiple filters work together correctly
+
+### Test Category 17: Graph Data Integrity ✅
+
+#### 17.1 Edge Creation
+- [ ] Create 2 papers (A and B)
+- [ ] In paper A details, link to paper B (Related Papers)
+- [ ] Navigate to Paper Network
+- [ ] Verify edge appears between A and B
+- [ ] Verify edge is bidirectional (only ONE edge, not two)
+
+**Expected:** Edges reflect relatedPaperIds correctly
+
+#### 17.2 Edge Deletion
+- [ ] In paper A details, remove link to paper B
+- [ ] Navigate back to Paper Network
+- [ ] Verify edge between A and B is gone
+- [ ] Refresh page
+- [ ] Verify edge is still gone
+
+**Expected:** Edge removal persists
+
+#### 17.3 Node Deletion
+- [ ] Delete a paper from dashboard
+- [ ] Navigate to Paper Network
+- [ ] Verify node is gone
+- [ ] Verify edges connected to that node are gone
+- [ ] Verify stats update correctly
+
+**Expected:** Deleting paper removes node and edges
+
+### Test Category 18: Graph Performance & Edge Cases ✅
+
+#### 18.1 Large Dataset
+- [ ] Import 20+ papers with multiple connections
+- [ ] Navigate to Paper Network
+- [ ] Verify graph renders without freezing
+- [ ] Verify physics stabilization completes (nodes stop moving)
+- [ ] Try zooming, panning - verify smooth performance
+- [ ] Apply filters - verify updates are instant
+
+**Expected:** Graph handles large datasets smoothly
+
+#### 18.2 Isolated Papers (No Connections)
+- [ ] Create 3 papers with NO related papers
+- [ ] Navigate to Paper Network
+- [ ] Verify nodes appear but NO edges
+- [ ] Verify stats show "0 connections"
+- [ ] Verify nodes are still interactive (click, hover)
+
+**Expected:** Isolated nodes display correctly
+
+#### 18.3 Circular Connections
+- [ ] Create papers A → B → C → A (circular)
+- [ ] Navigate to Paper Network
+- [ ] Verify all edges appear (3 edges forming triangle)
+- [ ] Verify no errors in console
+- [ ] Verify clicking any node navigates correctly
+
+**Expected:** Circular connections render correctly
+
+#### 18.4 Self-Links (Paper links to itself)
+- [ ] In paper A, try to link to itself
+- [ ] Navigate to Paper Network
+- [ ] Verify no self-loop edge (or if present, no errors)
+- [ ] Verify graph still functions normally
+
+**Expected:** Self-links handled gracefully (should be prevented in UI)
+
+### Test Category 19: Graph Mobile & Dark Mode ✅
+
+#### 19.1 Mobile Touch Interactions
+- [ ] Open on mobile device or DevTools mobile emulation
+- [ ] Navigate to Paper Network
+- [ ] Try pinch-to-zoom gesture
+- [ ] Verify graph zooms (native vis.js support)
+- [ ] Try pan gesture (single finger drag)
+- [ ] Verify graph pans
+- [ ] Tap a node
+- [ ] Verify navigates to details
+
+**Expected:** Touch gestures work on mobile
+
+#### 19.2 Mobile Layout
+- [ ] Check graph header on mobile
+- [ ] Verify controls stack appropriately
+- [ ] Verify search, filters, reset button are all accessible
+- [ ] Verify floating zoom controls are visible and tappable
+- [ ] Verify stats bar is readable
+
+**Expected:** All UI elements accessible on mobile
+
+#### 19.3 Dark Mode
+- [ ] Enable dark mode
+- [ ] Navigate to Paper Network
+- [ ] Verify background is dark
+- [ ] Verify nodes are visible (colors adapt)
+- [ ] Verify edges are visible
+- [ ] Verify controls, filters have dark styling
+- [ ] Verify tooltip has dark background
+
+**Expected:** Graph fully supports dark mode
+
+___________________________________________
+___________________________________________
+
+---
+
 ## 🎯 Priority Test Scenarios (Quick Smoke Test)
 
-If you only have 20 minutes, test these critical paths:
+If you only have 25 minutes, test these critical paths:
 
 ### Collections (5 min)
 1. [ ] Create collection with status filter
@@ -693,6 +885,15 @@ If you only have 20 minutes, test these critical paths:
 5. [ ] Verify progress badge appears on card
 6. [ ] Sort by "Reading Progress"
 7. [ ] Verify papers sorted correctly
+
+### Paper Network Graph (5 min)
+1. [ ] Link 3-4 papers together using "Related Papers"
+2. [ ] Navigate to "Paper Network" (sidebar or `Ctrl+K`)
+3. [ ] Verify graph renders with nodes and edges
+4. [ ] Hover over a node - verify tooltip appears (plain text, no HTML)
+5. [ ] Click a node - verify navigates to paper details
+6. [ ] Try search filter - verify nodes filter
+7. [ ] Click "Reset View" - verify clears filters and fits screen
 
 If all of these work, the features are likely production-ready!
 
