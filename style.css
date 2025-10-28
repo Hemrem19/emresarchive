@@ -180,7 +180,59 @@ button {
 @media screen and (max-width: 640px) {
     input[type="number"],
     input[type="text"],
+    input[type="email"],
+    input[type="search"],
+    input[type="url"],
+    input[type="tel"],
+    textarea,
     select {
-        font-size: 16px; /* Prevents iOS zoom when < 16px */
+        font-size: 16px !important; /* Prevents iOS zoom when < 16px */
+    }
+}
+
+/* Mobile-friendly tag suggestion buttons */
+@media screen and (max-width: 640px) {
+    #tag-suggestions button {
+        min-height: 36px;
+        padding: 0.5rem 0.75rem;
+        font-size: 14px;
+    }
+    
+    /* Larger tap targets for file upload */
+    #file-upload-dropzone {
+        padding: 2rem 1rem;
+        min-height: 120px;
+    }
+    
+    /* Stack batch operation controls vertically on small screens */
+    #batch-action-toolbar .flex-col.sm\\:flex-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    #batch-action-toolbar .flex-col.sm\\:flex-row > div {
+        width: 100%;
+    }
+}
+
+/* Command Palette - Mobile Optimizations */
+@media screen and (max-width: 640px) {
+    #command-palette-modal {
+        max-width: calc(100% - 1rem);
+        margin: 0.5rem;
+    }
+    
+    #command-palette-input {
+        font-size: 16px !important; /* Prevent iOS zoom */
+        min-height: 44px;
+    }
+    
+    .command-palette-item {
+        padding: 1rem !important;
+        min-height: 60px;
+    }
+    
+    .command-palette-item .text-sm {
+        font-size: 14px !important;
     }
 }
