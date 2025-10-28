@@ -347,28 +347,36 @@ export const detailsView = {
             // Get device pixel ratio for high-DPI displays (Retina, etc.)
             const pixelRatio = window.devicePixelRatio || 1;
             
-            // Calculate viewport with rotation and device pixel ratio
-            let viewport = page.getViewport({ scale: pdfState.scale * pixelRatio, rotation: pdfState.rotation });
+            // Use a minimum render scale to ensure crisp rendering even at low zoom
+            // This ensures we always render at high quality and scale down visually
+            const MIN_RENDER_SCALE = 2.0; // Minimum 2x rendering for quality
+            const renderScale = Math.max(pdfState.scale * pixelRatio, MIN_RENDER_SCALE);
             
-            // Set canvas dimensions with pixel ratio for crisp rendering
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+            // Calculate viewport for rendering (high resolution)
+            let renderViewport = page.getViewport({ scale: renderScale, rotation: pdfState.rotation });
             
-            // Scale canvas display size back to CSS pixels
-            canvas.style.width = `${viewport.width / pixelRatio}px`;
-            canvas.style.height = `${viewport.height / pixelRatio}px`;
+            // Calculate viewport for display (actual zoom level)
+            let displayViewport = page.getViewport({ scale: pdfState.scale, rotation: pdfState.rotation });
             
-            // Update annotations layer size (use CSS pixels)
+            // Set canvas internal dimensions to high resolution
+            canvas.height = renderViewport.height;
+            canvas.width = renderViewport.width;
+            
+            // Set canvas CSS dimensions to match desired zoom level
+            canvas.style.width = `${displayViewport.width}px`;
+            canvas.style.height = `${displayViewport.height}px`;
+            
+            // Update annotations layer size to match display size
             const annotationsLayer = document.getElementById('pdf-annotations-layer');
             if (annotationsLayer) {
-                annotationsLayer.style.width = `${viewport.width / pixelRatio}px`;
-                annotationsLayer.style.height = `${viewport.height / pixelRatio}px`;
+                annotationsLayer.style.width = `${displayViewport.width}px`;
+                annotationsLayer.style.height = `${displayViewport.height}px`;
             }
             
-            // Render PDF page with high-DPI support
+            // Render PDF page at high resolution
             const renderContext = {
                 canvasContext: ctx,
-                viewport: viewport
+                viewport: renderViewport
             };
             
             await page.render(renderContext).promise;
