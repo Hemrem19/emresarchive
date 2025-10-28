@@ -628,7 +628,9 @@ export const detailsView = {
             pdfState.currentMatchIndex = -1;
             pdfState.searchQuery = '';
             updateSearchUI();
-            renderPdfPage(pdfState.currentPage); // Clear highlights
+            // Clear highlights immediately
+            const annotationsLayer = document.getElementById('pdf-annotations-layer');
+            if (annotationsLayer) annotationsLayer.innerHTML = '';
             return;
         }
 
@@ -727,6 +729,18 @@ export const detailsView = {
                 startIdx += searchLower.length;
             }
             
+            // Find the index of the current match on this page
+            let currentMatchIndexOnPage = -1;
+            if (pdfState.currentMatchIndex >= 0) {
+                const currentMatch = pdfState.searchMatches[pdfState.currentMatchIndex];
+                if (currentMatch && currentMatch.page === pdfState.currentPage) {
+                    // Count how many matches on this page come before the current match
+                    currentMatchIndexOnPage = pdfState.searchMatches
+                        .filter(m => m.page === pdfState.currentPage && m.index < currentMatch.index)
+                        .length;
+                }
+            }
+            
             // Create highlight overlays for each match
             pageMatches.forEach((match, matchIndex) => {
                 // Find which text item(s) contain this match
@@ -739,7 +753,7 @@ export const detailsView = {
                         const matchStartInItem = Math.max(0, match.start - pos.startIndex);
                         const matchEndInItem = Math.min(pos.text.length, match.end - pos.startIndex);
                         
-                        // Calculate highlight rectangle
+                        // Calculate highlight rectangle in PDF coordinates
                         const tx = pos.transform[4];
                         const ty = pos.transform[5];
                         const fontSize = Math.sqrt(pos.transform[2] * pos.transform[2] + pos.transform[3] * pos.transform[3]);
@@ -749,16 +763,22 @@ export const detailsView = {
                         const highlightWidth = charWidth * (matchEndInItem - matchStartInItem);
                         const highlightX = tx + (charWidth * matchStartInItem);
                         
-                        // Convert PDF coordinates to canvas coordinates
+                        // Convert PDF coordinates to viewport coordinates
                         const [x1, y1] = viewport.convertToViewportPoint(highlightX, ty);
                         const [x2, y2] = viewport.convertToViewportPoint(highlightX + highlightWidth, ty + fontSize);
                         
+                        // Calculate proper dimensions (handle rotation)
+                        const viewportX = Math.min(x1, x2);
+                        const viewportY = Math.min(y1, y2);
+                        const viewportWidth = Math.abs(x2 - x1);
+                        const viewportHeight = Math.abs(y2 - y1);
+                        
                         // Scale to display coordinates
                         const scaleRatio = displayViewport.width / viewport.width;
-                        const displayX = x1 * scaleRatio;
-                        const displayY = y1 * scaleRatio;
-                        const displayWidth = (x2 - x1) * scaleRatio;
-                        const displayHeight = (y2 - y1) * scaleRatio;
+                        const displayX = viewportX * scaleRatio;
+                        const displayY = viewportY * scaleRatio;
+                        const displayWidth = viewportWidth * scaleRatio;
+                        const displayHeight = viewportHeight * scaleRatio;
                         
                         // Create highlight element
                         const highlight = document.createElement('div');
@@ -769,8 +789,7 @@ export const detailsView = {
                         highlight.style.height = `${displayHeight}px`;
                         
                         // Determine if this is the current match
-                        const isCurrentMatch = pdfState.searchMatches[pdfState.currentMatchIndex]?.page === pdfState.currentPage &&
-                                              matchIndex === pageMatches.findIndex(pm => pm.start === match.start);
+                        const isCurrentMatch = matchIndex === currentMatchIndexOnPage;
                         
                         // Style: current match = orange, others = yellow
                         if (isCurrentMatch) {
