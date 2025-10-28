@@ -522,28 +522,42 @@ export const detailsView = {
     // Render annotations on the current page
     const renderAnnotations = () => {
         const annotationsLayer = document.getElementById('pdf-annotations-layer');
-        if (!annotationsLayer || !pdfState.pdfDoc) return;
+        const canvas = document.getElementById('pdf-canvas');
+        if (!annotationsLayer || !canvas || !pdfState.pdfDoc) return;
         
         // Clear existing annotations
         annotationsLayer.innerHTML = '';
         
-        // Filter annotations for current page
+        // Filter annotations for current page and rotation
         const pageAnnotations = pdfState.annotations.filter(
-            ann => ann.pageNumber === pdfState.currentPage && ann.type === 'highlight'
+            ann => ann.pageNumber === pdfState.currentPage && 
+                   ann.type === 'highlight' &&
+                   (ann.rotation === undefined || ann.rotation === pdfState.rotation) // Show highlights created at current rotation or legacy highlights
         );
+        
+        // Get current canvas dimensions
+        const canvasRect = canvas.getBoundingClientRect();
+        const displayWidth = parseFloat(canvas.style.width);
+        const displayHeight = parseFloat(canvas.style.height);
         
         // Render each highlight
         pageAnnotations.forEach(annotation => {
             if (annotation.rects && annotation.rects.length > 0) {
-                annotation.rects.forEach(rect => {
+                annotation.rects.forEach(normalizedRect => {
+                    // Convert normalized coordinates (0-1) to actual pixel positions
+                    const x = normalizedRect.x * displayWidth;
+                    const y = normalizedRect.y * displayHeight;
+                    const width = normalizedRect.width * displayWidth;
+                    const height = normalizedRect.height * displayHeight;
+                    
                     const highlight = document.createElement('div');
                     highlight.className = 'pdf-highlight';
                     highlight.dataset.annotationId = annotation.id;
                     highlight.style.position = 'absolute';
-                    highlight.style.left = `${rect.x}px`;
-                    highlight.style.top = `${rect.y}px`;
-                    highlight.style.width = `${rect.width}px`;
-                    highlight.style.height = `${rect.height}px`;
+                    highlight.style.left = `${x}px`;
+                    highlight.style.top = `${y}px`;
+                    highlight.style.width = `${width}px`;
+                    highlight.style.height = `${height}px`;
                     highlight.style.backgroundColor = getHighlightColor(annotation.color);
                     highlight.style.opacity = '0.4';
                     highlight.style.cursor = 'pointer';
@@ -575,46 +589,71 @@ export const detailsView = {
         const selectedText = selection.toString().trim();
         if (!selectedText) return;
         
+        // Warn user if page is rotated (highlights are rotation-specific)
+        if (pdfState.rotation !== 0) {
+            showToast(`Note: Highlight created at ${pdfState.rotation}° rotation`, 'info');
+        }
+        
         try {
-            // Extract text content with positions for current page
-            const page = await pdfState.pdfDoc.getPage(pdfState.currentPage);
-            const textContent = await page.getTextContent();
-            const viewport = page.getViewport({ scale: pdfState.scale, rotation: pdfState.rotation });
+            // Get all ranges from the selection
+            const range = selection.getRangeAt(0);
+            const textLayer = document.getElementById('pdf-text-layer');
+            const pageWrapper = document.getElementById('pdf-page-wrapper');
             
-            // Find the selected text in PDF text layer
-            const rects = [];
-            let searchText = '';
-            
-            for (let i = 0; i < textContent.items.length; i++) {
-                const item = textContent.items[i];
-                searchText += item.str;
-                
-                if (searchText.includes(selectedText)) {
-                    // Calculate bounding box for this text item
-                    const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-                    const x = tx[4];
-                    const y = viewport.height - tx[5] - item.height;
-                    const width = item.width;
-                    const height = item.height;
-                    
-                    rects.push({ x, y, width, height });
-                    break;
-                }
-            }
-            
-            if (rects.length === 0) {
-                showToast('Could not locate selected text in PDF', 'warning');
+            if (!textLayer || !pageWrapper) {
+                showToast('Could not locate text layer', 'error');
                 return;
             }
             
-            // Save annotation to database
+            // Get bounding rectangles from the DOM selection
+            const domRects = range.getClientRects();
+            const pageWrapperRect = pageWrapper.getBoundingClientRect();
+            const canvas = document.getElementById('pdf-canvas');
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            if (domRects.length === 0) {
+                showToast('Could not get selection coordinates', 'warning');
+                return;
+            }
+            
+            // Get current viewport for normalization
+            const page = await pdfState.pdfDoc.getPage(pdfState.currentPage);
+            const viewport = page.getViewport({ scale: 1.0, rotation: pdfState.rotation });
+            
+            // Convert DOM rectangles to normalized coordinates (0-1 range based on unscaled page)
+            const rects = [];
+            for (let i = 0; i < domRects.length; i++) {
+                const domRect = domRects[i];
+                
+                // Calculate position relative to canvas
+                const relativeX = domRect.left - canvasRect.left;
+                const relativeY = domRect.top - canvasRect.top;
+                
+                // Normalize to 0-1 range based on current viewport
+                const normalizedRect = {
+                    x: relativeX / canvasRect.width,
+                    y: relativeY / canvasRect.height,
+                    width: domRect.width / canvasRect.width,
+                    height: domRect.height / canvasRect.height
+                };
+                
+                rects.push(normalizedRect);
+            }
+            
+            if (rects.length === 0) {
+                showToast('Could not capture highlight coordinates', 'warning');
+                return;
+            }
+            
+            // Save annotation to database with normalized coordinates
             const annotation = {
                 paperId: paper.id,
                 type: 'highlight',
                 pageNumber: pdfState.currentPage,
                 color: pdfState.selectedColor,
                 textContent: selectedText,
-                rects: rects
+                rects: rects,
+                rotation: pdfState.rotation // Store rotation for reference
             };
             
             const id = await addAnnotation(annotation);
