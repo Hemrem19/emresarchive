@@ -368,11 +368,51 @@ export const renderSidebarTags = (papers) => {
     mobileTagsSection.innerHTML = tagsHtml;
 };
 
+/**
+ * Renders collections in the sidebar.
+ * @param {Array<Object>} collections - Array of collection objects.
+ */
+export const renderSidebarCollections = (collections) => {
+    const collectionsSection = document.getElementById('sidebar-collections-section');
+    const mobileCollectionsSection = document.getElementById('mobile-sidebar-collections-section');
+
+    if (!collectionsSection || !mobileCollectionsSection) return;
+
+    if (!collections || collections.length === 0) {
+        collectionsSection.innerHTML = '';
+        mobileCollectionsSection.innerHTML = '';
+        return;
+    }
+
+    const collectionsHtml = `
+        <div class="flex items-center justify-between px-3 mb-2">
+            <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider">Collections</h3>
+            <button id="save-collection-btn" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors" title="Save current filters as collection">
+                <span class="material-symbols-outlined text-sm text-stone-500 dark:text-stone-400">add_circle</span>
+            </button>
+        </div>
+        <div class="space-y-1">
+            ${collections.map(collection => `
+                <div class="collection-item group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors" data-collection-id="${collection.id}">
+                    <span class="material-symbols-outlined text-lg ${collection.color || 'text-primary'}">${collection.icon || 'folder'}</span>
+                    <span class="flex-1 text-sm font-medium text-stone-700 dark:text-stone-300 collection-name">${escapeHtml(collection.name)}</span>
+                    <button class="edit-collection-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-all" data-collection-id="${collection.id}" title="Edit collection">
+                        <span class="material-symbols-outlined text-sm text-stone-500 dark:text-stone-400">edit</span>
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    collectionsSection.innerHTML = collectionsHtml;
+    mobileCollectionsSection.innerHTML = collectionsHtml;
+};
+
 export const highlightActiveSidebarLink = () => {
     const path = window.location.hash;
     
     // Reset all links to inactive state
-    document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link').forEach(el => {
+    document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .collection-item').forEach(el => {
         el.classList.remove('text-primary', 'bg-primary/10', 'dark:bg-primary/20');
         el.classList.add('text-stone-500', 'dark:text-stone-400', 'hover:text-stone-900', 'dark:hover:text-stone-100', 'hover:bg-stone-100', 'dark:hover:bg-stone-800');
     });
@@ -384,8 +424,13 @@ export const highlightActiveSidebarLink = () => {
         });
     };
 
+    // Handle collection: #/collection/123
+    if (path.startsWith('#/collection/')) {
+        const collectionId = decodeURIComponent(path.split('/')[2]);
+        setActive(`.collection-item[data-collection-id="${collectionId}"]`);
+    }
     // Handle compound filters: #/filter/status:Reading/tag:ml
-    if (path.startsWith('#/filter/')) {
+    else if (path.startsWith('#/filter/')) {
         const parts = path.substring(9).split('/'); // Remove '#/filter/'
         parts.forEach(part => {
             if (part.startsWith('status:')) {
