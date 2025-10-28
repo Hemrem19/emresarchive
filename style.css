@@ -94,3 +94,44 @@ body {
 #pdf-panel:fullscreen #pdf-canvas-container {
     max-height: calc(100vh - 60px); /* Subtract toolbar height */
 }
+
+/* PDF Text Layer for Text Selection */
+#pdf-text-layer {
+    position: absolute;
+    text-align: initial;
+    inset: 0;
+    overflow: hidden;
+    opacity: 0.2; /* Make text visible when selected */
+    line-height: 1;
+    text-size-adjust: none;
+    forced-color-adjust: none;
+    transform-origin: 0 0;
+    z-index: 2;
+}
+
+#pdf-text-layer :is(span, br) {
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+}
+
+/* Highlighted selected text should be visible */
+#pdf-text-layer ::selection {
+    background: rgba(0, 123, 255, 0.3);
+}
+
+#pdf-text-layer br::selection {
+    background: transparent;
+}
+
+/* Dark mode selection */
+.dark #pdf-text-layer ::selection {
+    background: rgba(96, 165, 250, 0.4);
+}
+
+/* PDF Annotations Layer */
+#pdf-annotations-layer {
+    z-index: 3; /* Above text layer */
+}

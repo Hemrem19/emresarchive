@@ -241,7 +241,9 @@ export const detailsView = {
                             <div id="pdf-canvas-container" class="flex-grow overflow-auto bg-stone-100 dark:bg-stone-900 flex items-start justify-center p-4">
                                 <div id="pdf-page-wrapper" class="relative">
                                     <canvas id="pdf-canvas" class="shadow-lg bg-white"></canvas>
-                                    <!-- Annotations layer will go here -->
+                                    <!-- Text layer for text selection -->
+                                    <div id="pdf-text-layer" class="absolute top-0 left-0 w-full h-full overflow-hidden"></div>
+                                    <!-- Annotations layer -->
                                     <div id="pdf-annotations-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
                                 </div>
                             </div>
@@ -419,6 +421,13 @@ export const detailsView = {
                 annotationsLayer.style.height = `${displayViewport.height}px`;
             }
             
+            // Update text layer size to match display size
+            const textLayer = document.getElementById('pdf-text-layer');
+            if (textLayer) {
+                textLayer.style.width = `${displayViewport.width}px`;
+                textLayer.style.height = `${displayViewport.height}px`;
+            }
+            
             // Render PDF page at high resolution
             const renderContext = {
                 canvasContext: ctx,
@@ -426,6 +435,18 @@ export const detailsView = {
             };
             
             await page.render(renderContext).promise;
+            
+            // Render text layer for text selection
+            if (textLayer) {
+                textLayer.innerHTML = ''; // Clear previous text layer
+                const textContent = await page.getTextContent();
+                pdfjsLib.renderTextLayer({
+                    textContentSource: textContent,
+                    container: textLayer,
+                    viewport: displayViewport,
+                    textDivs: []
+                });
+            }
             
             // Update page number display
             pdfState.currentPage = pageNum;
