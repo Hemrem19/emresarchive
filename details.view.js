@@ -347,10 +347,13 @@ export const detailsView = {
             // Get device pixel ratio for high-DPI displays (Retina, etc.)
             const pixelRatio = window.devicePixelRatio || 1;
             
-            // Use a minimum render scale to ensure crisp rendering even at low zoom
-            // This ensures we always render at high quality and scale down visually
-            const MIN_RENDER_SCALE = 2.0; // Minimum 2x rendering for quality
-            const renderScale = Math.max(pdfState.scale * pixelRatio, MIN_RENDER_SCALE);
+            // Adaptive rendering scale for crisp quality at ALL zoom levels
+            // Low zoom (<100%): Render at minimum 2.0x for quality
+            // High zoom (>=100%): Render at 2x the zoom level for excellent quality
+            const MIN_RENDER_SCALE = 2.0;
+            const renderScale = pdfState.scale < 1.0
+                ? MIN_RENDER_SCALE  // Fixed high quality for small views
+                : pdfState.scale * pixelRatio * 2.0;  // Proportional scaling for large views
             
             // Calculate viewport for rendering (high resolution)
             let renderViewport = page.getViewport({ scale: renderScale, rotation: pdfState.rotation });
