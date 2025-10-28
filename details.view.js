@@ -434,36 +434,35 @@ export const detailsView = {
             
             // Render text layer for text selection
             if (textLayer) {
-                // Clear previous text layer
+                // Clear previous text layer and reset styles
                 textLayer.innerHTML = '';
+                textLayer.style.transform = '';
+                textLayer.style.zoom = '';
                 
-                // CRITICAL: Render text layer at SAME scale as canvas for proper alignment
-                // The canvas is rendered at renderViewport scale, then CSS-scaled to displayViewport
-                // The text layer must match this: render at renderViewport, CSS-scale to displayViewport
+                // CRITICAL: Render text layer at SAME resolution as canvas
+                // Then use CSS zoom to scale it to match display size
+                // This avoids transform issues while maintaining alignment
                 
-                // Set container to match the render scale (internal dimensions)
+                // Set size to match render viewport
                 textLayer.style.width = `${renderViewport.width}px`;
                 textLayer.style.height = `${renderViewport.height}px`;
                 
-                // Get text content and render at SAME viewport as canvas
+                // Render text at render viewport (same as canvas internal resolution)
                 const textContent = await page.getTextContent();
                 const textLayerRender = pdfjsLib.renderTextLayer({
                     textContentSource: textContent,
                     container: textLayer,
-                    viewport: renderViewport, // Match canvas rendering scale!
+                    viewport: renderViewport, // Match canvas rendering scale
                     textDivs: []
                 });
                 
                 // Wait for text layer to complete rendering
                 await textLayerRender.promise;
                 
-                // Now CSS-scale the text layer down to match display size
-                // Calculate the scale ratio
-                const scaleRatio = displayViewport.width / renderViewport.width;
-                textLayer.style.transform = `scale(${scaleRatio})`;
-                textLayer.style.transformOrigin = '0 0';
-                textLayer.style.width = `${renderViewport.width}px`;
-                textLayer.style.height = `${renderViewport.height}px`;
+                // Use CSS zoom to scale down to display size
+                // This is simpler than transform and works better across zoom levels
+                const zoomRatio = displayViewport.width / renderViewport.width;
+                textLayer.style.zoom = zoomRatio;
             }
             
             // Update page number display
