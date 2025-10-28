@@ -22,6 +22,9 @@
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
     </script>
+    
+    <!-- vis-network Library for Graph View -->
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -68,6 +71,10 @@
                 <span class="material-symbols-outlined text-lg">inbox</span>
                 <span class="text-sm font-medium">All Papers</span>
             </a>
+            <a href="#/graph" class="flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                <span class="material-symbols-outlined text-lg">device_hub</span>
+                <span class="text-sm font-medium">Paper Network</span>
+            </a>
             <div class="pt-4">
                 <h3 class="px-3 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider mb-2">Status</h3>
                 <div id="mobile-sidebar-status-list" class="space-y-1"></div>
@@ -97,6 +104,10 @@
                 <a href="#/" class="sidebar-all-papers-link flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                     <span class="material-symbols-outlined text-lg">inbox</span>
                     <span class="text-sm font-medium">All Papers</span>
+                </a>
+                <a href="#/graph" class="flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+                    <span class="material-symbols-outlined text-lg">device_hub</span>
+                    <span class="text-sm font-medium">Paper Network</span>
                 </a>
                 <div class="pt-4">
                     <h3 class="px-3 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider mb-2">Status</h3>

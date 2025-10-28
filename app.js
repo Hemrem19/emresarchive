@@ -5,6 +5,7 @@ import { dashboardView } from './dashboard.view.js';
 import { detailsView } from './details.view.js';
 import { formView } from './form.view.js';
 import { settingsView } from './settings.view.js';
+import { graphView } from './graph.view.js';
 import { getStatusOrder } from './config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -274,6 +275,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Search actions
             const actions = [
                 { name: 'Add New Paper', icon: 'add_circle', action: () => window.location.hash = '#/add' },
+                { name: 'Paper Network', icon: 'device_hub', action: () => window.location.hash = '#/graph' },
                 { name: 'Export Data', icon: 'download', action: () => window.location.hash = '#/settings' },
                 { name: 'Import Data', icon: 'upload', action: () => window.location.hash = '#/settings' },
                 { name: 'Settings', icon: 'settings', action: () => window.location.hash = '#/settings' },
@@ -1181,6 +1183,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await appState.currentView.mount(appState);
                 renderSidebarStatusLinks(); // Re-render in case order changed
             });
+        } else if (requestedPath === '/graph') {
+            appState.currentView = graphView;
+            renderView(templates.graph, () => appState.currentView.mount(appState));
         } else if (requestedPath === '/' || requestedPath.startsWith('/tag/') || requestedPath.startsWith('/status/') || requestedPath.startsWith('/filter/')) {
             // Parse URL hash to update filters
             parseUrlHash();
