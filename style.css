@@ -152,3 +152,35 @@ body {
 #pdf-annotations-layer {
     z-index: 3; /* Above text layer */
 }
+
+/* ==================== MOBILE & TOUCH OPTIMIZATIONS ==================== */
+
+/* Touch manipulation for better mobile performance */
+.touch-manipulation {
+    touch-action: manipulation; /* Prevents 300ms tap delay */
+    -webkit-tap-highlight-color: transparent; /* Removes iOS tap highlight */
+    user-select: none; /* Prevents text selection on buttons */
+}
+
+/* Ensure all inputs and interactive elements are at least 44x44px (Apple HIG) */
+input[type="number"],
+input[type="text"],
+select,
+button {
+    min-height: 44px;
+}
+
+/* PDF Canvas Container - Touch Scrolling */
+#pdf-canvas-container {
+    -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
+    overscroll-behavior: contain; /* Prevents page bounce on iOS */
+}
+
+/* Prevent zoom on input focus (iOS Safari) */
+@media screen and (max-width: 640px) {
+    input[type="number"],
+    input[type="text"],
+    select {
+        font-size: 16px; /* Prevents iOS zoom when < 16px */
+    }
+}

@@ -156,71 +156,77 @@ export const detailsView = {
                     <!-- PDF Panel -->
                     ${paper.hasPdf ? `
                         <div id="pdf-panel" class="tab-panel hidden flex-grow flex flex-col">
-                            <!-- PDF Toolbar -->
-                            <div class="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50 flex-shrink-0">
-                                <!-- Navigation Controls -->
-                                <div class="flex items-center gap-2">
-                                    <button id="pdf-prev-page" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed" title="Previous Page">
-                                        <span class="material-symbols-outlined">chevron_left</span>
-                                    </button>
-                                    <div class="flex items-center gap-1 text-sm">
-                                        <input type="number" id="pdf-page-input" min="1" class="w-16 h-8 px-2 text-center border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100" value="1">
-                                        <span class="text-stone-600 dark:text-stone-400">/ <span id="pdf-total-pages">-</span></span>
+                            <!-- PDF Toolbar (Mobile-Responsive) -->
+                            <div class="px-2 sm:px-4 py-2 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50 flex-shrink-0">
+                                <!-- Primary Row: Navigation + Zoom -->
+                                <div class="flex items-center justify-between gap-2 mb-2">
+                                    <!-- Navigation Controls -->
+                                    <div class="flex items-center gap-1 sm:gap-2">
+                                        <button id="pdf-prev-page" class="p-2 sm:p-2.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation" title="Previous Page">
+                                            <span class="material-symbols-outlined text-xl">chevron_left</span>
+                                        </button>
+                                        <div class="flex items-center gap-1 text-sm">
+                                            <input type="number" id="pdf-page-input" min="1" class="w-12 sm:w-16 h-9 sm:h-10 px-2 text-center border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 touch-manipulation" value="1">
+                                            <span class="text-stone-600 dark:text-stone-400">/ <span id="pdf-total-pages">-</span></span>
+                                        </div>
+                                        <button id="pdf-next-page" class="p-2 sm:p-2.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation" title="Next Page">
+                                            <span class="material-symbols-outlined text-xl">chevron_right</span>
+                                        </button>
                                     </div>
-                                    <button id="pdf-next-page" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed" title="Next Page">
-                                        <span class="material-symbols-outlined">chevron_right</span>
-                                    </button>
-                                </div>
-                                
-                                <!-- Zoom Controls -->
-                                <div class="flex items-center gap-2">
-                                    <button id="pdf-zoom-out" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Zoom Out">
-                                        <span class="material-symbols-outlined">zoom_out</span>
-                                    </button>
-                                    <select id="pdf-zoom-select" class="h-8 px-2 text-sm border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100">
-                                        <option value="auto">Auto</option>
-                                        <option value="page-fit">Page Fit</option>
-                                        <option value="page-width">Page Width</option>
-                                        <option value="0.5">50%</option>
-                                        <option value="0.75">75%</option>
-                                        <option value="1" selected>100%</option>
-                                        <option value="1.25">125%</option>
-                                        <option value="1.5">150%</option>
-                                        <option value="2">200%</option>
-                                    </select>
-                                    <button id="pdf-zoom-in" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Zoom In">
-                                        <span class="material-symbols-outlined">zoom_in</span>
-                                    </button>
-                                </div>
-                                
-                                <!-- Search Controls -->
-                                <div class="flex items-center gap-1" id="pdf-search-container">
-                                    <button id="pdf-search-toggle" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Search in PDF">
-                                        <span class="material-symbols-outlined">search</span>
-                                    </button>
-                                    <div id="pdf-search-box" class="hidden flex items-center gap-1">
-                                        <input type="text" id="pdf-search-input" placeholder="Search in PDF..." class="w-40 h-8 px-2 text-sm border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-primary focus:border-primary">
-                                        <span id="pdf-search-count" class="text-xs text-stone-500 dark:text-stone-400 whitespace-nowrap hidden">0 of 0</span>
-                                        <button id="pdf-search-prev" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50" title="Previous Match" disabled>
-                                            <span class="material-symbols-outlined text-sm">arrow_upward</span>
+                                    
+                                    <!-- Zoom Controls -->
+                                    <div class="flex items-center gap-1 sm:gap-2">
+                                        <button id="pdf-zoom-out" class="p-2 sm:p-2.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 touch-manipulation" title="Zoom Out">
+                                            <span class="material-symbols-outlined text-xl">zoom_out</span>
                                         </button>
-                                        <button id="pdf-search-next" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50" title="Next Match" disabled>
-                                            <span class="material-symbols-outlined text-sm">arrow_downward</span>
-                                        </button>
-                                        <button id="pdf-search-close" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Close Search">
-                                            <span class="material-symbols-outlined text-sm">close</span>
+                                        <select id="pdf-zoom-select" class="h-9 sm:h-10 px-2 text-sm border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 touch-manipulation">
+                                            <option value="auto">Auto</option>
+                                            <option value="page-fit">Fit</option>
+                                            <option value="page-width">Width</option>
+                                            <option value="0.5">50%</option>
+                                            <option value="0.75">75%</option>
+                                            <option value="1" selected>100%</option>
+                                            <option value="1.25">125%</option>
+                                            <option value="1.5">150%</option>
+                                            <option value="2">200%</option>
+                                        </select>
+                                        <button id="pdf-zoom-in" class="p-2 sm:p-2.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 touch-manipulation" title="Zoom In">
+                                            <span class="material-symbols-outlined text-xl">zoom_in</span>
                                         </button>
                                     </div>
                                 </div>
                                 
-                                <!-- Additional Controls -->
-                                <div class="flex items-center gap-2">
-                                    <button id="pdf-rotate" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Rotate">
-                                        <span class="material-symbols-outlined">rotate_90_degrees_cw</span>
-                                    </button>
-                                    <button id="pdf-fullscreen" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Fullscreen">
-                                        <span class="material-symbols-outlined">fullscreen</span>
-                                    </button>
+                                <!-- Secondary Row: Search + Additional Controls -->
+                                <div class="flex items-center justify-between gap-2">
+                                    <!-- Search Controls (Expandable) -->
+                                    <div class="flex items-center gap-1 flex-grow" id="pdf-search-container">
+                                        <button id="pdf-search-toggle" class="p-2 sm:p-2.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 touch-manipulation" title="Search in PDF">
+                                            <span class="material-symbols-outlined text-xl">search</span>
+                                        </button>
+                                        <div id="pdf-search-box" class="hidden flex items-center gap-1 flex-grow">
+                                            <input type="text" id="pdf-search-input" placeholder="Search..." class="flex-grow sm:w-auto h-9 sm:h-10 px-2 sm:px-3 text-sm border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-primary focus:border-primary touch-manipulation">
+                                            <span id="pdf-search-count" class="text-xs text-stone-500 dark:text-stone-400 whitespace-nowrap hidden sm:inline">0 of 0</span>
+                                            <button id="pdf-search-prev" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 touch-manipulation" title="Previous Match" disabled>
+                                                <span class="material-symbols-outlined">arrow_upward</span>
+                                            </button>
+                                            <button id="pdf-search-next" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 touch-manipulation" title="Next Match" disabled>
+                                                <span class="material-symbols-outlined">arrow_downward</span>
+                                            </button>
+                                            <button id="pdf-search-close" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 touch-manipulation" title="Close Search">
+                                                <span class="material-symbols-outlined">close</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Additional Controls -->
+                                    <div class="flex items-center gap-1 sm:gap-2">
+                                        <button id="pdf-rotate" class="p-2 sm:p-2.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 touch-manipulation" title="Rotate">
+                                            <span class="material-symbols-outlined text-xl">rotate_90_degrees_cw</span>
+                                        </button>
+                                        <button id="pdf-fullscreen" class="p-2 sm:p-2.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 touch-manipulation" title="Fullscreen">
+                                            <span class="material-symbols-outlined text-xl">fullscreen</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -589,6 +595,131 @@ export const detailsView = {
                 icon.textContent = document.fullscreenElement ? 'fullscreen_exit' : 'fullscreen';
             }
         });
+    }
+
+    // ==================== PDF TOUCH GESTURES (Mobile) ====================
+    const pdfCanvas = document.getElementById('pdf-canvas');
+    const pdfCanvasContainer = document.getElementById('pdf-canvas-container');
+    
+    if (pdfCanvas && pdfCanvasContainer) {
+        let touchState = {
+            initialDistance: 0,
+            initialScale: 1.0,
+            touchStartX: 0,
+            touchStartY: 0,
+            isSwiping: false,
+            isPinching: false,
+            lastTapTime: 0
+        };
+        
+        // Helper: Calculate distance between two touch points
+        const getTouchDistance = (touch1, touch2) => {
+            const dx = touch1.clientX - touch2.clientX;
+            const dy = touch1.clientY - touch2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        };
+        
+        // Touch Start - Initialize gestures
+        pdfCanvasContainer.addEventListener('touchstart', (e) => {
+            const touches = e.touches;
+            
+            // Two-finger pinch zoom
+            if (touches.length === 2) {
+                e.preventDefault();
+                touchState.isPinching = true;
+                touchState.isSwiping = false;
+                touchState.initialDistance = getTouchDistance(touches[0], touches[1]);
+                touchState.initialScale = pdfState.scale;
+            }
+            // Single-finger swipe or double-tap
+            else if (touches.length === 1) {
+                touchState.touchStartX = touches[0].clientX;
+                touchState.touchStartY = touches[0].clientY;
+                touchState.isSwiping = false;
+                
+                // Double-tap detection
+                const currentTime = Date.now();
+                const tapGap = currentTime - touchState.lastTapTime;
+                
+                if (tapGap < 300 && tapGap > 0) {
+                    // Double-tap detected - toggle zoom
+                    e.preventDefault();
+                    if (pdfState.scale > 1.0) {
+                        pdfState.scale = 1.0;
+                    } else {
+                        pdfState.scale = 2.0;
+                    }
+                    if (zoomSelect) zoomSelect.value = pdfState.scale;
+                    renderPdfPage(pdfState.currentPage);
+                    touchState.lastTapTime = 0; // Reset to prevent triple-tap
+                } else {
+                    touchState.lastTapTime = currentTime;
+                }
+            }
+        }, { passive: false });
+        
+        // Touch Move - Handle pinch zoom and swipe detection
+        pdfCanvasContainer.addEventListener('touchmove', (e) => {
+            const touches = e.touches;
+            
+            // Pinch zoom
+            if (touchState.isPinching && touches.length === 2) {
+                e.preventDefault();
+                const currentDistance = getTouchDistance(touches[0], touches[1]);
+                const scale = (currentDistance / touchState.initialDistance) * touchState.initialScale;
+                
+                // Clamp scale between 0.25 and 3.0
+                pdfState.scale = Math.max(0.25, Math.min(3.0, scale));
+                
+                if (zoomSelect) {
+                    // Update dropdown to closest preset or exact value
+                    const exactOption = Array.from(zoomSelect.options).find(opt => 
+                        !isNaN(parseFloat(opt.value)) && Math.abs(parseFloat(opt.value) - pdfState.scale) < 0.1
+                    );
+                    if (exactOption) {
+                        zoomSelect.value = exactOption.value;
+                    }
+                }
+                
+                renderPdfPage(pdfState.currentPage);
+            }
+            // Swipe detection (horizontal only)
+            else if (touches.length === 1 && !touchState.isPinching) {
+                const deltaX = touches[0].clientX - touchState.touchStartX;
+                const deltaY = touches[0].clientY - touchState.touchStartY;
+                
+                // If horizontal movement is significant and greater than vertical
+                if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 2) {
+                    touchState.isSwiping = true;
+                }
+            }
+        }, { passive: false });
+        
+        // Touch End - Execute swipe actions
+        pdfCanvasContainer.addEventListener('touchend', (e) => {
+            if (touchState.isSwiping) {
+                const deltaX = (e.changedTouches[0]?.clientX || touchState.touchStartX) - touchState.touchStartX;
+                
+                // Swipe right → Previous page
+                if (deltaX > 50 && pdfState.currentPage > 1) {
+                    renderPdfPage(pdfState.currentPage - 1);
+                }
+                // Swipe left → Next page
+                else if (deltaX < -50 && pdfState.currentPage < pdfState.totalPages) {
+                    renderPdfPage(pdfState.currentPage + 1);
+                }
+            }
+            
+            // Reset touch state
+            touchState.isPinching = false;
+            touchState.isSwiping = false;
+        }, { passive: true });
+        
+        // Touch Cancel - Reset state
+        pdfCanvasContainer.addEventListener('touchcancel', () => {
+            touchState.isPinching = false;
+            touchState.isSwiping = false;
+        }, { passive: true });
     }
 
     // PDF Search Functionality
