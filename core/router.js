@@ -6,7 +6,7 @@ import { detailsView } from '../details.view.js';
 import { formView } from '../form.view.js';
 import { settingsView } from '../settings.view.js';
 import { graphView } from '../graph.view.js';
-import { templates } from '../views.js';
+import { views as templates } from '../views.js';
 import { highlightActiveSidebarLink } from '../ui.js';
 import { parseUrlHash, applyFiltersAndRender } from './filters.js';
 
