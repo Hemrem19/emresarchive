@@ -193,6 +193,26 @@ export const detailsView = {
                                     </button>
                                 </div>
                                 
+                                <!-- Search Controls -->
+                                <div class="flex items-center gap-1" id="pdf-search-container">
+                                    <button id="pdf-search-toggle" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Search in PDF">
+                                        <span class="material-symbols-outlined">search</span>
+                                    </button>
+                                    <div id="pdf-search-box" class="hidden flex items-center gap-1">
+                                        <input type="text" id="pdf-search-input" placeholder="Search in PDF..." class="w-40 h-8 px-2 text-sm border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-primary focus:border-primary">
+                                        <span id="pdf-search-count" class="text-xs text-stone-500 dark:text-stone-400 whitespace-nowrap hidden">0 of 0</span>
+                                        <button id="pdf-search-prev" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50" title="Previous Match" disabled>
+                                            <span class="material-symbols-outlined text-sm">arrow_upward</span>
+                                        </button>
+                                        <button id="pdf-search-next" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50" title="Next Match" disabled>
+                                            <span class="material-symbols-outlined text-sm">arrow_downward</span>
+                                        </button>
+                                        <button id="pdf-search-close" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Close Search">
+                                            <span class="material-symbols-outlined text-sm">close</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                
                                 <!-- Additional Controls -->
                                 <div class="flex items-center gap-2">
                                     <button id="pdf-rotate" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Rotate">
@@ -331,7 +351,12 @@ export const detailsView = {
         totalPages: 0,
         scale: 1.0,
         rotation: 0,
-        rendering: false
+        rendering: false,
+        // Search state
+        searchQuery: '',
+        searchMatches: [],
+        currentMatchIndex: -1,
+        pageTextCache: new Map() // Cache extracted text per page
     };
 
     // PDF.js Rendering Function
@@ -567,6 +592,193 @@ export const detailsView = {
                 icon.textContent = document.fullscreenElement ? 'fullscreen_exit' : 'fullscreen';
             }
         });
+    }
+
+    // PDF Search Functionality
+    const extractTextFromPage = async (pageNum) => {
+        // Check cache first
+        if (pdfState.pageTextCache.has(pageNum)) {
+            return pdfState.pageTextCache.get(pageNum);
+        }
+
+        try {
+            const page = await pdfState.pdfDoc.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            const textItems = textContent.items.map(item => item.str);
+            const pageText = textItems.join(' ');
+            
+            // Cache the extracted text
+            pdfState.pageTextCache.set(pageNum, pageText);
+            return pageText;
+        } catch (error) {
+            console.error(`Error extracting text from page ${pageNum}:`, error);
+            return '';
+        }
+    };
+
+    const searchInPdf = async (query) => {
+        if (!query || query.trim().length === 0) {
+            pdfState.searchMatches = [];
+            pdfState.currentMatchIndex = -1;
+            pdfState.searchQuery = '';
+            updateSearchUI();
+            renderPdfPage(pdfState.currentPage); // Clear highlights
+            return;
+        }
+
+        pdfState.searchQuery = query.toLowerCase();
+        pdfState.searchMatches = [];
+        pdfState.currentMatchIndex = -1;
+
+        // Search through all pages
+        for (let pageNum = 1; pageNum <= pdfState.totalPages; pageNum++) {
+            const pageText = await extractTextFromPage(pageNum);
+            const pageLower = pageText.toLowerCase();
+            
+            // Find all occurrences in this page
+            let startIndex = 0;
+            while ((startIndex = pageLower.indexOf(pdfState.searchQuery, startIndex)) !== -1) {
+                pdfState.searchMatches.push({ page: pageNum, index: startIndex });
+                startIndex += pdfState.searchQuery.length;
+            }
+        }
+
+        if (pdfState.searchMatches.length > 0) {
+            pdfState.currentMatchIndex = 0;
+            // Navigate to first match
+            const firstMatch = pdfState.searchMatches[0];
+            if (pdfState.currentPage !== firstMatch.page) {
+                await renderPdfPage(firstMatch.page);
+            }
+        }
+
+        updateSearchUI();
+        highlightSearchResults();
+    };
+
+    const highlightSearchResults = () => {
+        const canvas = document.getElementById('pdf-canvas');
+        const annotationsLayer = document.getElementById('pdf-annotations-layer');
+        
+        if (!annotationsLayer || !canvas || pdfState.searchMatches.length === 0) {
+            // Clear existing highlights
+            if (annotationsLayer) annotationsLayer.innerHTML = '';
+            return;
+        }
+
+        // Clear existing highlights
+        annotationsLayer.innerHTML = '';
+
+        // Get matches on current page
+        const currentPageMatches = pdfState.searchMatches.filter(m => m.page === pdfState.currentPage);
+        
+        if (currentPageMatches.length === 0) return;
+
+        // For simple highlighting, we'll add colored overlays
+        // Note: This is a basic implementation. Full text-position-based highlighting
+        // would require more complex PDF.js text layer rendering
+        const matchInfo = document.createElement('div');
+        matchInfo.className = 'absolute top-2 left-2 bg-yellow-200 dark:bg-yellow-600 text-stone-900 dark:text-white px-2 py-1 rounded text-xs font-medium shadow';
+        matchInfo.textContent = `${currentPageMatches.length} match${currentPageMatches.length > 1 ? 'es' : ''} on this page`;
+        annotationsLayer.appendChild(matchInfo);
+    };
+
+    const updateSearchUI = () => {
+        const countEl = document.getElementById('pdf-search-count');
+        const prevBtn = document.getElementById('pdf-search-prev');
+        const nextBtn = document.getElementById('pdf-search-next');
+
+        if (pdfState.searchMatches.length === 0) {
+            if (countEl) {
+                countEl.classList.add('hidden');
+            }
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
+        } else {
+            if (countEl) {
+                countEl.textContent = `${pdfState.currentMatchIndex + 1} of ${pdfState.searchMatches.length}`;
+                countEl.classList.remove('hidden');
+            }
+            if (prevBtn) prevBtn.disabled = pdfState.currentMatchIndex <= 0;
+            if (nextBtn) nextBtn.disabled = pdfState.currentMatchIndex >= pdfState.searchMatches.length - 1;
+        }
+    };
+
+    const navigateSearchMatch = async (direction) => {
+        if (pdfState.searchMatches.length === 0) return;
+
+        if (direction === 'next' && pdfState.currentMatchIndex < pdfState.searchMatches.length - 1) {
+            pdfState.currentMatchIndex++;
+        } else if (direction === 'prev' && pdfState.currentMatchIndex > 0) {
+            pdfState.currentMatchIndex--;
+        } else {
+            return; // No navigation needed
+        }
+
+        const match = pdfState.searchMatches[pdfState.currentMatchIndex];
+        if (match.page !== pdfState.currentPage) {
+            await renderPdfPage(match.page);
+        }
+
+        updateSearchUI();
+        highlightSearchResults();
+    };
+
+    // Search UI Event Listeners
+    const searchToggle = document.getElementById('pdf-search-toggle');
+    const searchBox = document.getElementById('pdf-search-box');
+    const searchInput = document.getElementById('pdf-search-input');
+    const searchClose = document.getElementById('pdf-search-close');
+    const searchPrev = document.getElementById('pdf-search-prev');
+    const searchNext = document.getElementById('pdf-search-next');
+
+    if (searchToggle && searchBox) {
+        searchToggle.addEventListener('click', () => {
+            searchBox.classList.toggle('hidden');
+            if (!searchBox.classList.contains('hidden')) {
+                searchInput?.focus();
+            } else {
+                // Clear search when closing
+                if (searchInput) searchInput.value = '';
+                searchInPdf('');
+            }
+        });
+    }
+
+    if (searchClose) {
+        searchClose.addEventListener('click', () => {
+            searchBox?.classList.add('hidden');
+            if (searchInput) searchInput.value = '';
+            searchInPdf('');
+        });
+    }
+
+    if (searchInput) {
+        // Search on input with debounce
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchInPdf(e.target.value);
+            }, 300); // 300ms debounce
+        });
+
+        // Search on Enter key
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(searchTimeout);
+                searchInPdf(e.target.value);
+            }
+        });
+    }
+
+    if (searchPrev) {
+        searchPrev.addEventListener('click', () => navigateSearchMatch('prev'));
+    }
+
+    if (searchNext) {
+        searchNext.addEventListener('click', () => navigateSearchMatch('next'));
     }
 
     const relatedPapersList = document.getElementById('related-papers-list');
