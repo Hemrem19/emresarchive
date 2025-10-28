@@ -286,12 +286,8 @@ export const graphView = {
             ? paper.tags.join(', ')
             : 'No tags';
         
-        return `
-            <strong>${paper.title || 'Untitled'}</strong><br/>
-            <em>${authors}</em><br/>
-            Status: ${paper.readingStatus || 'Unknown'}<br/>
-            Tags: ${tags}
-        `;
+        // vis.js tooltips only support plain text, not HTML
+        return `${paper.title || 'Untitled'}\n${authors}\nStatus: ${paper.readingStatus || 'Unknown'}\nTags: ${tags}`;
     },
 
     populateTagFilter() {
