@@ -1,5 +1,5 @@
-import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper, getPaperByDoi } from './db.js';
-import { renderSidebarTags, showToast } from './ui.js';
+import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper, getPaperByDoi, getAllCollections, addCollection, updateCollection, deleteCollection } from './db.js';
+import { renderSidebarTags, renderSidebarCollections, showToast } from './ui.js';
 import { fetchDoiMetadata } from './api.js';
 import { getStatusOrder } from './config.js';
 
@@ -18,6 +18,9 @@ export const dashboardView = {
     itemsPerPageChangeHandler: null,
     searchModeAllHandler: null,
     searchModeNotesHandler: null,
+    saveCollectionHandler: null,
+    collectionItemClickHandler: null,
+    editCollectionClickHandler: null,
 
     // Helper function to update batch toolbar visibility and count
     updateBatchToolbar(appState) {
@@ -70,6 +73,16 @@ export const dashboardView = {
             });
             appState.allPapersCache = [];
             return; // Early exit if papers can't be loaded
+        }
+
+        // Load and render collections
+        try {
+            appState.collectionsCache = await getAllCollections();
+            renderSidebarCollections(appState.collectionsCache);
+        } catch (error) {
+            console.error('Error loading collections:', error);
+            showToast('Failed to load collections. Some features may be unavailable.', 'warning', { duration: 5000 });
+            appState.collectionsCache = [];
         }
 
         // Clear selections when mounting dashboard (e.g., when navigating back)
@@ -471,6 +484,50 @@ export const dashboardView = {
             };
             searchModeNotesBtn.addEventListener('click', this.searchModeNotesHandler);
         }
+
+        // Collection event handlers using event delegation
+        const handleCollectionEvents = async (e) => {
+            // Handle save collection button
+            const saveCollectionBtn = e.target.closest('#save-collection-btn');
+            if (saveCollectionBtn) {
+                e.preventDefault();
+                await this.handleSaveCollection(appState, applyFiltersAndRender);
+                return;
+            }
+
+            // Handle collection item click (apply collection)
+            const collectionItem = e.target.closest('.collection-item');
+            if (collectionItem && !e.target.closest('.edit-collection-btn')) {
+                e.preventDefault();
+                const collectionId = parseInt(collectionItem.dataset.collectionId, 10);
+                await this.handleApplyCollection(collectionId, appState, applyFiltersAndRender);
+                return;
+            }
+
+            // Handle edit collection button
+            const editCollectionBtn = e.target.closest('.edit-collection-btn');
+            if (editCollectionBtn) {
+                e.stopPropagation();
+                e.preventDefault();
+                const collectionId = parseInt(editCollectionBtn.dataset.collectionId, 10);
+                await this.handleEditCollection(collectionId, appState, applyFiltersAndRender);
+                return;
+            }
+        };
+
+        // Add event listener to both desktop and mobile sidebars
+        const desktopSidebar = document.getElementById('sidebar-collections-section');
+        const mobileSidebar = document.getElementById('mobile-sidebar-collections-section');
+        
+        if (desktopSidebar) {
+            this.collectionItemClickHandler = handleCollectionEvents;
+            desktopSidebar.addEventListener('click', this.collectionItemClickHandler);
+        }
+        
+        if (mobileSidebar) {
+            this.saveCollectionHandler = handleCollectionEvents;
+            mobileSidebar.addEventListener('click', this.saveCollectionHandler);
+        }
     },
 
     unmount() {
@@ -535,6 +592,133 @@ export const dashboardView = {
             if (this.paperListChangeHandler) paperListContainer.removeEventListener('change', this.paperListChangeHandler);
         }
 
+        // Cleanup collection event listeners
+        const desktopSidebar = document.getElementById('sidebar-collections-section');
+        if (desktopSidebar && this.collectionItemClickHandler) {
+            desktopSidebar.removeEventListener('click', this.collectionItemClickHandler);
+        }
+
+        const mobileSidebar = document.getElementById('mobile-sidebar-collections-section');
+        if (mobileSidebar && this.saveCollectionHandler) {
+            mobileSidebar.removeEventListener('click', this.saveCollectionHandler);
+        }
+
         console.log('Dashboard view unmounted.');
+    },
+
+    // Handle saving current filters as a new collection
+    async handleSaveCollection(appState, applyFiltersAndRender) {
+        // Get current filter state
+        const currentFilters = {
+            status: appState.currentStatusFilter || '',
+            tag: appState.currentTagFilter || '',
+            searchTerm: appState.currentSearchTerm || ''
+        };
+
+        // Check if any filters are active
+        if (!currentFilters.status && !currentFilters.tag && !currentFilters.searchTerm) {
+            showToast('No filters are currently active. Apply some filters first.', 'warning', { duration: 4000 });
+            return;
+        }
+
+        // Prompt for collection name
+        const collectionName = prompt('Enter a name for this collection:');
+        if (!collectionName || !collectionName.trim()) {
+            return; // User cancelled or entered empty name
+        }
+
+        try {
+            const newCollection = {
+                name: collectionName.trim(),
+                icon: 'folder', // Default icon
+                color: 'text-primary', // Default color
+                filters: currentFilters,
+                createdAt: new Date()
+            };
+
+            await addCollection(newCollection);
+            
+            // Refresh collections in sidebar
+            appState.collectionsCache = await getAllCollections();
+            renderSidebarCollections(appState.collectionsCache);
+            
+            showToast(`Collection "${collectionName.trim()}" saved successfully!`, 'success', { duration: 3000 });
+        } catch (error) {
+            console.error('Error saving collection:', error);
+            showToast(error.message || 'Failed to save collection. Please try again.', 'error', { duration: 5000 });
+        }
+    },
+
+    // Handle applying a saved collection (restore its filters)
+    async handleApplyCollection(collectionId, appState, applyFiltersAndRender) {
+        try {
+            const collection = appState.collectionsCache.find(c => c.id === collectionId);
+            if (!collection) {
+                showToast('Collection not found.', 'error');
+                return;
+            }
+
+            // Apply the saved filters
+            appState.currentStatusFilter = collection.filters.status || '';
+            appState.currentTagFilter = collection.filters.tag || '';
+            appState.currentSearchTerm = collection.filters.searchTerm || '';
+
+            // Update search input if present
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.value = appState.currentSearchTerm;
+            }
+
+            // Apply filters and render
+            applyFiltersAndRender();
+            
+            showToast(`Applied collection: ${collection.name}`, 'success', { duration: 2000 });
+        } catch (error) {
+            console.error('Error applying collection:', error);
+            showToast('Failed to apply collection. Please try again.', 'error');
+        }
+    },
+
+    // Handle editing or deleting a collection
+    async handleEditCollection(collectionId, appState, applyFiltersAndRender) {
+        try {
+            const collection = appState.collectionsCache.find(c => c.id === collectionId);
+            if (!collection) {
+                showToast('Collection not found.', 'error');
+                return;
+            }
+
+            // Simple prompt-based edit for now (can be enhanced with a modal later)
+            const action = confirm(`Edit collection "${collection.name}"?\n\nOK = Edit name\nCancel = Delete collection`);
+            
+            if (action) {
+                // Edit collection name
+                const newName = prompt('Enter new name for this collection:', collection.name);
+                if (newName && newName.trim() && newName.trim() !== collection.name) {
+                    await updateCollection(collectionId, { name: newName.trim() });
+                    
+                    // Refresh collections in sidebar
+                    appState.collectionsCache = await getAllCollections();
+                    renderSidebarCollections(appState.collectionsCache);
+                    
+                    showToast('Collection updated successfully!', 'success', { duration: 3000 });
+                }
+            } else {
+                // Delete collection
+                const confirmDelete = confirm(`Are you sure you want to delete "${collection.name}"?\n\nThis action cannot be undone.`);
+                if (confirmDelete) {
+                    await deleteCollection(collectionId);
+                    
+                    // Refresh collections in sidebar
+                    appState.collectionsCache = await getAllCollections();
+                    renderSidebarCollections(appState.collectionsCache);
+                    
+                    showToast('Collection deleted successfully!', 'success', { duration: 3000 });
+                }
+            }
+        } catch (error) {
+            console.error('Error editing/deleting collection:', error);
+            showToast(error.message || 'Failed to update collection. Please try again.', 'error', { duration: 5000 });
+        }
     }
 };

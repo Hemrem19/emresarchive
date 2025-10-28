@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const app = document.getElementById('app');
     const appState = {
         allPapersCache: [],
+        collectionsCache: [], // Saved filter collections
         // Initialize hasUnsavedChanges to false. It will be set to true by formView if changes are made.
         // This flag is managed by the formView module.
         hasUnsavedChanges: false, 
