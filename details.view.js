@@ -4,7 +4,6 @@ import { views as templates } from './views.js';
 import { generateCitation } from './citation.js';
 
 export const detailsView = {
-    pdfUrl: null,
     notesSaveHandler: null,
     paperId: null,
     closeModalHandler: null,
@@ -30,12 +29,6 @@ export const detailsView = {
 
     unmount() {
         // Clean up resources created by this view
-        if (this.pdfUrl) {
-            URL.revokeObjectURL(this.pdfUrl);
-            this.pdfUrl = null;
-            console.log(`PDF object URL for paper ${this.paperId} revoked.`);
-        }
-
         const notesEditor = document.getElementById('notes-editor');
         if (notesEditor && this.notesSaveHandler) {
             notesEditor.removeEventListener('blur', this.notesSaveHandler);
@@ -162,8 +155,63 @@ export const detailsView = {
 
                     <!-- PDF Panel -->
                     ${paper.hasPdf ? `
-                        <div id="pdf-panel" class="tab-panel hidden flex-grow">
-                            <iframe id="pdf-viewer" class="w-full h-full min-h-[80vh]" src=""></iframe>
+                        <div id="pdf-panel" class="tab-panel hidden flex-grow flex flex-col">
+                            <!-- PDF Toolbar -->
+                            <div class="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50 flex-shrink-0">
+                                <!-- Navigation Controls -->
+                                <div class="flex items-center gap-2">
+                                    <button id="pdf-prev-page" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed" title="Previous Page">
+                                        <span class="material-symbols-outlined">chevron_left</span>
+                                    </button>
+                                    <div class="flex items-center gap-1 text-sm">
+                                        <input type="number" id="pdf-page-input" min="1" class="w-16 h-8 px-2 text-center border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100" value="1">
+                                        <span class="text-stone-600 dark:text-stone-400">/ <span id="pdf-total-pages">-</span></span>
+                                    </div>
+                                    <button id="pdf-next-page" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed" title="Next Page">
+                                        <span class="material-symbols-outlined">chevron_right</span>
+                                    </button>
+                                </div>
+                                
+                                <!-- Zoom Controls -->
+                                <div class="flex items-center gap-2">
+                                    <button id="pdf-zoom-out" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Zoom Out">
+                                        <span class="material-symbols-outlined">zoom_out</span>
+                                    </button>
+                                    <select id="pdf-zoom-select" class="h-8 px-2 text-sm border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100">
+                                        <option value="auto">Auto</option>
+                                        <option value="page-fit">Page Fit</option>
+                                        <option value="page-width">Page Width</option>
+                                        <option value="0.5">50%</option>
+                                        <option value="0.75">75%</option>
+                                        <option value="1" selected>100%</option>
+                                        <option value="1.25">125%</option>
+                                        <option value="1.5">150%</option>
+                                        <option value="2">200%</option>
+                                    </select>
+                                    <button id="pdf-zoom-in" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Zoom In">
+                                        <span class="material-symbols-outlined">zoom_in</span>
+                                    </button>
+                                </div>
+                                
+                                <!-- Additional Controls -->
+                                <div class="flex items-center gap-2">
+                                    <button id="pdf-rotate" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Rotate">
+                                        <span class="material-symbols-outlined">rotate_90_degrees_cw</span>
+                                    </button>
+                                    <button id="pdf-fullscreen" class="p-2 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300" title="Fullscreen">
+                                        <span class="material-symbols-outlined">fullscreen</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- PDF Canvas Container -->
+                            <div id="pdf-canvas-container" class="flex-grow overflow-auto bg-stone-100 dark:bg-stone-900 flex items-start justify-center p-4">
+                                <div id="pdf-page-wrapper" class="relative">
+                                    <canvas id="pdf-canvas" class="shadow-lg bg-white"></canvas>
+                                    <!-- Annotations layer will go here -->
+                                    <div id="pdf-annotations-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
+                                </div>
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -276,11 +324,99 @@ export const detailsView = {
         });
     }
 
+    // PDF.js Viewer State
+    const pdfState = {
+        pdfDoc: null,
+        currentPage: 1,
+        totalPages: 0,
+        scale: 1.0,
+        rotation: 0,
+        rendering: false
+    };
+
+    // PDF.js Rendering Function
+    const renderPdfPage = async (pageNum) => {
+        if (pdfState.rendering) return;
+        pdfState.rendering = true;
+
+        try {
+            const page = await pdfState.pdfDoc.getPage(pageNum);
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Calculate viewport with rotation
+            let viewport = page.getViewport({ scale: pdfState.scale, rotation: pdfState.rotation });
+            
+            // Set canvas dimensions
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // Update annotations layer size
+            const annotationsLayer = document.getElementById('pdf-annotations-layer');
+            if (annotationsLayer) {
+                annotationsLayer.style.width = `${viewport.width}px`;
+                annotationsLayer.style.height = `${viewport.height}px`;
+            }
+            
+            // Render PDF page
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            
+            // Update page number display
+            pdfState.currentPage = pageNum;
+            const pageInput = document.getElementById('pdf-page-input');
+            if (pageInput) pageInput.value = pageNum;
+            
+            // Update navigation button states
+            const prevBtn = document.getElementById('pdf-prev-page');
+            const nextBtn = document.getElementById('pdf-next-page');
+            if (prevBtn) prevBtn.disabled = pageNum <= 1;
+            if (nextBtn) nextBtn.disabled = pageNum >= pdfState.totalPages;
+            
+        } catch (error) {
+            console.error('Error rendering PDF page:', error);
+            showToast('Failed to render PDF page', 'error');
+        } finally {
+            pdfState.rendering = false;
+        }
+    };
+
+    // Load PDF Document
+    const loadPdfDocument = async (pdfFile) => {
+        if (!pdfFile || !window.pdfjsLib) {
+            console.error('PDF.js not loaded or no PDF file provided');
+            return;
+        }
+
+        try {
+            const arrayBuffer = await pdfFile.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            pdfState.pdfDoc = await loadingTask.promise;
+            pdfState.totalPages = pdfState.pdfDoc.numPages;
+            
+            // Update total pages display
+            const totalPagesEl = document.getElementById('pdf-total-pages');
+            if (totalPagesEl) totalPagesEl.textContent = pdfState.totalPages;
+            
+            // Render first page
+            await renderPdfPage(1);
+            
+            console.log(`PDF loaded: ${pdfState.totalPages} pages`);
+        } catch (error) {
+            console.error('Error loading PDF:', error);
+            showToast('Failed to load PDF document', 'error');
+        }
+    };
+
+    // Tab Switching
     const tabsContainer = document.getElementById('details-tabs');
     if (tabsContainer) {
         const notesPanel = document.getElementById('notes-panel');
         const pdfPanel = document.getElementById('pdf-panel');
-        const pdfViewer = document.getElementById('pdf-viewer');
 
         tabsContainer.addEventListener('click', (e) => {
             const tabButton = e.target.closest('.tab-btn');
@@ -296,13 +432,109 @@ export const detailsView = {
             if (tabButton.dataset.tab === 'pdf') {
                 notesPanel.classList.add('hidden');
                 pdfPanel.classList.remove('hidden');
-                if (!this.pdfUrl && paper.pdfFile) {
-                    this.pdfUrl = URL.createObjectURL(paper.pdfFile);
-                    pdfViewer.src = this.pdfUrl;
+                if (!pdfState.pdfDoc && paper.pdfFile) {
+                    loadPdfDocument(paper.pdfFile);
                 }
             } else {
                 notesPanel.classList.remove('hidden');
                 pdfPanel.classList.add('hidden');
+            }
+        });
+    }
+
+    // PDF Navigation Controls
+    const prevPageBtn = document.getElementById('pdf-prev-page');
+    const nextPageBtn = document.getElementById('pdf-next-page');
+    const pageInput = document.getElementById('pdf-page-input');
+
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', () => {
+            if (pdfState.currentPage > 1) {
+                renderPdfPage(pdfState.currentPage - 1);
+            }
+        });
+    }
+
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', () => {
+            if (pdfState.currentPage < pdfState.totalPages) {
+                renderPdfPage(pdfState.currentPage + 1);
+            }
+        });
+    }
+
+    if (pageInput) {
+        pageInput.addEventListener('change', (e) => {
+            const pageNum = parseInt(e.target.value);
+            if (pageNum >= 1 && pageNum <= pdfState.totalPages) {
+                renderPdfPage(pageNum);
+            } else {
+                e.target.value = pdfState.currentPage;
+            }
+        });
+        
+        pageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                pageInput.blur();
+            }
+        });
+    }
+
+    // PDF Zoom Controls
+    const zoomInBtn = document.getElementById('pdf-zoom-in');
+    const zoomOutBtn = document.getElementById('pdf-zoom-out');
+    const zoomSelect = document.getElementById('pdf-zoom-select');
+
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => {
+            pdfState.scale = Math.min(pdfState.scale + 0.25, 3.0);
+            zoomSelect.value = pdfState.scale;
+            renderPdfPage(pdfState.currentPage);
+        });
+    }
+
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => {
+            pdfState.scale = Math.max(pdfState.scale - 0.25, 0.25);
+            zoomSelect.value = pdfState.scale;
+            renderPdfPage(pdfState.currentPage);
+        });
+    }
+
+    if (zoomSelect) {
+        zoomSelect.addEventListener('change', (e) => {
+            const value = e.target.value;
+            if (value === 'auto' || value === 'page-fit' || value === 'page-width') {
+                // TODO: Implement auto-fit logic
+                pdfState.scale = 1.0;
+            } else {
+                pdfState.scale = parseFloat(value);
+            }
+            renderPdfPage(pdfState.currentPage);
+        });
+    }
+
+    // PDF Rotation Control
+    const rotateBtn = document.getElementById('pdf-rotate');
+    if (rotateBtn) {
+        rotateBtn.addEventListener('click', () => {
+            pdfState.rotation = (pdfState.rotation + 90) % 360;
+            renderPdfPage(pdfState.currentPage);
+        });
+    }
+
+    // PDF Fullscreen Control
+    const fullscreenBtn = document.getElementById('pdf-fullscreen');
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', () => {
+            const container = document.getElementById('pdf-canvas-container');
+            if (container) {
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
             }
         });
     }
