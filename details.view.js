@@ -421,12 +421,8 @@ export const detailsView = {
                 annotationsLayer.style.height = `${displayViewport.height}px`;
             }
             
-            // Update text layer size to match display size
+            // Get text layer element (size will be set during rendering)
             const textLayer = document.getElementById('pdf-text-layer');
-            if (textLayer) {
-                textLayer.style.width = `${displayViewport.width}px`;
-                textLayer.style.height = `${displayViewport.height}px`;
-            }
             
             // Render PDF page at high resolution
             const renderContext = {
@@ -440,20 +436,34 @@ export const detailsView = {
             if (textLayer) {
                 // Clear previous text layer
                 textLayer.innerHTML = '';
-                textLayer.style.width = `${displayViewport.width}px`;
-                textLayer.style.height = `${displayViewport.height}px`;
                 
-                // Get text content and render
+                // CRITICAL: Render text layer at SAME scale as canvas for proper alignment
+                // The canvas is rendered at renderViewport scale, then CSS-scaled to displayViewport
+                // The text layer must match this: render at renderViewport, CSS-scale to displayViewport
+                
+                // Set container to match the render scale (internal dimensions)
+                textLayer.style.width = `${renderViewport.width}px`;
+                textLayer.style.height = `${renderViewport.height}px`;
+                
+                // Get text content and render at SAME viewport as canvas
                 const textContent = await page.getTextContent();
                 const textLayerRender = pdfjsLib.renderTextLayer({
                     textContentSource: textContent,
                     container: textLayer,
-                    viewport: displayViewport,
+                    viewport: renderViewport, // Match canvas rendering scale!
                     textDivs: []
                 });
                 
                 // Wait for text layer to complete rendering
                 await textLayerRender.promise;
+                
+                // Now CSS-scale the text layer down to match display size
+                // Calculate the scale ratio
+                const scaleRatio = displayViewport.width / renderViewport.width;
+                textLayer.style.transform = `scale(${scaleRatio})`;
+                textLayer.style.transformOrigin = '0 0';
+                textLayer.style.width = `${renderViewport.width}px`;
+                textLayer.style.height = `${renderViewport.height}px`;
             }
             
             // Update page number display
