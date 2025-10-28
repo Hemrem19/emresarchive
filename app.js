@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedPaperIds: new Set(), // Track selected papers for batch operations
         activeFilters: {
             status: null,  // e.g., 'To Read'
-            tag: null,     // e.g., 'machine-learning'
+            tags: [],      // Array of tags, e.g., ['machine-learning', 'neural-networks']
         },
         pagination: {
             currentPage: 1,
@@ -709,9 +709,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             filtered = filtered.filter(p => p.readingStatus === appState.activeFilters.status);
         }
 
-        // Apply tag filter
-        if (appState.activeFilters.tag) {
-            filtered = filtered.filter(p => p.tags && p.tags.includes(appState.activeFilters.tag));
+        // Apply tag filters (multiple tags - paper must have ALL selected tags)
+        if (appState.activeFilters.tags && appState.activeFilters.tags.length > 0) {
+            filtered = filtered.filter(p => 
+                p.tags && appState.activeFilters.tags.every(tag => p.tags.includes(tag))
+            );
         }
 
         // Apply search filter
@@ -766,13 +768,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Helper to update URL hash based on active filters
     const updateUrlHash = () => {
-        const { status, tag } = appState.activeFilters;
-        if (status && tag) {
-            window.location.hash = `#/filter/status:${encodeURIComponent(status)}/tag:${encodeURIComponent(tag)}`;
-        } else if (status) {
-            window.location.hash = `#/status/${encodeURIComponent(status)}`;
-        } else if (tag) {
-            window.location.hash = `#/tag/${encodeURIComponent(tag)}`;
+        const { status, tags } = appState.activeFilters;
+        const hasFilters = status || (tags && tags.length > 0);
+        
+        if (hasFilters) {
+            let hashParts = [];
+            if (status) {
+                hashParts.push(`status:${encodeURIComponent(status)}`);
+            }
+            if (tags && tags.length > 0) {
+                tags.forEach(tag => {
+                    hashParts.push(`tag:${encodeURIComponent(tag)}`);
+                });
+            }
+            window.location.hash = `#/filter/${hashParts.join('/')}`;
         } else {
             window.location.hash = '#/';
         }
@@ -784,26 +793,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Reset filters
         appState.activeFilters.status = null;
-        appState.activeFilters.tag = null;
+        appState.activeFilters.tags = [];
 
-        // Parse compound filter format: #/filter/status:Reading/tag:ml
+        // Parse compound filter format: #/filter/status:Reading/tag:ml/tag:ai
         if (path.startsWith('#/filter/')) {
             const parts = path.substring(9).split('/'); // Remove '#/filter/'
             parts.forEach(part => {
                 if (part.startsWith('status:')) {
                     appState.activeFilters.status = decodeURIComponent(part.substring(7));
                 } else if (part.startsWith('tag:')) {
-                    appState.activeFilters.tag = decodeURIComponent(part.substring(4));
+                    appState.activeFilters.tags.push(decodeURIComponent(part.substring(4)));
                 }
             });
         }
-        // Parse single status filter: #/status/Reading
+        // Legacy: Parse single status filter: #/status/Reading
         else if (path.startsWith('#/status/')) {
             appState.activeFilters.status = decodeURIComponent(path.split('/')[2]);
         }
-        // Parse single tag filter: #/tag/ml
+        // Legacy: Parse single tag filter: #/tag/ml
         else if (path.startsWith('#/tag/')) {
-            appState.activeFilters.tag = decodeURIComponent(path.split('/')[2]);
+            appState.activeFilters.tags.push(decodeURIComponent(path.split('/')[2]));
         }
     };
 
@@ -814,6 +823,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const chips = [];
         
+        // Search term chip
+        if (appState.currentSearchTerm) {
+            chips.push(`
+                <div class="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-3 py-1.5 rounded-full text-sm font-medium">
+                    <span class="material-symbols-outlined text-base">search</span>
+                    <span>Search: "${appState.currentSearchTerm}"</span>
+                    <button class="remove-filter-btn hover:bg-green-200 dark:hover:bg-green-800/50 rounded-full p-0.5 transition-colors" data-filter-type="search">
+                        <span class="material-symbols-outlined text-base">close</span>
+                    </button>
+                </div>
+            `);
+        }
+        
+        // Status filter chip
         if (appState.activeFilters.status) {
             chips.push(`
                 <div class="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1.5 rounded-full text-sm font-medium">
@@ -826,16 +849,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             `);
         }
 
-        if (appState.activeFilters.tag) {
-            chips.push(`
-                <div class="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-medium">
-                    <span class="material-symbols-outlined text-base">tag</span>
-                    <span>Tag: ${appState.activeFilters.tag}</span>
-                    <button class="remove-filter-btn hover:bg-primary/20 rounded-full p-0.5 transition-colors" data-filter-type="tag">
-                        <span class="material-symbols-outlined text-base">close</span>
-                    </button>
-                </div>
-            `);
+        // Tag filter chips (one chip per tag)
+        if (appState.activeFilters.tags && appState.activeFilters.tags.length > 0) {
+            appState.activeFilters.tags.forEach(tag => {
+                chips.push(`
+                    <div class="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-medium">
+                        <span class="material-symbols-outlined text-base">tag</span>
+                        <span>${tag}</span>
+                        <button class="remove-tag-btn hover:bg-primary/20 rounded-full p-0.5 transition-colors" data-tag="${tag}">
+                            <span class="material-symbols-outlined text-base">close</span>
+                        </button>
+                    </div>
+                `);
+            });
         }
 
         if (chips.length > 0) {
@@ -849,12 +875,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
             container.classList.remove('hidden');
 
-            // Add event listener for remove filter buttons
+            // Add event listener for remove filter buttons (status and search)
             container.querySelectorAll('.remove-filter-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const filterType = btn.dataset.filterType;
-                    appState.activeFilters[filterType] = null;
+                    if (filterType === 'search') {
+                        appState.currentSearchTerm = '';
+                        const searchInput = document.getElementById('search-input');
+                        if (searchInput) searchInput.value = '';
+                    } else {
+                        appState.activeFilters[filterType] = null;
+                    }
+                    appState.pagination.currentPage = 1; // Reset to first page
+                    updateUrlHash();
+                    renderFilterChips();
+                    applyFiltersAndRender();
+                });
+            });
+
+            // Add event listener for remove tag buttons
+            container.querySelectorAll('.remove-tag-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const tag = btn.dataset.tag;
+                    const tagIndex = appState.activeFilters.tags.indexOf(tag);
+                    if (tagIndex > -1) {
+                        appState.activeFilters.tags.splice(tagIndex, 1);
+                    }
                     appState.pagination.currentPage = 1; // Reset to first page
                     updateUrlHash();
                     renderFilterChips();
@@ -867,7 +915,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (clearAllBtn) {
                 clearAllBtn.addEventListener('click', () => {
                     appState.activeFilters.status = null;
-                    appState.activeFilters.tag = null;
+                    appState.activeFilters.tags = [];
+                    appState.currentSearchTerm = '';
+                    // Clear search input
+                    const searchInput = document.getElementById('search-input');
+                    if (searchInput) searchInput.value = '';
                     appState.pagination.currentPage = 1; // Reset to first page
                     updateUrlHash();
                     renderFilterChips();
@@ -1089,11 +1141,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             const tag = tagLink.dataset.tag;
             
-            // Toggle: if clicking the same tag, remove it; otherwise set/change it
-            if (appState.activeFilters.tag === tag) {
-                appState.activeFilters.tag = null;
+            // Toggle: if tag is already selected, remove it; otherwise add it
+            const tagIndex = appState.activeFilters.tags.indexOf(tag);
+            if (tagIndex > -1) {
+                // Tag is already selected, remove it
+                appState.activeFilters.tags.splice(tagIndex, 1);
             } else {
-                appState.activeFilters.tag = tag;
+                // Tag is not selected, add it
+                appState.activeFilters.tags.push(tag);
             }
             
             appState.pagination.currentPage = 1; // Reset to first page when filter changes
@@ -1103,7 +1158,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             // Clear all filters
             appState.activeFilters.status = null;
-            appState.activeFilters.tag = null;
+            appState.activeFilters.tags = [];
+            appState.currentSearchTerm = '';
+            // Clear search input
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
             appState.pagination.currentPage = 1; // Reset to first page
             updateUrlHash();
             applyFiltersAndRender();

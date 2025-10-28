@@ -1,0 +1,1267 @@
+// c:/Users/hasan/Python Projects/research/db.js
+
+const DB_NAME = 'EmresArchiveDB';
+const DB_VERSION = 5; // Increment this version number if you change the schema
+const STORE_NAME_PAPERS = 'papers';
+const STORE_NAME_COLLECTIONS = 'collections';
+const STORE_NAME_ANNOTATIONS = 'annotations';
+
+let db = null;
+
+/**
+ * Opens the IndexedDB database with comprehensive error handling.
+ * If the database doesn't exist or the version is upgraded, it creates/updates the object stores.
+ * @returns {Promise<IDBDatabase>} A promise that resolves with the database instance.
+ * @throws {Error} Throws descriptive errors for various failure scenarios.
+ */
+async function openDB() {
+    if (db) {
+        return db; // Return existing instance if already open
+    }
+
+    // Check if IndexedDB is supported
+    if (!window.indexedDB) {
+        const error = new Error('Database not supported: Your browser does not support IndexedDB. Please use a modern browser like Chrome, Firefox, Safari, or Edge.');
+        console.error('IndexedDB not available:', error);
+        throw error;
+    }
+
+    return new Promise((resolve, reject) => {
+        let request;
+        
+        try {
+            request = indexedDB.open(DB_NAME, DB_VERSION);
+        } catch (error) {
+            console.error('Error opening IndexedDB:', error);
+            reject(new Error('Database error: Unable to open database. Your browser may be in private mode or have storage disabled.'));
+            return;
+        }
+
+        request.onupgradeneeded = (event) => {
+            try {
+                const dbInstance = event.target.result;
+                const transaction = event.target.transaction;
+                const oldVersion = event.oldVersion;
+                let paperStore;
+                
+                // Create 'papers' object store
+                if (!dbInstance.objectStoreNames.contains(STORE_NAME_PAPERS)) {
+                    paperStore = dbInstance.createObjectStore(STORE_NAME_PAPERS, { keyPath: 'id', autoIncrement: true });
+                    // Define indexes for common queries
+                    paperStore.createIndex('title', 'title', { unique: false });
+                    paperStore.createIndex('authors', 'authors', { unique: false });
+                    paperStore.createIndex('year', 'year', { unique: false });
+                    paperStore.createIndex('tags', 'tags', { unique: false, multiEntry: true }); // multiEntry for array of tags
+                } else {
+                    paperStore = transaction.objectStore(STORE_NAME_PAPERS);
+                }
+                
+                // Add new index for related papers in version 2
+                if (!paperStore.indexNames.contains('relatedPaperIds')) {
+                    paperStore.createIndex('relatedPaperIds', 'relatedPaperIds', { unique: false, multiEntry: true });
+                }
+                
+                // Add new index for DOI in version 3
+                if (!paperStore.indexNames.contains('doi')) {
+                    paperStore.createIndex('doi', 'doi', { unique: false });
+                }
+                
+                // Migration for version 3: Add updatedAt to existing papers
+                if (oldVersion < 3) {
+                    const getAllRequest = paperStore.getAll();
+                    getAllRequest.onsuccess = () => {
+                        const papers = getAllRequest.result;
+                        papers.forEach(paper => {
+                            if (!paper.updatedAt) {
+                                // If paper doesn't have updatedAt, set it to createdAt or current date
+                                paper.updatedAt = paper.createdAt || new Date();
+                                paperStore.put(paper);
+                            }
+                        });
+                    };
+                    getAllRequest.onerror = (err) => {
+                        console.error('Migration error:', err);
+                        // Don't fail the upgrade, just log the error
+                    };
+                }
+                
+                // Create 'collections' object store for version 4
+                if (!dbInstance.objectStoreNames.contains(STORE_NAME_COLLECTIONS)) {
+                    const collectionStore = dbInstance.createObjectStore(STORE_NAME_COLLECTIONS, { keyPath: 'id', autoIncrement: true });
+                    // Define indexes for collections
+                    collectionStore.createIndex('name', 'name', { unique: false });
+                    collectionStore.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+                
+                // Create 'annotations' object store for version 5
+                if (!dbInstance.objectStoreNames.contains(STORE_NAME_ANNOTATIONS)) {
+                    const annotationStore = dbInstance.createObjectStore(STORE_NAME_ANNOTATIONS, { keyPath: 'id', autoIncrement: true });
+                    // Define indexes for annotations
+                    annotationStore.createIndex('paperId', 'paperId', { unique: false }); // To query all annotations for a paper
+                    annotationStore.createIndex('type', 'type', { unique: false }); // To filter by highlight/note
+                    annotationStore.createIndex('pageNumber', 'pageNumber', { unique: false }); // To filter by page
+                    annotationStore.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+            } catch (error) {
+                console.error('Error during database upgrade:', error);
+                transaction.abort();
+                reject(new Error(`Database upgrade failed: ${error.message}. Your data is safe, but the application may not function correctly.`));
+            }
+        };
+
+        request.onsuccess = (event) => {
+            db = event.target.result;
+            
+            // Add error handler for database connection
+            db.onerror = (event) => {
+                console.error('Database error:', event.target.error);
+            };
+            
+            // Handle version change (when another tab upgrades the DB)
+            db.onversionchange = () => {
+                db.close();
+                db = null;
+                console.warn('Database version changed. Please refresh the page.');
+            };
+            
+            resolve(db);
+        };
+
+        request.onerror = (event) => {
+            const error = event.target.error;
+            console.error('IndexedDB error:', error);
+            
+            let errorMessage = 'Database error: Unable to open database. ';
+            
+            if (error.name === 'QuotaExceededError') {
+                errorMessage = 'Storage quota exceeded: Your browser storage is full. Please free up space or remove old papers.';
+            } else if (error.name === 'VersionError') {
+                errorMessage = 'Database version error: The database is in an inconsistent state. Please refresh the page.';
+            } else if (error.name === 'InvalidStateError') {
+                errorMessage = 'Database state error: The database is in an invalid state. Try refreshing the page.';
+            } else {
+                errorMessage += error.message || 'Unknown error occurred.';
+            }
+            
+            reject(new Error(errorMessage));
+        };
+
+        request.onblocked = () => {
+            console.warn('Database blocked: Close other tabs with this app open');
+            reject(new Error('Database blocked: Please close other tabs with this application open and try again.'));
+        };
+    });
+}
+
+/**
+ * Adds a new paper record to the database with validation and error handling.
+ * @param {Object} paperData - The data for the paper to add.
+ * @returns {Promise<number>} A promise that resolves with the ID of the newly added paper.
+ * @throws {Error} Throws descriptive errors for validation or storage failures.
+ */
+async function addPaper(paperData) {
+    // Validate paper data
+    if (!paperData || typeof paperData !== 'object') {
+        throw new Error('Invalid paper data: Paper data must be a valid object.');
+    }
+    
+    if (!paperData.title || !paperData.title.trim()) {
+        throw new Error('Invalid paper data: Title is required.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+            const request = store.add(paperData);
+
+            request.onsuccess = (event) => resolve(event.target.result);
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error adding paper:', error);
+                
+                let errorMessage = 'Failed to add paper: ';
+                
+                if (error.name === 'QuotaExceededError') {
+                    errorMessage = 'Storage quota exceeded: Your browser storage is full. Please delete old papers or reduce PDF file sizes.';
+                } else if (error.name === 'ConstraintError') {
+                    errorMessage = 'Duplicate paper: This paper already exists in your library.';
+                } else if (error.name === 'DataError') {
+                    errorMessage = 'Invalid paper data: The paper data contains invalid values.';
+                } else {
+                    errorMessage += error.message || 'Unknown error occurred while saving.';
+                }
+                
+                reject(new Error(errorMessage));
+            };
+        });
+    } catch (error) {
+        console.error('Error in addPaper:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves all papers from the database, sorted by creation date descending.
+ * @returns {Promise<Array<Object>>} A promise that resolves with an array of all paper objects.
+ * @throws {Error} Throws descriptive errors if retrieval fails.
+ */
+async function getAllPapers() {
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+            const request = store.getAll();
+
+            request.onsuccess = (event) => {
+                try {
+                    const papers = event.target.result || [];
+                    // Sort by creation date, newest first
+                    resolve(papers.sort((a, b) => b.createdAt - a.createdAt));
+                } catch (sortError) {
+                    console.error('Error sorting papers:', sortError);
+                    // Return unsorted if sorting fails
+                    resolve(event.target.result || []);
+                }
+            };
+
+            request.onerror = (event) => {
+                console.error('Error fetching papers:', event.target.error);
+                reject(new Error('Failed to retrieve papers: Database read error. Please refresh and try again.'));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getAllPapers:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves a single paper by its ID.
+ * @param {number} id - The ID of the paper to retrieve.
+ * @returns {Promise<Object|undefined>} A promise that resolves with the paper object, or undefined if not found.
+ */
+async function getPaperById(id) {
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction([STORE_NAME_PAPERS], 'readonly');
+        const store = transaction.objectStore(STORE_NAME_PAPERS);
+        const request = store.get(id);
+
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onerror = (event) => {
+            console.error(`Error fetching paper with ID ${id}:`, event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+/**
+ * Retrieves a single paper by its DOI.
+ * @param {string} doi - The DOI of the paper to retrieve.
+ * @returns {Promise<Object|undefined>} A promise that resolves with the paper object, or undefined if not found.
+ */
+async function getPaperByDoi(doi) {
+    // An empty or null DOI can't be a duplicate.
+    if (!doi) return Promise.resolve(undefined);
+
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction([STORE_NAME_PAPERS], 'readonly');
+        const store = transaction.objectStore(STORE_NAME_PAPERS);
+        const index = store.index('doi');
+        const request = index.get(doi);
+
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onerror = (event) => {
+            console.error(`Error fetching paper with DOI ${doi}:`, event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+/**
+ * Updates an existing paper record in the database with validation and error handling.
+ * @param {number} id - The ID of the paper to update.
+ * @param {Object} updateData - An object containing the fields to update.
+ * @returns {Promise<number>} A promise that resolves with the ID of the updated paper.
+ * @throws {Error} Throws descriptive errors for validation or update failures.
+ */
+async function updatePaper(id, updateData) {
+    // Validate inputs
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid paper ID: ID must be a valid number or string.');
+    }
+    
+    if (!updateData || typeof updateData !== 'object') {
+        throw new Error('Invalid update data: Update data must be a valid object.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+
+            const getRequest = store.get(Number(id));
+
+            getRequest.onerror = (event) => {
+                console.error('Error fetching paper for update:', event.target.error);
+                reject(new Error('Failed to update: Could not retrieve paper from database.'));
+            };
+
+            getRequest.onsuccess = (event) => {
+                const paper = event.target.result;
+                if (!paper) {
+                    return reject(new Error(`Paper not found: No paper exists with ID ${id}.`));
+                }
+
+                const updatedPaper = { ...paper, ...updateData, updatedAt: new Date() };
+                const putRequest = store.put(updatedPaper);
+                
+                putRequest.onsuccess = (event) => resolve(event.target.result);
+                
+                putRequest.onerror = (event) => {
+                    const error = event.target.error;
+                    console.error('Error updating paper:', error);
+                    
+                    let errorMessage = 'Failed to update paper: ';
+                    
+                    if (error.name === 'QuotaExceededError') {
+                        errorMessage = 'Storage quota exceeded: Unable to save changes. Please delete old papers or reduce file sizes.';
+                    } else if (error.name === 'DataError') {
+                        errorMessage = 'Invalid data: The update contains invalid values.';
+                    } else {
+                        errorMessage += error.message || 'Unknown error occurred.';
+                    }
+                    
+                    reject(new Error(errorMessage));
+                };
+            };
+        });
+    } catch (error) {
+        console.error('Error in updatePaper:', error);
+        throw error;
+    }
+}
+
+/**
+ * Deletes a paper record from the database with error handling.
+ * @param {number} id - The ID of the paper to delete.
+ * @returns {Promise<void>} A promise that resolves when the paper is deleted.
+ * @throws {Error} Throws descriptive errors if deletion fails.
+ */
+async function deletePaper(id) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid paper ID: ID must be a valid number or string.');
+    }
+
+    try {
+        // First, delete all annotations associated with this paper
+        try {
+            await deleteAnnotationsByPaperId(Number(id));
+        } catch (annotationError) {
+            console.warn('Error deleting annotations for paper:', annotationError);
+            // Continue with paper deletion even if annotation deletion fails
+        }
+
+        // Then delete the paper itself
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_PAPERS);
+            const request = store.delete(Number(id));
+
+            request.onsuccess = () => resolve();
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error(`Error deleting paper with ID ${id}:`, error);
+                reject(new Error(`Failed to delete paper: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in deletePaper:', error);
+        throw error;
+    }
+}
+
+/**
+ * Exports all data from the database into a serializable format with error handling.
+ * Converts any Blob data (like PDFs) into Base64 strings.
+ * Includes papers, collections, and annotations.
+ * @returns {Promise<Object>} A promise that resolves with an object containing papers, collections, and annotations arrays.
+ * @throws {Error} Throws descriptive errors if export fails.
+ */
+async function exportAllData() {
+    try {
+        const papers = await getAllPapers();
+        const collections = await getAllCollections();
+        
+        // Get all annotations for all papers
+        const allAnnotations = [];
+        for (const paper of papers) {
+            try {
+                const paperAnnotations = await getAnnotationsByPaperId(paper.id);
+                allAnnotations.push(...paperAnnotations);
+            } catch (error) {
+                console.warn(`Could not export annotations for paper ${paper.id}:`, error);
+            }
+        }
+        
+        if ((!papers || papers.length === 0) && (!collections || collections.length === 0) && allAnnotations.length === 0) {
+            console.warn('No data to export');
+            return { papers: [], collections: [], annotations: [] };
+        }
+
+        const serializablePapers = [];
+
+        for (const paper of papers) {
+            try {
+                const serializablePaper = { ...paper };
+                
+                // Convert Blob to Base64 string if present
+                if (paper.pdfFile instanceof Blob) {
+                    try {
+                        serializablePaper.pdfFile = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.onerror = () => reject(new Error('Failed to read PDF file'));
+                            reader.readAsDataURL(paper.pdfFile);
+                        });
+                    } catch (pdfError) {
+                        console.error(`Error converting PDF for paper "${paper.title}":`, pdfError);
+                        // Skip PDF but include paper metadata
+                        serializablePaper.pdfFile = null;
+                        serializablePaper._pdfExportError = true;
+                    }
+                }
+                
+                // Convert dates to ISO strings for JSON serialization
+                if (serializablePaper.createdAt instanceof Date) {
+                    serializablePaper.createdAt = serializablePaper.createdAt.toISOString();
+                }
+                if (serializablePaper.updatedAt instanceof Date) {
+                    serializablePaper.updatedAt = serializablePaper.updatedAt.toISOString();
+                }
+                
+                serializablePapers.push(serializablePaper);
+            } catch (paperError) {
+                console.error(`Error exporting paper "${paper?.title || 'Unknown'}":`, paperError);
+                // Continue with other papers
+            }
+        }
+
+        // Process collections
+        const serializableCollections = collections.map(collection => {
+            const serializable = { ...collection };
+            // Convert dates to ISO strings
+            if (serializable.createdAt instanceof Date) {
+                serializable.createdAt = serializable.createdAt.toISOString();
+            }
+            return serializable;
+        });
+
+        // Process annotations
+        const serializableAnnotations = allAnnotations.map(annotation => {
+            const serializable = { ...annotation };
+            // Convert dates to ISO strings
+            if (serializable.createdAt instanceof Date) {
+                serializable.createdAt = serializable.createdAt.toISOString();
+            }
+            if (serializable.updatedAt instanceof Date) {
+                serializable.updatedAt = serializable.updatedAt.toISOString();
+            }
+            return serializable;
+        });
+
+        return {
+            papers: serializablePapers,
+            collections: serializableCollections,
+            annotations: serializableAnnotations
+        };
+    } catch (error) {
+        console.error('Error in exportAllData:', error);
+        if (error.message.includes('retrieve')) {
+            throw error; // Re-throw database errors
+        }
+        throw new Error(`Export failed: ${error.message || 'Unknown error occurred.'}`);
+    }
+}
+
+/**
+ * Imports data from a backup file with validation and error handling.
+ * Overwrites all existing data. Supports old format (array), medium format (object with papers and collections), and new format (with annotations).
+ * @param {Array<Object>|Object} dataToImport - An array of papers (old format) or an object with papers, collections, and annotations.
+ * @returns {Promise<void>} A promise that resolves when the import is complete.
+ * @throws {Error} Throws descriptive errors if import fails.
+ */
+async function importData(dataToImport) {
+    // Handle multiple formats
+    let papersToImport = [];
+    let collectionsToImport = [];
+    let annotationsToImport = [];
+    
+    if (Array.isArray(dataToImport)) {
+        // Old format: just an array of papers
+        papersToImport = dataToImport;
+    } else if (dataToImport && typeof dataToImport === 'object') {
+        // New format: object with papers, collections, and annotations
+        papersToImport = dataToImport.papers || [];
+        collectionsToImport = dataToImport.collections || [];
+        annotationsToImport = dataToImport.annotations || [];
+    } else {
+        throw new Error('Invalid import data: Data must be an array of papers or an object with papers, collections, and annotations.');
+    }
+
+    if (papersToImport.length === 0 && collectionsToImport.length === 0 && annotationsToImport.length === 0) {
+        throw new Error('Invalid import data: No papers, collections, or annotations found in import file.');
+    }
+
+    // Validate paper structure
+    for (let i = 0; i < papersToImport.length; i++) {
+        const paper = papersToImport[i];
+        if (!paper || typeof paper !== 'object') {
+            throw new Error(`Invalid import data: Paper at index ${i} is not a valid object.`);
+        }
+        if (!paper.title) {
+            throw new Error(`Invalid import data: Paper at index ${i} is missing required title field.`);
+        }
+    }
+    
+    // Validate collection structure
+    for (let i = 0; i < collectionsToImport.length; i++) {
+        const collection = collectionsToImport[i];
+        if (!collection || typeof collection !== 'object') {
+            throw new Error(`Invalid import data: Collection at index ${i} is not a valid object.`);
+        }
+        if (!collection.name) {
+            throw new Error(`Invalid import data: Collection at index ${i} is missing required name field.`);
+        }
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
+            const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
+            const collectionsStore = transaction.objectStore(STORE_NAME_COLLECTIONS);
+            const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+
+            // 1. Clear all existing data
+            const clearPapersRequest = papersStore.clear();
+            const clearCollectionsRequest = collectionsStore.clear();
+            const clearAnnotationsRequest = annotationsStore.clear();
+            
+            let papersCleared = false;
+            let collectionsCleared = false;
+            let annotationsCleared = false;
+            
+            clearPapersRequest.onerror = (event) => {
+                console.error('Error clearing papers for import:', event.target.error);
+                reject(new Error('Import failed: Unable to clear existing papers. Please try again.'));
+            };
+            
+            clearCollectionsRequest.onerror = (event) => {
+                console.error('Error clearing collections for import:', event.target.error);
+                reject(new Error('Import failed: Unable to clear existing collections. Please try again.'));
+            };
+            
+            clearAnnotationsRequest.onerror = (event) => {
+                console.error('Error clearing annotations for import:', event.target.error);
+                reject(new Error('Import failed: Unable to clear existing annotations. Please try again.'));
+            };
+
+            clearPapersRequest.onsuccess = () => {
+                papersCleared = true;
+                checkAndProceed();
+            };
+            
+            clearCollectionsRequest.onsuccess = () => {
+                collectionsCleared = true;
+                checkAndProceed();
+            };
+            
+            clearAnnotationsRequest.onsuccess = () => {
+                annotationsCleared = true;
+                checkAndProceed();
+            };
+            
+            const checkAndProceed = async () => {
+                if (!papersCleared || !collectionsCleared || !annotationsCleared) return;
+                
+                // 2. Add all new papers, collections, and annotations
+                try {
+                    let paperSuccessCount = 0;
+                    let paperErrorCount = 0;
+                    let collectionSuccessCount = 0;
+                    let collectionErrorCount = 0;
+                    let annotationSuccessCount = 0;
+                    let annotationErrorCount = 0;
+
+                    // Import papers
+                    for (const paper of papersToImport) {
+                        try {
+                            const paperToStore = { ...paper };
+                            
+                            // Convert Base64 back to Blob if it exists
+                            if (paperToStore.pdfFile && typeof paperToStore.pdfFile === 'string' && paperToStore.pdfFile.startsWith('data:')) {
+                                try {
+                                    const fetchRes = await fetch(paperToStore.pdfFile);
+                                    paperToStore.pdfFile = await fetchRes.blob();
+                                } catch (pdfError) {
+                                    console.warn(`Failed to convert PDF for "${paper.title}":`, pdfError);
+                                    paperToStore.pdfFile = null;
+                                    paperToStore.hasPdf = false;
+                                }
+                            }
+                            
+                            // Convert ISO date strings back to Date objects
+                            if (paperToStore.createdAt && typeof paperToStore.createdAt === 'string') {
+                                paperToStore.createdAt = new Date(paperToStore.createdAt);
+                            }
+                            if (paperToStore.updatedAt && typeof paperToStore.updatedAt === 'string') {
+                                paperToStore.updatedAt = new Date(paperToStore.updatedAt);
+                            }
+                            
+                            await new Promise((resolveAdd, rejectAdd) => {
+                                const addRequest = papersStore.add(paperToStore);
+                                addRequest.onsuccess = () => resolveAdd();
+                                addRequest.onerror = (event) => rejectAdd(event.target.error);
+                            });
+                            
+                            paperSuccessCount++;
+                        } catch (paperError) {
+                            console.error(`Error importing paper "${paper.title}":`, paperError);
+                            paperErrorCount++;
+                            // Continue with next paper
+                        }
+                    }
+
+                    // Import collections
+                    for (const collection of collectionsToImport) {
+                        try {
+                            const collectionToStore = { ...collection };
+                            
+                            // Convert ISO date strings back to Date objects
+                            if (collectionToStore.createdAt && typeof collectionToStore.createdAt === 'string') {
+                                collectionToStore.createdAt = new Date(collectionToStore.createdAt);
+                            }
+                            
+                            await new Promise((resolveAdd, rejectAdd) => {
+                                const addRequest = collectionsStore.add(collectionToStore);
+                                addRequest.onsuccess = () => resolveAdd();
+                                addRequest.onerror = (event) => rejectAdd(event.target.error);
+                            });
+                            
+                            collectionSuccessCount++;
+                        } catch (collectionError) {
+                            console.error(`Error importing collection "${collection.name}":`, collectionError);
+                            collectionErrorCount++;
+                            // Continue with next collection
+                        }
+                    }
+
+                    // Import annotations
+                    for (const annotation of annotationsToImport) {
+                        try {
+                            const annotationToStore = { ...annotation };
+                            
+                            // Convert ISO date strings back to Date objects
+                            if (annotationToStore.createdAt && typeof annotationToStore.createdAt === 'string') {
+                                annotationToStore.createdAt = new Date(annotationToStore.createdAt);
+                            }
+                            if (annotationToStore.updatedAt && typeof annotationToStore.updatedAt === 'string') {
+                                annotationToStore.updatedAt = new Date(annotationToStore.updatedAt);
+                            }
+                            
+                            await new Promise((resolveAdd, rejectAdd) => {
+                                const addRequest = annotationsStore.add(annotationToStore);
+                                addRequest.onsuccess = () => resolveAdd();
+                                addRequest.onerror = (event) => rejectAdd(event.target.error);
+                            });
+                            
+                            annotationSuccessCount++;
+                        } catch (annotationError) {
+                            console.error(`Error importing annotation:`, annotationError);
+                            annotationErrorCount++;
+                            // Continue with next annotation
+                        }
+                    }
+
+                    if (paperSuccessCount === 0 && papersToImport.length > 0) {
+                        transaction.abort();
+                        reject(new Error('Import failed: Unable to import any papers. Please check the file format and try again.'));
+                    } else if (paperErrorCount > 0 || collectionErrorCount > 0 || annotationErrorCount > 0) {
+                        console.warn(`Import completed with ${paperErrorCount} paper errors, ${collectionErrorCount} collection errors, and ${annotationErrorCount} annotation errors`);
+                    }
+                } catch (error) {
+                    transaction.abort();
+                    console.error('Error during import:', error);
+                    reject(new Error(`Import failed: ${error.message || 'Unknown error occurred.'}`));
+                }
+            };
+
+            transaction.oncomplete = () => {
+                resolve();
+            };
+
+            transaction.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Import transaction error:', error);
+                
+                let errorMessage = 'Import failed: ';
+                
+                if (error.name === 'QuotaExceededError') {
+                    errorMessage = 'Storage quota exceeded: The import file is too large for your browser storage. Try importing fewer papers or with smaller PDF files.';
+                } else {
+                    errorMessage += error.message || 'Database error occurred during import.';
+                }
+                
+                reject(new Error(errorMessage));
+            };
+        });
+    } catch (error) {
+        console.error('Error in importData:', error);
+        throw error;
+    }
+}
+
+/**
+ * Clears all data from the 'papers', 'collections', and 'annotations' object stores.
+ * @returns {Promise<void>} A promise that resolves when all stores are cleared.
+ */
+async function clearAllData() {
+    const database = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
+        const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
+        const collectionsStore = transaction.objectStore(STORE_NAME_COLLECTIONS);
+        const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+        
+        const clearPapersRequest = papersStore.clear();
+        const clearCollectionsRequest = collectionsStore.clear();
+        const clearAnnotationsRequest = annotationsStore.clear();
+
+        let papersCleared = false;
+        let collectionsCleared = false;
+        let annotationsCleared = false;
+        
+        clearPapersRequest.onsuccess = () => {
+            papersCleared = true;
+            if (collectionsCleared && annotationsCleared) resolve();
+        };
+        
+        clearCollectionsRequest.onsuccess = () => {
+            collectionsCleared = true;
+            if (papersCleared && annotationsCleared) resolve();
+        };
+        
+        clearAnnotationsRequest.onsuccess = () => {
+            annotationsCleared = true;
+            if (papersCleared && collectionsCleared) resolve();
+        };
+        
+        clearPapersRequest.onerror = clearCollectionsRequest.onerror = clearAnnotationsRequest.onerror = (event) => {
+            console.error('Error clearing data:', event.target.error);
+            reject(event.target.error);
+        };
+    });
+}
+
+/**
+ * Adds a new collection to the database.
+ * @param {Object} collectionData - The collection data (name, icon, color, filters).
+ * @returns {Promise<number>} A promise that resolves with the ID of the newly added collection.
+ * @throws {Error} Throws descriptive errors for validation or storage failures.
+ */
+async function addCollection(collectionData) {
+    // Validate collection data
+    if (!collectionData || typeof collectionData !== 'object') {
+        throw new Error('Invalid collection data: Collection data must be a valid object.');
+    }
+    
+    if (!collectionData.name || !collectionData.name.trim()) {
+        throw new Error('Invalid collection data: Name is required.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_COLLECTIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_COLLECTIONS);
+            
+            // Add createdAt timestamp if not provided
+            if (!collectionData.createdAt) {
+                collectionData.createdAt = new Date();
+            }
+            
+            const request = store.add(collectionData);
+
+            request.onsuccess = (event) => resolve(event.target.result);
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error adding collection:', error);
+                
+                let errorMessage = 'Failed to add collection: ';
+                
+                if (error.name === 'QuotaExceededError') {
+                    errorMessage = 'Storage quota exceeded: Unable to save collection.';
+                } else {
+                    errorMessage += error.message || 'Unknown error occurred while saving.';
+                }
+                
+                reject(new Error(errorMessage));
+            };
+        });
+    } catch (error) {
+        console.error('Error in addCollection:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves all collections from the database, sorted by creation date.
+ * @returns {Promise<Array<Object>>} A promise that resolves with an array of all collection objects.
+ * @throws {Error} Throws descriptive errors if retrieval fails.
+ */
+async function getAllCollections() {
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_COLLECTIONS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_COLLECTIONS);
+            const request = store.getAll();
+
+            request.onsuccess = (event) => {
+                try {
+                    const collections = event.target.result || [];
+                    // Sort by creation date, newest first
+                    resolve(collections.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                } catch (sortError) {
+                    console.error('Error sorting collections:', sortError);
+                    // Return unsorted if sorting fails
+                    resolve(event.target.result || []);
+                }
+            };
+
+            request.onerror = (event) => {
+                console.error('Error fetching collections:', event.target.error);
+                reject(new Error('Failed to retrieve collections: Database read error. Please refresh and try again.'));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getAllCollections:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves a single collection by its ID.
+ * @param {number} id - The ID of the collection to retrieve.
+ * @returns {Promise<Object|undefined>} A promise that resolves with the collection object, or undefined if not found.
+ */
+async function getCollectionById(id) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid collection ID: ID must be a valid number or string.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_COLLECTIONS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_COLLECTIONS);
+            const request = store.get(Number(id));
+
+            request.onsuccess = (event) => resolve(event.target.result);
+            request.onerror = (event) => {
+                console.error(`Error fetching collection with ID ${id}:`, event.target.error);
+                reject(new Error(`Failed to retrieve collection: Database read error.`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getCollectionById:', error);
+        throw error;
+    }
+}
+
+/**
+ * Updates an existing collection in the database.
+ * @param {number} id - The ID of the collection to update.
+ * @param {Object} updateData - An object containing the fields to update.
+ * @returns {Promise<number>} A promise that resolves with the ID of the updated collection.
+ * @throws {Error} Throws descriptive errors for validation or update failures.
+ */
+async function updateCollection(id, updateData) {
+    // Validate inputs
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid collection ID: ID must be a valid number or string.');
+    }
+    
+    if (!updateData || typeof updateData !== 'object') {
+        throw new Error('Invalid update data: Update data must be a valid object.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_COLLECTIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_COLLECTIONS);
+
+            const getRequest = store.get(Number(id));
+
+            getRequest.onerror = (event) => {
+                console.error('Error fetching collection for update:', event.target.error);
+                reject(new Error('Failed to update: Could not retrieve collection from database.'));
+            };
+
+            getRequest.onsuccess = (event) => {
+                const collection = event.target.result;
+                if (!collection) {
+                    return reject(new Error(`Collection not found: No collection exists with ID ${id}.`));
+                }
+
+                const updatedCollection = { ...collection, ...updateData };
+                const putRequest = store.put(updatedCollection);
+                
+                putRequest.onsuccess = (event) => resolve(event.target.result);
+                
+                putRequest.onerror = (event) => {
+                    const error = event.target.error;
+                    console.error('Error updating collection:', error);
+                    reject(new Error(`Failed to update collection: ${error.message || 'Unknown error occurred.'}`));
+                };
+            };
+        });
+    } catch (error) {
+        console.error('Error in updateCollection:', error);
+        throw error;
+    }
+}
+
+/**
+ * Deletes a collection from the database.
+ * @param {number} id - The ID of the collection to delete.
+ * @returns {Promise<void>} A promise that resolves when the collection is deleted.
+ * @throws {Error} Throws descriptive errors if deletion fails.
+ */
+async function deleteCollection(id) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid collection ID: ID must be a valid number or string.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_COLLECTIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_COLLECTIONS);
+            const request = store.delete(Number(id));
+
+            request.onsuccess = () => resolve();
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error(`Error deleting collection with ID ${id}:`, error);
+                reject(new Error(`Failed to delete collection: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in deleteCollection:', error);
+        throw error;
+    }
+}
+
+// ==================== ANNOTATIONS CRUD OPERATIONS ====================
+
+/**
+ * Adds a new annotation to the database.
+ * @param {Object} annotationData - The annotation data.
+ * @param {number} annotationData.paperId - The ID of the paper this annotation belongs to.
+ * @param {string} annotationData.type - The type of annotation ('highlight' or 'note').
+ * @param {number} annotationData.pageNumber - The PDF page number.
+ * @param {string} [annotationData.color] - Color for highlights (e.g., 'yellow', 'orange', 'green', 'blue').
+ * @param {string} [annotationData.textContent] - The highlighted text content.
+ * @param {Array} [annotationData.rects] - Array of bounding box rectangles for highlights.
+ * @param {Object} [annotationData.position] - Position for sticky notes {x, y}.
+ * @param {string} [annotationData.content] - Text content for sticky notes.
+ * @returns {Promise<number>} A promise that resolves with the ID of the newly added annotation.
+ * @throws {Error} Throws descriptive errors for validation or storage failures.
+ */
+async function addAnnotation(annotationData) {
+    // Validate required fields
+    if (!annotationData || typeof annotationData !== 'object') {
+        throw new Error('Invalid annotation data: Annotation data must be a valid object.');
+    }
+    
+    if (!annotationData.paperId || typeof annotationData.paperId !== 'number') {
+        throw new Error('Invalid paper ID: Paper ID is required and must be a number.');
+    }
+    
+    if (!annotationData.type || !['highlight', 'note'].includes(annotationData.type)) {
+        throw new Error('Invalid annotation type: Type must be either "highlight" or "note".');
+    }
+    
+    if (!annotationData.pageNumber || typeof annotationData.pageNumber !== 'number') {
+        throw new Error('Invalid page number: Page number is required and must be a number.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            
+            const annotation = {
+                ...annotationData,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            const request = store.add(annotation);
+
+            request.onsuccess = (event) => {
+                console.log('Annotation added successfully with ID:', event.target.result);
+                resolve(event.target.result);
+            };
+
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error adding annotation:', error);
+                
+                let errorMessage = 'Failed to save annotation: ';
+                if (error.name === 'QuotaExceededError') {
+                    errorMessage = 'Storage quota exceeded: Your browser storage is full. Please free up space.';
+                } else {
+                    errorMessage += error.message || 'Unknown error occurred.';
+                }
+                
+                reject(new Error(errorMessage));
+            };
+        });
+    } catch (error) {
+        console.error('Error in addAnnotation:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves all annotations for a specific paper.
+ * @param {number} paperId - The ID of the paper.
+ * @returns {Promise<Array>} A promise that resolves with an array of annotations.
+ * @throws {Error} Throws descriptive errors if retrieval fails.
+ */
+async function getAnnotationsByPaperId(paperId) {
+    if (!paperId || typeof paperId !== 'number') {
+        throw new Error('Invalid paper ID: Paper ID must be a valid number.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const index = store.index('paperId');
+            const request = index.getAll(paperId);
+
+            request.onsuccess = (event) => {
+                const annotations = event.target.result || [];
+                console.log(`Retrieved ${annotations.length} annotations for paper ID ${paperId}`);
+                resolve(annotations);
+            };
+
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error retrieving annotations:', error);
+                reject(new Error(`Failed to retrieve annotations: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getAnnotationsByPaperId:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves a single annotation by its ID.
+ * @param {number} id - The annotation ID.
+ * @returns {Promise<Object|null>} A promise that resolves with the annotation object or null if not found.
+ * @throws {Error} Throws descriptive errors if retrieval fails.
+ */
+async function getAnnotationById(id) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid annotation ID: ID must be a valid number or string.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const request = store.get(Number(id));
+
+            request.onsuccess = (event) => resolve(event.target.result || null);
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error retrieving annotation:', error);
+                reject(new Error(`Failed to retrieve annotation: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getAnnotationById:', error);
+        throw error;
+    }
+}
+
+/**
+ * Updates an existing annotation in the database.
+ * @param {number} id - The ID of the annotation to update.
+ * @param {Object} updateData - An object containing the fields to update.
+ * @returns {Promise<number>} A promise that resolves with the ID of the updated annotation.
+ * @throws {Error} Throws descriptive errors for validation or update failures.
+ */
+async function updateAnnotation(id, updateData) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid annotation ID: ID must be a valid number or string.');
+    }
+    
+    if (!updateData || typeof updateData !== 'object') {
+        throw new Error('Invalid update data: Update data must be a valid object.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const getRequest = store.get(Number(id));
+
+            getRequest.onerror = (event) => {
+                console.error('Error fetching annotation for update:', event.target.error);
+                reject(new Error('Failed to update: Could not retrieve annotation from database.'));
+            };
+
+            getRequest.onsuccess = (event) => {
+                const annotation = event.target.result;
+                if (!annotation) {
+                    return reject(new Error(`Annotation not found: No annotation exists with ID ${id}.`));
+                }
+
+                const updatedAnnotation = { 
+                    ...annotation, 
+                    ...updateData,
+                    updatedAt: new Date()
+                };
+                
+                const putRequest = store.put(updatedAnnotation);
+                
+                putRequest.onsuccess = (event) => {
+                    console.log('Annotation updated successfully:', event.target.result);
+                    resolve(event.target.result);
+                };
+                
+                putRequest.onerror = (event) => {
+                    const error = event.target.error;
+                    console.error('Error updating annotation:', error);
+                    reject(new Error(`Failed to update annotation: ${error.message || 'Unknown error occurred.'}`));
+                };
+            };
+        });
+    } catch (error) {
+        console.error('Error in updateAnnotation:', error);
+        throw error;
+    }
+}
+
+/**
+ * Deletes an annotation from the database.
+ * @param {number} id - The ID of the annotation to delete.
+ * @returns {Promise<void>} A promise that resolves when the annotation is deleted.
+ * @throws {Error} Throws descriptive errors if deletion fails.
+ */
+async function deleteAnnotation(id) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid annotation ID: ID must be a valid number or string.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const request = store.delete(Number(id));
+
+            request.onsuccess = () => {
+                console.log(`Annotation with ID ${id} deleted successfully`);
+                resolve();
+            };
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error(`Error deleting annotation with ID ${id}:`, error);
+                reject(new Error(`Failed to delete annotation: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in deleteAnnotation:', error);
+        throw error;
+    }
+}
+
+/**
+ * Deletes all annotations for a specific paper (used when deleting a paper).
+ * @param {number} paperId - The ID of the paper whose annotations should be deleted.
+ * @returns {Promise<number>} A promise that resolves with the number of annotations deleted.
+ * @throws {Error} Throws descriptive errors if deletion fails.
+ */
+async function deleteAnnotationsByPaperId(paperId) {
+    if (!paperId || typeof paperId !== 'number') {
+        throw new Error('Invalid paper ID: Paper ID must be a valid number.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const index = store.index('paperId');
+            const request = index.openCursor(IDBKeyRange.only(paperId));
+            
+            let deleteCount = 0;
+
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    cursor.delete();
+                    deleteCount++;
+                    cursor.continue();
+                } else {
+                    console.log(`Deleted ${deleteCount} annotations for paper ID ${paperId}`);
+                    resolve(deleteCount);
+                }
+            };
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error(`Error deleting annotations for paper ${paperId}:`, error);
+                reject(new Error(`Failed to delete annotations: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in deleteAnnotationsByPaperId:', error);
+        throw error;
+    }
+}
+
+// Export functions for use in other modules
+export { 
+    openDB, addPaper, getAllPapers, getPaperById, getPaperByDoi, updatePaper, deletePaper, 
+    exportAllData, importData, clearAllData, 
+    addCollection, getAllCollections, getCollectionById, updateCollection, deleteCollection,
+    addAnnotation, getAnnotationsByPaperId, getAnnotationById, updateAnnotation, deleteAnnotation, deleteAnnotationsByPaperId,
+    STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS
+};
