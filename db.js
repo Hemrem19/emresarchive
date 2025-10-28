@@ -1,9 +1,10 @@
 // c:/Users/hasan/Python Projects/research/db.js
 
 const DB_NAME = 'EmresArchiveDB';
-const DB_VERSION = 4; // Increment this version number if you change the schema
+const DB_VERSION = 5; // Increment this version number if you change the schema
 const STORE_NAME_PAPERS = 'papers';
 const STORE_NAME_COLLECTIONS = 'collections';
+const STORE_NAME_ANNOTATIONS = 'annotations';
 
 let db = null;
 
@@ -90,6 +91,16 @@ async function openDB() {
                     // Define indexes for collections
                     collectionStore.createIndex('name', 'name', { unique: false });
                     collectionStore.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+                
+                // Create 'annotations' object store for version 5
+                if (!dbInstance.objectStoreNames.contains(STORE_NAME_ANNOTATIONS)) {
+                    const annotationStore = dbInstance.createObjectStore(STORE_NAME_ANNOTATIONS, { keyPath: 'id', autoIncrement: true });
+                    // Define indexes for annotations
+                    annotationStore.createIndex('paperId', 'paperId', { unique: false }); // To query all annotations for a paper
+                    annotationStore.createIndex('type', 'type', { unique: false }); // To filter by highlight/note
+                    annotationStore.createIndex('pageNumber', 'pageNumber', { unique: false }); // To filter by page
+                    annotationStore.createIndex('createdAt', 'createdAt', { unique: false });
                 }
             } catch (error) {
                 console.error('Error during database upgrade:', error);
@@ -349,6 +360,15 @@ async function deletePaper(id) {
     }
 
     try {
+        // First, delete all annotations associated with this paper
+        try {
+            await deleteAnnotationsByPaperId(Number(id));
+        } catch (annotationError) {
+            console.warn('Error deleting annotations for paper:', annotationError);
+            // Continue with paper deletion even if annotation deletion fails
+        }
+
+        // Then delete the paper itself
         const database = await openDB();
         return new Promise((resolve, reject) => {
             const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
@@ -372,8 +392,8 @@ async function deletePaper(id) {
 /**
  * Exports all data from the database into a serializable format with error handling.
  * Converts any Blob data (like PDFs) into Base64 strings.
- * Includes both papers and collections.
- * @returns {Promise<Object>} A promise that resolves with an object containing papers and collections arrays.
+ * Includes papers, collections, and annotations.
+ * @returns {Promise<Object>} A promise that resolves with an object containing papers, collections, and annotations arrays.
  * @throws {Error} Throws descriptive errors if export fails.
  */
 async function exportAllData() {
@@ -381,9 +401,20 @@ async function exportAllData() {
         const papers = await getAllPapers();
         const collections = await getAllCollections();
         
-        if ((!papers || papers.length === 0) && (!collections || collections.length === 0)) {
+        // Get all annotations for all papers
+        const allAnnotations = [];
+        for (const paper of papers) {
+            try {
+                const paperAnnotations = await getAnnotationsByPaperId(paper.id);
+                allAnnotations.push(...paperAnnotations);
+            } catch (error) {
+                console.warn(`Could not export annotations for paper ${paper.id}:`, error);
+            }
+        }
+        
+        if ((!papers || papers.length === 0) && (!collections || collections.length === 0) && allAnnotations.length === 0) {
             console.warn('No data to export');
-            return { papers: [], collections: [] };
+            return { papers: [], collections: [], annotations: [] };
         }
 
         const serializablePapers = [];
@@ -434,9 +465,23 @@ async function exportAllData() {
             return serializable;
         });
 
+        // Process annotations
+        const serializableAnnotations = allAnnotations.map(annotation => {
+            const serializable = { ...annotation };
+            // Convert dates to ISO strings
+            if (serializable.createdAt instanceof Date) {
+                serializable.createdAt = serializable.createdAt.toISOString();
+            }
+            if (serializable.updatedAt instanceof Date) {
+                serializable.updatedAt = serializable.updatedAt.toISOString();
+            }
+            return serializable;
+        });
+
         return {
             papers: serializablePapers,
-            collections: serializableCollections
+            collections: serializableCollections,
+            annotations: serializableAnnotations
         };
     } catch (error) {
         console.error('Error in exportAllData:', error);
@@ -449,29 +494,31 @@ async function exportAllData() {
 
 /**
  * Imports data from a backup file with validation and error handling.
- * Overwrites all existing data. Supports both old format (array) and new format (object with papers and collections).
- * @param {Array<Object>|Object} dataToImport - An array of papers (old format) or an object with papers and collections.
+ * Overwrites all existing data. Supports old format (array), medium format (object with papers and collections), and new format (with annotations).
+ * @param {Array<Object>|Object} dataToImport - An array of papers (old format) or an object with papers, collections, and annotations.
  * @returns {Promise<void>} A promise that resolves when the import is complete.
  * @throws {Error} Throws descriptive errors if import fails.
  */
 async function importData(dataToImport) {
-    // Handle both old format (array) and new format (object with papers and collections)
+    // Handle multiple formats
     let papersToImport = [];
     let collectionsToImport = [];
+    let annotationsToImport = [];
     
     if (Array.isArray(dataToImport)) {
         // Old format: just an array of papers
         papersToImport = dataToImport;
     } else if (dataToImport && typeof dataToImport === 'object') {
-        // New format: object with papers and collections
+        // New format: object with papers, collections, and annotations
         papersToImport = dataToImport.papers || [];
         collectionsToImport = dataToImport.collections || [];
+        annotationsToImport = dataToImport.annotations || [];
     } else {
-        throw new Error('Invalid import data: Data must be an array of papers or an object with papers and collections.');
+        throw new Error('Invalid import data: Data must be an array of papers or an object with papers, collections, and annotations.');
     }
 
-    if (papersToImport.length === 0 && collectionsToImport.length === 0) {
-        throw new Error('Invalid import data: No papers or collections found in import file.');
+    if (papersToImport.length === 0 && collectionsToImport.length === 0 && annotationsToImport.length === 0) {
+        throw new Error('Invalid import data: No papers, collections, or annotations found in import file.');
     }
 
     // Validate paper structure
@@ -499,16 +546,19 @@ async function importData(dataToImport) {
     try {
         const database = await openDB();
         return new Promise((resolve, reject) => {
-            const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS], 'readwrite');
+            const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
             const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
             const collectionsStore = transaction.objectStore(STORE_NAME_COLLECTIONS);
+            const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
 
             // 1. Clear all existing data
             const clearPapersRequest = papersStore.clear();
             const clearCollectionsRequest = collectionsStore.clear();
+            const clearAnnotationsRequest = annotationsStore.clear();
             
             let papersCleared = false;
             let collectionsCleared = false;
+            let annotationsCleared = false;
             
             clearPapersRequest.onerror = (event) => {
                 console.error('Error clearing papers for import:', event.target.error);
@@ -518,6 +568,11 @@ async function importData(dataToImport) {
             clearCollectionsRequest.onerror = (event) => {
                 console.error('Error clearing collections for import:', event.target.error);
                 reject(new Error('Import failed: Unable to clear existing collections. Please try again.'));
+            };
+            
+            clearAnnotationsRequest.onerror = (event) => {
+                console.error('Error clearing annotations for import:', event.target.error);
+                reject(new Error('Import failed: Unable to clear existing annotations. Please try again.'));
             };
 
             clearPapersRequest.onsuccess = () => {
@@ -530,15 +585,22 @@ async function importData(dataToImport) {
                 checkAndProceed();
             };
             
+            clearAnnotationsRequest.onsuccess = () => {
+                annotationsCleared = true;
+                checkAndProceed();
+            };
+            
             const checkAndProceed = async () => {
-                if (!papersCleared || !collectionsCleared) return;
+                if (!papersCleared || !collectionsCleared || !annotationsCleared) return;
                 
-                // 2. Add all new papers and collections
+                // 2. Add all new papers, collections, and annotations
                 try {
                     let paperSuccessCount = 0;
                     let paperErrorCount = 0;
                     let collectionSuccessCount = 0;
                     let collectionErrorCount = 0;
+                    let annotationSuccessCount = 0;
+                    let annotationErrorCount = 0;
 
                     // Import papers
                     for (const paper of papersToImport) {
@@ -603,11 +665,38 @@ async function importData(dataToImport) {
                         }
                     }
 
+                    // Import annotations
+                    for (const annotation of annotationsToImport) {
+                        try {
+                            const annotationToStore = { ...annotation };
+                            
+                            // Convert ISO date strings back to Date objects
+                            if (annotationToStore.createdAt && typeof annotationToStore.createdAt === 'string') {
+                                annotationToStore.createdAt = new Date(annotationToStore.createdAt);
+                            }
+                            if (annotationToStore.updatedAt && typeof annotationToStore.updatedAt === 'string') {
+                                annotationToStore.updatedAt = new Date(annotationToStore.updatedAt);
+                            }
+                            
+                            await new Promise((resolveAdd, rejectAdd) => {
+                                const addRequest = annotationsStore.add(annotationToStore);
+                                addRequest.onsuccess = () => resolveAdd();
+                                addRequest.onerror = (event) => rejectAdd(event.target.error);
+                            });
+                            
+                            annotationSuccessCount++;
+                        } catch (annotationError) {
+                            console.error(`Error importing annotation:`, annotationError);
+                            annotationErrorCount++;
+                            // Continue with next annotation
+                        }
+                    }
+
                     if (paperSuccessCount === 0 && papersToImport.length > 0) {
                         transaction.abort();
                         reject(new Error('Import failed: Unable to import any papers. Please check the file format and try again.'));
-                    } else if (paperErrorCount > 0 || collectionErrorCount > 0) {
-                        console.warn(`Import completed with ${paperErrorCount} paper errors and ${collectionErrorCount} collection errors`);
+                    } else if (paperErrorCount > 0 || collectionErrorCount > 0 || annotationErrorCount > 0) {
+                        console.warn(`Import completed with ${paperErrorCount} paper errors, ${collectionErrorCount} collection errors, and ${annotationErrorCount} annotation errors`);
                     }
                 } catch (error) {
                     transaction.abort();
@@ -642,33 +731,41 @@ async function importData(dataToImport) {
 }
 
 /**
- * Clears all data from the 'papers' and 'collections' object stores.
+ * Clears all data from the 'papers', 'collections', and 'annotations' object stores.
  * @returns {Promise<void>} A promise that resolves when all stores are cleared.
  */
 async function clearAllData() {
     const database = await openDB();
     return new Promise((resolve, reject) => {
-        const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS], 'readwrite');
+        const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
         const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
         const collectionsStore = transaction.objectStore(STORE_NAME_COLLECTIONS);
+        const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
         
         const clearPapersRequest = papersStore.clear();
         const clearCollectionsRequest = collectionsStore.clear();
+        const clearAnnotationsRequest = annotationsStore.clear();
 
         let papersCleared = false;
         let collectionsCleared = false;
+        let annotationsCleared = false;
         
         clearPapersRequest.onsuccess = () => {
             papersCleared = true;
-            if (collectionsCleared) resolve();
+            if (collectionsCleared && annotationsCleared) resolve();
         };
         
         clearCollectionsRequest.onsuccess = () => {
             collectionsCleared = true;
-            if (papersCleared) resolve();
+            if (papersCleared && annotationsCleared) resolve();
         };
         
-        clearPapersRequest.onerror = clearCollectionsRequest.onerror = (event) => {
+        clearAnnotationsRequest.onsuccess = () => {
+            annotationsCleared = true;
+            if (papersCleared && collectionsCleared) resolve();
+        };
+        
+        clearPapersRequest.onerror = clearCollectionsRequest.onerror = clearAnnotationsRequest.onerror = (event) => {
             console.error('Error clearing data:', event.target.error);
             reject(event.target.error);
         };
@@ -878,10 +975,293 @@ async function deleteCollection(id) {
     }
 }
 
+// ==================== ANNOTATIONS CRUD OPERATIONS ====================
+
+/**
+ * Adds a new annotation to the database.
+ * @param {Object} annotationData - The annotation data.
+ * @param {number} annotationData.paperId - The ID of the paper this annotation belongs to.
+ * @param {string} annotationData.type - The type of annotation ('highlight' or 'note').
+ * @param {number} annotationData.pageNumber - The PDF page number.
+ * @param {string} [annotationData.color] - Color for highlights (e.g., 'yellow', 'orange', 'green', 'blue').
+ * @param {string} [annotationData.textContent] - The highlighted text content.
+ * @param {Array} [annotationData.rects] - Array of bounding box rectangles for highlights.
+ * @param {Object} [annotationData.position] - Position for sticky notes {x, y}.
+ * @param {string} [annotationData.content] - Text content for sticky notes.
+ * @returns {Promise<number>} A promise that resolves with the ID of the newly added annotation.
+ * @throws {Error} Throws descriptive errors for validation or storage failures.
+ */
+async function addAnnotation(annotationData) {
+    // Validate required fields
+    if (!annotationData || typeof annotationData !== 'object') {
+        throw new Error('Invalid annotation data: Annotation data must be a valid object.');
+    }
+    
+    if (!annotationData.paperId || typeof annotationData.paperId !== 'number') {
+        throw new Error('Invalid paper ID: Paper ID is required and must be a number.');
+    }
+    
+    if (!annotationData.type || !['highlight', 'note'].includes(annotationData.type)) {
+        throw new Error('Invalid annotation type: Type must be either "highlight" or "note".');
+    }
+    
+    if (!annotationData.pageNumber || typeof annotationData.pageNumber !== 'number') {
+        throw new Error('Invalid page number: Page number is required and must be a number.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            
+            const annotation = {
+                ...annotationData,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            const request = store.add(annotation);
+
+            request.onsuccess = (event) => {
+                console.log('Annotation added successfully with ID:', event.target.result);
+                resolve(event.target.result);
+            };
+
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error adding annotation:', error);
+                
+                let errorMessage = 'Failed to save annotation: ';
+                if (error.name === 'QuotaExceededError') {
+                    errorMessage = 'Storage quota exceeded: Your browser storage is full. Please free up space.';
+                } else {
+                    errorMessage += error.message || 'Unknown error occurred.';
+                }
+                
+                reject(new Error(errorMessage));
+            };
+        });
+    } catch (error) {
+        console.error('Error in addAnnotation:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves all annotations for a specific paper.
+ * @param {number} paperId - The ID of the paper.
+ * @returns {Promise<Array>} A promise that resolves with an array of annotations.
+ * @throws {Error} Throws descriptive errors if retrieval fails.
+ */
+async function getAnnotationsByPaperId(paperId) {
+    if (!paperId || typeof paperId !== 'number') {
+        throw new Error('Invalid paper ID: Paper ID must be a valid number.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const index = store.index('paperId');
+            const request = index.getAll(paperId);
+
+            request.onsuccess = (event) => {
+                const annotations = event.target.result || [];
+                console.log(`Retrieved ${annotations.length} annotations for paper ID ${paperId}`);
+                resolve(annotations);
+            };
+
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error retrieving annotations:', error);
+                reject(new Error(`Failed to retrieve annotations: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getAnnotationsByPaperId:', error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves a single annotation by its ID.
+ * @param {number} id - The annotation ID.
+ * @returns {Promise<Object|null>} A promise that resolves with the annotation object or null if not found.
+ * @throws {Error} Throws descriptive errors if retrieval fails.
+ */
+async function getAnnotationById(id) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid annotation ID: ID must be a valid number or string.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readonly');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const request = store.get(Number(id));
+
+            request.onsuccess = (event) => resolve(event.target.result || null);
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error('Error retrieving annotation:', error);
+                reject(new Error(`Failed to retrieve annotation: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in getAnnotationById:', error);
+        throw error;
+    }
+}
+
+/**
+ * Updates an existing annotation in the database.
+ * @param {number} id - The ID of the annotation to update.
+ * @param {Object} updateData - An object containing the fields to update.
+ * @returns {Promise<number>} A promise that resolves with the ID of the updated annotation.
+ * @throws {Error} Throws descriptive errors for validation or update failures.
+ */
+async function updateAnnotation(id, updateData) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid annotation ID: ID must be a valid number or string.');
+    }
+    
+    if (!updateData || typeof updateData !== 'object') {
+        throw new Error('Invalid update data: Update data must be a valid object.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const getRequest = store.get(Number(id));
+
+            getRequest.onerror = (event) => {
+                console.error('Error fetching annotation for update:', event.target.error);
+                reject(new Error('Failed to update: Could not retrieve annotation from database.'));
+            };
+
+            getRequest.onsuccess = (event) => {
+                const annotation = event.target.result;
+                if (!annotation) {
+                    return reject(new Error(`Annotation not found: No annotation exists with ID ${id}.`));
+                }
+
+                const updatedAnnotation = { 
+                    ...annotation, 
+                    ...updateData,
+                    updatedAt: new Date()
+                };
+                
+                const putRequest = store.put(updatedAnnotation);
+                
+                putRequest.onsuccess = (event) => {
+                    console.log('Annotation updated successfully:', event.target.result);
+                    resolve(event.target.result);
+                };
+                
+                putRequest.onerror = (event) => {
+                    const error = event.target.error;
+                    console.error('Error updating annotation:', error);
+                    reject(new Error(`Failed to update annotation: ${error.message || 'Unknown error occurred.'}`));
+                };
+            };
+        });
+    } catch (error) {
+        console.error('Error in updateAnnotation:', error);
+        throw error;
+    }
+}
+
+/**
+ * Deletes an annotation from the database.
+ * @param {number} id - The ID of the annotation to delete.
+ * @returns {Promise<void>} A promise that resolves when the annotation is deleted.
+ * @throws {Error} Throws descriptive errors if deletion fails.
+ */
+async function deleteAnnotation(id) {
+    if (!id || (typeof id !== 'number' && typeof id !== 'string')) {
+        throw new Error('Invalid annotation ID: ID must be a valid number or string.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const request = store.delete(Number(id));
+
+            request.onsuccess = () => {
+                console.log(`Annotation with ID ${id} deleted successfully`);
+                resolve();
+            };
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error(`Error deleting annotation with ID ${id}:`, error);
+                reject(new Error(`Failed to delete annotation: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in deleteAnnotation:', error);
+        throw error;
+    }
+}
+
+/**
+ * Deletes all annotations for a specific paper (used when deleting a paper).
+ * @param {number} paperId - The ID of the paper whose annotations should be deleted.
+ * @returns {Promise<number>} A promise that resolves with the number of annotations deleted.
+ * @throws {Error} Throws descriptive errors if deletion fails.
+ */
+async function deleteAnnotationsByPaperId(paperId) {
+    if (!paperId || typeof paperId !== 'number') {
+        throw new Error('Invalid paper ID: Paper ID must be a valid number.');
+    }
+
+    try {
+        const database = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = database.transaction([STORE_NAME_ANNOTATIONS], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+            const index = store.index('paperId');
+            const request = index.openCursor(IDBKeyRange.only(paperId));
+            
+            let deleteCount = 0;
+
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    cursor.delete();
+                    deleteCount++;
+                    cursor.continue();
+                } else {
+                    console.log(`Deleted ${deleteCount} annotations for paper ID ${paperId}`);
+                    resolve(deleteCount);
+                }
+            };
+            
+            request.onerror = (event) => {
+                const error = event.target.error;
+                console.error(`Error deleting annotations for paper ${paperId}:`, error);
+                reject(new Error(`Failed to delete annotations: ${error.message || 'Database error occurred.'}`));
+            };
+        });
+    } catch (error) {
+        console.error('Error in deleteAnnotationsByPaperId:', error);
+        throw error;
+    }
+}
+
 // Export functions for use in other modules
 export { 
     openDB, addPaper, getAllPapers, getPaperById, getPaperByDoi, updatePaper, deletePaper, 
     exportAllData, importData, clearAllData, 
     addCollection, getAllCollections, getCollectionById, updateCollection, deleteCollection,
-    STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS 
+    addAnnotation, getAnnotationsByPaperId, getAnnotationById, updateAnnotation, deleteAnnotation, deleteAnnotationsByPaperId,
+    STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS
 };
