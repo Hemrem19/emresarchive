@@ -420,6 +420,12 @@ export const detailsView = {
             if (prevBtn) prevBtn.disabled = pageNum <= 1;
             if (nextBtn) nextBtn.disabled = pageNum >= pdfState.totalPages;
             
+            // Re-highlight search results if active search
+            if (pdfState.searchQuery && pdfState.searchMatches.length > 0) {
+                // Use setTimeout to ensure rendering is complete
+                setTimeout(() => highlightSearchResults(), 50);
+            }
+            
         } catch (error) {
             console.error('Error rendering PDF page:', error);
             showToast('Failed to render PDF page', 'error');
@@ -656,11 +662,10 @@ export const detailsView = {
         highlightSearchResults();
     };
 
-    const highlightSearchResults = () => {
-        const canvas = document.getElementById('pdf-canvas');
+    const highlightSearchResults = async () => {
         const annotationsLayer = document.getElementById('pdf-annotations-layer');
         
-        if (!annotationsLayer || !canvas || pdfState.searchMatches.length === 0) {
+        if (!annotationsLayer || pdfState.searchMatches.length === 0) {
             // Clear existing highlights
             if (annotationsLayer) annotationsLayer.innerHTML = '';
             return;
@@ -674,13 +679,120 @@ export const detailsView = {
         
         if (currentPageMatches.length === 0) return;
 
-        // For simple highlighting, we'll add colored overlays
-        // Note: This is a basic implementation. Full text-position-based highlighting
-        // would require more complex PDF.js text layer rendering
-        const matchInfo = document.createElement('div');
-        matchInfo.className = 'absolute top-2 left-2 bg-yellow-200 dark:bg-yellow-600 text-stone-900 dark:text-white px-2 py-1 rounded text-xs font-medium shadow';
-        matchInfo.textContent = `${currentPageMatches.length} match${currentPageMatches.length > 1 ? 'es' : ''} on this page`;
-        annotationsLayer.appendChild(matchInfo);
+        try {
+            const page = await pdfState.pdfDoc.getPage(pdfState.currentPage);
+            const textContent = await page.getTextContent();
+            
+            // Get device pixel ratio for proper scaling
+            const pixelRatio = window.devicePixelRatio || 1;
+            const MIN_RENDER_SCALE = 2.0;
+            const renderScale = pdfState.scale < 1.0
+                ? MIN_RENDER_SCALE
+                : pdfState.scale * pixelRatio * 2.0;
+            
+            // Calculate viewport (same as rendering)
+            const viewport = page.getViewport({ scale: renderScale, rotation: pdfState.rotation });
+            const displayViewport = page.getViewport({ scale: pdfState.scale, rotation: pdfState.rotation });
+            
+            // Build text positions map
+            const textItems = textContent.items;
+            let fullText = '';
+            const positions = [];
+            
+            for (let i = 0; i < textItems.length; i++) {
+                const item = textItems[i];
+                const text = item.str;
+                const startIndex = fullText.length;
+                fullText += text + ' ';
+                
+                // Store position info for this text item
+                positions.push({
+                    startIndex: startIndex,
+                    endIndex: startIndex + text.length,
+                    transform: item.transform,
+                    width: item.width,
+                    height: item.height,
+                    text: text
+                });
+            }
+            
+            // Find all matches in the full text
+            const searchLower = pdfState.searchQuery.toLowerCase();
+            const fullTextLower = fullText.toLowerCase();
+            const pageMatches = [];
+            
+            let startIdx = 0;
+            while ((startIdx = fullTextLower.indexOf(searchLower, startIdx)) !== -1) {
+                pageMatches.push({ start: startIdx, end: startIdx + searchLower.length });
+                startIdx += searchLower.length;
+            }
+            
+            // Create highlight overlays for each match
+            pageMatches.forEach((match, matchIndex) => {
+                // Find which text item(s) contain this match
+                for (let i = 0; i < positions.length; i++) {
+                    const pos = positions[i];
+                    
+                    // Check if this position overlaps with the match
+                    if (match.start < pos.endIndex && match.end > pos.startIndex) {
+                        // Calculate the portion of the match in this text item
+                        const matchStartInItem = Math.max(0, match.start - pos.startIndex);
+                        const matchEndInItem = Math.min(pos.text.length, match.end - pos.startIndex);
+                        
+                        // Calculate highlight rectangle
+                        const tx = pos.transform[4];
+                        const ty = pos.transform[5];
+                        const fontSize = Math.sqrt(pos.transform[2] * pos.transform[2] + pos.transform[3] * pos.transform[3]);
+                        
+                        // Estimate character width
+                        const charWidth = pos.width / pos.text.length;
+                        const highlightWidth = charWidth * (matchEndInItem - matchStartInItem);
+                        const highlightX = tx + (charWidth * matchStartInItem);
+                        
+                        // Convert PDF coordinates to canvas coordinates
+                        const [x1, y1] = viewport.convertToViewportPoint(highlightX, ty);
+                        const [x2, y2] = viewport.convertToViewportPoint(highlightX + highlightWidth, ty + fontSize);
+                        
+                        // Scale to display coordinates
+                        const scaleRatio = displayViewport.width / viewport.width;
+                        const displayX = x1 * scaleRatio;
+                        const displayY = y1 * scaleRatio;
+                        const displayWidth = (x2 - x1) * scaleRatio;
+                        const displayHeight = (y2 - y1) * scaleRatio;
+                        
+                        // Create highlight element
+                        const highlight = document.createElement('div');
+                        highlight.className = 'absolute pointer-events-none';
+                        highlight.style.left = `${displayX}px`;
+                        highlight.style.top = `${displayY}px`;
+                        highlight.style.width = `${displayWidth}px`;
+                        highlight.style.height = `${displayHeight}px`;
+                        
+                        // Determine if this is the current match
+                        const isCurrentMatch = pdfState.searchMatches[pdfState.currentMatchIndex]?.page === pdfState.currentPage &&
+                                              matchIndex === pageMatches.findIndex(pm => pm.start === match.start);
+                        
+                        // Style: current match = orange, others = yellow
+                        if (isCurrentMatch) {
+                            highlight.style.backgroundColor = 'rgba(255, 165, 0, 0.4)'; // Orange
+                            highlight.style.border = '2px solid rgba(255, 140, 0, 0.8)';
+                        } else {
+                            highlight.style.backgroundColor = 'rgba(255, 255, 0, 0.3)'; // Yellow
+                        }
+                        
+                        annotationsLayer.appendChild(highlight);
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error highlighting search results:', error);
+            // Fallback: show simple badge if highlighting fails
+            const matchInfo = document.createElement('div');
+            matchInfo.className = 'absolute top-2 left-2 bg-yellow-200 dark:bg-yellow-600 text-stone-900 dark:text-white px-2 py-1 rounded text-xs font-medium shadow';
+            matchInfo.textContent = `${currentPageMatches.length} match${currentPageMatches.length > 1 ? 'es' : ''} on this page`;
+            annotationsLayer.appendChild(matchInfo);
+        }
     };
 
     const updateSearchUI = () => {
