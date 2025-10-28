@@ -18,14 +18,20 @@ export const graphView = {
             // Load all papers
             this.allPapers = await getAllPapers();
             
+            console.log('Graph View: Loaded papers:', this.allPapers.length);
+            
             // Populate tag filter dropdown
             this.populateTagFilter();
             
             // Transform papers to graph data
             const graphData = this.prepareGraphData(this.allPapers);
             
+            console.log('Graph View: Nodes:', graphData.nodes.length, 'Edges:', graphData.edges.length);
+            console.log('Graph Data:', graphData);
+            
             // Check if there are any connections
             if (graphData.edges.length === 0) {
+                console.log('Graph View: No edges found, showing empty state');
                 document.getElementById('graph-empty-state').classList.remove('hidden');
                 return;
             }
@@ -81,6 +87,7 @@ export const graphView = {
         const nodes = [];
         const edges = [];
         const paperIdSet = new Set(papers.map(p => p.id));
+        const edgeSet = new Set(); // Track unique edges to avoid duplicates
         
         papers.forEach(paper => {
             // Create node for each paper
@@ -105,28 +112,41 @@ export const graphView = {
             
             // Create edges for related papers
             if (paper.relatedPapers && paper.relatedPapers.length > 0) {
+                console.log(`Paper ${paper.id} (${paper.title}) has related papers:`, paper.relatedPapers);
+                
                 paper.relatedPapers.forEach(relatedId => {
-                    // Only create edge if related paper exists and avoid duplicates
-                    if (paperIdSet.has(relatedId) && paper.id < relatedId) {
-                        edges.push({
-                            from: paper.id,
-                            to: relatedId,
-                            width: 2,
-                            color: {
-                                color: '#d6d3d1', // stone-300
-                                highlight: '#137fec', // primary
-                                hover: '#137fec'
-                            },
-                            smooth: {
-                                enabled: true,
-                                type: 'continuous'
-                            }
-                        });
+                    // Only create edge if related paper exists
+                    if (paperIdSet.has(relatedId)) {
+                        // Create a unique edge key (bidirectional)
+                        const edgeKey = [Math.min(paper.id, relatedId), Math.max(paper.id, relatedId)].join('-');
+                        
+                        // Only add if we haven't seen this edge before
+                        if (!edgeSet.has(edgeKey)) {
+                            edgeSet.add(edgeKey);
+                            edges.push({
+                                from: paper.id,
+                                to: relatedId,
+                                width: 2,
+                                color: {
+                                    color: '#d6d3d1', // stone-300
+                                    highlight: '#137fec', // primary
+                                    hover: '#137fec'
+                                },
+                                smooth: {
+                                    enabled: true,
+                                    type: 'continuous'
+                                }
+                            });
+                            console.log(`Created edge: ${paper.id} -> ${relatedId}`);
+                        }
+                    } else {
+                        console.warn(`Related paper ${relatedId} not found in dataset`);
                     }
                 });
             }
         });
         
+        console.log(`Prepared ${nodes.length} nodes and ${edges.length} edges`);
         return { nodes, edges };
     },
 
