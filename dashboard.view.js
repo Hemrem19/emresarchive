@@ -610,13 +610,13 @@ export const dashboardView = {
     async handleSaveCollection(appState, applyFiltersAndRender) {
         // Get current filter state
         const currentFilters = {
-            status: appState.currentStatusFilter || '',
-            tag: appState.currentTagFilter || '',
+            status: appState.activeFilters.status || '',
+            tags: appState.activeFilters.tags || [], // Array of tags
             searchTerm: appState.currentSearchTerm || ''
         };
 
         // Check if any filters are active
-        if (!currentFilters.status && !currentFilters.tag && !currentFilters.searchTerm) {
+        if (!currentFilters.status && (!currentFilters.tags || currentFilters.tags.length === 0) && !currentFilters.searchTerm) {
             showToast('No filters are currently active. Apply some filters first.', 'warning', { duration: 4000 });
             return;
         }
@@ -659,8 +659,16 @@ export const dashboardView = {
             }
 
             // Apply the saved filters
-            appState.currentStatusFilter = collection.filters.status || '';
-            appState.currentTagFilter = collection.filters.tag || '';
+            appState.activeFilters.status = collection.filters.status || null;
+            // Handle both old (single tag) and new (multiple tags) format for backward compatibility
+            if (Array.isArray(collection.filters.tags)) {
+                appState.activeFilters.tags = collection.filters.tags;
+            } else if (collection.filters.tag) {
+                // Legacy: single tag stored as string
+                appState.activeFilters.tags = [collection.filters.tag];
+            } else {
+                appState.activeFilters.tags = [];
+            }
             appState.currentSearchTerm = collection.filters.searchTerm || '';
 
             // Update search input if present
