@@ -91,7 +91,7 @@ export const graphView = {
         
         papers.forEach(paper => {
             // Create node for each paper
-            const connectionCount = (paper.relatedPapers || []).filter(id => paperIdSet.has(id)).length;
+            const connectionCount = (paper.relatedPaperIds || []).filter(id => paperIdSet.has(id)).length;
             
             nodes.push({
                 id: paper.id,
@@ -111,10 +111,10 @@ export const graphView = {
             });
             
             // Create edges for related papers
-            if (paper.relatedPapers && paper.relatedPapers.length > 0) {
-                console.log(`Paper ${paper.id} (${paper.title}) has related papers:`, paper.relatedPapers);
+            if (paper.relatedPaperIds && paper.relatedPaperIds.length > 0) {
+                console.log(`Paper ${paper.id} (${paper.title}) has related papers:`, paper.relatedPaperIds);
                 
-                paper.relatedPapers.forEach(relatedId => {
+                paper.relatedPaperIds.forEach(relatedId => {
                     // Only create edge if related paper exists
                     if (paperIdSet.has(relatedId)) {
                         // Create a unique edge key (bidirectional)
