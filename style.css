@@ -98,23 +98,40 @@ body {
 /* PDF Text Layer for Text Selection */
 #pdf-text-layer {
     position: absolute;
-    text-align: initial;
-    inset: 0;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
     overflow: hidden;
-    opacity: 0.2; /* Make text visible when selected */
-    line-height: 1;
-    text-size-adjust: none;
-    forced-color-adjust: none;
-    transform-origin: 0 0;
+    opacity: 1;
+    line-height: 1.0;
     z-index: 2;
+    /* Use PDF.js default text layer class */
 }
 
-#pdf-text-layer :is(span, br) {
+#pdf-text-layer > span,
+#pdf-text-layer > br {
     color: transparent;
     position: absolute;
     white-space: pre;
     cursor: text;
     transform-origin: 0% 0%;
+}
+
+#pdf-text-layer .endOfContent {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 100%;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    cursor: default;
+    user-select: none;
+}
+
+#pdf-text-layer .endOfContent.active {
+    top: 0;
 }
 
 /* Highlighted selected text should be visible */

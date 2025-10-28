@@ -242,7 +242,7 @@ export const detailsView = {
                                 <div id="pdf-page-wrapper" class="relative">
                                     <canvas id="pdf-canvas" class="shadow-lg bg-white"></canvas>
                                     <!-- Text layer for text selection -->
-                                    <div id="pdf-text-layer" class="absolute top-0 left-0 w-full h-full overflow-hidden"></div>
+                                    <div id="pdf-text-layer" class="textLayer"></div>
                                     <!-- Annotations layer -->
                                     <div id="pdf-annotations-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
                                 </div>
@@ -438,14 +438,22 @@ export const detailsView = {
             
             // Render text layer for text selection
             if (textLayer) {
-                textLayer.innerHTML = ''; // Clear previous text layer
+                // Clear previous text layer
+                textLayer.innerHTML = '';
+                textLayer.style.width = `${displayViewport.width}px`;
+                textLayer.style.height = `${displayViewport.height}px`;
+                
+                // Get text content and render
                 const textContent = await page.getTextContent();
-                pdfjsLib.renderTextLayer({
+                const textLayerRender = pdfjsLib.renderTextLayer({
                     textContentSource: textContent,
                     container: textLayer,
                     viewport: displayViewport,
                     textDivs: []
                 });
+                
+                // Wait for text layer to complete rendering
+                await textLayerRender.promise;
             }
             
             // Update page number display
