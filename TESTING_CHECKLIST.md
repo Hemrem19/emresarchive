@@ -1,9 +1,9 @@
-# Testing Checklist - Phase 2 Features (A1 & B2)
+# Testing Checklist - Phase 2 Features
 
-**Version:** 1.3  
+**Version:** 1.5  
 **Database Version:** 4  
-**Features to Test:** Saved Filters/Collections (A1) + Command Palette (B2)  
-**Priority:** HIGH - Both features are untested in production environment
+**Features to Test:** Collections (A1) + Command Palette (B2) + Keyboard Shortcuts (B3) + Reading Progress (A3)  
+**Priority:** HIGH - All features are untested in production environment
 
 ---
 
@@ -477,6 +477,127 @@
 
 ---
 
+## 📖 Feature A3: Reading Progress Tracking
+
+### Test Category 12: Progress Input & Display
+
+#### 12.1 Progress Input UI (Details View)
+- [ ] Open a paper with status "Reading"
+- [ ] Verify "Reading Progress" section appears in sidebar
+- [ ] Verify two input fields: "Current Page" and "Total Pages"
+- [ ] Enter total pages: 150
+- [ ] Enter current page: 50
+- [ ] Press Enter or blur input
+- [ ] Verify progress bar updates showing "Page 50 of 150" and "33%"
+- [ ] Verify progress bar fills to ~33%
+- [ ] Change paper status to "To Read"
+- [ ] Verify "Reading Progress" section disappears
+- [ ] Change status back to "Reading"
+- [ ] Verify progress data persists
+
+**Expected:** Progress inputs only visible for "Reading" status, data persists, UI updates in real-time
+
+#### 12.2 Progress Validation
+- [ ] Enter current page: -5
+- [ ] Blur input - verify warning toast appears
+- [ ] Enter total pages: -10
+- [ ] Blur input - verify warning toast appears
+- [ ] Enter current page: 200, total: 100
+- [ ] Blur input - verify warning toast (current > total)
+- [ ] Enter valid values (current: 75, total: 150)
+- [ ] Verify no warnings, progress updates correctly
+
+**Expected:** All validation works, helpful error messages, prevents invalid data
+
+#### 12.3 Progress on Dashboard Cards
+- [ ] Navigate to dashboard
+- [ ] Locate paper with "Reading" status and progress data
+- [ ] Verify progress badge appears below tags
+- [ ] Verify badge shows book icon, page count, percentage
+- [ ] Verify mini progress bar displays
+- [ ] Verify progress bar width matches percentage
+- [ ] Change paper to "Finished" status
+- [ ] Verify progress badge disappears from card
+- [ ] Change back to "Reading"
+- [ ] Verify progress badge reappears
+
+**Expected:** Progress badge only shows for "Reading" papers with progress data, displays correctly
+
+#### 12.4 Sort by Reading Progress
+- [ ] Create 3 papers with "Reading" status
+- [ ] Set progress: Paper A (50/100 = 50%), Paper B (90/100 = 90%), Paper C (10/100 = 10%)
+- [ ] Select "Sort by Reading Progress" from dropdown
+- [ ] Verify order: Paper B (90%), Paper A (50%), Paper C (10%)
+- [ ] Add a "Reading" paper with no progress
+- [ ] Verify it appears at the end
+- [ ] Change sort to "Date Added"
+- [ ] Verify sorting changes correctly
+
+**Expected:** Sort works correctly, papers without progress appear last
+
+### Test Category 13: Progress Persistence & Edge Cases
+
+#### 13.1 Data Persistence
+- [ ] Set progress on a paper (e.g., 25/50)
+- [ ] Navigate away from details view
+- [ ] Return to details view
+- [ ] Verify progress data persists
+- [ ] Refresh page (F5)
+- [ ] Navigate back to paper
+- [ ] Verify progress still shows correctly
+
+**Expected:** Progress data persists across navigation and page refreshes
+
+#### 13.2 Progress Updates
+- [ ] Set progress: 10/100 (10%)
+- [ ] Verify progress bar shows 10%
+- [ ] Update current page to 50
+- [ ] Verify progress bar updates to 50%
+- [ ] Update total pages to 200
+- [ ] Verify percentage recalculates to 25%
+- [ ] Update current to 200
+- [ ] Verify progress shows 100%
+
+**Expected:** Progress updates in real-time, percentages calculate correctly
+
+#### 13.3 Edge Cases
+- [ ] Set current: 0, total: 100
+- [ ] Verify shows placeholder "Set page numbers to track progress"
+- [ ] Set current: 100, total: 0
+- [ ] Verify shows placeholder
+- [ ] Set current: 100, total: 100
+- [ ] Verify shows 100%
+- [ ] Set current: 1, total: 1
+- [ ] Verify shows 100%
+
+**Expected:** All edge cases handled gracefully
+
+### Test Category 14: Progress Dark Mode & Mobile
+
+#### 14.1 Dark Mode
+- [ ] Enable dark mode
+- [ ] Open paper with progress
+- [ ] Verify progress inputs have dark background
+- [ ] Verify progress bar colors work in dark mode
+- [ ] Verify text is readable
+- [ ] Check dashboard progress badges in dark mode
+- [ ] Verify all colors/contrasts are appropriate
+
+**Expected:** Full dark mode support, readable in both modes
+
+#### 14.2 Mobile Responsive
+- [ ] Open DevTools mobile view (iPhone/Android)
+- [ ] Navigate to paper details with progress
+- [ ] Verify progress inputs are touch-friendly
+- [ ] Verify progress section fits on screen
+- [ ] Test entering numbers on mobile keyboard
+- [ ] Check dashboard progress badges on mobile
+- [ ] Verify mini progress bars display correctly
+
+**Expected:** Fully responsive, touch-friendly inputs, works on mobile
+
+---
+
 ## 📊 Testing Summary Template
 
 After completing all tests, fill out this summary:
@@ -503,6 +624,22 @@ After completing all tests, fill out this summary:
 - Dark Mode: ✅ PASS / ❌ FAIL
 - Error Handling: ✅ PASS / ❌ FAIL
 
+**Keyboard Shortcuts (B3):**
+- Global Shortcuts: ✅ PASS / ❌ FAIL
+- Context Awareness: ✅ PASS / ❌ FAIL
+- Sequence Shortcuts: ✅ PASS / ❌ FAIL
+- Help Modal: ✅ PASS / ❌ FAIL
+- Smart Escape: ✅ PASS / ❌ FAIL
+
+**Reading Progress (A3):**
+- Progress Input UI: ✅ PASS / ❌ FAIL
+- Progress Display: ✅ PASS / ❌ FAIL
+- Validation: ✅ PASS / ❌ FAIL
+- Sort by Progress: ✅ PASS / ❌ FAIL
+- Persistence: ✅ PASS / ❌ FAIL
+- Dark Mode: ✅ PASS / ❌ FAIL
+- Mobile: ✅ PASS / ❌ FAIL
+
 ### Issues Found
 
 | Issue # | Feature | Description | Severity | Status |
@@ -512,7 +649,7 @@ After completing all tests, fill out this summary:
 
 ### Overall Assessment
 
-- [ ] **APPROVED** - Both features ready for production
+- [ ] **APPROVED** - All features ready for production
 - [ ] **APPROVED WITH MINOR ISSUES** - Can deploy with known issues documented
 - [ ] **NEEDS WORK** - Critical issues must be fixed before deployment
 
@@ -525,7 +662,7 @@ ___________________________________________
 
 ## 🎯 Priority Test Scenarios (Quick Smoke Test)
 
-If you only have 15 minutes, test these critical paths:
+If you only have 20 minutes, test these critical paths:
 
 ### Collections (5 min)
 1. [ ] Create collection with status filter
@@ -533,7 +670,7 @@ If you only have 15 minutes, test these critical paths:
 3. [ ] Delete collection
 4. [ ] Export data, clear all, import - verify collections restored
 
-### Command Palette (10 min)
+### Command Palette (7 min)
 1. [ ] Open with `Ctrl+K`
 2. [ ] Search for paper by title - press Enter to navigate
 3. [ ] Search for tag - click to filter
@@ -541,6 +678,21 @@ If you only have 15 minutes, test these critical paths:
 5. [ ] Use arrow keys to navigate, Enter to execute
 6. [ ] Press Esc to close
 7. [ ] Test in dark mode
+
+### Keyboard Shortcuts (3 min)
+1. [ ] Press `n` - verify navigates to add paper
+2. [ ] Press `/` - verify focuses search
+3. [ ] Press `?` - verify help modal appears, then Esc to close
+4. [ ] Press `g` then `h` - verify navigates to home
+
+### Reading Progress (5 min)
+1. [ ] Open paper with "Reading" status
+2. [ ] Enter progress: current 50, total 100
+3. [ ] Verify progress bar shows 50%
+4. [ ] Navigate to dashboard
+5. [ ] Verify progress badge appears on card
+6. [ ] Sort by "Reading Progress"
+7. [ ] Verify papers sorted correctly
 
 If all of these work, the features are likely production-ready!
 
