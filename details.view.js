@@ -61,8 +61,14 @@ export const detailsView = {
             <aside class="w-full lg:w-96 lg:flex-shrink-0 order-2 lg:order-1">
                 <div class="space-y-6 bg-white dark:bg-stone-900/70 p-6 rounded-lg border border-stone-200 dark:border-stone-800">
                     <div>
-                        <h1 class="text-xl font-bold text-stone-900 dark:text-white">${escapeHtml(paper.title)}</h1>
-                        <p class="mt-2 text-sm text-stone-600 dark:text-stone-400">${escapeHtml(paper.authors.join(', '))}</p>
+                        <div class="flex items-start justify-between gap-3 mb-2">
+                            <h1 class="text-xl font-bold text-stone-900 dark:text-white flex-1">${escapeHtml(paper.title)}</h1>
+                            <a href="#/edit/${paper.id}" class="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-lg transition-colors text-sm font-medium whitespace-nowrap">
+                                <span class="material-symbols-outlined text-lg">edit</span>
+                                <span>Edit</span>
+                            </a>
+                        </div>
+                        <p class="text-sm text-stone-600 dark:text-stone-400">${escapeHtml(paper.authors.join(', '))}</p>
                     </div>
                     <div class="space-y-3 text-sm">
                         <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Journal:</span><span class="text-stone-700 dark:text-stone-300 text-right">${escapeHtml(paper.journal || 'N/A')}</span></div>

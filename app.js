@@ -61,6 +61,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const keyboardShortcuts = createKeyboardShortcuts(commandPalette);
     keyboardShortcuts.init();
 
+    // --- Search Input Listener ---
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            appState.currentSearchTerm = e.target.value.trim();
+            appState.pagination.currentPage = 1; // Reset to first page when search changes
+            updateUrlHash(appState);
+            applyFiltersAndRender(appState);
+        });
+    }
+
     // --- Sidebar Filter Toggle Logic ---
     // Intercept clicks on sidebar status and tag links to toggle filters instead of replacing
     document.addEventListener('click', (e) => {

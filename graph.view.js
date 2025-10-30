@@ -102,12 +102,8 @@ export const graphView = {
                 tags: paper.tags || [],
                 shape: 'dot',
                 size: Math.max(15, Math.min(40, 15 + connectionCount * 5)), // Size based on connections
-                color: this.getNodeColor(paper.readingStatus),
-                font: {
-                    size: 14,
-                    color: '#1c1917', // stone-900
-                    face: 'Manrope'
-                }
+                color: this.getNodeColor(paper.readingStatus)
+                // Font inherits from global options (adapts to dark mode)
             });
             
             // Create edges for related papers
@@ -196,6 +192,12 @@ export const graphView = {
             edges: {
                 width: 2,
                 selectionWidth: 3,
+                color: {
+                    color: isDarkMode ? '#78716c' : '#44403c', // stone-500 : stone-700
+                    highlight: '#137fec', // primary
+                    hover: '#60a5fa', // blue-400
+                    inherit: false
+                },
                 smooth: {
                     enabled: true,
                     type: 'continuous',
@@ -226,11 +228,17 @@ export const graphView = {
                 navigationButtons: false,
                 keyboard: {
                     enabled: true,
-                    bindToWindow: false
+                    bindToWindow: false,
+                    speed: {
+                        x: 10,
+                        y: 10,
+                        zoom: 0.04 // Slower keyboard zoom
+                    }
                 },
                 multiselect: false,
                 zoomView: true,
-                dragView: true
+                dragView: true,
+                zoomSpeed: 0.3 // Reduce mouse wheel zoom sensitivity (default is 1)
             },
             layout: {
                 improvedLayout: true,
@@ -244,7 +252,7 @@ export const graphView = {
         this.network.on('click', (params) => {
             if (params.nodes.length > 0) {
                 const paperId = params.nodes[0];
-                window.location.hash = `#/paper/${paperId}`;
+                window.location.hash = `#/details/${paperId}`;
             }
         });
         
