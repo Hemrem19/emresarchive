@@ -35,6 +35,19 @@ export const formView = {
                 const advancedDetails = document.getElementById('advanced-details');
                 if (advancedDetails) advancedDetails.open = true;
             }
+
+            // Show existing PDF if present
+            if (paper.pdfData) {
+                const dropzone = document.getElementById('file-upload-dropzone');
+                const filePreview = document.getElementById('file-preview');
+                const fileName = document.getElementById('file-name');
+                
+                if (dropzone && filePreview && fileName) {
+                    fileName.textContent = paper.title ? `${paper.title.substring(0, 50)}...pdf` : 'Existing PDF';
+                    filePreview.classList.remove('hidden');
+                    dropzone.classList.add('hidden');
+                }
+            }
         } else {
             formTitle.textContent = 'Add New Paper';
         }
@@ -89,6 +102,11 @@ export const formView = {
                 showToast('Please select a PDF file.', 'error');
             }
         };
+
+        // Click to upload
+        dropzone.addEventListener('click', () => {
+            fileInput.click();
+        });
 
         // File input change
         fileInput.addEventListener('change', (e) => {
@@ -188,12 +206,20 @@ export const formView = {
             };
 
             if (pdfFile) {
-                paperData.pdfFile = pdfFile;
+                paperData.pdfData = pdfFile; // Database expects pdfData, not pdfFile
                 paperData.hasPdf = true;
             }
 
             try {
                 if (this.isEditMode) {
+                    // If no new PDF uploaded, preserve existing PDF
+                    if (!pdfFile) {
+                        const existingPaper = await getPaperById(this.paperId);
+                        if (existingPaper && existingPaper.pdfData) {
+                            paperData.pdfData = existingPaper.pdfData;
+                            paperData.hasPdf = true;
+                        }
+                    }
                     await updatePaper(this.paperId, paperData);
                     appState.allPapersCache = appState.allPapersCache.map(p => p.id === this.paperId ? { ...p, ...paperData } : p);
                     showToast('Paper updated successfully!', 'success');
