@@ -1,47 +1,16 @@
 // Test setup file - runs before all tests
-import { vi } from 'vitest';
+import { vi, beforeEach } from 'vitest';
 
-// Import fake-indexeddb for Node environment
+// Import fake-indexeddb for browser-like environment
 import 'fake-indexeddb/auto';
 import { indexedDB, IDBKeyRange } from 'fake-indexeddb';
 
-// Make IndexedDB available globally for Node environment
-if (typeof window === 'undefined') {
-  global.indexedDB = indexedDB;
-  global.IDBKeyRange = IDBKeyRange;
-  // Create minimal window object with indexedDB
-  global.window = { 
-    indexedDB: indexedDB,
-    IDBKeyRange: IDBKeyRange,
-    location: { hash: '#/' }
-  };
-}
-
-// Mock localStorage
-const localStorageMock = (() => {
-  let store = {};
-  return {
-    getItem: (key) => store[key] || null,
-    setItem: (key, value) => {
-      store[key] = value.toString();
-    },
-    removeItem: (key) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    }
-  };
-})();
-
-global.localStorage = localStorageMock;
-
-// Mock window.location.hash for routing tests (only if window exists)
+// Override IndexedDB with fake-indexeddb (happy-dom provides window object)
+global.indexedDB = indexedDB;
+global.IDBKeyRange = IDBKeyRange;
 if (typeof window !== 'undefined') {
-  delete window.location;
-  window.location = { hash: '#/' };
-} else {
-  global.window = { location: { hash: '#/' } };
+  window.indexedDB = indexedDB;
+  window.IDBKeyRange = IDBKeyRange;
 }
 
 // Mock Material Symbols (icons) - just return the text

@@ -14,14 +14,17 @@ export const fetchDoiMetadata = async (doi, options = {}) => {
         throw new Error('Invalid DOI: DOI must be a non-empty string');
     }
 
-    const cleanDoi = doi.trim();
+    let cleanDoi = doi.trim();
     if (!cleanDoi) {
         throw new Error('Invalid DOI: DOI cannot be empty');
     }
 
+    // Strip doi.org prefix if present
+    cleanDoi = cleanDoi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, '');
+
     // Basic DOI format validation (10.xxxx/yyyy pattern)
     const doiPattern = /^10\.\d{4,}[\w\-.;()\/:]+$/i;
-    if (!doiPattern.test(cleanDoi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, ''))) {
+    if (!doiPattern.test(cleanDoi)) {
         throw new Error('Invalid DOI format: Expected format like "10.1234/example"');
     }
 

@@ -103,7 +103,8 @@ describe('db/papers.js', () => {
     });
 
     it('should include hasPdf flag', async () => {
-      const paperWithPdf = createMockPaper({ id: undefined, pdfData: 'data:application/pdf;base64,test' });
+      const pdfBlob = new Blob(['fake pdf content'], { type: 'application/pdf' });
+      const paperWithPdf = createMockPaper({ id: undefined, pdfData: pdfBlob });
       const paperWithoutPdf = createMockPaper({ id: undefined, pdfData: null });
       delete paperWithPdf.id;
       delete paperWithoutPdf.id;
