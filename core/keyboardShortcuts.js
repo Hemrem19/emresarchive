@@ -1,13 +1,15 @@
 // core/keyboardShortcuts.js
 // Global Keyboard Shortcuts
 
+import { applyFiltersAndRender } from './filters.js';
+
 /**
  * Creates and manages global keyboard shortcuts
  * 
  * @param {Object} commandPalette - Command palette instance
  * @returns {Object} Keyboard shortcuts instance with methods
  */
-export const createKeyboardShortcuts = (commandPalette) => {
+export const createKeyboardShortcuts = (commandPalette, appState) => {
     return {
         sequenceKey: null, // For multi-key shortcuts like "g h"
         sequenceTimeout: null,
@@ -41,6 +43,44 @@ export const createKeyboardShortcuts = (commandPalette) => {
 
                 // Skip other shortcuts if typing
                 if (isTyping) return;
+
+                // Selection shortcuts (dashboard)
+                // Ctrl + A → select all visible papers
+                if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+                    if (this.isOnDashboard()) {
+                        e.preventDefault();
+                        this.selectAllVisible();
+                    }
+                    return;
+                }
+
+                // Ctrl + D → clear selection
+                if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+                    if (this.isOnDashboard()) {
+                        e.preventDefault();
+                        this.clearSelection();
+                    }
+                    return;
+                }
+
+                // Ctrl + Shift + D → focus Quick Add DOI
+                if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+                    if (this.isOnDashboard()) {
+                        e.preventDefault();
+                        this.focusQuickAddDoi();
+                    }
+                    return;
+                }
+
+                // Delete → batch delete selected
+                if (e.key === 'Delete') {
+                    if (this.isOnDashboard() && appState.selectedPaperIds.size > 0) {
+                        e.preventDefault();
+                        const deleteBtn = document.getElementById('batch-delete-btn');
+                        if (deleteBtn) deleteBtn.click();
+                    }
+                    return;
+                }
 
                 // Handle sequence shortcuts (e.g., "g h" for go home)
                 if (this.sequenceKey) {
@@ -107,6 +147,12 @@ export const createKeyboardShortcuts = (commandPalette) => {
                 return;
             }
 
+            // If on dashboard and there are selections, clear them
+            if (this.isOnDashboard() && appState && appState.selectedPaperIds && appState.selectedPaperIds.size > 0) {
+                this.clearSelection();
+                return;
+            }
+
             // If on details or form, go back to dashboard
             const currentHash = window.location.hash;
             if (currentHash.startsWith('#/details/') || 
@@ -114,6 +160,28 @@ export const createKeyboardShortcuts = (commandPalette) => {
                 currentHash === '#/add') {
                 window.location.hash = '#/';
             }
+        },
+
+        isOnDashboard() {
+            const hash = window.location.hash || '#/';
+            return hash === '#/' || hash.startsWith('#/filter/') || hash.startsWith('#/status/') || hash.startsWith('#/tag/');
+        },
+
+        clearSelection() {
+            if (!appState || !appState.selectedPaperIds) return;
+            appState.selectedPaperIds.clear();
+            applyFiltersAndRender(appState);
+        },
+
+        selectAllVisible() {
+            if (!appState || !appState.selectedPaperIds) return;
+            const checkboxes = document.querySelectorAll('.paper-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                const id = parseInt(cb.dataset.paperId, 10);
+                if (!Number.isNaN(id)) appState.selectedPaperIds.add(id);
+            });
+            applyFiltersAndRender(appState);
         },
 
         newPaper() {
@@ -125,6 +193,15 @@ export const createKeyboardShortcuts = (commandPalette) => {
             if (searchInput) {
                 searchInput.focus();
                 searchInput.select();
+            }
+        },
+
+        focusQuickAddDoi() {
+            const doiInput = document.getElementById('quick-add-doi');
+            if (doiInput) {
+                doiInput.focus();
+                doiInput.select();
+                doiInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         },
 
@@ -196,6 +273,41 @@ export const createKeyboardShortcuts = (commandPalette) => {
                                         <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50">
                                             <span class="text-sm text-stone-700 dark:text-stone-300">Show this help</span>
                                             <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">?</kbd>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Dashboard Shortcuts -->
+                                <div>
+                                    <h3 class="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Dashboard</h3>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                                            <span class="text-sm text-stone-700 dark:text-stone-300">Select all visible papers</span>
+                                            <div class="flex gap-1">
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Ctrl</kbd>
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">A</kbd>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                                            <span class="text-sm text-stone-700 dark:text-stone-300">Clear selection</span>
+                                            <div class="flex gap-1 items-center">
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Ctrl</kbd>
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">D</kbd>
+                                                <span class="text-stone-400 mx-1">or</span>
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Esc</kbd>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 dark:hoverbg-stone-800/50">
+                                            <span class="text-sm text-stone-700 dark:text-stone-300">Delete selected papers</span>
+                                            <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Del</kbd>
+                                        </div>
+                                        <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                                            <span class="text-sm text-stone-700 dark:text-stone-300">Focus Quick Add by DOI</span>
+                                            <div class="flex gap-1 items-center">
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Ctrl</kbd>
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Shift</kbd>
+                                                <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">D</kbd>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

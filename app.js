@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     commandPalette.init();
 
     // --- Initialize Keyboard Shortcuts ---
-    const keyboardShortcuts = createKeyboardShortcuts(commandPalette);
+    const keyboardShortcuts = createKeyboardShortcuts(commandPalette, appState);
     keyboardShortcuts.init();
 
     // --- Search Input Listener ---
