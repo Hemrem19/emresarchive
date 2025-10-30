@@ -43,20 +43,27 @@ async function exportAllData() {
                 const serializablePaper = { ...paper };
                 
                 // Convert Blob to Base64 string if present
-                if (paper.pdfFile instanceof Blob) {
+                // Note: Database stores PDFs as 'pdfData', but export uses 'pdfFile' for naming consistency
+                if (paper.pdfData instanceof Blob) {
                     try {
                         serializablePaper.pdfFile = await new Promise((resolve, reject) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve(reader.result);
                             reader.onerror = () => reject(new Error('Failed to read PDF file'));
-                            reader.readAsDataURL(paper.pdfFile);
+                            reader.readAsDataURL(paper.pdfData);
                         });
+                        // Remove the blob from export (we've converted it to base64)
+                        delete serializablePaper.pdfData;
                     } catch (pdfError) {
                         console.error(`Error converting PDF for paper "${paper.title}":`, pdfError);
                         // Skip PDF but include paper metadata
+                        delete serializablePaper.pdfData;
                         serializablePaper.pdfFile = null;
                         serializablePaper._pdfExportError = true;
                     }
+                } else if (paper.pdfData) {
+                    // If pdfData exists but is not a Blob, remove it
+                    delete serializablePaper.pdfData;
                 }
                 
                 // Convert dates to ISO strings for JSON serialization
@@ -227,15 +234,20 @@ async function importData(dataToImport) {
                             const paperToStore = { ...paper };
                             
                             // Convert Base64 back to Blob if it exists
+                            // Note: Import format uses 'pdfFile', but database stores as 'pdfData'
                             if (paperToStore.pdfFile && typeof paperToStore.pdfFile === 'string' && paperToStore.pdfFile.startsWith('data:')) {
                                 try {
                                     const fetchRes = await fetch(paperToStore.pdfFile);
-                                    paperToStore.pdfFile = await fetchRes.blob();
+                                    paperToStore.pdfData = await fetchRes.blob();
+                                    delete paperToStore.pdfFile;
                                 } catch (pdfError) {
                                     console.warn(`Failed to convert PDF for "${paper.title}":`, pdfError);
-                                    paperToStore.pdfFile = null;
-                                    paperToStore.hasPdf = false;
+                                    delete paperToStore.pdfFile;
+                                    paperToStore.pdfData = null;
                                 }
+                            } else if (paperToStore.pdfFile) {
+                                // If pdfFile exists but is not base64, remove it
+                                delete paperToStore.pdfFile;
                             }
                             
                             // Convert ISO date strings back to Date objects

@@ -23,13 +23,6 @@ jobs:
     - name: Run tests with coverage
       run: npm run test:coverage
     
-    - name: Generate coverage badge
-      uses: cicirello/jacoco-badge-generator@v2
-      with:
-        badges-directory: badges
-        generate-coverage-badge: true
-        coverage-badge-filename: coverage.svg
-        
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
       with:

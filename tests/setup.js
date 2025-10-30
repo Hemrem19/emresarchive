@@ -47,6 +47,32 @@ if (typeof window !== 'undefined') {
 // Mock Material Symbols (icons) - just return the text
 global.materialSymbols = (icon) => icon;
 
+// Mock FileReader for PDF conversion tests
+global.FileReader = class FileReader {
+  constructor() {
+    this.result = null;
+    this.onloadend = null;
+    this.onerror = null;
+  }
+
+  readAsDataURL(blob) {
+    // Simulate async reading
+    setTimeout(() => {
+      // Convert blob to base64 data URL
+      if (blob instanceof Blob) {
+        this.result = `data:${blob.type};base64,ZmFrZSBwZGYgY29udGVudA==`;
+        if (this.onloadend) {
+          this.onloadend();
+        }
+      } else {
+        if (this.onerror) {
+          this.onerror(new Error('Invalid blob'));
+        }
+      }
+    }, 0);
+  }
+};
+
 // Reset mocks before each test
 beforeEach(() => {
   localStorage.clear();
