@@ -104,8 +104,8 @@ describe('db/papers.js', () => {
 
     it('should include hasPdf flag', async () => {
       const pdfBlob = new Blob(['fake pdf content'], { type: 'application/pdf' });
-      const paperWithPdf = createMockPaper({ id: undefined, pdfData: pdfBlob });
-      const paperWithoutPdf = createMockPaper({ id: undefined, pdfData: null });
+      const paperWithPdf = createMockPaper({ id: undefined, title: 'Paper WITH PDF', pdfData: pdfBlob });
+      const paperWithoutPdf = createMockPaper({ id: undefined, title: 'Paper WITHOUT PDF', pdfData: null });
       delete paperWithPdf.id;
       delete paperWithoutPdf.id;
 
@@ -114,8 +114,11 @@ describe('db/papers.js', () => {
 
       const papers = await getAllPapers();
 
-      expect(papers[0].hasPdf).toBe(true);
-      expect(papers[1].hasPdf).toBe(false);
+      const withPdf = papers.find(p => p.title === 'Paper WITH PDF');
+      const withoutPdf = papers.find(p => p.title === 'Paper WITHOUT PDF');
+      
+      expect(withPdf.hasPdf).toBe(true);
+      expect(withoutPdf.hasPdf).toBe(false);
     });
   });
 
