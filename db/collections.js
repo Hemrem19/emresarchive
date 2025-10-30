@@ -21,18 +21,21 @@ async function addCollection(collectionData) {
         throw new Error('Invalid collection data: Name is required.');
     }
 
+    // Set default values for required fields
+    const collection = {
+        icon: 'folder',
+        color: '#3B82F6',
+        ...collectionData,
+        createdAt: collectionData.createdAt || new Date()
+    };
+
     try {
         const database = await openDB();
         return new Promise((resolve, reject) => {
             const transaction = database.transaction([STORE_NAME_COLLECTIONS], 'readwrite');
             const store = transaction.objectStore(STORE_NAME_COLLECTIONS);
             
-            // Add createdAt timestamp if not provided
-            if (!collectionData.createdAt) {
-                collectionData.createdAt = new Date();
-            }
-            
-            const request = store.add(collectionData);
+            const request = store.add(collection);
 
             request.onsuccess = (event) => resolve(event.target.result);
             

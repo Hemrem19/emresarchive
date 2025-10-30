@@ -21,12 +21,19 @@ async function addPaper(paperData) {
         throw new Error('Invalid paper data: Title is required.');
     }
 
+    // Set default values for required fields
+    const paper = {
+        ...paperData,
+        createdAt: paperData.createdAt || new Date(),
+        readingProgress: paperData.readingProgress || { currentPage: 0, totalPages: 0 }
+    };
+
     try {
         const database = await openDB();
         return new Promise((resolve, reject) => {
             const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
             const store = transaction.objectStore(STORE_NAME_PAPERS);
-            const request = store.add(paperData);
+            const request = store.add(paper);
 
             request.onsuccess = (event) => resolve(event.target.result);
             
@@ -71,8 +78,13 @@ async function getAllPapers() {
             request.onsuccess = (event) => {
                 try {
                     const papers = event.target.result || [];
+                    // Add hasPdf flag to each paper
+                    const papersWithFlags = papers.map(paper => ({
+                        ...paper,
+                        hasPdf: Boolean(paper.pdfData)
+                    }));
                     // Sort by creation date, newest first
-                    resolve(papers.sort((a, b) => b.createdAt - a.createdAt));
+                    resolve(papersWithFlags.sort((a, b) => b.createdAt - a.createdAt));
                 } catch (sortError) {
                     console.error('Error sorting papers:', sortError);
                     // Return unsorted if sorting fails
@@ -103,7 +115,18 @@ async function getPaperById(id) {
         const store = transaction.objectStore(STORE_NAME_PAPERS);
         const request = store.get(id);
 
-        request.onsuccess = (event) => resolve(event.target.result);
+        request.onsuccess = (event) => {
+            const paper = event.target.result;
+            if (paper) {
+                // Add hasPdf flag
+                resolve({
+                    ...paper,
+                    hasPdf: Boolean(paper.pdfData)
+                });
+            } else {
+                resolve(undefined);
+            }
+        };
         request.onerror = (event) => {
             console.error(`Error fetching paper with ID ${id}:`, event.target.error);
             reject(event.target.error);
