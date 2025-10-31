@@ -421,17 +421,18 @@ export const settingsView = {
                         continue;
                     }
 
-                    // Check for duplicate DOI
-                    if (paperData.doi) {
+                    // Check for duplicate DOI (optional - only if DOI exists)
+                    if (paperData.doi && paperData.doi.trim()) {
                         try {
-                            const existingPaper = await getPaperByDoi(paperData.doi);
+                            const existingPaper = await getPaperByDoi(paperData.doi.trim());
                             if (existingPaper) {
                                 errorCount++;
                                 errors.push(`Skipped "${paperData.title}": Already exists (DOI: ${paperData.doi})`);
                                 continue;
                             }
                         } catch (e) {
-                            // getPaperByDoi throws if not found, which is fine
+                            // getPaperByDoi throws "Paper not found" if not found, which is expected
+                            // This means the DOI doesn't exist yet, so we can proceed
                         }
                     }
 
