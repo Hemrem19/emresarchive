@@ -25,25 +25,24 @@ export const views = {
                         </div>
                         <div class="flex flex-col sm:flex-row gap-2 flex-1 min-w-0 flex-wrap">
                             <div class="flex items-center gap-2">
-                                <label for="batch-status-select" class="text-xs font-medium text-stone-700 dark:text-stone-300 whitespace-nowrap">Change Status:</label>
-                                <select id="batch-status-select" class="h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100">
+                                <label for="batch-status-select" class="text-xs font-medium text-stone-600 dark:text-stone-400 whitespace-nowrap">Status:</label>
+                                <select id="batch-status-select" class="h-9 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100 px-2 w-36">
                                     <option value="">Select...</option>
                                 </select>
                             </div>
                             <div class="flex items-center gap-2">
-                                <label for="batch-add-tags-input" class="text-xs font-medium text-stone-700 dark:text-stone-300 whitespace-nowrap">Add Tags:</label>
-                                <input type="text" id="batch-add-tags-input" placeholder="tag1, tag2" class="h-8 px-2 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100">
-                                <button id="batch-add-tags-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors">Add</button>
+                                <label for="batch-tags-input" class="text-xs font-medium text-stone-600 dark:text-stone-400 whitespace-nowrap">Tags:</label>
+                                <input type="text" id="batch-tags-input" placeholder="tag1, tag2" class="h-9 px-2 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100 w-36">
+                                <button id="batch-add-tags-btn" class="h-9 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors whitespace-nowrap">Add</button>
+                                <button id="batch-remove-tags-btn" class="h-9 px-3 bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-semibold rounded-md hover:bg-stone-300 dark:hover:bg-stone-600 transition-colors whitespace-nowrap">Remove</button>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <label for="batch-remove-tags-input" class="text-xs font-medium text-stone-700 dark:text-stone-300 whitespace-nowrap">Remove Tags:</label>
-                                <input type="text" id="batch-remove-tags-input" placeholder="tag1, tag2" class="h-8 px-2 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100">
-                                <button id="batch-remove-tags-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors">Remove</button>
-                            </div>
-                            <button id="batch-delete-btn" class="h-8 px-3 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 transition-colors whitespace-nowrap flex-shrink-0">Delete Selected</button>
-                            <button id="batch-export-bibliography-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0" title="Export Bibliography">
-                                <span class="material-symbols-outlined text-sm flex-shrink-0">description</span>
-                                <span class="whitespace-nowrap">Export Bibliography</span>
+                            <button id="batch-delete-btn" class="h-9 px-3 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 transition-colors whitespace-nowrap flex items-center gap-1 flex-shrink-0">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                                <span>Delete</span>
+                            </button>
+                            <button id="batch-export-bibliography-btn" class="h-9 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors whitespace-nowrap flex items-center gap-1.5 flex-shrink-0">
+                                <span class="material-symbols-outlined text-sm">description</span>
+                                <span>Export Bibliography</span>
                             </button>
                         </div>
                         <button id="clear-selection-btn" class="text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline whitespace-nowrap flex-shrink-0 lg:ml-auto">Clear Selection</button>
