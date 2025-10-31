@@ -18,12 +18,15 @@ export const views = {
                 <div id="filter-chips-container" class="hidden mb-4"></div>
                 <!-- Batch Action Toolbar (hidden by default) -->
                 <div id="batch-action-toolbar" class="hidden bg-primary/10 dark:bg-primary/20 border border-primary/30 dark:border-primary/30 rounded-lg p-4 mb-6">
-                    <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center justify-between gap-4">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">check_circle</span>
                             <span id="selected-count" class="text-sm font-semibold text-stone-900 dark:text-stone-100">0 selected</span>
                         </div>
-                        <div class="flex flex-col sm:flex-row gap-2 flex-1 min-w-0">
+                            <button id="clear-selection-btn" class="text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline whitespace-nowrap flex-shrink-0">Clear Selection</button>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2 flex-wrap">
                             <div class="flex items-center gap-2">
                                 <label for="batch-status-select" class="text-xs font-medium text-stone-700 dark:text-stone-300 whitespace-nowrap">Change Status:</label>
                                 <select id="batch-status-select" class="h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100">
@@ -41,12 +44,11 @@ export const views = {
                                 <button id="batch-remove-tags-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors">Remove</button>
                             </div>
                             <button id="batch-delete-btn" class="h-8 px-3 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 transition-colors whitespace-nowrap flex-shrink-0">Delete Selected</button>
-                            <button id="batch-export-bibliography-btn" class="h-8 px-2 sm:px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0" title="Export Bibliography">
+                            <button id="batch-export-bibliography-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0" title="Export Bibliography">
                                 <span class="material-symbols-outlined text-sm flex-shrink-0">description</span>
                                 <span class="whitespace-nowrap">Export Bibliography</span>
                             </button>
                         </div>
-                        <button id="clear-selection-btn" class="text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline whitespace-nowrap flex-shrink-0 lg:ml-2">Clear Selection</button>
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
