@@ -304,7 +304,7 @@ export const createKeyboardShortcuts = (commandPalette, appState) => {
                                                 <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Esc</kbd>
                                             </div>
                                         </div>
-                                        <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 dark:hoverbg-stone-800/50">
+                                        <div class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50">
                                             <span class="text-sm text-stone-700 dark:text-stone-300">Delete selected papers</span>
                                             <kbd class="px-2 py-1 text-xs bg-stone-100 dark:bg-stone-800 rounded border border-stone-300 dark:border-stone-700">Del</kbd>
                                         </div>
