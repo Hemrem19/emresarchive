@@ -133,15 +133,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const openMobileMenu = () => {
         if (mobileSidebar && mobileSidebarOverlay) {
-            mobileSidebar.classList.remove('-translate-x-full');
-            mobileSidebarOverlay.classList.remove('hidden');
+        mobileSidebar.classList.remove('-translate-x-full');
+        mobileSidebarOverlay.classList.remove('hidden');
         }
     };
 
     const closeMobileMenu = () => {
         if (mobileSidebar && mobileSidebarOverlay) {
-            mobileSidebar.classList.add('-translate-x-full');
-            mobileSidebarOverlay.classList.add('hidden');
+        mobileSidebar.classList.add('-translate-x-full');
+        mobileSidebarOverlay.classList.add('hidden');
         }
     };
 
@@ -196,8 +196,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const handleTouchEnd = (e) => {
         if (!mobileSidebar || !mobileSidebar.classList.contains('-translate-x-full')) {
-            return;
-        }
+                return;
+            }
 
         const touchEndX = e.changedTouches[0].clientX;
         const touchEndY = e.changedTouches[0].clientY;
