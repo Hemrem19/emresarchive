@@ -264,6 +264,22 @@ export const views = {
                             </div>
                         </div>
                     </section>
+                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
+                    <section>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Import from Zotero/Mendeley</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Import papers from Zotero or Mendeley by uploading a RIS file (.ris). This will add papers to your library without replacing existing data.</p>
+                            </div>
+                            <div class="flex items-start md:col-span-2">
+                                <button id="import-zotero-btn" class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-lg">upload</span>
+                                    <span>Import RIS File</span>
+                                </button>
+                                <input type="file" id="import-ris-file-input" class="hidden" accept=".ris,.txt">
+                            </div>
+                        </div>
+                    </section>
                     <div class="border-t border-red-500/30 dark:border-red-500/20"></div>
                     <section>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">

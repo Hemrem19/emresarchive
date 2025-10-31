@@ -1,7 +1,8 @@
-import { getAllPapers, exportAllData, importData, clearAllData } from './db.js';
+import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi } from './db.js';
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder } from './config.js';
+import { parseRIS } from './import/ris-parser.js';
 
 export const settingsView = {
     async mount(appState) {
@@ -255,6 +256,231 @@ export const settingsView = {
                 reader.readAsText(file);
             };
             importFileInput.addEventListener('change', fileChangeHandler);
+        }
+
+        // Setup Zotero/Mendeley RIS import
+        this.setupRISImport(appState);
+    },
+
+    setupRISImport(appState) {
+        const importZoteroBtn = document.getElementById('import-zotero-btn');
+        const importRISFileInput = document.getElementById('import-ris-file-input');
+
+        if (importZoteroBtn && importRISFileInput) {
+            const risImportHandler = () => {
+                importRISFileInput.click();
+            };
+            importZoteroBtn.addEventListener('click', risImportHandler);
+
+            const risFileChangeHandler = async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // Check file extension
+                const fileName = file.name.toLowerCase();
+                if (!fileName.endsWith('.ris') && !fileName.endsWith('.txt')) {
+                    showToast('Invalid file type. Please upload a .ris file exported from Zotero or Mendeley.', 'error');
+                    importRISFileInput.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        showToast('Parsing RIS file... Please wait.', 'info', { duration: 10000 });
+                        
+                        const risContent = e.target.result;
+                        const papers = parseRIS(risContent);
+
+                        if (!papers || papers.length === 0) {
+                            showToast('No papers found in RIS file. Please check the file format.', 'warning');
+                            importRISFileInput.value = '';
+                            return;
+                        }
+
+                        // Show preview modal before importing
+                        this.showRISImportPreview(papers, appState);
+
+                    } catch (error) {
+                        console.error('RIS import error:', error);
+                        showToast(error.message || 'Failed to parse RIS file. Please check the file format.', 'error', {
+                            duration: 7000
+                        });
+                        importRISFileInput.value = '';
+                    }
+                };
+
+                reader.onerror = () => {
+                    showToast('Failed to read file. Please try again.', 'error');
+                    importRISFileInput.value = '';
+                };
+
+                reader.readAsText(file);
+            };
+
+            importRISFileInput.addEventListener('change', risFileChangeHandler);
+        }
+    },
+
+    showRISImportPreview(papers, appState) {
+        // Remove existing modal if present
+        const existingModal = document.getElementById('ris-import-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create preview modal
+        const modalHtml = `
+            <div id="ris-import-modal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+                <div class="bg-white dark:bg-stone-900 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+                    <div class="p-4 border-b dark:border-stone-800 flex justify-between items-center">
+                        <h3 class="text-lg font-bold">Import Preview</h3>
+                        <button id="close-ris-import-modal-btn" class="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                    <div class="p-6 overflow-y-auto flex-grow">
+                        <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">
+                            Found <strong>${papers.length}</strong> paper(s) in RIS file. Review the list below and click "Import All" to add them to your library.
+                        </p>
+                        <div class="space-y-3 max-h-[400px] overflow-y-auto">
+                            ${papers.map((paper, index) => `
+                                <div class="p-3 bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-md">
+                                    <div class="flex items-start gap-3">
+                                        <span class="text-sm font-semibold text-stone-500 dark:text-stone-400 flex-shrink-0">${index + 1}.</span>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-semibold text-stone-900 dark:text-stone-100">${paper.title || 'Untitled'}</p>
+                                            ${paper.authors && paper.authors.length > 0 ? `
+                                                <p class="text-sm text-stone-600 dark:text-stone-400 mt-1">${paper.authors.join(', ')}</p>
+                                            ` : ''}
+                                            ${paper.year ? `
+                                                <p class="text-xs text-stone-500 dark:text-stone-500 mt-1">${paper.year}</p>
+                                            ` : ''}
+                                            ${paper.journal ? `
+                                                <p class="text-xs text-stone-500 dark:text-stone-500 mt-1">${paper.journal}</p>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="p-4 bg-stone-50 dark:bg-stone-900/50 border-t dark:border-stone-800 flex justify-end gap-2 flex-shrink-0">
+                        <button id="cancel-ris-import-btn" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">
+                            Cancel
+                        </button>
+                        <button id="confirm-ris-import-btn" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90">
+                            Import All (${papers.length})
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = document.getElementById('ris-import-modal');
+        const closeBtn = document.getElementById('close-ris-import-modal-btn');
+        const cancelBtn = document.getElementById('cancel-ris-import-btn');
+        const confirmBtn = document.getElementById('confirm-ris-import-btn');
+
+        const closeModal = () => {
+            modal.classList.add('hidden');
+            setTimeout(() => modal.remove(), 300);
+            // Clear file input
+            const risInput = document.getElementById('import-ris-file-input');
+            if (risInput) risInput.value = '';
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        confirmBtn.addEventListener('click', async () => {
+            await this.importRISPapers(papers, appState);
+            closeModal();
+        });
+    },
+
+    async importRISPapers(papers, appState) {
+        try {
+            showToast(`Importing ${papers.length} paper(s)...`, 'info', { duration: 15000 });
+
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+
+            for (const paperData of papers) {
+                try {
+                    // Skip papers without titles (required field)
+                    if (!paperData.title || !paperData.title.trim()) {
+                        errorCount++;
+                        errors.push(`Skipped paper: Missing title`);
+                        continue;
+                    }
+
+                    // Check for duplicate DOI
+                    if (paperData.doi) {
+                        try {
+                            const existingPaper = await getPaperByDoi(paperData.doi);
+                            if (existingPaper) {
+                                errorCount++;
+                                errors.push(`Skipped "${paperData.title}": Already exists (DOI: ${paperData.doi})`);
+                                continue;
+                            }
+                        } catch (e) {
+                            // getPaperByDoi throws if not found, which is fine
+                        }
+                    }
+
+                    // Add paper to database
+                    await addPaper(paperData);
+                    successCount++;
+
+                } catch (error) {
+                    errorCount++;
+                    const title = paperData.title || 'Untitled';
+                    errors.push(`Failed to import "${title}": ${error.message}`);
+                    console.error(`Error importing paper:`, paperData, error);
+                }
+            }
+
+            // Update cache
+            appState.allPapersCache = await getAllPapers();
+
+            // Show results
+            let message = `Import complete! `;
+            if (successCount > 0) {
+                message += `${successCount} paper(s) imported successfully.`;
+            }
+            if (errorCount > 0) {
+                message += ` ${errorCount} paper(s) failed or were skipped.`;
+            }
+
+            showToast(message, successCount > 0 ? 'success' : 'warning', {
+                duration: 7000,
+                ...(errors.length > 0 && errors.length <= 5 ? {
+                    actions: [{
+                        label: 'Show Errors',
+                        onClick: () => {
+                            alert('Import Errors:\n\n' + errors.join('\n'));
+                        }
+                    }]
+                } : {})
+            });
+
+            // Refresh dashboard if on home page
+            if (window.location.hash === '#/' || window.location.hash === '') {
+                window.location.reload();
+            }
+
+        } catch (error) {
+            console.error('RIS import error:', error);
+            showToast(error.message || 'Failed to import papers. Please try again.', 'error', {
+                duration: 7000
+            });
         }
     },
 
