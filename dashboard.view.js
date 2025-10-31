@@ -238,11 +238,11 @@ export const dashboardView = {
             batchStatusSelect.addEventListener('change', this.batchStatusChangeHandler);
         }
 
-        // Batch Add Tags handler
+        // Batch Add Tags handler (uses shared batch-tags-input)
         const batchAddTagsBtn = document.getElementById('batch-add-tags-btn');
         if (batchAddTagsBtn) {
             this.batchAddTagsHandler = async () => {
-                const input = document.getElementById('batch-add-tags-input');
+                const input = document.getElementById('batch-tags-input');
                 if (!input || !input.value.trim() || appState.selectedPaperIds.size === 0) return;
 
                 const tagsToAdd = input.value.split(',').map(t => t.trim()).filter(t => t);
@@ -250,7 +250,7 @@ export const dashboardView = {
 
                 try {
                     const selectedIds = Array.from(appState.selectedPaperIds);
-                    showToast(`Adding tags to ${selectedIds.length} paper(s)...`);
+                    showToast(`Adding tags to ${selectedIds.length} paper(s)...`, 'info', { duration: 10000 });
 
                     for (const paperId of selectedIds) {
                         const paper = appState.allPapersCache.find(p => p.id === paperId);
@@ -262,7 +262,7 @@ export const dashboardView = {
                         }
                     }
 
-                    showToast(`Added tags to ${selectedIds.length} paper(s).`);
+                    showToast(`Added tags to ${selectedIds.length} paper(s).`, 'success');
                     input.value = ''; // Clear input
                     renderSidebarTags(appState.allPapersCache); // Update sidebar tags
                     applyFiltersAndRender();
@@ -274,11 +274,11 @@ export const dashboardView = {
             batchAddTagsBtn.addEventListener('click', this.batchAddTagsHandler);
         }
 
-        // Batch Remove Tags handler
+        // Batch Remove Tags handler (uses shared batch-tags-input)
         const batchRemoveTagsBtn = document.getElementById('batch-remove-tags-btn');
         if (batchRemoveTagsBtn) {
             this.batchRemoveTagsHandler = async () => {
-                const input = document.getElementById('batch-remove-tags-input');
+                const input = document.getElementById('batch-tags-input');
                 if (!input || !input.value.trim() || appState.selectedPaperIds.size === 0) return;
 
                 const tagsToRemove = input.value.split(',').map(t => t.trim()).filter(t => t);
@@ -286,7 +286,7 @@ export const dashboardView = {
 
                 try {
                     const selectedIds = Array.from(appState.selectedPaperIds);
-                    showToast(`Removing tags from ${selectedIds.length} paper(s)...`);
+                    showToast(`Removing tags from ${selectedIds.length} paper(s)...`, 'info', { duration: 10000 });
 
                     for (const paperId of selectedIds) {
                         const paper = appState.allPapersCache.find(p => p.id === paperId);
@@ -297,7 +297,7 @@ export const dashboardView = {
                         }
                     }
 
-                    showToast(`Removed tags from ${selectedIds.length} paper(s).`);
+                    showToast(`Removed tags from ${selectedIds.length} paper(s).`, 'success');
                     input.value = ''; // Clear input
                     renderSidebarTags(appState.allPapersCache); // Update sidebar tags
                     applyFiltersAndRender();
