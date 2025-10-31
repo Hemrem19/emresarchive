@@ -238,10 +238,8 @@ button {
 }
 
 /* Prevent horizontal overflow on mobile */
-body {
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
+* {
+    box-sizing: border-box;
 }
 
 html {
@@ -250,13 +248,50 @@ html {
     max-width: 100vw;
 }
 
+body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+}
+
 /* Ensure header and main content don't overflow */
 header {
     max-width: 100%;
     overflow-x: hidden;
+    width: 100%;
 }
 
 main {
     max-width: 100%;
     overflow-x: hidden;
+    width: 100%;
+}
+
+/* Main container */
+.flex.min-h-screen {
+    max-width: 100%;
+    overflow-x: hidden;
+    width: 100%;
+}
+
+/* Main content area */
+.flex-1.flex.flex-col {
+    max-width: 100%;
+    overflow-x: hidden;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Mobile header specific fixes */
+@media screen and (max-width: 640px) {
+    header {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    #search-input {
+        max-width: 100%;
+        min-width: 0;
+    }
 }
