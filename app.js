@@ -132,13 +132,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mobileSidebarOverlay = document.getElementById('mobile-sidebar-overlay');
 
     const openMobileMenu = () => {
-        mobileSidebar.classList.remove('-translate-x-full');
-        mobileSidebarOverlay.classList.remove('hidden');
+        if (mobileSidebar && mobileSidebarOverlay) {
+            mobileSidebar.classList.remove('-translate-x-full');
+            mobileSidebarOverlay.classList.remove('hidden');
+        }
     };
 
     const closeMobileMenu = () => {
-        mobileSidebar.classList.add('-translate-x-full');
-        mobileSidebarOverlay.classList.add('hidden');
+        if (mobileSidebar && mobileSidebarOverlay) {
+            mobileSidebar.classList.add('-translate-x-full');
+            mobileSidebarOverlay.classList.add('hidden');
+        }
     };
 
     if (mobileMenuBtn && closeMobileMenuBtn && mobileSidebar && mobileSidebarOverlay) {
@@ -152,6 +156,101 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+
+    // --- Swipe Gesture for Mobile Sidebar (Left to Right) ---
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    const SWIPE_THRESHOLD = 50; // Minimum distance for swipe
+    const SWIPE_VELOCITY_THRESHOLD = 0.3; // Minimum velocity (px/ms)
+    const EDGE_ZONE = 20; // Distance from left edge to trigger swipe
+    const MAX_VERTICAL_DIFF = 100; // Maximum vertical movement to consider it a horizontal swipe
+
+    const handleTouchStart = (e) => {
+        // Only handle swipe if sidebar is closed
+        if (mobileSidebar && mobileSidebar.classList.contains('-translate-x-full')) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        // Prevent default scrolling if we're in a potential swipe gesture
+        if (mobileSidebar && mobileSidebar.classList.contains('-translate-x-full')) {
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            
+            // Check if starting from left edge and moving right
+            if (touchStartX <= EDGE_ZONE && currentX > touchStartX) {
+                const horizontalDiff = currentX - touchStartX;
+                const verticalDiff = Math.abs(currentY - touchStartY);
+                
+                // Only prevent default if horizontal movement is significant and vertical is minimal
+                if (horizontalDiff > 10 && verticalDiff < MAX_VERTICAL_DIFF) {
+                    e.preventDefault();
+                }
+            }
+        }
+    };
+
+    const handleTouchEnd = (e) => {
+        if (!mobileSidebar || !mobileSidebar.classList.contains('-translate-x-full')) {
+            return;
+        }
+
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const touchEndTime = Date.now();
+
+        const horizontalDiff = touchEndX - touchStartX;
+        const verticalDiff = Math.abs(touchEndY - touchStartY);
+        const timeDiff = touchEndTime - touchStartTime;
+        const velocity = timeDiff > 0 ? horizontalDiff / timeDiff : 0;
+
+        // Check if swipe started from left edge, moved right, exceeds threshold, and is primarily horizontal
+        if (
+            touchStartX <= EDGE_ZONE &&
+            horizontalDiff > SWIPE_THRESHOLD &&
+            verticalDiff < MAX_VERTICAL_DIFF &&
+            (horizontalDiff > SWIPE_THRESHOLD || velocity > SWIPE_VELOCITY_THRESHOLD)
+        ) {
+            openMobileMenu();
+        }
+    };
+
+    // Touch event listener management
+    let touchListenersAdded = false;
+    
+    const addTouchListeners = () => {
+        if (!touchListenersAdded && window.innerWidth < 1024) {
+            document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
+            document.body.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.body.addEventListener('touchend', handleTouchEnd, { passive: true });
+            touchListenersAdded = true;
+        }
+    };
+    
+    const removeTouchListeners = () => {
+        if (touchListenersAdded) {
+            document.body.removeEventListener('touchstart', handleTouchStart);
+            document.body.removeEventListener('touchmove', handleTouchMove);
+            document.body.removeEventListener('touchend', handleTouchEnd);
+            touchListenersAdded = false;
+        }
+    };
+
+    // Add listeners initially if on mobile
+    addTouchListeners();
+
+    // Handle resize to add/remove listeners dynamically
+    window.addEventListener('resize', () => {
+        if (window.innerWidth < 1024) {
+            addTouchListeners();
+        } else {
+            removeTouchListeners();
+        }
+    });
 
     // --- Router Initialization ---
     const router = createRouter(app, appState, renderSidebarStatusLinks);
