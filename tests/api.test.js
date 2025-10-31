@@ -3,7 +3,87 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchDoiMetadata } from '../api.js';
+import { fetchDoiMetadata, normalizePaperIdentifier } from '../api.js';
+
+describe('api.js - URL Normalization', () => {
+    describe('normalizePaperIdentifier', () => {
+        it('should extract DOI from plain DOI string', () => {
+            const result = normalizePaperIdentifier('10.1234/example');
+            expect(result.type).toBe('doi');
+            expect(result.value).toBe('10.1234/example');
+        });
+
+        it('should extract DOI from doi.org URLs', () => {
+            expect(normalizePaperIdentifier('https://doi.org/10.1234/example')).toEqual({
+                type: 'doi',
+                value: '10.1234/example',
+                original: 'https://doi.org/10.1234/example'
+            });
+            expect(normalizePaperIdentifier('http://doi.org/10.1234/example')).toEqual({
+                type: 'doi',
+                value: '10.1234/example',
+                original: 'http://doi.org/10.1234/example'
+            });
+            expect(normalizePaperIdentifier('https://dx.doi.org/10.1234/example')).toEqual({
+                type: 'doi',
+                value: '10.1234/example',
+                original: 'https://dx.doi.org/10.1234/example'
+            });
+        });
+
+        it('should extract DOI from publisher URLs', () => {
+            const result = normalizePaperIdentifier('https://publisher.com/article/doi/10.1234/example');
+            expect(result.type).toBe('doi');
+            expect(result.value).toBe('10.1234/example');
+        });
+
+        it('should detect arXiv URLs but return unsupported type', () => {
+            const result = normalizePaperIdentifier('https://arxiv.org/abs/1234.5678');
+            expect(result.type).toBe('arxiv');
+            expect(result.value).toBe('1234.5678');
+            expect(result.error).toContain('arXiv');
+        });
+
+        it('should handle arXiv URLs with version numbers', () => {
+            const result = normalizePaperIdentifier('https://arxiv.org/pdf/1234.5678v1.pdf');
+            expect(result.type).toBe('arxiv');
+            expect(result.value).toBe('1234.5678v1');
+        });
+
+        it('should reject unsupported URL formats', () => {
+            const result = normalizePaperIdentifier('https://example.com/paper');
+            expect(result.type).toBe('unsupported');
+            expect(result.error).toBeDefined();
+        });
+
+        it('should handle empty or invalid input', () => {
+            expect(normalizePaperIdentifier('')).toEqual({
+                type: 'unsupported',
+                value: null,
+                original: '',
+                error: expect.stringContaining('empty')
+            });
+            expect(normalizePaperIdentifier('   ')).toEqual({
+                type: 'unsupported',
+                value: null,
+                original: '   ',
+                error: expect.stringContaining('empty')
+            });
+            expect(normalizePaperIdentifier(null)).toEqual({
+                type: 'unsupported',
+                value: null,
+                original: null,
+                error: expect.stringContaining('string')
+            });
+        });
+
+        it('should trim whitespace from input', () => {
+            const result = normalizePaperIdentifier('  10.1234/example  ');
+            expect(result.type).toBe('doi');
+            expect(result.value).toBe('10.1234/example');
+        });
+    });
+});
 
 describe('api.js - DOI Metadata Fetching', () => {
     beforeEach(() => {
@@ -14,25 +94,25 @@ describe('api.js - DOI Metadata Fetching', () => {
 
     describe('DOI Validation', () => {
         it('should throw error for null/undefined DOI', async () => {
-            await expect(fetchDoiMetadata(null)).rejects.toThrow('Invalid DOI: DOI must be a non-empty string');
-            await expect(fetchDoiMetadata(undefined)).rejects.toThrow('Invalid DOI: DOI must be a non-empty string');
+            await expect(fetchDoiMetadata(null)).rejects.toThrow('Input must be a non-empty string');
+            await expect(fetchDoiMetadata(undefined)).rejects.toThrow('Input must be a non-empty string');
         });
 
         it('should throw error for non-string DOI', async () => {
-            await expect(fetchDoiMetadata(12345)).rejects.toThrow('Invalid DOI: DOI must be a non-empty string');
-            await expect(fetchDoiMetadata({})).rejects.toThrow('Invalid DOI: DOI must be a non-empty string');
+            await expect(fetchDoiMetadata(12345)).rejects.toThrow('Input must be a non-empty string');
+            await expect(fetchDoiMetadata({})).rejects.toThrow('Input must be a non-empty string');
         });
 
         it('should throw error for empty DOI', async () => {
             // Empty string fails the non-empty string check first
-            await expect(fetchDoiMetadata('')).rejects.toThrow('Invalid DOI');
-            await expect(fetchDoiMetadata('   ')).rejects.toThrow('Invalid DOI');
+            await expect(fetchDoiMetadata('')).rejects.toThrow(/Input (must be a non-empty string|cannot be empty)/);
+            await expect(fetchDoiMetadata('   ')).rejects.toThrow(/Input (must be a non-empty string|cannot be empty)/);
         });
 
         it('should throw error for invalid DOI format', async () => {
-            await expect(fetchDoiMetadata('not-a-doi')).rejects.toThrow('Invalid DOI format');
-            await expect(fetchDoiMetadata('10.abc/test')).rejects.toThrow('Invalid DOI format');
-            await expect(fetchDoiMetadata('invalid')).rejects.toThrow('Invalid DOI format');
+            await expect(fetchDoiMetadata('not-a-doi')).rejects.toThrow('Could not detect a DOI');
+            await expect(fetchDoiMetadata('10.abc/test')).rejects.toThrow('Could not detect a DOI');
+            await expect(fetchDoiMetadata('invalid')).rejects.toThrow('Could not detect a DOI');
         });
 
         it('should accept valid DOI formats', async () => {

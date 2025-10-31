@@ -1,4 +1,88 @@
 /**
+ * Normalizes input to extract DOI from various URL formats.
+ * Supports:
+ * - Direct DOI: "10.1234/example"
+ * - doi.org URLs: "https://doi.org/10.1234/example"
+ * - Publisher URLs: "https://publisher.com/article/doi/10.1234/example"
+ * - arXiv URLs: Detects but doesn't support (returns helpful error)
+ * 
+ * @param {string} input - DOI, URL, or identifier string.
+ * @returns {Object} Object with { type: 'doi'|'arxiv'|'unsupported', value: string, original: string }
+ */
+export const normalizePaperIdentifier = (input) => {
+    if (!input || typeof input !== 'string') {
+        return { type: 'unsupported', value: null, original: input, error: 'Input must be a non-empty string' };
+    }
+
+    const trimmed = input.trim();
+    if (!trimmed) {
+        return { type: 'unsupported', value: null, original: input, error: 'Input cannot be empty' };
+    }
+
+    // Pattern for DOI (10.xxxx/yyyy)
+    const doiPattern = /(10\.\d{4,}[\w\-.;()\/:]+)/i;
+    
+    // Pattern for arXiv ID (e.g., 1234.5678 or 1234.5678v1)
+    const arxivPattern = /arxiv\.org\/(?:abs|pdf|html)\/(\d{4}\.\d{4,5}(?:v\d+)?)/i;
+    
+    // Check if it's already a plain DOI
+    if (doiPattern.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('arxiv')) {
+        const match = trimmed.match(doiPattern);
+        if (match) {
+            return { type: 'doi', value: match[1], original: trimmed };
+        }
+    }
+
+    // Extract DOI from doi.org URLs
+    const doiOrgMatch = trimmed.match(/doi\.org\/(10\.\d{4,}[\w\-.;()\/:]+)/i);
+    if (doiOrgMatch) {
+        return { type: 'doi', value: doiOrgMatch[1], original: trimmed };
+    }
+
+    // Extract DOI from publisher URLs (look for DOI pattern anywhere in URL)
+    const doiInUrlMatch = trimmed.match(doiPattern);
+    if (doiInUrlMatch && !trimmed.includes('arxiv')) {
+        return { type: 'doi', value: doiInUrlMatch[1], original: trimmed };
+    }
+
+    // Extract arXiv ID
+    const arxivMatch = trimmed.match(arxivPattern);
+    if (arxivMatch) {
+        return { 
+            type: 'arxiv', 
+            value: arxivMatch[1], 
+            original: trimmed,
+            error: 'arXiv papers are not yet supported. Please use a DOI or add the paper manually.'
+        };
+    }
+
+    // If it looks like a URL but we didn't match anything useful
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return { 
+            type: 'unsupported', 
+            value: null, 
+            original: trimmed,
+            error: 'Unsupported URL format. Please provide a DOI (e.g., 10.1234/example) or a doi.org URL.'
+        };
+    }
+
+    // Final attempt: treat as plain DOI if it matches DOI pattern
+    if (doiPattern.test(trimmed)) {
+        const match = trimmed.match(doiPattern);
+        if (match) {
+            return { type: 'doi', value: match[1], original: trimmed };
+        }
+    }
+
+    return { 
+        type: 'unsupported', 
+        value: null, 
+        original: trimmed,
+        error: 'Could not detect a DOI or supported identifier. Please enter a DOI (e.g., 10.1234/example) or a doi.org URL.'
+    };
+};
+
+/**
  * Fetches metadata for a given DOI with comprehensive error handling.
  * @param {string} doi - The DOI to fetch.
  * @param {Object} options - Fetch options.
@@ -9,18 +93,22 @@
 export const fetchDoiMetadata = async (doi, options = {}) => {
     const { timeout = 10000 } = options;
 
-    // Validate DOI format
-    if (!doi || typeof doi !== 'string') {
-        throw new Error('Invalid DOI: DOI must be a non-empty string');
+    // Normalize input (handles URLs, plain DOI, etc.)
+    const normalized = normalizePaperIdentifier(doi);
+    
+    if (normalized.type === 'arxiv') {
+        throw new Error(normalized.error || 'arXiv papers are not yet supported. Please use a DOI or add the paper manually.');
+    }
+    
+    if (normalized.type === 'unsupported') {
+        throw new Error(normalized.error || 'Could not detect a valid DOI. Please provide a DOI (e.g., 10.1234/example) or a doi.org URL.');
     }
 
-    let cleanDoi = doi.trim();
-    if (!cleanDoi) {
-        throw new Error('Invalid DOI: DOI cannot be empty');
+    if (normalized.type !== 'doi' || !normalized.value) {
+        throw new Error('Invalid DOI: Could not extract a valid DOI from the input.');
     }
 
-    // Strip doi.org prefix if present
-    cleanDoi = cleanDoi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, '');
+    const cleanDoi = normalized.value;
 
     // Basic DOI format validation (10.xxxx/yyyy pattern)
     const doiPattern = /^10\.\d{4,}[\w\-.;()\/:]+$/i;

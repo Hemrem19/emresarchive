@@ -1,6 +1,6 @@
 import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper, getPaperByDoi, getAllCollections, addCollection, updateCollection, deleteCollection } from './db.js';
 import { renderSidebarTags, renderSidebarCollections, showToast } from './ui.js';
-import { fetchDoiMetadata } from './api.js';
+import { fetchDoiMetadata, normalizePaperIdentifier } from './api.js';
 import { generateBibliography, exportBibliographyToFile, copyBibliographyToClipboard } from './citation.js';
 import { views as templates } from './views.js';
 import { getStatusOrder } from './config.js';
@@ -115,13 +115,35 @@ export const dashboardView = {
             this.quickAddHandler = async (e) => {
                 e.preventDefault();
                 const doiInput = document.getElementById('quick-add-doi');
-                const doiValue = doiInput.value.trim();
-                if (!doiValue) return;
+                const inputValue = doiInput.value.trim();
+                if (!inputValue) return;
 
                 try {
-                    // Check for duplicates before fetching
+                    // Normalize input to extract DOI/identifier
+                    const normalized = normalizePaperIdentifier(inputValue);
+                    
+                    // Handle arXiv (not yet supported)
+                    if (normalized.type === 'arxiv') {
+                        showToast(normalized.error || 'arXiv papers are not yet supported. Please use a DOI or add the paper manually.', 'warning', { duration: 7000 });
+                        return;
+                    }
+                    
+                    // Handle unsupported formats
+                    if (normalized.type === 'unsupported') {
+                        showToast(normalized.error || 'Could not detect a valid DOI. Please provide a DOI (e.g., 10.1234/example) or a doi.org URL.', 'error', { duration: 7000 });
+                        return;
+                    }
+                    
+                    if (normalized.type !== 'doi' || !normalized.value) {
+                        showToast('Could not extract a valid DOI from the input. Please check the format and try again.', 'error', { duration: 5000 });
+                        return;
+                    }
+
+                    const extractedDoi = normalized.value;
+
+                    // Check for duplicates before fetching (use normalized DOI)
                     try {
-                        const existingPaper = await getPaperByDoi(doiValue);
+                        const existingPaper = await getPaperByDoi(extractedDoi);
                         if (existingPaper) {
                             showToast(`Paper with this DOI already exists: "${existingPaper.title}"`, 'error', { duration: 5000 });
                             return;
@@ -131,8 +153,14 @@ export const dashboardView = {
                         // Continue with add if duplicate check fails
                     }
 
-                    showToast('Fetching metadata...', 'info', { duration: 10000 });
-                    const metadata = await fetchDoiMetadata(doiValue);
+                    // Show helpful message if URL was detected
+                    if (normalized.original !== extractedDoi) {
+                        showToast(`Detected DOI: ${extractedDoi}. Fetching metadata...`, 'info', { duration: 5000 });
+                    } else {
+                        showToast('Fetching metadata...', 'info', { duration: 10000 });
+                    }
+                    
+                    const metadata = await fetchDoiMetadata(inputValue); // fetchDoiMetadata handles normalization internally
                     const paperData = {
                         ...metadata,
                         tags: [], createdAt: new Date(), readingStatus: 'To Read',

@@ -5,7 +5,7 @@ export const views = {
                 <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 w-full max-w-full">
                     <label for="quick-add-doi" class="block text-sm font-semibold text-stone-700 dark:text-stone-300 mb-2 sm:mb-0 sm:inline-block sm:mr-3">Quick Add by DOI</label>
                     <div class="flex items-center gap-2 sm:inline-flex sm:gap-3">
-                        <input type="text" id="quick-add-doi" class="block flex-1 min-w-0 h-10 rounded-md border border-stone-300 dark:border-stone-700 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:text-white sm:text-sm px-3 max-w-full sm:min-w-[600px] lg:min-w-[800px]" placeholder="Enter DOI and press Enter...">
+                        <input type="text" id="quick-add-doi" class="block flex-1 min-w-0 h-10 rounded-md border border-stone-300 dark:border-stone-700 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:text-white sm:text-sm px-3 max-w-full sm:min-w-[600px] lg:min-w-[800px]" placeholder="DOI or URL (e.g., 10.1234/example or https://doi.org/...)">
                         <button type="submit" class="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0">
                             <span class="material-symbols-outlined text-lg sm:text-base">add</span>
                             <span class="hidden sm:inline">Add</span>
