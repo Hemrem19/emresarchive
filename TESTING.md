@@ -1,4 +1,4 @@
-# Testing Guide - Research Hub
+# Testing Guide - citavErsa
 
 **Version:** 2.1  
 **Status:** ✅ 119/119 tests passing (100%)  
@@ -525,5 +525,5 @@ jobs:
 ---
 
 **Status:** ✅ Complete & Passing  
-**Maintainer:** Research Hub Team  
+**Maintainer:** citavErsa Team  
 **Questions?** Check test files for examples or open an issue.

@@ -1,7 +1,7 @@
-# Research Hub (Emre's Archive)
+# citavErsa
 
-[![Tests](https://github.com/Hemrem19/emresarchive/actions/workflows/test.yml/badge.svg)](https://github.com/Hemrem19/emresarchive/actions/workflows/test.yml)
-[![Coverage](https://github.com/Hemrem19/emresarchive/actions/workflows/coverage.yml/badge.svg)](https://github.com/Hemrem19/emresarchive/actions/workflows/coverage.yml)
+[![Tests](https://github.com/Hemrem19/citaversa/actions/workflows/test.yml/badge.svg)](https://github.com/Hemrem19/citaversa/actions/workflows/test.yml)
+[![Coverage](https://github.com/Hemrem19/citaversa/actions/workflows/coverage.yml/badge.svg)](https://github.com/Hemrem19/citaversa/actions/workflows/coverage.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > A local-first research paper management application built with vanilla JavaScript
@@ -25,13 +25,13 @@
 ## 🚀 Quick Start
 
 ### Use Online
-Visit: **https://hemrem19.github.io/emresarchive/**
+Visit: **https://hemrem19.github.io/citaversa/**
 
 ### Run Locally
 ```bash
 # Clone the repository
-git clone https://github.com/Hemrem19/emresarchive.git
-cd emresarchive
+git clone https://github.com/Hemrem19/citaversa.git
+cd citaversa
 
 # Serve with any static file server
 python -m http.server 8000

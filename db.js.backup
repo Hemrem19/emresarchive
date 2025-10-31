@@ -1,6 +1,6 @@
 // c:/Users/hasan/Python Projects/research/db.js
 
-const DB_NAME = 'EmresArchiveDB';
+const DB_NAME = 'CitaversaDB';
 const DB_VERSION = 5; // Increment this version number if you change the schema
 const STORE_NAME_PAPERS = 'papers';
 const STORE_NAME_COLLECTIONS = 'collections';
