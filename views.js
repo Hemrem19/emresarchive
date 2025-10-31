@@ -2,13 +2,13 @@ export const views = {
     home: `
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="max-w-7xl mx-auto mb-8">
-                <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 flex items-center gap-4">
-                    <label for="quick-add-doi" class="text-sm font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap">Quick Add by DOI</label>
-                    <input type="text" id="quick-add-doi" class="block flex-1 h-10 rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm" placeholder="Enter DOI and press Enter...">
-                    <button type="submit" class="flex items-center justify-center gap-2 h-10 px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap">
-                        <span class="material-symbols-outlined">add</span>
-                        <span class="hidden sm:inline">Add</span>
-                    </button>
+                <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full max-w-full">
+                    <label for="quick-add-doi" class="text-sm font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap flex-shrink-0 sm:flex-none">Quick Add by DOI</label>
+                    <input type="text" id="quick-add-doi" class="block flex-1 min-w-0 h-10 rounded-md border border-stone-300 dark:border-stone-700 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:text-white sm:text-sm px-3 max-w-full" placeholder="Enter DOI and press Enter...">
+                    <button type="submit" class="flex items-center justify-center gap-2 h-10 px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap flex-shrink-0 w-full sm:w-auto">
+                            <span class="material-symbols-outlined">add</span>
+                            <span class="hidden sm:inline">Add</span>
+                        </button>
                 </form>
             </div>
             <div class="max-w-7xl mx-auto">
