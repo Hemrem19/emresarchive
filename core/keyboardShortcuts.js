@@ -46,7 +46,7 @@ export const createKeyboardShortcuts = (commandPalette, appState) => {
 
                 // Selection shortcuts (dashboard)
                 // Ctrl + A → select all visible papers
-                if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+                if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'a') {
                     if (this.isOnDashboard()) {
                         e.preventDefault();
                         this.selectAllVisible();
@@ -54,20 +54,20 @@ export const createKeyboardShortcuts = (commandPalette, appState) => {
                     return;
                 }
 
-                // Ctrl + D → clear selection
-                if (e.ctrlKey && e.key.toLowerCase() === 'd') {
-                    if (this.isOnDashboard()) {
-                        e.preventDefault();
-                        this.clearSelection();
-                    }
-                    return;
-                }
-
-                // Ctrl + Shift + D → focus Quick Add DOI
+                // Ctrl + Shift + D → focus Quick Add DOI (check this BEFORE Ctrl+D)
                 if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
                     if (this.isOnDashboard()) {
                         e.preventDefault();
                         this.focusQuickAddDoi();
+                    }
+                    return;
+                }
+
+                // Ctrl + D → clear selection (only if Shift is NOT pressed)
+                if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'd') {
+                    if (this.isOnDashboard()) {
+                        e.preventDefault();
+                        this.clearSelection();
                     }
                     return;
                 }
@@ -141,6 +141,13 @@ export const createKeyboardShortcuts = (commandPalette, appState) => {
         },
 
         handleEscape() {
+            // Close shortcuts help modal if open
+            const helpModal = document.getElementById('shortcuts-help-modal');
+            if (helpModal && !helpModal.classList.contains('hidden')) {
+                helpModal.classList.add('hidden');
+                return;
+            }
+
             // Close command palette if open
             if (commandPalette.isOpen) {
                 commandPalette.close();

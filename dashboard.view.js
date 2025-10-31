@@ -438,51 +438,76 @@ export const dashboardView = {
             itemsPerPageSelect.addEventListener('change', this.itemsPerPageChangeHandler);
         }
 
-        // Search mode toggle handlers
+        // Search mode toggle handlers (both desktop and mobile)
         const searchModeAllBtn = document.getElementById('search-mode-all');
         const searchModeNotesBtn = document.getElementById('search-mode-notes');
+        const searchModeAllBtnMobile = document.getElementById('search-mode-all-mobile');
+        const searchModeNotesBtnMobile = document.getElementById('search-mode-notes-mobile');
         
         // Update button states based on current mode
         const updateSearchModeButtons = () => {
-            if (searchModeAllBtn && searchModeNotesBtn) {
-                if (appState.searchMode === 'all') {
-                    searchModeAllBtn.classList.add('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
-                    searchModeAllBtn.classList.remove('text-stone-600', 'dark:text-stone-400');
-                    searchModeNotesBtn.classList.remove('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
-                    searchModeNotesBtn.classList.add('text-stone-600', 'dark:text-stone-400');
-                } else {
-                    searchModeNotesBtn.classList.add('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
-                    searchModeNotesBtn.classList.remove('text-stone-600', 'dark:text-stone-400');
-                    searchModeAllBtn.classList.remove('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
-                    searchModeAllBtn.classList.add('text-stone-600', 'dark:text-stone-400');
-                }
+            const allButtons = [searchModeAllBtn, searchModeAllBtnMobile].filter(Boolean);
+            const notesButtons = [searchModeNotesBtn, searchModeNotesBtnMobile].filter(Boolean);
+            
+            if (appState.searchMode === 'all') {
+                allButtons.forEach(btn => {
+                    btn.classList.add('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
+                    btn.classList.remove('text-stone-600', 'dark:text-stone-400');
+                });
+                notesButtons.forEach(btn => {
+                    btn.classList.remove('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
+                    btn.classList.add('text-stone-600', 'dark:text-stone-400');
+                });
+            } else {
+                notesButtons.forEach(btn => {
+                    btn.classList.add('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
+                    btn.classList.remove('text-stone-600', 'dark:text-stone-400');
+                });
+                allButtons.forEach(btn => {
+                    btn.classList.remove('bg-white', 'dark:bg-stone-700', 'text-primary', 'shadow-sm');
+                    btn.classList.add('text-stone-600', 'dark:text-stone-400');
+                });
             }
         };
 
         updateSearchModeButtons();
 
+        const handleSearchModeAll = () => {
+            appState.searchMode = 'all';
+            localStorage.setItem('searchMode', 'all');
+            updateSearchModeButtons();
+            if (appState.currentSearchTerm) {
+                applyFiltersAndRender();
+            }
+        };
+
+        const handleSearchModeNotes = () => {
+            appState.searchMode = 'notes';
+            localStorage.setItem('searchMode', 'notes');
+            updateSearchModeButtons();
+            if (appState.currentSearchTerm) {
+                applyFiltersAndRender();
+            }
+        };
+
         if (searchModeAllBtn) {
-            this.searchModeAllHandler = () => {
-                appState.searchMode = 'all';
-                localStorage.setItem('searchMode', 'all');
-                updateSearchModeButtons();
-                if (appState.currentSearchTerm) {
-                    applyFiltersAndRender();
-                }
-            };
+            this.searchModeAllHandler = handleSearchModeAll;
             searchModeAllBtn.addEventListener('click', this.searchModeAllHandler);
         }
 
         if (searchModeNotesBtn) {
-            this.searchModeNotesHandler = () => {
-                appState.searchMode = 'notes';
-                localStorage.setItem('searchMode', 'notes');
-                updateSearchModeButtons();
-                if (appState.currentSearchTerm) {
-                    applyFiltersAndRender();
-                }
-            };
+            this.searchModeNotesHandler = handleSearchModeNotes;
             searchModeNotesBtn.addEventListener('click', this.searchModeNotesHandler);
+        }
+
+        if (searchModeAllBtnMobile) {
+            this.searchModeAllHandlerMobile = handleSearchModeAll;
+            searchModeAllBtnMobile.addEventListener('click', this.searchModeAllHandlerMobile);
+        }
+
+        if (searchModeNotesBtnMobile) {
+            this.searchModeNotesHandlerMobile = handleSearchModeNotes;
+            searchModeNotesBtnMobile.addEventListener('click', this.searchModeNotesHandlerMobile);
         }
 
         // Collection event handlers using event delegation
@@ -584,6 +609,16 @@ export const dashboardView = {
         const searchModeNotesBtn = document.getElementById('search-mode-notes');
         if (searchModeNotesBtn && this.searchModeNotesHandler) {
             searchModeNotesBtn.removeEventListener('click', this.searchModeNotesHandler);
+        }
+
+        const searchModeAllBtnMobile = document.getElementById('search-mode-all-mobile');
+        if (searchModeAllBtnMobile && this.searchModeAllHandlerMobile) {
+            searchModeAllBtnMobile.removeEventListener('click', this.searchModeAllHandlerMobile);
+        }
+
+        const searchModeNotesBtnMobile = document.getElementById('search-mode-notes-mobile');
+        if (searchModeNotesBtnMobile && this.searchModeNotesHandlerMobile) {
+            searchModeNotesBtnMobile.removeEventListener('click', this.searchModeNotesHandlerMobile);
         }
 
         const paperListContainer = document.getElementById('paper-list');
