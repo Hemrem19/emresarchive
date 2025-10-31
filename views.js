@@ -2,13 +2,15 @@ export const views = {
     home: `
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="max-w-7xl mx-auto mb-8">
-                <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full max-w-full">
-                    <label for="quick-add-doi" class="text-sm font-semibold text-stone-700 dark:text-stone-300 whitespace-nowrap flex-shrink-0 sm:flex-none">Quick Add by DOI</label>
-                    <input type="text" id="quick-add-doi" class="block flex-1 min-w-0 h-10 rounded-md border border-stone-300 dark:border-stone-700 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:text-white sm:text-sm px-3 max-w-full" placeholder="Enter DOI and press Enter...">
-                    <button type="submit" class="flex items-center justify-center gap-1 sm:gap-2 h-9 sm:h-10 px-2 sm:px-4 bg-primary/10 dark:bg-primary/20 sm:bg-primary text-primary dark:text-primary sm:text-white text-xs sm:text-sm font-medium sm:font-bold rounded-md sm:rounded-lg hover:bg-primary/20 dark:hover:bg-primary/30 sm:hover:bg-primary/90 transition-colors whitespace-nowrap flex-shrink-0 w-full sm:w-auto border border-primary/30 dark:border-primary/30 sm:border-transparent">
-                        <span class="material-symbols-outlined text-lg sm:text-base">add</span>
-                        <span class="hidden sm:inline">Add</span>
-                    </button>
+                <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 w-full max-w-full">
+                    <label for="quick-add-doi" class="block text-sm font-semibold text-stone-700 dark:text-stone-300 mb-2 sm:mb-0 sm:inline-block sm:mr-3">Quick Add by DOI</label>
+                    <div class="flex items-center gap-2 sm:inline-flex sm:gap-3">
+                        <input type="text" id="quick-add-doi" class="block flex-1 min-w-0 h-10 rounded-md border border-stone-300 dark:border-stone-700 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:text-white sm:text-sm px-3 max-w-full" placeholder="Enter DOI and press Enter...">
+                        <button type="submit" class="flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 bg-primary/10 dark:bg-primary/20 sm:bg-primary text-primary dark:text-primary sm:text-white text-sm font-medium sm:font-bold rounded-md sm:rounded-lg hover:bg-primary/20 dark:hover:bg-primary/30 sm:hover:bg-primary/90 transition-colors flex-shrink-0 border border-primary/30 dark:border-primary/30 sm:border-transparent">
+                            <span class="material-symbols-outlined text-lg">add</span>
+                            <span class="hidden sm:inline">Add</span>
+                        </button>
+                    </div>
                 </form>
             </div>
             <div class="max-w-7xl mx-auto">
