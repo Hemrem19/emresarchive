@@ -295,64 +295,84 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
         const showNoteSnippet = searchTerm && hasNotesMatch(paper, searchTerm);
         const noteSnippet = showNoteSnippet ? extractNoteSnippet(paper.notes, searchTerm) : '';
         
+        const hasNotes = paper.notes && typeof paper.notes === 'string' && paper.notes.trim().length > 0;
+        
         return `
-        <div class="paper-card bg-white dark:bg-stone-900 border-2 ${isSelected ? 'border-primary/50 bg-primary/5 dark:bg-primary/10' : 'border-stone-200 dark:border-stone-800'} rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-all duration-200" data-paper-id="${paper.id}">
-            <div class="flex items-center gap-3 sm:flex-shrink-0">
-                <input type="checkbox" class="paper-checkbox w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800 cursor-pointer" data-paper-id="${paper.id}" ${isSelected ? 'checked' : ''}>
-                <span 
-                    class="h-2.5 w-2.5 rounded-full flex-shrink-0 ${statusColors[paper.readingStatus] || 'bg-stone-400'}" 
-                    title="Status: ${paper.readingStatus}"
-                ></span>
-            </div>
-            <div class="flex-grow">
-                <div class="flex items-center gap-2 mb-1">
-                    ${showNoteSnippet ? `<span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mr-1" title="Match found in notes">description</span>` : ''}
-                    <a href="#/details/${paper.id}" class="font-bold text-lg text-stone-900 dark:text-stone-100 hover:text-primary dark:hover:text-primary transition-colors">${highlightText(paper.title, searchTerm)}</a>
+        <div class="paper-card bg-white dark:bg-stone-900 border-2 ${isSelected ? 'border-primary/50 bg-primary/5 dark:bg-primary/10' : 'border-stone-200 dark:border-stone-800'} rounded-lg p-4 transition-all duration-200" data-paper-id="${paper.id}">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div class="flex items-center gap-3 sm:flex-shrink-0">
+                    <input type="checkbox" class="paper-checkbox w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800 cursor-pointer" data-paper-id="${paper.id}" ${isSelected ? 'checked' : ''}>
+                    <span 
+                        class="h-2.5 w-2.5 rounded-full flex-shrink-0 ${statusColors[paper.readingStatus] || 'bg-stone-400'}" 
+                        title="Status: ${paper.readingStatus}"
+                    ></span>
                 </div>
-                <p class="text-sm text-stone-500 dark:text-stone-400 mb-2">${highlightText(paper.authors.join(', '), searchTerm)} - ${paper.year || 'N/A'}</p>
-                ${showNoteSnippet && noteSnippet ? `
-                    <div class="mt-2 mb-3 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 rounded-md">
-                        <div class="flex items-start gap-2">
-                            <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mt-0.5 flex-shrink-0">notes</span>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs font-medium text-green-800 dark:text-green-300 mb-1">Match found in notes:</p>
-                                <p class="text-sm text-stone-700 dark:text-stone-300 italic leading-relaxed">${highlightText(noteSnippet, searchTerm)}</p>
+                <div class="flex-grow w-full min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        ${showNoteSnippet ? `<span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mr-1" title="Match found in notes">description</span>` : ''}
+                        <a href="#/details/${paper.id}" class="font-bold text-lg text-stone-900 dark:text-stone-100 hover:text-primary dark:hover:text-primary transition-colors">${highlightText(paper.title, searchTerm)}</a>
+                        ${hasNotes ? `
+                            <button class="expand-notes-btn ml-2 p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-primary dark:hover:text-primary transition-colors" data-paper-id="${paper.id}" title="Show notes">
+                                <span class="material-symbols-outlined text-sm expand-icon">expand_more</span>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <p class="text-sm text-stone-500 dark:text-stone-400 mb-2">${highlightText(paper.authors.join(', '), searchTerm)} - ${paper.year || 'N/A'}</p>
+                    ${showNoteSnippet && noteSnippet ? `
+                        <div class="mt-2 mb-3 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 rounded-md">
+                            <div class="flex items-start gap-2">
+                                <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mt-0.5 flex-shrink-0">notes</span>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-green-800 dark:text-green-300 mb-1">Match found in notes:</p>
+                                    <p class="text-sm text-stone-700 dark:text-stone-300 italic leading-relaxed">${highlightText(noteSnippet, searchTerm)}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ` : ''}
-                ${paper.tags && paper.tags.length > 0 ? `
-                    <div class="flex flex-wrap gap-2 ${showNoteSnippet ? 'mt-2' : ''}">
-                        ${paper.tags.map(tag => `<span class="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">#${tag}</span>`).join('')}
-                    </div>
-                ` : ''}
-                ${paper.readingStatus === 'Reading' && paper.readingProgress?.totalPages > 0 ? `
-                    <div class="mt-2 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary text-sm">auto_stories</span>
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between gap-2 text-xs text-stone-600 dark:text-stone-400 mb-1">
-                                <span>Page ${paper.readingProgress.currentPage || 0} of ${paper.readingProgress.totalPages}</span>
-                                <span class="font-bold text-primary">${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%</span>
-                            </div>
-                            <div class="w-full h-1.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
-                                <div class="h-full bg-primary transition-all duration-300" style="width: ${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%"></div>
+                    ` : ''}
+                    <!-- Expandable Notes Section -->
+                    ${hasNotes ? `
+                        <div class="notes-expandable-section hidden mt-3 mb-2 p-3 bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-md" data-paper-id="${paper.id}">
+                            <div class="flex items-start gap-2">
+                                <span class="material-symbols-outlined text-stone-500 dark:text-stone-400 text-sm mt-0.5 flex-shrink-0">notes</span>
+                                <div class="flex-1 min-w-0 prose prose-stone dark:prose-invert max-w-none text-sm">
+                                    <div class="notes-content text-stone-700 dark:text-stone-300">${paper.notes}</div>
+                                </div>
                             </div>
                         </div>
+                    ` : ''}
+                    ${paper.tags && paper.tags.length > 0 ? `
+                        <div class="flex flex-wrap gap-2 ${showNoteSnippet ? 'mt-2' : ''}">
+                            ${paper.tags.map(tag => `<span class="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">#${tag}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${paper.readingStatus === 'Reading' && paper.readingProgress?.totalPages > 0 ? `
+                        <div class="mt-2 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-sm">auto_stories</span>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between gap-2 text-xs text-stone-600 dark:text-stone-400 mb-1">
+                                    <span>Page ${paper.readingProgress.currentPage || 0} of ${paper.readingProgress.totalPages}</span>
+                                    <span class="font-bold text-primary">${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-primary transition-all duration-300" style="width: ${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2 sm:mt-0 flex-shrink-0 w-full sm:w-auto">
+                    <select class="reading-status-select w-full sm:w-32 h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100" data-id="${paper.id}">
+                        ${statusOrder.map(status => `<option value="${status}" ${paper.readingStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
+                    </select>
+                    <div class="flex items-center gap-1 self-end">
+                        ${paper.hasPdf ? `<span class="material-symbols-outlined text-stone-400 dark:text-stone-500 text-lg" title="PDF attached">attachment</span>` : ''}
+                        <a href="#/edit/${paper.id}" class="edit-paper-btn p-1 rounded-full text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-700" title="Edit Paper">
+                            <span class="material-symbols-outlined text-lg">edit</span>
+                        </a>
+                        <button class="delete-paper-btn p-1 rounded-full text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50" data-id="${paper.id}" title="Delete Paper">
+                            <span class="material-symbols-outlined text-lg">delete</span>
+                        </button>
                     </div>
-                ` : ''}
-            </div>
-            <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2 sm:mt-0 flex-shrink-0 w-full sm:w-auto">
-                <select class="reading-status-select w-full sm:w-32 h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100" data-id="${paper.id}">
-                    ${statusOrder.map(status => `<option value="${status}" ${paper.readingStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
-                </select>
-                <div class="flex items-center gap-1 self-end">
-                    ${paper.hasPdf ? `<span class="material-symbols-outlined text-stone-400 dark:text-stone-500 text-lg" title="PDF attached">attachment</span>` : ''}
-                    <a href="#/edit/${paper.id}" class="edit-paper-btn p-1 rounded-full text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-700" title="Edit Paper">
-                        <span class="material-symbols-outlined text-lg">edit</span>
-                    </a>
-                    <button class="delete-paper-btn p-1 rounded-full text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50" data-id="${paper.id}" title="Delete Paper">
-                        <span class="material-symbols-outlined text-lg">delete</span>
-                    </button>
                 </div>
             </div>
         </div>

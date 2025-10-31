@@ -362,6 +362,31 @@ export const dashboardView = {
         const paperListContainer = document.getElementById('paper-list');
         if (paperListContainer) {
             this.paperListClickHandler = async (e) => {
+                // Handle expand notes button clicks
+                const expandBtn = e.target.closest('.expand-notes-btn');
+                if (expandBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const paperCard = expandBtn.closest('.paper-card');
+                    if (!paperCard) return;
+                    
+                    const paperId = parseInt(expandBtn.dataset.paperId, 10);
+                    const notesSection = paperCard.querySelector(`.notes-expandable-section[data-paper-id="${paperId}"]`);
+                    const expandIcon = expandBtn.querySelector('.expand-icon');
+                    
+                    if (notesSection && expandIcon) {
+                        const isHidden = notesSection.classList.contains('hidden');
+                        if (isHidden) {
+                            notesSection.classList.remove('hidden');
+                            expandIcon.textContent = 'expand_less';
+                        } else {
+                            notesSection.classList.add('hidden');
+                            expandIcon.textContent = 'expand_more';
+                        }
+                    }
+                    return;
+                }
+
                 // Handle checkbox clicks
                 const checkbox = e.target.closest('.paper-checkbox');
                 if (checkbox) {
