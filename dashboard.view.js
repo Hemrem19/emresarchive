@@ -1,6 +1,8 @@
 import { getAllPapers, getPaperById, addPaper, deletePaper, updatePaper, getPaperByDoi, getAllCollections, addCollection, updateCollection, deleteCollection } from './db.js';
 import { renderSidebarTags, renderSidebarCollections, showToast } from './ui.js';
 import { fetchDoiMetadata } from './api.js';
+import { generateBibliography, exportBibliographyToFile, copyBibliographyToClipboard } from './citation.js';
+import { views as templates } from './views.js';
 import { getStatusOrder } from './config.js';
 
 export const dashboardView = {
@@ -359,6 +361,97 @@ export const dashboardView = {
             batchDeleteBtn.addEventListener('click', this.batchDeleteHandler);
         }
 
+        // Export Bibliography handler
+        const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');
+        if (batchExportBibliographyBtn) {
+            this.batchExportBibliographyHandler = async () => {
+                if (appState.selectedPaperIds.size === 0) {
+                    showToast('Please select papers to export.', 'warning');
+                    return;
+                }
+
+                try {
+                    // Get selected papers
+                    const selectedIds = Array.from(appState.selectedPaperIds);
+                    const selectedPapers = appState.allPapersCache.filter(p => selectedIds.includes(p.id));
+                    
+                    if (selectedPapers.length === 0) {
+                        showToast('No papers found for export.', 'error');
+                        return;
+                    }
+
+                    // Inject modal HTML
+                    if (document.getElementById('bibliography-export-modal')) {
+                        document.getElementById('bibliography-export-modal').remove();
+                    }
+                    document.body.insertAdjacentHTML('beforeend', templates.bibliographyExportModal);
+                    
+                    const modal = document.getElementById('bibliography-export-modal');
+                    const closeBtn = document.getElementById('close-bibliography-modal-btn');
+                    const formatSelect = document.getElementById('bibliography-format-select');
+                    const styleSelect = document.getElementById('bibliography-style-select');
+                    const previewDiv = document.getElementById('bibliography-preview');
+                    const copyBtn = document.getElementById('bibliography-copy-btn');
+                    const downloadBtn = document.getElementById('bibliography-download-btn');
+
+                    // Function to update preview
+                    const updatePreview = () => {
+                        const format = formatSelect.value;
+                        const style = styleSelect.value;
+                        const bibliography = generateBibliography(selectedPapers, format, style);
+                        previewDiv.textContent = bibliography || 'No bibliography generated.';
+                    };
+
+                    // Initial preview
+                    updatePreview();
+
+                    // Update preview on format/style change
+                    formatSelect.addEventListener('change', updatePreview);
+                    styleSelect.addEventListener('change', updatePreview);
+
+                    // Copy to clipboard
+                    copyBtn.addEventListener('click', async () => {
+                        const format = formatSelect.value;
+                        const style = styleSelect.value;
+                        const bibliography = generateBibliography(selectedPapers, format, style);
+                        const success = await copyBibliographyToClipboard(bibliography);
+                        if (success) {
+                            showToast(`Bibliography copied to clipboard! (${selectedPapers.length} papers)`, 'success');
+                        } else {
+                            showToast('Failed to copy to clipboard. Please try again.', 'error');
+                        }
+                    });
+
+                    // Download file
+                    downloadBtn.addEventListener('click', () => {
+                        const format = formatSelect.value;
+                        const style = styleSelect.value;
+                        const bibliography = generateBibliography(selectedPapers, format, style);
+                        exportBibliographyToFile(bibliography, format);
+                        showToast(`Bibliography downloaded! (${selectedPapers.length} papers)`, 'success');
+                    });
+
+                    // Close modal handlers
+                    const closeModal = () => {
+                        modal.classList.add('hidden');
+                        setTimeout(() => modal.remove(), 300);
+                    };
+
+                    closeBtn.addEventListener('click', closeModal);
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) closeModal();
+                    });
+
+                    // Show modal
+                    modal.classList.remove('hidden');
+                } catch (error) {
+                    console.error('Export bibliography error:', error);
+                    showToast(error.message || 'Error exporting bibliography. Please try again.', 'error');
+                }
+            };
+            batchExportBibliographyBtn.addEventListener('click', this.batchExportBibliographyHandler);
+        }
+
         const paperListContainer = document.getElementById('paper-list');
         if (paperListContainer) {
             this.paperListClickHandler = async (e) => {
@@ -619,6 +712,17 @@ export const dashboardView = {
         const batchDeleteBtn = document.getElementById('batch-delete-btn');
         if (batchDeleteBtn && this.batchDeleteHandler) {
             batchDeleteBtn.removeEventListener('click', this.batchDeleteHandler);
+        }
+
+        const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');
+        if (batchExportBibliographyBtn && this.batchExportBibliographyHandler) {
+            batchExportBibliographyBtn.removeEventListener('click', this.batchExportBibliographyHandler);
+        }
+
+        // Remove bibliography modal if it exists
+        const bibliographyModal = document.getElementById('bibliography-export-modal');
+        if (bibliographyModal) {
+            bibliographyModal.remove();
         }
 
         const itemsPerPageSelect = document.getElementById('items-per-page');

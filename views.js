@@ -5,7 +5,7 @@ export const views = {
                 <form id="quick-add-form" class="bg-white dark:bg-stone-900/70 p-4 rounded-lg border border-stone-200 dark:border-stone-800 w-full max-w-full">
                     <label for="quick-add-doi" class="block text-sm font-semibold text-stone-700 dark:text-stone-300 mb-2 sm:mb-0 sm:inline-block sm:mr-3">Quick Add by DOI</label>
                     <div class="flex items-center gap-2 sm:inline-flex sm:gap-3">
-                        <input type="text" id="quick-add-doi" class="block flex-1 min-w-0 h-10 rounded-md border border-stone-300 dark:border-stone-700 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:text-white sm:text-sm px-3 max-w-full" placeholder="Enter DOI and press Enter...">
+                        <input type="text" id="quick-add-doi" class="block flex-1 min-w-0 h-10 rounded-md border border-stone-300 dark:border-stone-700 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:text-white sm:text-sm px-3 max-w-full sm:min-w-[600px] lg:min-w-[800px]" placeholder="Enter DOI and press Enter...">
                         <button type="submit" class="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0">
                             <span class="material-symbols-outlined text-lg sm:text-base">add</span>
                             <span class="hidden sm:inline">Add</span>
@@ -41,6 +41,10 @@ export const views = {
                                 <button id="batch-remove-tags-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors">Remove</button>
                             </div>
                             <button id="batch-delete-btn" class="h-8 px-3 bg-red-500 text-white text-xs font-semibold rounded-md hover:bg-red-600 transition-colors">Delete Selected</button>
+                            <button id="batch-export-bibliography-btn" class="h-8 px-3 bg-primary text-white text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">description</span>
+                                Export Bibliography
+                            </button>
                         </div>
                         <button id="clear-selection-btn" class="self-end lg:self-auto text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline">Clear Selection</button>
                     </div>
@@ -311,6 +315,55 @@ export const views = {
                 </div>
                 <div class="p-4 bg-stone-50 dark:bg-stone-900/50 border-t dark:border-stone-800 flex justify-end gap-2 flex-shrink-0">
                     <button id="citation-modal-done-btn" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90">Done</button>
+                </div>
+            </div>
+        </div>`,
+    bibliographyExportModal: `
+        <div id="bibliography-export-modal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 hidden">
+            <div class="bg-white dark:bg-stone-900 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+                <div class="p-4 border-b dark:border-stone-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold">Export Bibliography</h3>
+                    <button id="close-bibliography-modal-btn" class="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto flex-grow space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="bibliography-format-select" class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">Citation Format:</label>
+                            <select id="bibliography-format-select" class="w-full h-10 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-sm text-stone-900 dark:text-stone-100">
+                                <option value="apa">APA</option>
+                                <option value="ieee">IEEE</option>
+                                <option value="mla">MLA</option>
+                                <option value="chicago">Chicago</option>
+                                <option value="harvard">Harvard</option>
+                                <option value="vancouver">Vancouver</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="bibliography-style-select" class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">Bibliography Style:</label>
+                            <select id="bibliography-style-select" class="w-full h-10 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md focus:ring-primary focus:border-primary text-sm text-stone-900 dark:text-stone-100">
+                                <option value="numbered">Numbered (1, 2, 3...)</option>
+                                <option value="alphabetical">Alphabetical (A, B, C...)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="bibliography-preview-container" class="mt-4">
+                        <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">Preview:</label>
+                        <div id="bibliography-preview" class="p-4 bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-md max-h-[300px] overflow-y-auto font-mono text-sm text-stone-700 dark:text-stone-300 whitespace-pre-wrap">
+                            <!-- Preview will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 bg-stone-50 dark:bg-stone-900/50 border-t dark:border-stone-800 flex justify-end gap-2 flex-shrink-0">
+                    <button id="bibliography-copy-btn" class="rounded-lg bg-stone-200 dark:bg-stone-700 px-4 py-2 text-sm font-semibold text-stone-900 dark:text-stone-100 shadow-sm hover:bg-stone-300 dark:hover:bg-stone-600 transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">content_copy</span>
+                        Copy to Clipboard
+                    </button>
+                    <button id="bibliography-download-btn" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">download</span>
+                        Download File
+                    </button>
                 </div>
             </div>
         </div>`,
