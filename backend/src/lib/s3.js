@@ -44,19 +44,25 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
     // Generate presigned URL WITHOUT ContentType or ContentLength in signature
     // This makes the signature more flexible - browser can add any Content-Type/Content-Length
     // Only Host will be in the signed headers, which is always consistent
+    // 
+    // IMPORTANT: Do NOT add ChecksumAlgorithm - it causes the SDK to add checksum query params
+    // These params (x-amz-checksum-crc32, x-amz-sdk-checksum-algorithm) become part of signature
+    // and cause mismatch errors
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key
-      // Do NOT include ContentType or ContentLength - they would be in signature
-      // Do NOT add ChecksumAlgorithm, Metadata, or any other fields
-      // Keep it minimal - only Bucket and Key
+      // Minimal command - only Bucket and Key
+      // Do NOT add: ContentType, ContentLength, ChecksumAlgorithm, Metadata, etc.
     });
 
-    // Generate presigned URL
+    // Generate presigned URL with minimal signature (only Host header)
     // Note: CORS must be configured in R2 bucket settings (see R2_CORS_SETUP.md)
-    // The signed headers will be: Host only
     // Browser can add Content-Type and Content-Length without affecting signature
-    const url = await getSignedUrl(s3Client, command, { expiresIn: PRESIGNED_URL_EXPIRY });
+    const url = await getSignedUrl(s3Client, command, { 
+      expiresIn: PRESIGNED_URL_EXPIRY
+      // Note: SDK may add checksum query params automatically
+      // These params must be included in the PUT request exactly as in the presigned URL
+    });
 
     return url;
   } catch (error) {
