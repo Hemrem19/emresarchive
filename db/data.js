@@ -7,6 +7,11 @@ import { openDB, STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIO
 import { getAllPapers } from './papers.js';
 import { getAllCollections } from './collections.js';
 import { getAnnotationsByPaperId } from './annotations.js';
+import { isCloudSyncEnabled } from '../config.js';
+import { isAuthenticated } from '../api/auth.js';
+import { addPaper as addPaperViaAdapter } from '../db.js';
+import { addCollection as addCollectionViaAdapter } from '../db.js';
+import { addAnnotation as addAnnotationViaAdapter } from '../db.js';
 
 /**
  * Exports all data from the database into a serializable format with error handling.
@@ -229,6 +234,9 @@ async function importData(dataToImport) {
                     let annotationErrorCount = 0;
 
                     // Import papers
+                    // If cloud sync is enabled, use adapter to sync to cloud API
+                    const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
+                    
                     for (const paper of papersToImport) {
                         try {
                             const paperToStore = { ...paper };
@@ -258,13 +266,40 @@ async function importData(dataToImport) {
                                 paperToStore.updatedAt = new Date(paperToStore.updatedAt);
                             }
                             
-                            await new Promise((resolveAdd, rejectAdd) => {
-                                const addRequest = papersStore.add(paperToStore);
-                                addRequest.onsuccess = () => resolveAdd();
-                                addRequest.onerror = (event) => rejectAdd(event.target.error);
-                            });
-                            
-                            paperSuccessCount++;
+                            // If cloud sync is enabled, use adapter which routes to cloud API
+                            // Otherwise, save directly to IndexedDB
+                            if (useCloudSync) {
+                                try {
+                                    // Remove fields that shouldn't be sent to API
+                                    const paperForApi = { ...paperToStore };
+                                    delete paperForApi.pdfData; // PDF data is stored locally only
+                                    delete paperForApi.id; // API will generate new ID
+                                    delete paperForApi.pdfFile; // Already handled above
+                                    
+                                    // If paper has s3Key/pdfUrl from import, keep it (but don't upload PDF)
+                                    // The adapter will handle mapping s3Key to pdfUrl
+                                    await addPaperViaAdapter(paperForApi);
+                                    paperSuccessCount++;
+                                } catch (cloudError) {
+                                    console.error(`Failed to sync paper "${paper.title}" to cloud:`, cloudError);
+                                    // Fall back to local-only storage
+                                    await new Promise((resolveAdd, rejectAdd) => {
+                                        const addRequest = papersStore.add(paperToStore);
+                                        addRequest.onsuccess = () => resolveAdd();
+                                        addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                    });
+                                    paperSuccessCount++;
+                                    paperErrorCount++; // Count as partial error (local only, not cloud)
+                                }
+                            } else {
+                                // Local-only: save directly to IndexedDB
+                                await new Promise((resolveAdd, rejectAdd) => {
+                                    const addRequest = papersStore.add(paperToStore);
+                                    addRequest.onsuccess = () => resolveAdd();
+                                    addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                });
+                                paperSuccessCount++;
+                            }
                         } catch (paperError) {
                             console.error(`Error importing paper "${paper.title}":`, paperError);
                             paperErrorCount++;
@@ -309,13 +344,33 @@ async function importData(dataToImport) {
                                 annotationToStore.updatedAt = new Date(annotationToStore.updatedAt);
                             }
                             
-                            await new Promise((resolveAdd, rejectAdd) => {
-                                const addRequest = annotationsStore.add(annotationToStore);
-                                addRequest.onsuccess = () => resolveAdd();
-                                addRequest.onerror = (event) => rejectAdd(event.target.error);
-                            });
-                            
-                            annotationSuccessCount++;
+                            // If cloud sync is enabled, use adapter which routes to cloud API
+                            if (useCloudSync) {
+                                try {
+                                    const annotationForApi = { ...annotationToStore };
+                                    delete annotationForApi.id; // API will generate new ID
+                                    await addAnnotationViaAdapter(annotationForApi);
+                                    annotationSuccessCount++;
+                                } catch (cloudError) {
+                                    console.error(`Failed to sync annotation to cloud:`, cloudError);
+                                    // Fall back to local-only storage
+                                    await new Promise((resolveAdd, rejectAdd) => {
+                                        const addRequest = annotationsStore.add(annotationToStore);
+                                        addRequest.onsuccess = () => resolveAdd();
+                                        addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                    });
+                                    annotationSuccessCount++;
+                                    annotationErrorCount++; // Count as partial error
+                                }
+                            } else {
+                                // Local-only: save directly to IndexedDB
+                                await new Promise((resolveAdd, rejectAdd) => {
+                                    const addRequest = annotationsStore.add(annotationToStore);
+                                    addRequest.onsuccess = () => resolveAdd();
+                                    addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                });
+                                annotationSuccessCount++;
+                            }
                         } catch (annotationError) {
                             console.error(`Error importing annotation:`, annotationError);
                             annotationErrorCount++;
