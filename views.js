@@ -287,7 +287,7 @@ export const views = {
                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Cloud Sync</h3>
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Enable cloud sync to access your papers from any device. Data is stored securely in the cloud.</p>
                             </div>
-                            <div class="flex items-center md:col-span-2">
+                            <div class="flex flex-col gap-4 md:col-span-2">
                                 <div id="cloud-sync-container" class="flex flex-col gap-2">
                                     <label for="cloud-sync-toggle" class="flex items-center cursor-pointer">
                                         <div class="relative">
@@ -298,6 +298,16 @@ export const views = {
                                         <span class="ml-3 text-sm font-medium text-stone-700 dark:text-stone-300">Enable Cloud Sync</span>
                                     </label>
                                     <p id="cloud-sync-status" class="text-xs text-gray-500 dark:text-gray-400 ml-20"></p>
+                                </div>
+                                <div id="sync-controls-container" class="hidden flex flex-col gap-2">
+                                    <div class="flex items-center gap-3">
+                                        <button id="sync-now-btn" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary/90 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <span class="material-symbols-outlined text-base">sync</span>
+                                            <span>Sync Now</span>
+                                        </button>
+                                        <div id="sync-status-display" class="text-xs text-gray-600 dark:text-gray-400"></div>
+                                    </div>
+                                    <div id="pending-changes-display" class="text-xs text-gray-500 dark:text-gray-400"></div>
                                 </div>
                             </div>
                         </div>

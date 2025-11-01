@@ -63,6 +63,24 @@ export {
     clearAllData
 } from './db/data.js';
 
+// Sync operations
+export {
+    performSync,
+    performFullSync,
+    performIncrementalSync,
+    getSyncStatusInfo,
+    getPendingChanges,
+    trackPaperCreated,
+    trackPaperUpdated,
+    trackPaperDeleted,
+    trackCollectionCreated,
+    trackCollectionUpdated,
+    trackCollectionDeleted,
+    trackAnnotationCreated,
+    trackAnnotationUpdated,
+    trackAnnotationDeleted
+} from './db/sync.js';
+
 // Cloud sync utility
 export { isCloudSyncAvailable } from './db/adapter.js';
 
