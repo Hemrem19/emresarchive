@@ -187,7 +187,11 @@ export const settingsView = {
                 if (syncControlsContainer) syncControlsContainer.classList.add('hidden');
             } else if (syncEnabled && authenticated) {
                 const user = getUser();
-                statusText.textContent = `Cloud sync enabled for ${user?.name || user?.email || 'your account'}.`;
+                let statusMsg = `Cloud sync enabled for ${user?.name || user?.email || 'your account'}.`;
+                if (user && !user.emailVerified) {
+                    statusMsg += ' Email not verified.';
+                }
+                statusText.textContent = statusMsg;
                 statusText.className = 'text-xs text-green-600 dark:text-green-400 ml-20';
                 if (syncControlsContainer) {
                     syncControlsContainer.classList.remove('hidden');
@@ -202,6 +206,44 @@ export const settingsView = {
 
         // Initial UI update
         updateUI();
+        
+        // Show email verification section if user is authenticated but not verified
+        const emailVerificationSection = document.getElementById('email-verification-section');
+        if (emailVerificationSection) {
+            const checkEmailVerification = () => {
+                const authenticated = isAuthenticated();
+                const user = getUser();
+                
+                if (authenticated && user && !user.emailVerified) {
+                    emailVerificationSection.classList.remove('hidden');
+                    const resendBtn = document.getElementById('resend-verification-settings-btn');
+                    if (resendBtn && !resendBtn.dataset.listenerAdded) {
+                        resendBtn.dataset.listenerAdded = 'true';
+                        resendBtn.addEventListener('click', async () => {
+                            try {
+                                resendBtn.disabled = true;
+                                const originalText = resendBtn.textContent;
+                                resendBtn.textContent = 'Sending...';
+                                await resendVerificationEmail();
+                                showToast('Verification email sent! Please check your inbox.', 'success');
+                                resendBtn.textContent = originalText;
+                            } catch (error) {
+                                showToast(error.message || 'Failed to resend verification email', 'error');
+                                resendBtn.textContent = originalText;
+                            } finally {
+                                resendBtn.disabled = false;
+                            }
+                        });
+                    }
+                } else {
+                    emailVerificationSection.classList.add('hidden');
+                }
+            };
+            
+            checkEmailVerification();
+            // Re-check when toggle changes (user might log in/out)
+            toggle.addEventListener('change', checkEmailVerification);
+        }
 
         // Handle toggle change
         toggle.addEventListener('change', (e) => {
