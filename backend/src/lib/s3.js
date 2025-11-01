@@ -14,9 +14,10 @@ const s3Client = new S3Client({
     accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || ''
   },
-  forcePathStyle: true, // Required for R2
-  // Disable automatic checksum calculation to avoid signature issues
-  requestChecksumCalculation: 'disabled' // Prevent SDK from adding checksum headers to presigned URLs
+  forcePathStyle: true // Required for R2
+  // Note: Some SDK versions add checksum headers automatically
+  // These will be in the presigned URL but shouldn't break the signature
+  // if we keep PutObjectCommand minimal (only Bucket and Key)
 });
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || '';
@@ -47,10 +48,10 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
     // Only Host will be in the signed headers, which is always consistent
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
-      Key: key,
+      Key: key
       // Do NOT include ContentType or ContentLength - they would be in signature
-      // Do NOT add ChecksumAlgorithm - it adds extra query params that break signature
-      Metadata: {} // Optional: can add metadata if needed
+      // Do NOT add ChecksumAlgorithm, Metadata, or any other fields
+      // Keep it minimal - only Bucket and Key
     });
 
     // Generate presigned URL
