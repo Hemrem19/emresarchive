@@ -18,7 +18,10 @@ export const errorHandler = (err, req, res, next) => {
     statusCode = 400;
     const target = err.meta?.target || [];
     // Check if it's the userId+doi composite constraint
-    if (target.includes('userId') && target.includes('doi')) {
+    // Note: Prisma returns field names as 'user_id' and 'doi' (snake_case), not camelCase
+    const targetStr = JSON.stringify(target).toLowerCase();
+    if ((target.includes('user_id') || target.includes('userid')) && 
+        (target.includes('doi') || targetStr.includes('doi'))) {
       message = 'You already have a paper with this DOI in your library';
     } else {
       const field = target[0] || 'field';

@@ -247,7 +247,10 @@ export const createPaper = async (req, res, next) => {
       if (prismaError.code === 'P2002') {
         const target = prismaError.meta?.target || [];
         // Check if it's the userId+doi composite constraint
-        if (target.includes('userId') && target.includes('doi') && paperData.doi) {
+        // Note: Prisma returns field names as 'user_id' and 'doi' (snake_case) in meta.target
+        const targetStr = JSON.stringify(target).toLowerCase();
+        if ((target.includes('user_id') || target.includes('userid') || targetStr.includes('user_id')) && 
+            (target.includes('doi') || targetStr.includes('doi')) && paperData.doi) {
           return res.status(400).json({
             success: false,
             error: { message: `You already have a paper with DOI ${paperData.doi} in your library` }

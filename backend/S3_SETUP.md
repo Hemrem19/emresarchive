@@ -125,10 +125,29 @@ Expected response:
 - Check bucket name matches `S3_BUCKET_NAME`
 - Ensure token hasn't been revoked
 
-### Upload fails with 403
+### Upload fails with 403 or CORS errors
+- **CORS Configuration Required**: Cloudflare R2 requires CORS to be configured in the bucket settings
+  1. Go to your R2 bucket in Cloudflare Dashboard
+  2. Click **Settings** tab
+  3. Scroll to **CORS Policy** section
+  4. Click **Edit CORS Policy**
+  5. Add the following CORS configuration:
+     ```json
+     [
+       {
+         "AllowedOrigins": ["https://citaversa.com", "https://*.citaversa.com"],
+         "AllowedMethods": ["PUT", "GET", "HEAD", "OPTIONS"],
+         "AllowedHeaders": ["*"],
+         "ExposeHeaders": ["ETag"],
+         "MaxAgeSeconds": 3600
+       }
+     ]
+     ```
+  6. Click **Save**
 - Check presigned URL hasn't expired
 - Verify Content-Type matches exactly: `application/pdf`
 - Verify Content-Length matches actual file size
+- Verify CORS policy allows your frontend origin
 
 ### File not found after upload
 - Verify S3 key is saved correctly in database (`pdfUrl` field)
