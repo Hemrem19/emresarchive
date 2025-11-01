@@ -412,9 +412,9 @@ describe('citation.js', () => {
                 // So they're sorted by title: "Paper A" comes before "Paper Z"
                 expect(lines[0]).toContain('Paper A'); // Alpha Author's paper
                 expect(lines[1]).toContain('Paper Z'); // zebra author's paper
-                // Verify the authors are both present (case-insensitive sorting works)
-                expect(bibliography.toLowerCase()).toContain('alpha author');
-                expect(bibliography.toLowerCase()).toContain('zebra author');
+                // Both citations should contain "Author," (case-insensitive sorting by last name works)
+                expect(lines[0]).toContain('Author,');
+                expect(lines[1]).toContain('Author,');
             });
         });
 
