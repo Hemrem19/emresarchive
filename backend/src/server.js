@@ -198,27 +198,10 @@ app.use('/api/', limiter);
 app.use(cookieParser());
 
 // Body parsing middleware
-// Skip multipart/form-data (handled by multer in specific routes)
-// For all other requests, parse JSON normally
-// Note: GET requests without body are handled gracefully by express.json()
-app.use((req, res, next) => {
-  const contentType = req.headers['content-type'] || '';
-  // Skip JSON parsing for multipart/form-data - multer will handle it in routes
-  if (contentType.includes('multipart/form-data')) {
-    return next(); // Skip body parsing, multer will handle the body
-  }
-  // For all other requests (including GET without body), use JSON parser
-  express.json({ limit: '10mb' })(req, res, next);
-});
-
-app.use((req, res, next) => {
-  const contentType = req.headers['content-type'] || '';
-  // Skip urlencoded parsing for multipart/form-data
-  if (contentType.includes('multipart/form-data')) {
-    return next();
-  }
-  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
-});
+// Apply JSON parser - it will skip if no body or wrong content-type
+// Multer in specific routes handles multipart/form-data before this runs
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // BigInt JSON serialization (Prisma returns BigInt for large integers)
 app.use((req, res, next) => {

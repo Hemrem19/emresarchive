@@ -54,8 +54,9 @@ router.get('/:id/annotations', getAnnotations);
 router.post('/:id/annotations', validate(annotationSchema), createAnnotation);
 
 // PDF routes
+// IMPORTANT: Upload route must be before other POST routes to avoid conflicts
+router.post('/upload', upload.single('file'), uploadPdfDirect); // Direct upload endpoint (must be first)
 router.post('/upload-url', getUploadUrl);
-router.post('/upload', upload.single('file'), uploadPdfDirect); // Direct upload endpoint
 router.get('/:id/pdf', getPdfDownloadUrl);
 
 export default router;
