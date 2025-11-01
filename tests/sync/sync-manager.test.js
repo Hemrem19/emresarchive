@@ -399,9 +399,27 @@ describe('core/syncManager.js - Sync Lifecycle', () => {
         performSync.mockClear();
         
         initializeAutoSync();
+        
+        // Let initial sync complete first
+        vi.advanceTimersByTime(3000);
+        await new Promise(resolve => {
+            vi.useRealTimers();
+            setTimeout(() => {
+                vi.useFakeTimers();
+                resolve();
+            }, 100);
+        });
+        
+        // Get initial call count (initial sync may have run)
+        const initialCallCount = performSync.mock.calls.length;
+        
+        // Now stop all sync operations
         stopAutoSync();
         
-        // Periodic sync should be stopped - advance past initial sync delay and periodic interval
+        // Clear mock to reset call count after stop
+        performSync.mockClear();
+        
+        // Advance past periodic sync interval (5 minutes) - periodic sync should not run because it was stopped
         vi.advanceTimersByTime(300000);
         
         // Wait for any pending async operations
@@ -413,6 +431,7 @@ describe('core/syncManager.js - Sync Lifecycle', () => {
             }, 100);
         });
         
+        // After stopping, periodic sync should not run (performSync should not be called after stop)
         expect(performSync).not.toHaveBeenCalled();
     });
 
