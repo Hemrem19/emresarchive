@@ -37,16 +37,35 @@ async function runMigrations() {
       // Use dynamic import for child_process
       const childProcess = await import('child_process');
       const { execSync } = childProcess;
+      const path = await import('path');
       
-      // Run migrations in backend directory
-      const command = process.cwd().endsWith('backend') 
-        ? 'npx prisma migrate deploy' 
-        : 'cd backend && npx prisma migrate deploy';
+      // Determine the backend directory
+      // Railway runs from project root, so we need to check if we're in backend or root
+      const cwd = process.cwd();
+      let backendDir = cwd;
       
-      execSync(command, { 
+      // Check if we're in the backend directory
+      if (!cwd.endsWith('backend')) {
+        // Try to find backend directory
+        const backendPath = path.join(cwd, 'backend');
+        try {
+          const fs = await import('fs');
+          if (fs.existsSync(backendPath) && fs.statSync(backendPath).isDirectory()) {
+            backendDir = backendPath;
+          }
+        } catch (e) {
+          // If backend directory doesn't exist, assume we're already in backend
+          // or Railway is running from a different structure
+        }
+      }
+      
+      // Run migrations from the correct directory
+      console.log(`   Working directory: ${backendDir}`);
+      execSync('npx prisma migrate deploy', { 
         stdio: 'inherit', 
         env: { ...process.env },
-        cwd: process.cwd().endsWith('backend') ? process.cwd() : undefined
+        cwd: backendDir,
+        shell: true
       });
       console.log('✅ Database migrations completed');
     } catch (error) {
@@ -342,9 +361,14 @@ async function startServer() {
         await prisma.$queryRaw`SELECT verification_token FROM users LIMIT 1`;
         console.log('✅ Database: Schema verified (verification_token column exists)');
       } catch (schemaError) {
-        if (schemaError.code === 'P2022' || schemaError.message?.includes('does not exist')) {
+        if (schemaError.code === '42703' || schemaError.code === 'P2022' || schemaError.message?.includes('does not exist')) {
           console.error('⚠️ Database: Schema mismatch detected. verification_token column missing.');
-          console.error('   Run: cd backend && npx prisma migrate deploy');
+          console.error('   The migration command during build may have failed.');
+          console.error('   Please check Railway build logs and ensure migrations run successfully.');
+          console.error('   Manual fix: Connect to database and run migrations manually.');
+        } else {
+          // Re-throw unknown schema errors
+          throw schemaError;
         }
       }
       
