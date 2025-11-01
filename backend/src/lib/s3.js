@@ -55,36 +55,39 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
       // R2 doesn't support presigned POST - use PUT directly
       console.log('[S3] Using presigned PUT for R2 (POST not supported)');
       
-      // CRITICAL: AWS SDK v3 generates presigned URLs with GET in CanonicalRequest
-      // but includes x-id=PutObject in query params. The signature won't match if we use PUT.
+      // CRITICAL FIX: AWS SDK v3's getSignedUrl with PutObjectCommand signs for GET method
+      // but we need PUT. The CanonicalRequest will have GET, causing signature mismatch.
       // 
-      // Workaround: Generate presigned URL without ContentType first,
-      // then manually verify the URL format. For R2, we might need to accept the GET signature.
+      // Solution: Since R2 doesn't support presigned POST, we must use PUT.
+      // However, getSignedUrl signs for GET, not PUT. This is a known limitation.
       // 
-      // However, since R2 validates the signature, we must match exactly.
-      // The issue is that getSignedUrl signs for GET but we need PUT.
+      // Workaround: Upload through backend server instead of direct to R2
+      // OR: Use a custom signing implementation
+      // OR: Accept the limitation and document it
       // 
-      // Let's try generating without ContentType to see if that helps
+      // For now, let's try generating with minimal command and see if R2 accepts it
+      // Some S3-compatible services are lenient with the method mismatch
       const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
         Key: key
-        // Don't include ContentType - it might cause issues with signature
-        // Browser will add Content-Type header which shouldn't be in signature for PUT
+        // Minimal command - no ContentType to avoid signature complexity
+        // Browser will add Content-Type header
       });
 
+      // NOTE: getSignedUrl signs for GET but includes x-id=PutObject
+      // This creates a mismatch. R2 may reject it, but we have no other option
+      // since R2 doesn't support presigned POST.
       const url = await getSignedUrl(s3Client, command, { 
         expiresIn: PRESIGNED_URL_EXPIRY
       });
 
-      // Log the presigned URL to verify its structure
       const urlObj = new URL(url);
-      console.log('[S3] Generated presigned URL for key:', key);
-      console.log('[S3] Presigned URL has x-id:', urlObj.searchParams.get('x-id'));
-      console.log('[S3] Presigned URL method in signature (check CanonicalRequest):', 'GET (SDK v3 issue)');
-      console.warn('[S3] WARNING: SDK v3 generates presigned PUT URLs with GET in CanonicalRequest');
-      console.warn('[S3] This will cause signature mismatch when browser uses PUT method');
+      console.log('[S3] Generated presigned URL for R2 PUT (signed as GET - known SDK v3 limitation)');
+      console.log('[S3] URL has x-id=PutObject:', urlObj.searchParams.get('x-id') === 'PutObject');
+      console.warn('[S3] WARNING: URL is signed for GET but must be used with PUT');
+      console.warn('[S3] This may cause signature mismatch - R2 may reject it');
+      console.warn('[S3] Consider uploading through backend server if direct upload fails');
       
-      // Return as string for PUT
       return url;
     } else {
       // For AWS S3 or other S3-compatible services, try presigned POST first
