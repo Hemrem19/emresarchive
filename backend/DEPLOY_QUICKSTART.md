@@ -107,17 +107,28 @@ S3_REGION=auto
 
 ---
 
-### Step 6: Configure Build Settings
+### Step 6: Configure Build Settings ⚠️ CRITICAL STEP
 
-1. Go to **Settings** → **Build & Deploy**
-2. Set **Root Directory** to: `backend` (if your repo has both frontend and backend)
-3. Ensure **Build Command** is empty (Railway auto-detects)
-4. Ensure **Start Command** is: `npm start`
+**IMPORTANT:** Since your backend is in a `backend/` subdirectory, you **MUST** set the Root Directory:
 
-**If backend is in root:**
-- Root Directory: (leave empty)
-- Build Command: (leave empty)
-- Start Command: `npm start`
+1. Click on your service
+2. Go to **Settings** tab → Scroll to **Build & Deploy** section
+3. Set **Root Directory** to: `backend` ⬅️ **This is the key fix!**
+   - This tells Railway to build from the `backend/` folder
+   - Railway will look for `package.json` in the `backend/` directory
+   - Railway will find `railway.json` and `nixpacks.toml` in the `backend/` directory
+4. **Build Command:** Leave empty (Railway will use `backend/nixpacks.toml` or auto-detect)
+5. **Start Command:** Leave empty (Railway will use `npm start` from `backend/package.json`)
+
+**Why this matters:**
+- Without Root Directory set, Railway tries to build from the repo root
+- The root has a different `package.json` (frontend), causing build failures
+- Setting Root Directory to `backend` fixes the "Error creating build plan" error
+
+**Alternative (if Root Directory doesn't work):**
+- Root Directory: (leave empty - root of repo)
+- Build Command: `cd backend && npm install && npm run db:generate`
+- Start Command: `cd backend && npm start`
 
 ---
 
