@@ -348,20 +348,26 @@ export async function getUploadUrl(options) {
  */
 export async function uploadPdf(uploadUrl, file) {
     try {
-        // For presigned URLs WITHOUT ContentType or ContentLength in signature:
-        // - Only Host is in the signature, so we can send any headers
-        // - Browser automatically sets Content-Type and Content-Length
-        // - These headers are NOT part of the signature, so any value works
+        // IMPORTANT: Presigned URLs from AWS SDK v3 may include checksum query params
+        // These params (x-amz-checksum-crc32, x-amz-sdk-checksum-algorithm) are part of the signature
+        // We MUST use the presigned URL exactly as-is, including all query params
+        // 
+        // The presigned URL is already signed with all query params, so we just use it directly
+        // Browser automatically adds Content-Type and Content-Length headers
         const response = await fetch(uploadUrl, {
             method: 'PUT',
             body: file,
             headers: {
                 // Set Content-Type for proper file handling
-                // Since ContentType is NOT in presigned URL signature, any value works
+                // Presigned URL doesn't include ContentType in signature, so any value works
                 'Content-Type': 'application/pdf'
             }
             // DO NOT set Content-Length - browser sets it automatically from file.size
-            // Since ContentLength is NOT in presigned URL signature, any value works
+            // Presigned URL doesn't include ContentLength in signature, so any value works
+            // 
+            // NOTE: The presigned URL may have checksum query params (x-amz-checksum-crc32, etc.)
+            // These are already in the URL and are part of the signature
+            // We don't need to add them - they're already in uploadUrl
         });
 
         if (!response.ok) {
