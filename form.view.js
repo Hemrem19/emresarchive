@@ -216,10 +216,12 @@ export const formView = {
                     // Cloud sync: Upload PDF to S3
                     try {
                         showToast('Uploading PDF to cloud...', 'info');
+                        // Ensure contentType is exactly 'application/pdf' for presigned URL signature
+                        // The upload request must use the same Content-Type that was signed in the URL
                         const { uploadUrl, s3Key } = await getUploadUrl({
                             filename: pdfFile.name,
                             size: pdfFile.size,
-                            contentType: pdfFile.type || 'application/pdf',
+                            contentType: 'application/pdf', // Always use 'application/pdf' (file.type might vary)
                             paperId: this.isEditMode ? this.paperId : null
                         });
                         
