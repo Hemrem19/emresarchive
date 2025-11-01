@@ -350,9 +350,9 @@ export async function getUploadUrl(options) {
  */
 export async function uploadPdf(uploadUrl, file, fields = null) {
     try {
-        if (fields) {
+        if (fields && typeof uploadUrl === 'string' && uploadUrl.includes('http')) {
             // Presigned POST: Send FormData with fields + file
-            // This is more reliable than PUT and avoids method mismatch issues
+            // Note: R2 may not support presigned POST (returns 501), so this might fail
             const formData = new FormData();
             
             // Add all presigned POST fields
@@ -362,7 +362,6 @@ export async function uploadPdf(uploadUrl, file, fields = null) {
             
             // Add the file (must be last field in FormData for presigned POST)
             // The field name doesn't matter for presigned POST - S3 accepts any name
-            // Common names: 'file', 'upload', or just match the key
             formData.append('file', file);
             
             const response = await fetch(uploadUrl, {
@@ -372,20 +371,28 @@ export async function uploadPdf(uploadUrl, file, fields = null) {
             });
             
             if (!response.ok) {
+                // If POST returns 501 (Not Implemented), R2 doesn't support presigned POST
+                // The backend should have fallen back to PUT, but if it didn't, log this
+                if (response.status === 501) {
+                    console.error('R2 returned 501 Not Implemented - presigned POST not supported');
+                }
                 const errorText = await response.text().catch(() => '');
                 console.error('Upload failed response:', response.status, response.statusText, errorText);
                 throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
             }
             return; // Success - exit function
         } else {
-            // Presigned PUT: Send file directly (fallback for older API)
-            // This may have method mismatch issues with AWS SDK v3
+            // Presigned PUT: Send file directly
+            // Note: Even though CanonicalRequest shows GET, PUT might work with x-id=PutObject
+            // The ContentType is included in the signature, so we must match it exactly
             const response = await fetch(uploadUrl, {
                 method: 'PUT',
                 body: file,
                 headers: {
+                    // Content-Type must match exactly what was used in PutObjectCommand
                     'Content-Type': 'application/pdf'
                 }
+                // DO NOT set Content-Length - browser sets it automatically
             });
 
             if (!response.ok) {

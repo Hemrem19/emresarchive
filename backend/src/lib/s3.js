@@ -42,29 +42,47 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
       throw new Error(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
     }
 
-    // CRITICAL FIX: Presigned PUT URLs from AWS SDK v3 have GET in CanonicalRequest
-    // but x-id=PutObject in query params, causing signature mismatch when browser uses PUT
+    // CRITICAL FIX: Cloudflare R2 may not support presigned POST (returns 501)
+    // Fallback to presigned PUT - even though CanonicalRequest shows GET,
+    // the browser PUT request with x-id=PutObject might work if we include ContentType
     // 
-    // Solution: Use presigned POST instead, which is designed for browser uploads
-    // Presigned POST uses POST method which matches the signature correctly
-    const { url, fields } = await createPresignedPost(s3Client, {
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Conditions: [
-        ['content-length-range', 1, MAX_FILE_SIZE], // File size limits (1 byte to MAX_FILE_SIZE)
-        ['eq', '$Content-Type', contentType] // Content-Type must match exactly
-      ],
-      Fields: {
-        'Content-Type': contentType
-      },
-      Expires: PRESIGNED_URL_EXPIRY // Expiry in seconds
-    });
+    // Try presigned POST first, fallback to PUT if it fails
+    try {
+      const { url, fields } = await createPresignedPost(s3Client, {
+        Bucket: BUCKET_NAME,
+        Key: key,
+        Conditions: [
+          ['content-length-range', 1, MAX_FILE_SIZE], // File size limits (1 byte to MAX_FILE_SIZE)
+          ['eq', '$Content-Type', contentType] // Content-Type must match exactly
+        ],
+        Fields: {
+          'Content-Type': contentType
+        },
+        Expires: PRESIGNED_URL_EXPIRY // Expiry in seconds
+      });
 
-    // Return both URL and fields
-    // Frontend must send FormData with all fields + file
-    console.log('[S3] Generated presigned POST URL and fields for key:', key);
-    
-    return { url, fields };
+      console.log('[S3] Generated presigned POST URL and fields for key:', key);
+      return { url, fields };
+    } catch (postError) {
+      // If presigned POST fails (e.g., R2 doesn't support it), fallback to PUT
+      console.warn('[S3] Presigned POST not supported, falling back to PUT:', postError.message);
+      
+      // Generate presigned PUT URL with ContentType included
+      // This ensures ContentType is part of the signature
+      const command = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+        ContentType: contentType // Include ContentType in signature
+      });
+
+      const url = await getSignedUrl(s3Client, command, { 
+        expiresIn: PRESIGNED_URL_EXPIRY
+      });
+
+      console.log('[S3] Generated presigned PUT URL (fallback) for key:', key);
+      // Return as string for PUT (backward compatibility)
+      return url;
+    }
   } catch (error) {
     console.error('Error generating presigned upload URL:', error);
     throw error;
