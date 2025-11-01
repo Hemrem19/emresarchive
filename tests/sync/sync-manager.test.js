@@ -174,8 +174,11 @@ describe('core/syncManager.js - Auto-Sync Execution', () => {
         
         const { isCloudSyncEnabled } = await import('../../config.js');
         const { isAuthenticated } = await import('../../api/auth.js');
+        const { isSyncInProgress } = await import('../../db/sync.js');
+        
         isCloudSyncEnabled.mockReturnValue(true);
         isAuthenticated.mockReturnValue(true);
+        isSyncInProgress.mockReturnValue(false); // Ensure sync is not in progress
     });
 
     afterEach(() => {
@@ -185,6 +188,10 @@ describe('core/syncManager.js - Auto-Sync Execution', () => {
     it('should show notification on manual sync with server changes', async () => {
         const { performSync } = await import('../../db/sync.js');
         const { showToast } = await import('../../ui.js');
+        const { isSyncInProgress } = await import('../../db/sync.js');
+        
+        // Ensure sync is not in progress
+        isSyncInProgress.mockReturnValue(false);
         
         performSync.mockResolvedValue({
             success: true,
@@ -209,6 +216,10 @@ describe('core/syncManager.js - Auto-Sync Execution', () => {
     it('should show notification on manual sync with conflicts', async () => {
         const { performSync } = await import('../../db/sync.js');
         const { showToast } = await import('../../ui.js');
+        const { isSyncInProgress } = await import('../../db/sync.js');
+        
+        // Ensure sync is not in progress
+        isSyncInProgress.mockReturnValue(false);
         
         performSync.mockResolvedValue({
             success: true,
@@ -232,6 +243,10 @@ describe('core/syncManager.js - Auto-Sync Execution', () => {
     it('should not show notification on silent sync without changes', async () => {
         const { performSync } = await import('../../db/sync.js');
         const { showToast } = await import('../../ui.js');
+        const { isSyncInProgress } = await import('../../db/sync.js');
+        
+        // Ensure sync is not in progress
+        isSyncInProgress.mockReturnValue(false);
         
         performSync.mockResolvedValue({
             success: true,
@@ -242,8 +257,16 @@ describe('core/syncManager.js - Auto-Sync Execution', () => {
         triggerDebouncedSync();
         vi.advanceTimersByTime(3000);
         
-        // Wait for async operations
-        await Promise.resolve();
+        // Wait for async operations to complete
+        // Use real setTimeout instead of fake timer to allow async operations
+        await new Promise(resolve => {
+            // Switch to real timers temporarily
+            vi.useRealTimers();
+            setTimeout(() => {
+                vi.useFakeTimers();
+                resolve();
+            }, 100);
+        });
         
         // Silent sync should not show toast for no changes
         expect(performSync).toHaveBeenCalled();
@@ -253,6 +276,10 @@ describe('core/syncManager.js - Auto-Sync Execution', () => {
     it('should show error on manual sync failure', async () => {
         const { performSync } = await import('../../db/sync.js');
         const { showToast } = await import('../../ui.js');
+        const { isSyncInProgress } = await import('../../db/sync.js');
+        
+        // Ensure sync is not in progress
+        isSyncInProgress.mockReturnValue(false);
         
         const error = new Error('Sync failed');
         performSync.mockRejectedValue(error);
@@ -272,14 +299,26 @@ describe('core/syncManager.js - Auto-Sync Execution', () => {
     it('should not show error on silent sync failure', async () => {
         const { performSync } = await import('../../db/sync.js');
         const { showToast } = await import('../../ui.js');
+        const { isSyncInProgress } = await import('../../db/sync.js');
+        
+        // Ensure sync is not in progress
+        isSyncInProgress.mockReturnValue(false);
         
         performSync.mockRejectedValue(new Error('Sync failed'));
         
         triggerDebouncedSync();
         vi.advanceTimersByTime(3000);
         
-        // Wait for async operations
-        await Promise.resolve();
+        // Wait for async operations to complete
+        // Use real setTimeout instead of fake timer to allow async operations
+        await new Promise(resolve => {
+            // Switch to real timers temporarily
+            vi.useRealTimers();
+            setTimeout(() => {
+                vi.useFakeTimers();
+                resolve();
+            }, 100);
+        });
         
         // Silent sync should not show errors
         expect(performSync).toHaveBeenCalled();
@@ -349,17 +388,31 @@ describe('core/syncManager.js - Sync Lifecycle', () => {
     it('should stop all sync operations', async () => {
         const { isCloudSyncEnabled } = await import('../../config.js');
         const { isAuthenticated } = await import('../../api/auth.js');
+        const { performSync } = await import('../../db/sync.js');
+        const { isSyncInProgress } = await import('../../db/sync.js');
         
         isCloudSyncEnabled.mockReturnValue(true);
         isAuthenticated.mockReturnValue(true);
+        isSyncInProgress.mockReturnValue(false);
+        
+        // Clear any existing calls
+        performSync.mockClear();
         
         initializeAutoSync();
         stopAutoSync();
         
-        // Periodic sync should be stopped
+        // Periodic sync should be stopped - advance past initial sync delay and periodic interval
         vi.advanceTimersByTime(300000);
         
-        const { performSync } = await import('../../db/sync.js');
+        // Wait for any pending async operations
+        await new Promise(resolve => {
+            vi.useRealTimers();
+            setTimeout(() => {
+                vi.useFakeTimers();
+                resolve();
+            }, 100);
+        });
+        
         expect(performSync).not.toHaveBeenCalled();
     });
 
