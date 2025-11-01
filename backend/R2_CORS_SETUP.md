@@ -24,6 +24,29 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
 1. Click **Edit CORS Policy**
 2. Paste this JSON configuration:
 
+**Try this minimal configuration first:**
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://citaversa.com"
+    ],
+    "AllowedMethods": [
+      "PUT",
+      "GET"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+**If that doesn't work, try the full configuration:**
+
 ```json
 [
   {
