@@ -2,7 +2,6 @@ import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPap
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
-import { isAuthenticated } from './api/auth.js';
 import { isAuthenticated, getUser } from './api/auth.js';
 import { parseRIS } from './import/ris-parser.js';
 
@@ -92,11 +91,89 @@ export const settingsView = {
     setupCloudSync() {
         const toggle = document.getElementById('cloud-sync-toggle');
         const statusText = document.getElementById('cloud-sync-status');
+        const syncControlsContainer = document.getElementById('sync-controls-container');
+        const syncNowBtn = document.getElementById('sync-now-btn');
+        const syncStatusDisplay = document.getElementById('sync-status-display');
+        const pendingChangesDisplay = document.getElementById('pending-changes-display');
         
         if (!toggle || !statusText) return;
 
+        const updateSyncStatus = async () => {
+            if (!syncControlsContainer || syncControlsContainer.classList.contains('hidden')) return;
+            
+            try {
+                const status = await getSyncStatusInfo();
+                
+                // Update last sync time
+                if (status.lastSyncedAt) {
+                    const lastSyncedDate = new Date(status.lastSyncedAt);
+                    const now = new Date();
+                    const diffMs = now - lastSyncedDate;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+                    
+                    let lastSyncedText;
+                    if (diffMins < 1) {
+                        lastSyncedText = 'Just now';
+                    } else if (diffMins < 60) {
+                        lastSyncedText = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                    } else if (diffHours < 24) {
+                        lastSyncedText = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                    } else {
+                        lastSyncedText = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+                    }
+                    
+                    if (syncStatusDisplay) {
+                        syncStatusDisplay.textContent = `Last synced: ${lastSyncedText}`;
+                    }
+                } else {
+                    if (syncStatusDisplay) {
+                        syncStatusDisplay.textContent = 'Never synced';
+                    }
+                }
+                
+                // Update pending changes
+                if (status.hasPendingChanges) {
+                    const counts = status.pendingChangeCounts;
+                    const total = 
+                        (counts.papers?.created || 0) + (counts.papers?.updated || 0) + (counts.papers?.deleted || 0) +
+                        (counts.collections?.created || 0) + (counts.collections?.updated || 0) + (counts.collections?.deleted || 0) +
+                        (counts.annotations?.created || 0) + (counts.annotations?.updated || 0) + (counts.annotations?.deleted || 0);
+                    
+                    if (pendingChangesDisplay && total > 0) {
+                        pendingChangesDisplay.textContent = `${total} pending change${total !== 1 ? 's' : ''} waiting to sync`;
+                        pendingChangesDisplay.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+                    } else if (pendingChangesDisplay) {
+                        pendingChangesDisplay.textContent = 'All changes synced';
+                        pendingChangesDisplay.className = 'text-xs text-green-600 dark:text-green-400';
+                    }
+                } else {
+                    if (pendingChangesDisplay) {
+                        pendingChangesDisplay.textContent = 'All changes synced';
+                        pendingChangesDisplay.className = 'text-xs text-green-600 dark:text-green-400';
+                    }
+                }
+                
+                // Update sync button state
+                if (syncNowBtn) {
+                    syncNowBtn.disabled = status.inProgress || false;
+                    if (status.inProgress) {
+                        syncNowBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">sync</span><span>Syncing...</span>';
+                    } else {
+                        syncNowBtn.innerHTML = '<span class="material-symbols-outlined text-base">sync</span><span>Sync Now</span>';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to get sync status:', error);
+                if (syncStatusDisplay) {
+                    syncStatusDisplay.textContent = 'Unable to load sync status';
+                }
+            }
+        };
+
         // Update UI based on current state
-        const updateUI = () => {
+        const updateUI = async () => {
             const syncEnabled = isCloudSyncEnabled();
             const authenticated = isAuthenticated();
             
@@ -105,17 +182,20 @@ export const settingsView = {
             
             if (!authenticated) {
                 statusText.textContent = 'Please log in to enable cloud sync.';
-                statusText.classList.add('text-yellow-600', 'dark:text-yellow-500');
-                statusText.classList.remove('text-green-600', 'text-gray-500', 'dark:text-gray-400');
-            } else if (syncEnabled) {
+                statusText.className = 'text-xs text-yellow-600 dark:text-yellow-400 ml-20';
+                if (syncControlsContainer) syncControlsContainer.classList.add('hidden');
+            } else if (syncEnabled && authenticated) {
                 const user = getUser();
                 statusText.textContent = `Cloud sync enabled for ${user?.name || user?.email || 'your account'}.`;
-                statusText.classList.add('text-green-600', 'dark:text-green-500');
-                statusText.classList.remove('text-yellow-600', 'dark:text-yellow-500', 'text-gray-500', 'dark:text-gray-400');
+                statusText.className = 'text-xs text-green-600 dark:text-green-400 ml-20';
+                if (syncControlsContainer) {
+                    syncControlsContainer.classList.remove('hidden');
+                    await updateSyncStatus();
+                }
             } else {
                 statusText.textContent = 'Cloud sync disabled. Using local storage only.';
-                statusText.classList.add('text-gray-500', 'dark:text-gray-400');
-                statusText.classList.remove('text-green-600', 'dark:text-green-500', 'text-yellow-600', 'dark:text-yellow-500');
+                statusText.className = 'text-xs text-gray-500 dark:text-gray-400 ml-20';
+                if (syncControlsContainer) syncControlsContainer.classList.add('hidden');
             }
         };
 
@@ -147,6 +227,64 @@ export const settingsView = {
                 showToast('Cloud sync disabled. Using local storage only.', 'info');
             }
         });
+
+        // Setup sync now button
+        if (syncNowBtn) {
+            syncNowBtn.addEventListener('click', async () => {
+                if (syncNowBtn.disabled) return;
+                
+                try {
+                    syncNowBtn.disabled = true;
+                    syncNowBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">sync</span><span>Syncing...</span>';
+                    
+                    showToast('Syncing data...', 'info', { duration: 5000 });
+                    
+                    const result = await performSync();
+                    
+                    // Update status display
+                    await updateSyncStatus();
+                    
+                    let message = 'Sync complete! ';
+                    if (result.serverChangeCount) {
+                        const counts = result.serverChangeCount;
+                        const total = (counts.papers || 0) + (counts.collections || 0) + (counts.annotations || 0);
+                        if (total > 0) {
+                            message += `Downloaded ${total} update${total !== 1 ? 's' : ''} from server. `;
+                        }
+                    }
+                    if (result.conflicts) {
+                        const conflicts = result.conflicts;
+                        const totalConflicts = 
+                            (conflicts.papers?.length || 0) + 
+                            (conflicts.collections?.length || 0) + 
+                            (conflicts.annotations?.length || 0);
+                        if (totalConflicts > 0) {
+                            message += `${totalConflicts} conflict${totalConflicts !== 1 ? 's' : ''} resolved.`;
+                        }
+                    }
+                    
+                    showToast(message || 'Sync complete!', 'success');
+                } catch (error) {
+                    console.error('Sync error:', error);
+                    showToast(error.message || 'Sync failed. Please try again.', 'error', {
+                        duration: 5000,
+                        actions: [{
+                            label: 'Retry',
+                            onClick: () => syncNowBtn.click()
+                        }]
+                    });
+                } finally {
+                    syncNowBtn.disabled = false;
+                    await updateSyncStatus();
+                }
+            });
+        }
+
+        // Update sync status periodically (every 30 seconds) when cloud sync is enabled
+        let statusInterval = null;
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            statusInterval = setInterval(updateSyncStatus, 30000);
+        }
     },
 
     setupStatusReordering() {
