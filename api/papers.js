@@ -356,18 +356,39 @@ export async function uploadPdfViaBackend(file, paperId = null) {
         const url = `${API_BASE}/upload${paperId ? `?paperId=${paperId}` : ''}`;
         
         // Use fetch directly for file uploads (not apiRequest) to avoid JSON parsing issues
-        const accessToken = localStorage.getItem('accessToken');
+        let accessToken = getAccessToken();
+        
+        if (!accessToken) {
+            throw new Error('Not authenticated. Please log in.');
+        }
+        
         const headers = {
-            'Authorization': accessToken ? `Bearer ${accessToken}` : ''
+            'Authorization': `Bearer ${accessToken}`
             // DO NOT set Content-Type - browser sets it with boundary for multipart/form-data
         };
         
-        const response = await fetch(url, {
+        let response = await fetch(url, {
             method: 'POST',
             headers,
             body: formData,
             credentials: 'include' // Include cookies for refresh token
         });
+
+        // If token expired, try refreshing
+        if (response.status === 401) {
+            try {
+                accessToken = await refreshToken();
+                headers['Authorization'] = `Bearer ${accessToken}`;
+                response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: formData,
+                    credentials: 'include'
+                });
+            } catch (refreshError) {
+                throw new Error('Session expired. Please log in again.');
+            }
+        }
 
         // Try to parse JSON, but handle non-JSON errors gracefully
         let result;
