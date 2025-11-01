@@ -27,15 +27,35 @@ import { notFound } from './middleware/notFound.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+
+// Normalize FRONTEND_URL - ensure it has a protocol
+let FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+if (FRONTEND_URL && !FRONTEND_URL.startsWith('http://') && !FRONTEND_URL.startsWith('https://')) {
+  // If no protocol, assume https for production, http for localhost
+  if (FRONTEND_URL.includes('localhost') || FRONTEND_URL.includes('127.0.0.1')) {
+    FRONTEND_URL = `http://${FRONTEND_URL}`;
+  } else {
+    FRONTEND_URL = `https://${FRONTEND_URL}`;
+  }
+}
 
 // Security middleware
 app.use(helmet());
 
 // CORS configuration
-// Allow common development ports for local testing
+// Helper function to normalize URLs for comparison
+function normalizeUrl(url) {
+  if (!url) return url;
+  // Remove protocol and trailing slash for comparison
+  return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
+// Build allowed origins list with all variations
+const frontendDomain = normalizeUrl(FRONTEND_URL);
 const allowedOrigins = [
   FRONTEND_URL,
+  `http://${frontendDomain}`,
+  `https://${frontendDomain}`,
   'http://localhost:8080',
   'http://localhost:5500',
   'http://localhost:3000',
@@ -48,14 +68,10 @@ const allowedOrigins = [
   'http://127.0.0.1:8081'
 ];
 
-// Add Cloudflare Pages origins if FRONTEND_URL includes pages.dev
-if (FRONTEND_URL.includes('pages.dev') || FRONTEND_URL.includes('cloudflarepages.com')) {
-  allowedOrigins.push(FRONTEND_URL);
-  // Also allow https versions
-  if (FRONTEND_URL.startsWith('http://')) {
-    allowedOrigins.push(FRONTEND_URL.replace('http://', 'https://'));
-  }
-}
+// Remove duplicates
+const uniqueOrigins = [...new Set(allowedOrigins)];
+console.log(`✅ CORS: Configured FRONTEND_URL: ${FRONTEND_URL}`);
+console.log(`✅ CORS: Allowed origins: ${uniqueOrigins.join(', ')}`);
 
 // In development, allow all localhost origins
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -65,6 +81,32 @@ app.use(cors({
     // Always log origin for debugging
     if (origin) {
       console.log(`🌐 CORS: Request from origin: ${origin}`);
+    }
+    
+    // Helper to check if origin matches allowed origins (with protocol flexibility)
+    function isOriginAllowed(checkOrigin) {
+      if (!checkOrigin) return false;
+      
+      // Direct match in allowed origins
+      if (uniqueOrigins.includes(checkOrigin)) {
+        return true;
+      }
+      
+      // Normalize and compare domains
+      const normalizedOrigin = normalizeUrl(checkOrigin);
+      const normalizedFrontend = normalizeUrl(FRONTEND_URL);
+      
+      // Match by domain (ignoring protocol)
+      if (normalizedOrigin === normalizedFrontend) {
+        return true;
+      }
+      
+      // Check if it's a localhost/127.0.0.1 variant
+      if (normalizedOrigin.includes('localhost') || normalizedOrigin.includes('127.0.0.1')) {
+        return checkOrigin.includes('localhost') || checkOrigin.includes('127.0.0.1');
+      }
+      
+      return false;
     }
     
     // In development, be more permissive
@@ -81,18 +123,18 @@ app.use(cors({
         return;
       }
       
-      // Also check allowed origins list
-      if (allowedOrigins.includes(origin)) {
+      // Check if origin is allowed
+      if (isOriginAllowed(origin)) {
         callback(null, true);
         return;
       }
       
       // Log blocked origins in development for debugging
       console.log(`⚠️  CORS: Blocked origin: ${origin}`);
-      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+      console.log(`   Allowed origins: ${uniqueOrigins.join(', ')}`);
       callback(new Error(`Not allowed by CORS: ${origin}`));
     } else {
-      // Production: more permissive CORS with logging
+      // Production: check against allowed origins
       // Allow requests with no origin (some tools)
       if (!origin) {
         console.log(`⚠️  CORS: Request with no origin in production`);
@@ -100,8 +142,9 @@ app.use(cors({
         return;
       }
       
-      // Check allowed origins list
-      if (allowedOrigins.includes(origin)) {
+      // Check if origin is allowed (with flexible matching)
+      if (isOriginAllowed(origin)) {
+        console.log(`✅ CORS: Allowed origin: ${origin}`);
         callback(null, true);
         return;
       }
@@ -115,8 +158,10 @@ app.use(cors({
       
       // Log blocked origins for debugging
       console.log(`❌ CORS: Blocked origin: ${origin}`);
-      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+      console.log(`   Normalized origin: ${normalizeUrl(origin)}`);
       console.log(`   FRONTEND_URL: ${FRONTEND_URL}`);
+      console.log(`   Normalized FRONTEND: ${normalizeUrl(FRONTEND_URL)}`);
+      console.log(`   Allowed origins: ${uniqueOrigins.join(', ')}`);
       callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
