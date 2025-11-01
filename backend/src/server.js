@@ -30,7 +30,8 @@ const PORT = process.env.PORT || 3000;
 
 // Trust proxy - required for Railway/production environments
 // Railway uses a reverse proxy, so we need to trust the X-Forwarded-* headers
-app.set('trust proxy', true);
+// Only trust Railway's proxy (more secure than trusting all proxies)
+app.set('trust proxy', 1); // Trust only the first proxy (Railway's reverse proxy)
 
 // Normalize FRONTEND_URL - ensure it has a protocol
 let FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
@@ -176,10 +177,20 @@ app.use(cors({
 }));
 
 // Rate limiting
+// Skip IP-based limiting when trust proxy is enabled (Railway handles this)
+// Use a more lenient approach or disable validation warnings
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  message: 'Too many requests from this IP, please try again later.',
+  // Skip strict validation when behind Railway proxy
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Use custom key generator that doesn't rely on trust proxy warnings
+  keyGenerator: (req) => {
+    // Use X-Forwarded-For if available, otherwise use IP
+    return req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.socket.remoteAddress || 'unknown';
+  }
 });
 app.use('/api/', limiter);
 

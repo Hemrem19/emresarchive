@@ -27,11 +27,18 @@ async function apiRequest(url, options = {}) {
         ...options.headers
     };
 
-    let response = await fetch(url, {
-        ...options,
-        headers,
-        credentials: 'include' // Include cookies for refresh token
-    });
+    let response;
+    try {
+        response = await fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include' // Include cookies for refresh token
+        });
+    } catch (fetchError) {
+        // Network errors (CORS, connection refused, etc.)
+        console.error('Network fetch error:', fetchError);
+        throw new Error(`Network error: ${fetchError.message || 'Unable to connect to server'}`);
+    }
 
     // If token expired, try refreshing
     if (response.status === 401) {
