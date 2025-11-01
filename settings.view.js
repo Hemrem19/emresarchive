@@ -1,7 +1,7 @@
 import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi } from './db.js';
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
-import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled } from './config.js';
+import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
 import { isAuthenticated, getUser } from './api/auth.js';
 import { parseRIS } from './import/ris-parser.js';
 
@@ -136,9 +136,13 @@ export const settingsView = {
             setCloudSyncEnabled(enabled);
             updateUI();
             
+            // Console logging for debugging
+            console.log(`Cloud sync ${enabled ? 'enabled' : 'disabled'}`);
             if (enabled) {
+                console.log('✅ Cloud sync ON - Data will be synced to:', getApiBaseUrl?.() || 'API endpoint');
                 showToast('Cloud sync enabled! Your data will now be synced to the cloud.', 'success');
             } else {
+                console.log('📦 Cloud sync OFF - Using local storage only');
                 showToast('Cloud sync disabled. Using local storage only.', 'info');
             }
         });

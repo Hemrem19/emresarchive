@@ -68,10 +68,41 @@ export const papers = {
     async addPaper(paperData) {
         if (shouldUseCloudSync()) {
             try {
+                // Handle PDF upload if present (should be handled in form, but double-check)
+                let processedData = { ...paperData };
+                if (processedData.pdfData && processedData.pdfData instanceof File) {
+                    // If pdfData is a File, it should have been uploaded to S3 in form.view.js
+                    // If it wasn't, handle it here as fallback
+                    const { getUploadUrl, uploadPdf } = await import('../api/papers.js');
+                    try {
+                        const { uploadUrl, s3Key } = await getUploadUrl({
+                            filename: processedData.pdfData.name,
+                            size: processedData.pdfData.size,
+                            contentType: processedData.pdfData.type || 'application/pdf',
+                            paperId: null
+                        });
+                        await uploadPdf(uploadUrl, processedData.pdfData);
+                        processedData.s3Key = s3Key;
+                        processedData.pdfSizeBytes = processedData.pdfData.size;
+                        delete processedData.pdfData; // Remove File object, use s3Key instead
+                    } catch (uploadError) {
+                        console.error('PDF upload during add failed:', uploadError);
+                        // Continue without PDF - user can add it later
+                        delete processedData.pdfData;
+                        processedData.hasPdf = false;
+                    }
+                }
+                
                 // Map local format to API format
-                const apiData = mapPaperDataToApi(paperData);
+                const apiData = mapPaperDataToApi(processedData);
                 const paper = await apiPapers.createPaper(apiData);
                 // Convert API response to match local format (API returns paper object, local returns ID)
+                // Also save to local for offline access
+                try {
+                    await localPapers.addPaper(paperData);
+                } catch (localError) {
+                    // Ignore local save errors (not critical in cloud mode)
+                }
                 return paper.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -143,8 +174,20 @@ export const papers = {
         if (shouldUseCloudSync()) {
             try {
                 await apiPapers.deletePaper(id);
+                // Also delete from local (in case it exists there)
+                try {
+                    await localPapers.deletePaper(id);
+                } catch (localError) {
+                    // Ignore local delete errors (paper might not exist locally)
+                }
                 return;
             } catch (error) {
+                // If paper not found on cloud (404), it might only exist locally
+                // Delete from local and don't treat it as an error
+                if (error.message && (error.message.includes('not found') || error.message.includes('404'))) {
+                    console.log(`Paper ${id} not found on cloud, deleting from local only`);
+                    return localPapers.deletePaper(id);
+                }
                 console.error('Cloud sync failed, falling back to local:', error);
                 return localPapers.deletePaper(id);
             }

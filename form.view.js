@@ -205,9 +205,37 @@ export const formView = {
                 year: isNaN(year) ? null : year,
             };
 
+            // Handle PDF upload based on sync mode
             if (pdfFile) {
-                paperData.pdfData = pdfFile; // Database expects pdfData, not pdfFile
-                paperData.hasPdf = true;
+                const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
+                
+                if (useCloudSync) {
+                    // Cloud sync: Upload PDF to S3
+                    try {
+                        showToast('Uploading PDF to cloud...', 'info');
+                        const { uploadUrl, s3Key } = await getUploadUrl({
+                            filename: pdfFile.name,
+                            size: pdfFile.size,
+                            contentType: pdfFile.type || 'application/pdf',
+                            paperId: this.isEditMode ? this.paperId : null
+                        });
+                        
+                        await uploadPdf(uploadUrl, pdfFile);
+                        paperData.s3Key = s3Key;
+                        paperData.pdfSizeBytes = pdfFile.size;
+                        paperData.hasPdf = true;
+                        showToast('PDF uploaded to cloud successfully!', 'success');
+                    } catch (uploadError) {
+                        console.error('PDF upload to S3 failed:', uploadError);
+                        showToast('PDF upload failed, saving paper without PDF. You can add PDF later.', 'warning');
+                        // Continue without PDF - user can add it later
+                        paperData.hasPdf = false;
+                    }
+                } else {
+                    // Local mode: Store PDF in IndexedDB
+                    paperData.pdfData = pdfFile;
+                    paperData.hasPdf = true;
+                }
             }
 
             try {
@@ -215,9 +243,15 @@ export const formView = {
                     // If no new PDF uploaded, preserve existing PDF
                     if (!pdfFile) {
                         const existingPaper = await getPaperById(this.paperId);
-                        if (existingPaper && existingPaper.pdfData) {
-                            paperData.pdfData = existingPaper.pdfData;
-                            paperData.hasPdf = true;
+                        if (existingPaper) {
+                            if (existingPaper.pdfData) {
+                                paperData.pdfData = existingPaper.pdfData;
+                                paperData.hasPdf = true;
+                            }
+                            if (existingPaper.s3Key) {
+                                paperData.s3Key = existingPaper.s3Key;
+                                paperData.hasPdf = true;
+                            }
                         }
                     }
                     await updatePaper(this.paperId, paperData);
