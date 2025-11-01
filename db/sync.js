@@ -174,7 +174,7 @@ export function trackAnnotationDeleted(id) {
  * Checks if sync is in progress.
  * @returns {boolean} True if sync is in progress.
  */
-function isSyncInProgress() {
+export function isSyncInProgress() {
     return localStorage.getItem(SYNC_IN_PROGRESS_KEY) === 'true';
 }
 
