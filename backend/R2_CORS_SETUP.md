@@ -29,19 +29,32 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
   {
     "AllowedOrigins": [
       "https://citaversa.com",
-      "https://*.citaversa.com",
       "http://localhost:8080",
       "http://localhost:5500",
-      "http://localhost:3000",
-      "http://127.0.0.1:8080"
+      "http://localhost:3000"
     ],
-    "AllowedMethods": ["PUT", "GET", "HEAD", "OPTIONS"],
-    "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag", "Content-Length"],
+    "AllowedMethods": [
+      "PUT",
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [
+      "ETag"
+    ],
     "MaxAgeSeconds": 3600
   }
 ]
 ```
+
+**Important Notes:**
+- Do NOT use wildcards in `AllowedOrigins` (like `https://*.citaversa.com`) - Cloudflare R2 doesn't support wildcards
+- Each origin must be listed separately
+- `AllowedHeaders` can be `["*"]` to allow all headers
+- `ExposeHeaders` should be minimal - just `["ETag"]` is usually sufficient
 
 3. Click **Save**
 
@@ -84,16 +97,26 @@ For production only (remove localhost origins):
 [
   {
     "AllowedOrigins": [
-      "https://citaversa.com",
-      "https://*.citaversa.com"
+      "https://citaversa.com"
     ],
-    "AllowedMethods": ["PUT", "GET", "HEAD", "OPTIONS"],
-    "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag", "Content-Length"],
+    "AllowedMethods": [
+      "PUT",
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [
+      "ETag"
+    ],
     "MaxAgeSeconds": 3600
   }
 ]
 ```
+
+**Note:** If you have multiple domains/subdomains, add each one separately to `AllowedOrigins` (no wildcards).
 
 ## Troubleshooting
 
