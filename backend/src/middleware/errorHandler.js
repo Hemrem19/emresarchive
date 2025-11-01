@@ -4,6 +4,52 @@
  */
 
 export const errorHandler = (err, req, res, next) => {
+  // Ensure CORS headers are set even on errors
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  // Handle Multer errors (file upload errors)
+  if (err.name === 'MulterError') {
+    let statusCode = 400;
+    let message = 'File upload error';
+    
+    switch (err.code) {
+      case 'LIMIT_FILE_SIZE':
+        message = 'File size exceeds the maximum limit (50MB)';
+        break;
+      case 'LIMIT_FILE_COUNT':
+        message = 'Too many files. Please upload only one file.';
+        break;
+      case 'LIMIT_UNEXPECTED_FILE':
+        message = 'Unexpected file field. Please use the "file" field.';
+        break;
+      default:
+        message = err.message || 'File upload error';
+    }
+    
+    if (!res.headersSent) {
+      return res.status(statusCode).json({
+        success: false,
+        error: { message }
+      });
+    }
+    return;
+  }
+  
+  // Handle multer file filter errors
+  if (err.message && err.message.includes('Only PDF files are allowed')) {
+    if (!res.headersSent) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Only PDF files are allowed' }
+      });
+    }
+    return;
+  }
+  
   // Prevent sending response twice
   if (res.headersSent) {
     return next(err);

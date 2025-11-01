@@ -355,16 +355,34 @@ export async function uploadPdfViaBackend(file, paperId = null) {
         
         const url = `${API_BASE}/upload${paperId ? `?paperId=${paperId}` : ''}`;
         
-        const response = await apiRequest(url, {
+        // Use fetch directly for file uploads (not apiRequest) to avoid JSON parsing issues
+        const accessToken = localStorage.getItem('accessToken');
+        const headers = {
+            'Authorization': accessToken ? `Bearer ${accessToken}` : ''
+            // DO NOT set Content-Type - browser sets it with boundary for multipart/form-data
+        };
+        
+        const response = await fetch(url, {
             method: 'POST',
-            body: formData
-            // DO NOT set Content-Type header - browser sets it with boundary for multipart/form-data
+            headers,
+            body: formData,
+            credentials: 'include' // Include cookies for refresh token
         });
 
-        const result = await response.json();
+        // Try to parse JSON, but handle non-JSON errors gracefully
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            // If not JSON, read as text
+            const errorText = await response.text();
+            console.error('Non-JSON error response:', errorText);
+            throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText.substring(0, 200)}`);
+        }
 
         if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Upload failed');
+            throw new Error(result.message || result.error?.message || `Upload failed: ${response.status} ${response.statusText}`);
         }
 
         if (result.success && result.data) {
