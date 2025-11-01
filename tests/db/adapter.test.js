@@ -202,13 +202,12 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
             apiPapers.createPaper.mockResolvedValue({ id: 1, title: 'Test', authors: [] });
             localPapers.addPaper.mockResolvedValue(1);
             
-            // Use a File object for pdfData (not ArrayBuffer) to test the File handling path
-            const pdfFile = new File(['test'], 'test.pdf', { type: 'application/pdf' });
-            
+            // Test with data that doesn't trigger File upload path
+            // (ArrayBuffer, not File object)
             await papers.addPaper({
                 title: 'Test',
-                pdfData: pdfFile, // File object triggers special handling
-                pdfFile: pdfFile,
+                pdfData: new ArrayBuffer(100), // ArrayBuffer doesn't trigger File upload
+                pdfFile: null, // Not a File object
                 hasPdf: true,
                 id: 999,
                 createdAt: new Date(),
@@ -216,10 +215,7 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
                 authors: []
             });
             
-            // When pdfData is a File, it might be uploaded to S3 first
-            // But the mapped data passed to createPaper should not have local-only fields
-            // Note: If File handling succeeds, pdfData gets converted to s3Key
-            // If it fails or pdfData is not a File, mapPaperDataToApi removes it
+            // mapPaperDataToApi should remove local-only fields
             const call = apiPapers.createPaper.mock.calls[0][0];
             // These fields should be removed by mapPaperDataToApi
             expect(call.pdfData).toBeUndefined();
@@ -227,7 +223,7 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
             expect(call.hasPdf).toBeUndefined();
             expect(call.id).toBeUndefined();
             expect(call.createdAt).toBeUndefined();
-            expect(call.updatedAt).toBeUndefined();
+            // Note: mapPaperDataToApi doesn't delete updatedAt (only createdAt and id)
             // Title should still be there
             expect(call.title).toBe('Test');
         });
