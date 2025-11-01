@@ -34,13 +34,26 @@ async function runMigrations() {
   if (process.env.NODE_ENV === 'production') {
     try {
       console.log('🔄 Running database migrations...');
-      const { execSync } = await import('child_process');
-      execSync('npx prisma migrate deploy', { stdio: 'inherit', env: process.env });
+      // Use dynamic import for child_process
+      const childProcess = await import('child_process');
+      const { execSync } = childProcess;
+      
+      // Run migrations in backend directory
+      const command = process.cwd().endsWith('backend') 
+        ? 'npx prisma migrate deploy' 
+        : 'cd backend && npx prisma migrate deploy';
+      
+      execSync(command, { 
+        stdio: 'inherit', 
+        env: { ...process.env },
+        cwd: process.cwd().endsWith('backend') ? process.cwd() : undefined
+      });
       console.log('✅ Database migrations completed');
     } catch (error) {
       console.error('⚠️ Migration error (will continue anyway):', error.message);
       // Don't crash - try to continue
-      // The error might be that migrations are already applied
+      // The error might be that migrations are already applied or failed
+      // Schema verification will catch any issues
     }
   }
 }
