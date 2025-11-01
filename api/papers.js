@@ -165,7 +165,16 @@ export async function createPaper(paperData) {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to create paper');
+            // Log validation error details for debugging
+            if (result.error?.details) {
+                console.error('API validation errors:', result.error.details);
+            }
+            const errorMsg = result.message || result.error?.message || `Failed to create paper: ${response.status}`;
+            if (result.error?.details) {
+                const details = result.error.details.map(d => `${d.field}: ${d.message}`).join(', ');
+                throw new Error(`${errorMsg} (Validation: ${details})`);
+            }
+            throw new Error(errorMsg);
         }
 
         if (result.success && result.data && result.data.paper) {

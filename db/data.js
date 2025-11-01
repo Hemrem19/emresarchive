@@ -281,13 +281,28 @@ async function importData(dataToImport) {
                                     }
                                     
                                     // Remove fields that shouldn't be sent to API
+                                    // The adapter's mapPaperDataToApi will handle the mapping
                                     const paperForApi = { ...paperToStore };
+                                    
+                                    // Remove fields that API doesn't expect at all
                                     delete paperForApi.pdfData; // PDF data is stored locally only
                                     delete paperForApi.id; // API will generate new ID
                                     delete paperForApi.pdfFile; // Already handled above
+                                    delete paperForApi.updatedAt; // API sets this automatically
+                                    delete paperForApi.createdAt; // API sets this automatically (but adapter also removes it)
+                                    
+                                    // Ensure authors is an array (API expects array)
+                                    if (!Array.isArray(paperForApi.authors)) {
+                                        paperForApi.authors = paperForApi.authors ? [paperForApi.authors] : [];
+                                    }
+                                    
+                                    // Ensure tags is an array (API expects array)
+                                    if (!Array.isArray(paperForApi.tags)) {
+                                        paperForApi.tags = paperForApi.tags ? [paperForApi.tags] : [];
+                                    }
                                     
                                     // If paper has s3Key/pdfUrl from import, keep it (but don't upload PDF)
-                                    // The adapter will handle mapping s3Key to pdfUrl
+                                    // The adapter will handle mapping s3Key to pdfUrl and readingStatus to status
                                     await addPaperViaAdapter(paperForApi);
                                     paperSuccessCount++;
                                 } catch (cloudError) {
