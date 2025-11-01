@@ -3,7 +3,8 @@ import { escapeHtml, showToast, formatRelativeTime } from './ui.js';
 import { views as templates } from './views.js';
 import { generateCitation } from './citation.js';
 import { getPdfDownloadUrl } from './api/papers.js';
-import { isCloudSyncEnabled, isAuthenticated } from './api/auth.js';
+import { isCloudSyncEnabled } from './config.js';
+import { isAuthenticated } from './api/auth.js';
 
 export const detailsView = {
     notesSaveHandler: null,
