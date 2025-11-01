@@ -227,19 +227,28 @@ app.use(notFound);
 // Error handler (must be last)
 app.use(errorHandler);
 
-// Validate critical environment variables before starting
+// Validate and log environment variables
 const DATABASE_URL = process.env.DATABASE_URL;
+
+console.log('🔍 Environment Check:');
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(`   PORT: ${PORT}`);
+console.log(`   FRONTEND_URL: ${FRONTEND_URL}`);
+console.log(`   DATABASE_URL: ${DATABASE_URL ? 'SET' : '❌ NOT SET'}`);
+
 if (!DATABASE_URL) {
   console.error('❌ ERROR: DATABASE_URL environment variable is not set!');
   console.error('   Please set DATABASE_URL in Railway Variables.');
-  process.exit(1);
+  console.error('   The server will start but database operations will fail.');
+  // Don't exit - let server start so we can see other errors
 }
 
-if (!DATABASE_URL.startsWith('postgresql://') && !DATABASE_URL.startsWith('postgres://')) {
+if (DATABASE_URL && !DATABASE_URL.startsWith('postgresql://') && !DATABASE_URL.startsWith('postgres://')) {
   console.error('❌ ERROR: DATABASE_URL must start with postgresql:// or postgres://');
   console.error(`   Current value: ${DATABASE_URL.substring(0, 50)}...`);
   console.error('   Please check your Railway DATABASE_URL variable.');
-  process.exit(1);
+  console.error('   The server will start but database operations will fail.');
+  // Don't exit - let server start so we can see other errors
 }
 
 // Start server
