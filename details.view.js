@@ -23,26 +23,19 @@ export const detailsView = {
             return;
         }
 
+        // Debug: Log paper state
+        console.log('[Details] Paper loaded:', {
+            id: paper.id,
+            hasPdf: paper.hasPdf,
+            hasS3Key: !!paper.s3Key,
+            s3Key: paper.s3Key,
+            hasPdfFile: !!paper.pdfFile,
+            hasPdfData: !!paper.pdfData
+        });
+
         // If paper has s3Key but no pdfFile, download PDF from S3/R2
-        if (paper.s3Key && !paper.pdfFile && paper.hasPdf) {
-            try {
-                const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
-                if (useCloudSync) {
-                    showToast('Loading PDF from cloud...', 'info');
-                    const { pdfUrl } = await getPdfDownloadUrl(paperId);
-                    const response = await fetch(pdfUrl);
-                    if (!response.ok) {
-                        throw new Error(`Failed to download PDF: ${response.statusText}`);
-                    }
-                    const blob = await response.blob();
-                    paper.pdfFile = new File([blob], `${paper.title || 'download'}.pdf`, { type: 'application/pdf' });
-                    showToast('PDF loaded successfully', 'success');
-                }
-            } catch (error) {
-                console.error('Error loading PDF from S3:', error);
-                showToast('Failed to load PDF from cloud', 'error');
-            }
-        }
+        // Note: We don't download on mount to avoid blocking - download when PDF tab is clicked instead
+        // This allows the page to render faster
 
         // Render the view's HTML
         this.render(paper);
