@@ -34,10 +34,9 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
       "http://localhost:3000"
     ],
     "AllowedMethods": [
-      "PUT",
       "GET",
-      "HEAD",
-      "OPTIONS"
+      "PUT",
+      "HEAD"
     ],
     "AllowedHeaders": [
       "*"
@@ -49,6 +48,13 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
   }
 ]
 ```
+
+**Important Notes:**
+- **Do NOT include "OPTIONS" in AllowedMethods** - Cloudflare R2 automatically handles OPTIONS preflight requests, so you don't need to include it
+- Do NOT use wildcards in `AllowedOrigins` (like `https://*.citaversa.com`) - Cloudflare R2 doesn't support wildcards
+- Each origin must be listed separately
+- `AllowedHeaders` can be `["*"]` to allow all headers
+- `ExposeHeaders` should be minimal - just `["ETag"]` is usually sufficient
 
 **Important Notes:**
 - Do NOT use wildcards in `AllowedOrigins` (like `https://*.citaversa.com`) - Cloudflare R2 doesn't support wildcards
@@ -100,10 +106,9 @@ For production only (remove localhost origins):
       "https://citaversa.com"
     ],
     "AllowedMethods": [
-      "PUT",
       "GET",
-      "HEAD",
-      "OPTIONS"
+      "PUT",
+      "HEAD"
     ],
     "AllowedHeaders": [
       "*"
@@ -115,6 +120,8 @@ For production only (remove localhost origins):
   }
 ]
 ```
+
+**Note:** Do NOT include "OPTIONS" in AllowedMethods - R2 handles OPTIONS automatically.
 
 **Note:** If you have multiple domains/subdomains, add each one separately to `AllowedOrigins` (no wildcards).
 
