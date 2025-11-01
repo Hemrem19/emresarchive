@@ -48,11 +48,25 @@ const allowedOrigins = [
   'http://127.0.0.1:8081'
 ];
 
+// Add Cloudflare Pages origins if FRONTEND_URL includes pages.dev
+if (FRONTEND_URL.includes('pages.dev') || FRONTEND_URL.includes('cloudflarepages.com')) {
+  allowedOrigins.push(FRONTEND_URL);
+  // Also allow https versions
+  if (FRONTEND_URL.startsWith('http://')) {
+    allowedOrigins.push(FRONTEND_URL.replace('http://', 'https://'));
+  }
+}
+
 // In development, allow all localhost origins
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
   origin: (origin, callback) => {
+    // Always log origin for debugging
+    if (origin) {
+      console.log(`🌐 CORS: Request from origin: ${origin}`);
+    }
+    
     // In development, be more permissive
     if (isDevelopment) {
       // Allow requests with no origin (file:// URLs, Postman, etc.)
@@ -78,16 +92,38 @@ app.use(cors({
       console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error(`Not allowed by CORS: ${origin}`));
     } else {
-      // Production: strict CORS
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Production: more permissive CORS with logging
+      // Allow requests with no origin (some tools)
+      if (!origin) {
+        console.log(`⚠️  CORS: Request with no origin in production`);
         callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
+        return;
       }
+      
+      // Check allowed origins list
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      
+      // Allow Cloudflare Pages origins (pages.dev, cloudflarepages.com)
+      if (origin.includes('pages.dev') || origin.includes('cloudflarepages.com')) {
+        console.log(`✅ CORS: Allowed Cloudflare Pages origin: ${origin}`);
+        callback(null, true);
+        return;
+      }
+      
+      // Log blocked origins for debugging
+      console.log(`❌ CORS: Blocked origin: ${origin}`);
+      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+      console.log(`   FRONTEND_URL: ${FRONTEND_URL}`);
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Rate limiting
