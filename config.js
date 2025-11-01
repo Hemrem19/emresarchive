@@ -8,7 +8,7 @@ const STATUS_STORAGE_KEY = 'readingStatusOrder';
 // Backend API Configuration
 export const API_CONFIG = {
     // API URL - defaults to localhost for development, can be overridden
-    BASE_URL: localStorage.getItem('apiBaseUrl') || 'http://localhost:3000',
+    BASE_URL: localStorage.getItem('apiBaseUrl') || 'https://emresarchive-production.up.railway.app',
     // Storage keys for auth tokens
     ACCESS_TOKEN_KEY: 'citaversa_access_token',
     REFRESH_TOKEN_KEY: 'citaversa_refresh_token',
