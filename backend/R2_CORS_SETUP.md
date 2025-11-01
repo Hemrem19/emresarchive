@@ -55,11 +55,6 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
 - Each origin must be listed separately
 - `AllowedHeaders` can be `["*"]` to allow all headers
 - `ExposeHeaders` should be minimal - just `["ETag"]` is usually sufficient
-
-**Important Notes:**
-- Do NOT use wildcards in `AllowedOrigins` (like `https://*.citaversa.com`) - Cloudflare R2 doesn't support wildcards
-- Each origin must be listed separately
-- `AllowedHeaders` can be `["*"]` to allow all headers
 - `ExposeHeaders` should be minimal - just `["ETag"]` is usually sufficient
 
 3. Click **Save**
