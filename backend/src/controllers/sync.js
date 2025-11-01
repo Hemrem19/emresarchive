@@ -88,9 +88,22 @@ export const fullSync = async (req, res, next) => {
       }
     });
 
-    // Update user's lastSyncedAt (if field exists in schema)
-    // Note: We'll need to add lastSyncedAt to User schema via migration
+    // Update user's lastSyncedAt
     const now = new Date();
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastSyncedAt: now }
+    });
+
+    // Log sync operation
+    await prisma.syncLog.create({
+      data: {
+        userId,
+        entityType: 'sync',
+        action: 'full',
+        clientId: null
+      }
+    });
 
     res.json({
       success: true,
@@ -417,6 +430,12 @@ export const incrementalSync = async (req, res, next) => {
       select: { id: true }
     });
 
+    // Update user's lastSyncedAt
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastSyncedAt: syncStartTime }
+    });
+
     // Log sync operation
     await prisma.syncLog.create({
       data: {
@@ -459,8 +478,16 @@ export const getSyncStatus = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    // Get most recent sync log
-    const lastSync = await prisma.syncLog.findFirst({
+    // Get user with lastSyncedAt
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        lastSyncedAt: true
+      }
+    });
+
+    // Get most recent sync log for additional metadata
+    const lastSyncLog = await prisma.syncLog.findFirst({
       where: { userId },
       orderBy: { syncedAt: 'desc' },
       select: {
@@ -483,12 +510,16 @@ export const getSyncStatus = async (req, res, next) => {
       where: { userId, deletedAt: null }
     });
 
+    // Use user's lastSyncedAt (from User table) as primary source
+    // Fall back to sync log if user's lastSyncedAt is null (for backward compatibility)
+    const lastSyncedAt = user?.lastSyncedAt || lastSyncLog?.syncedAt || null;
+
     res.json({
       success: true,
       data: {
-        lastSyncedAt: lastSync?.syncedAt?.toISOString() || null,
-        lastSyncAction: lastSync?.action || null,
-        lastClientId: lastSync?.clientId || null,
+        lastSyncedAt: lastSyncedAt ? new Date(lastSyncedAt).toISOString() : null,
+        lastSyncAction: lastSyncLog?.action || null,
+        lastClientId: lastSyncLog?.clientId || null,
         counts: {
           papers: paperCount,
           collections: collectionCount,

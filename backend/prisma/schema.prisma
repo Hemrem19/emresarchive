@@ -20,6 +20,7 @@ model User {
   updatedAt       DateTime  @updatedAt @map("updated_at")
   emailVerified   Boolean   @default(false) @map("email_verified")
   lastLoginAt     DateTime? @map("last_login_at")
+  lastSyncedAt    DateTime? @map("last_synced_at")
   storageUsedBytes BigInt   @default(0) @map("storage_used_bytes")
   storageLimitBytes BigInt  @default(2147483648) @map("storage_limit_bytes") // 2GB default
   
