@@ -4,6 +4,7 @@ import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
 import { isAuthenticated, getUser } from './api/auth.js';
 import { parseRIS } from './import/ris-parser.js';
+import { restartAutoSync, stopAutoSync, performManualSync } from './core/syncManager.js';
 
 export const settingsView = {
     async mount(appState) {
@@ -217,12 +218,13 @@ export const settingsView = {
             setCloudSyncEnabled(enabled);
             updateUI();
             
-            // Console logging for debugging
-            console.log(`Cloud sync ${enabled ? 'enabled' : 'disabled'}`);
-            if (enabled) {
+            // Start/stop automatic sync based on toggle
+            if (enabled && isAuthenticated()) {
+                restartAutoSync();
                 console.log('✅ Cloud sync ON - Data will be synced to:', getApiBaseUrl?.() || 'API endpoint');
                 showToast('Cloud sync enabled! Your data will now be synced to the cloud.', 'success');
             } else {
+                stopAutoSync();
                 console.log('📦 Cloud sync OFF - Using local storage only');
                 showToast('Cloud sync disabled. Using local storage only.', 'info');
             }
@@ -239,31 +241,11 @@ export const settingsView = {
                     
                     showToast('Syncing data...', 'info', { duration: 5000 });
                     
-                    const result = await performSync();
+                    // Use sync manager's manual sync function
+                    await performManualSync();
                     
                     // Update status display
                     await updateSyncStatus();
-                    
-                    let message = 'Sync complete! ';
-                    if (result.serverChangeCount) {
-                        const counts = result.serverChangeCount;
-                        const total = (counts.papers || 0) + (counts.collections || 0) + (counts.annotations || 0);
-                        if (total > 0) {
-                            message += `Downloaded ${total} update${total !== 1 ? 's' : ''} from server. `;
-                        }
-                    }
-                    if (result.conflicts) {
-                        const conflicts = result.conflicts;
-                        const totalConflicts = 
-                            (conflicts.papers?.length || 0) + 
-                            (conflicts.collections?.length || 0) + 
-                            (conflicts.annotations?.length || 0);
-                        if (totalConflicts > 0) {
-                            message += `${totalConflicts} conflict${totalConflicts !== 1 ? 's' : ''} resolved.`;
-                        }
-                    }
-                    
-                    showToast(message || 'Sync complete!', 'success');
                 } catch (error) {
                     console.error('Sync error:', error);
                     showToast(error.message || 'Sync failed. Please try again.', 'error', {

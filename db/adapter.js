@@ -30,6 +30,9 @@ import {
     trackAnnotationDeleted
 } from './sync.js';
 
+// Import auto-sync manager
+import { triggerDebouncedSync } from '../core/syncManager.js';
+
 /**
  * Checks if cloud sync should be used.
  * @returns {boolean} True if cloud sync is enabled and user is authenticated.
@@ -135,6 +138,8 @@ export const papers = {
                 } catch (localError) {
                     // Ignore local save errors (not critical in cloud mode)
                 }
+                // Trigger debounced sync after successful cloud operation (for any local fallback changes)
+                triggerDebouncedSync();
                 return paper.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -143,6 +148,8 @@ export const papers = {
                 // Track change for later sync
                 if (shouldUseCloudSync()) {
                     trackPaperCreated({ ...paperData, localId });
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return localId;
             }
@@ -151,6 +158,8 @@ export const papers = {
         const localId = await localPapers.addPaper(paperData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackPaperCreated({ ...paperData, localId });
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
         return localId;
     },
@@ -209,6 +218,8 @@ export const papers = {
                 } catch (localError) {
                     // Ignore local update errors
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return paper.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -217,6 +228,8 @@ export const papers = {
                 if (shouldUseCloudSync()) {
                     const paper = await localPapers.getPaperById(id);
                     trackPaperUpdated(id, updateData);
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return result;
             }
@@ -225,6 +238,8 @@ export const papers = {
         const result = await localPapers.updatePaper(id, updateData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackPaperUpdated(id, updateData);
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
         return result;
     },
@@ -239,6 +254,8 @@ export const papers = {
                 } catch (localError) {
                     // Ignore local delete errors (paper might not exist locally)
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return;
             } catch (error) {
                 // If paper not found on cloud (404), it might only exist locally
@@ -253,6 +270,8 @@ export const papers = {
                 // Track deletion for later sync
                 if (shouldUseCloudSync()) {
                     trackPaperDeleted(id);
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return;
             }
@@ -261,6 +280,8 @@ export const papers = {
         await localPapers.deletePaper(id);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackPaperDeleted(id);
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
     },
 
@@ -340,6 +361,8 @@ export const collections = {
                 } catch (localError) {
                     // Ignore local save errors
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return collection.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -347,6 +370,8 @@ export const collections = {
                 // Track change for later sync
                 if (shouldUseCloudSync()) {
                     trackCollectionCreated({ ...collectionData, localId });
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return localId;
             }
@@ -355,6 +380,8 @@ export const collections = {
         const localId = await localCollections.addCollection(collectionData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackCollectionCreated({ ...collectionData, localId });
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
         return localId;
     },
@@ -393,6 +420,8 @@ export const collections = {
                 } catch (localError) {
                     // Ignore local update errors
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return collection.id || id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -400,6 +429,8 @@ export const collections = {
                 // Track change for later sync
                 if (shouldUseCloudSync()) {
                     trackCollectionUpdated(id, updateData);
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return result;
             }
@@ -408,6 +439,8 @@ export const collections = {
         const result = await localCollections.updateCollection(id, updateData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackCollectionUpdated(id, updateData);
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
         return result;
     },
@@ -422,6 +455,8 @@ export const collections = {
                 } catch (localError) {
                     // Ignore local delete errors
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -429,6 +464,8 @@ export const collections = {
                 // Track deletion for later sync
                 if (shouldUseCloudSync()) {
                     trackCollectionDeleted(id);
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return;
             }
@@ -437,6 +474,8 @@ export const collections = {
         await localCollections.deleteCollection(id);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackCollectionDeleted(id);
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
     }
 };
@@ -458,6 +497,8 @@ export const annotations = {
                 } catch (localError) {
                     // Ignore local save errors
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return annotation.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -465,6 +506,8 @@ export const annotations = {
                 // Track change for later sync
                 if (shouldUseCloudSync()) {
                     trackAnnotationCreated({ ...annotationData, localId });
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return localId;
             }
@@ -473,6 +516,8 @@ export const annotations = {
         const localId = await localAnnotations.addAnnotation(annotationData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackAnnotationCreated({ ...annotationData, localId });
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
         return localId;
     },
@@ -511,6 +556,8 @@ export const annotations = {
                 } catch (localError) {
                     // Ignore local update errors
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return annotation.id || id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -518,6 +565,8 @@ export const annotations = {
                 // Track change for later sync
                 if (shouldUseCloudSync()) {
                     trackAnnotationUpdated(id, updateData);
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return result;
             }
@@ -526,6 +575,8 @@ export const annotations = {
         const result = await localAnnotations.updateAnnotation(id, updateData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackAnnotationUpdated(id, updateData);
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
         return result;
     },
@@ -540,6 +591,8 @@ export const annotations = {
                 } catch (localError) {
                     // Ignore local delete errors
                 }
+                // Trigger debounced sync after successful cloud operation
+                triggerDebouncedSync();
                 return;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
@@ -547,6 +600,8 @@ export const annotations = {
                 // Track deletion for later sync
                 if (shouldUseCloudSync()) {
                     trackAnnotationDeleted(id);
+                    // Trigger debounced sync after local fallback
+                    triggerDebouncedSync();
                 }
                 return;
             }
@@ -555,6 +610,8 @@ export const annotations = {
         await localAnnotations.deleteAnnotation(id);
         if (isCloudSyncEnabled() && isAuthenticated()) {
             trackAnnotationDeleted(id);
+            // Trigger debounced sync for local-only changes
+            triggerDebouncedSync();
         }
     },
 
