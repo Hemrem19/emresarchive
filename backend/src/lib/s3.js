@@ -7,6 +7,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Initialize S3 client (works with Cloudflare R2 and other S3-compatible services)
+// Note: We don't configure checksum middleware here to avoid issues with presigned URLs
 const s3Client = new S3Client({
   region: process.env.S3_REGION || 'auto',
   endpoint: process.env.S3_ENDPOINT, // Cloudflare R2 endpoint
@@ -15,9 +16,6 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || ''
   },
   forcePathStyle: true // Required for R2
-  // Note: Some SDK versions add checksum headers automatically
-  // These will be in the presigned URL but shouldn't break the signature
-  // if we keep PutObjectCommand minimal (only Bucket and Key)
 });
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || '';
