@@ -317,13 +317,33 @@ async function importData(dataToImport) {
                                 collectionToStore.createdAt = new Date(collectionToStore.createdAt);
                             }
                             
-                            await new Promise((resolveAdd, rejectAdd) => {
-                                const addRequest = collectionsStore.add(collectionToStore);
-                                addRequest.onsuccess = () => resolveAdd();
-                                addRequest.onerror = (event) => rejectAdd(event.target.error);
-                            });
-                            
-                            collectionSuccessCount++;
+                            // If cloud sync is enabled, use adapter which routes to cloud API
+                            if (useCloudSync) {
+                                try {
+                                    const collectionForApi = { ...collectionToStore };
+                                    delete collectionForApi.id; // API will generate new ID
+                                    await addCollectionViaAdapter(collectionForApi);
+                                    collectionSuccessCount++;
+                                } catch (cloudError) {
+                                    console.error(`Failed to sync collection "${collection.name}" to cloud:`, cloudError);
+                                    // Fall back to local-only storage
+                                    await new Promise((resolveAdd, rejectAdd) => {
+                                        const addRequest = collectionsStore.add(collectionToStore);
+                                        addRequest.onsuccess = () => resolveAdd();
+                                        addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                    });
+                                    collectionSuccessCount++;
+                                    collectionErrorCount++; // Count as partial error
+                                }
+                            } else {
+                                // Local-only: save directly to IndexedDB
+                                await new Promise((resolveAdd, rejectAdd) => {
+                                    const addRequest = collectionsStore.add(collectionToStore);
+                                    addRequest.onsuccess = () => resolveAdd();
+                                    addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                });
+                                collectionSuccessCount++;
+                            }
                         } catch (collectionError) {
                             console.error(`Error importing collection "${collection.name}":`, collectionError);
                             collectionErrorCount++;
