@@ -189,6 +189,46 @@ export function extractS3Key(urlOrKey) {
 }
 
 /**
+ * Upload file directly to S3/R2 (server-side upload)
+ * Use this instead of presigned URLs to avoid signature mismatch issues
+ * @param {Buffer|Uint8Array|Blob} fileBuffer - File buffer or Blob
+ * @param {string} key - S3 object key
+ * @param {string} contentType - MIME type (e.g., "application/pdf")
+ * @returns {Promise<void>}
+ */
+export async function uploadFileToS3(fileBuffer, key, contentType) {
+  try {
+    // Validate S3 configuration
+    if (!BUCKET_NAME || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
+      throw new Error('S3 storage is not configured. Please set S3_BUCKET_NAME, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY environment variables.');
+    }
+
+    // Convert Blob to Buffer if needed
+    let buffer;
+    if (fileBuffer instanceof Blob) {
+      const arrayBuffer = await fileBuffer.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    } else {
+      buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    }
+
+    // Upload directly using PutObjectCommand (server-side, not presigned)
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType
+    });
+
+    await s3Client.send(command);
+    console.log('[S3] Uploaded file directly to S3/R2:', key);
+  } catch (error) {
+    console.error('Error uploading file to S3:', error);
+    throw error;
+  }
+}
+
+/**
  * Check if S3 is configured
  * @returns {boolean} True if S3 is configured
  */

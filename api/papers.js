@@ -342,7 +342,49 @@ export async function getUploadUrl(options) {
 }
 
 /**
+ * Uploads a PDF file to S3 via backend server (direct upload).
+ * This avoids presigned URL signature mismatch issues.
+ * @param {File|Blob} file - PDF file to upload.
+ * @param {number|null} paperId - Optional paper ID (for new papers, can be null).
+ * @returns {Promise<Object>} Promise resolving to { s3Key, pdfSizeBytes, filename }.
+ */
+export async function uploadPdfViaBackend(file, paperId = null) {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const url = `${API_BASE}/upload${paperId ? `?paperId=${paperId}` : ''}`;
+        
+        const response = await apiRequest(url, {
+            method: 'POST',
+            body: formData
+            // DO NOT set Content-Type header - browser sets it with boundary for multipart/form-data
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || result.error?.message || 'Upload failed');
+        }
+
+        if (result.success && result.data) {
+            return {
+                s3Key: result.data.s3Key,
+                pdfSizeBytes: result.data.pdfSizeBytes,
+                filename: result.data.filename
+            };
+        }
+
+        throw new Error('Invalid response from server');
+    } catch (error) {
+        console.error('Upload PDF via backend error:', error);
+        throw error;
+    }
+}
+
+/**
  * Uploads a PDF file to S3 using presigned URL (supports both POST and PUT).
+ * @deprecated Use uploadPdfViaBackend instead to avoid signature mismatch issues.
  * @param {string} uploadUrl - Presigned upload URL.
  * @param {File|Blob} file - PDF file to upload.
  * @param {Object|null} fields - Presigned POST fields (if using POST method).

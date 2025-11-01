@@ -627,6 +627,67 @@ export const getUploadUrl = async (req, res, next) => {
 };
 
 /**
+ * Upload PDF directly to S3/R2 (server-side upload)
+ * POST /api/papers/upload
+ * Body: multipart/form-data with 'file' field
+ * Query params: paperId (optional) - if provided, uses that ID, otherwise generates temp ID
+ */
+export const uploadPdfDirect = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { paperId } = req.query; // Optional paperId from query params
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'No file uploaded. Please include a PDF file in the request.' }
+      });
+    }
+
+    // Validate file type
+    if (req.file.mimetype !== 'application/pdf') {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Only PDF files are allowed' }
+      });
+    }
+
+    // Import S3 functions
+    const { uploadFileToS3, generatePdfKey, isS3Configured } = await import('../lib/s3.js');
+
+    // Check if S3 is configured
+    if (!isS3Configured()) {
+      return res.status(503).json({
+        success: false,
+        error: { message: 'S3 storage is not configured. Please configure S3 credentials.' }
+      });
+    }
+
+    // Generate S3 key
+    const tempPaperId = paperId || `temp-${Date.now()}`;
+    const filename = req.file.originalname || 'upload.pdf';
+    const s3Key = generatePdfKey(userId, tempPaperId, filename);
+
+    // Upload file directly to S3/R2 (server-side, avoids presigned URL signature issues)
+    await uploadFileToS3(req.file.buffer, s3Key, req.file.mimetype);
+
+    // Return S3 key and file size
+    res.json({
+      success: true,
+      data: {
+        s3Key,
+        pdfSizeBytes: req.file.size,
+        filename: req.file.originalname
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get Presigned Download URL for PDF
  * GET /api/papers/:id/pdf
  */
