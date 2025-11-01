@@ -6,7 +6,22 @@
 export const errorHandler = (err, req, res, next) => {
   // Ensure CORS headers are set even on errors
   const origin = req.headers.origin;
-  if (origin) {
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+  
+  // Allow origin if it's in allowed list or is Cloudflare Pages
+  const allowedOrigins = [
+    FRONTEND_URL,
+    'http://localhost:8080',
+    'http://localhost:5500',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:8080',
+    'http://127.0.0.1:5500',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173'
+  ];
+  
+  if (origin && (allowedOrigins.includes(origin) || origin.includes('pages.dev') || origin.includes('cloudflarepages.com'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
@@ -99,28 +114,8 @@ export const errorHandler = (err, req, res, next) => {
     ? 'Internal Server Error'
     : message;
 
-  // Ensure CORS headers are set even on errors
-  // Get origin from request
-  const origin = req.headers.origin;
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
-  
-  // Allow origin if it's in allowed list or is Cloudflare Pages
-  const allowedOrigins = [
-    FRONTEND_URL,
-    'http://localhost:8080',
-    'http://localhost:5500',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:8080',
-    'http://127.0.0.1:5500',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173'
-  ];
-  
-  if (origin && (allowedOrigins.includes(origin) || origin.includes('pages.dev') || origin.includes('cloudflarepages.com'))) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
+  // CORS headers are already set at the beginning of this function
+  // No need to set them again here
 
   res.status(statusCode).json({
     success: false,
