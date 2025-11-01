@@ -98,6 +98,20 @@ export const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Internal Server Error';
 
+  // Prisma column does not exist (P2022) - schema mismatch
+  if (err.code === 'P2022') {
+    statusCode = 503; // Service Unavailable
+    const columnName = err.meta?.column || 'column';
+    message = `Database schema error: ${columnName} does not exist. Please run migrations.`;
+    console.error('⚠️ Prisma schema mismatch detected:', err.message);
+    console.error('   Column:', columnName);
+    console.error('   Model:', err.meta?.modelName);
+    // Don't expose internal details in production
+    if (process.env.NODE_ENV === 'production') {
+      message = 'Database configuration error. Please contact support.';
+    }
+  }
+
   // Prisma unique constraint violation (P2002) - handled gracefully
   if (err.code === 'P2002') {
     statusCode = 400;
@@ -160,11 +174,34 @@ export const errorHandler = (err, req, res, next) => {
   // CORS headers are already set at the beginning of this function
   // No need to set them again here
 
+  // Ensure error message is always a string (prevent [object Object] errors)
+  let safeMessage = errorMessage;
+  if (typeof safeMessage !== 'string') {
+    try {
+      safeMessage = JSON.stringify(safeMessage);
+    } catch {
+      safeMessage = 'An error occurred';
+    }
+  }
+
+  // Ensure error details are properly formatted
+  let errorDetails = null;
+  if (err.details && Array.isArray(err.details)) {
+    errorDetails = err.details;
+  } else if (err.error?.details && Array.isArray(err.error.details)) {
+    errorDetails = err.error.details;
+  }
+
   res.status(statusCode).json({
     success: false,
     error: {
-      message: errorMessage,
-      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+      message: safeMessage,
+      ...(errorDetails && { details: errorDetails }),
+      ...(process.env.NODE_ENV !== 'production' && { 
+        stack: typeof err.stack === 'string' ? err.stack : undefined,
+        code: err.code,
+        name: err.name
+      })
     }
   });
 };

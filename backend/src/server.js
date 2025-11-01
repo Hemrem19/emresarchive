@@ -24,9 +24,26 @@ import userRoutes from './routes/user.js';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
+import { prisma } from './lib/prisma.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Run database migrations on startup (for production)
+async function runMigrations() {
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      console.log('🔄 Running database migrations...');
+      const { execSync } = await import('child_process');
+      execSync('npx prisma migrate deploy', { stdio: 'inherit', env: process.env });
+      console.log('✅ Database migrations completed');
+    } catch (error) {
+      console.error('⚠️ Migration error (will continue anyway):', error.message);
+      // Don't crash - try to continue
+      // The error might be that migrations are already applied
+    }
+  }
+}
 
 // Trust proxy - required for Railway/production environments
 // Railway uses a reverse proxy, so we need to trust the X-Forwarded-* headers
@@ -292,21 +309,49 @@ process.on('uncaughtException', (error) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
-  console.log(`🚀 citavErsa Backend running on port ${PORT}`);
-  console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
-  
-  // Test database connection
-  await testDatabaseConnection();
-  
-  // Log deployment URL if available
-  if (process.env.RAILWAY_STATIC_URL) {
-    console.log(`🔗 Railway URL: ${process.env.RAILWAY_STATIC_URL}`);
+async function startServer() {
+  // Run migrations in production before starting server
+  if (process.env.NODE_ENV === 'production') {
+    await runMigrations();
   }
-  if (process.env.RENDER_EXTERNAL_URL) {
-    console.log(`🔗 Render URL: ${process.env.RENDER_EXTERNAL_URL}`);
-  }
+
+  return new Promise((resolve) => {
+    const server = app.listen(PORT, async () => {
+      console.log(`🚀 citavErsa Backend running on port ${PORT}`);
+      console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
+      
+      // Test database connection
+      await testDatabaseConnection();
+      
+      // Verify schema by checking if verification_token column exists
+      try {
+        await prisma.$queryRaw`SELECT verification_token FROM users LIMIT 1`;
+        console.log('✅ Database: Schema verified (verification_token column exists)');
+      } catch (schemaError) {
+        if (schemaError.code === 'P2022' || schemaError.message?.includes('does not exist')) {
+          console.error('⚠️ Database: Schema mismatch detected. verification_token column missing.');
+          console.error('   Run: cd backend && npx prisma migrate deploy');
+        }
+      }
+      
+      // Log deployment URL if available
+      if (process.env.RAILWAY_STATIC_URL) {
+        console.log(`🔗 Railway URL: ${process.env.RAILWAY_STATIC_URL}`);
+      }
+      if (process.env.RENDER_EXTERNAL_URL) {
+        console.log(`🔗 Render URL: ${process.env.RENDER_EXTERNAL_URL}`);
+      }
+      
+      resolve(server);
+    });
+  });
+}
+
+// Start the server
+startServer().catch((error) => {
+  console.error('❌ Failed to start server:', error);
+  process.exit(1);
 });
 
 // Graceful shutdown

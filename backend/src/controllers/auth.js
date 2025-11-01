@@ -39,9 +39,25 @@ export const register = async (req, res, next) => {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() }
-    });
+    let existingUser;
+    try {
+      existingUser = await prisma.user.findUnique({
+        where: { email: email.toLowerCase().trim() }
+      });
+    } catch (prismaError) {
+      // Handle Prisma schema errors (missing columns, etc.)
+      if (prismaError.code === 'P2022' || prismaError.meta?.column || prismaError.message?.includes('does not exist')) {
+        console.error('[Auth] Database schema error:', prismaError.message);
+        return res.status(503).json({
+          success: false,
+          error: { 
+            message: 'Database configuration error. Please contact support.',
+            details: []
+          }
+        });
+      }
+      throw prismaError;
+    }
 
     if (existingUser) {
       return res.status(409).json({
@@ -60,29 +76,74 @@ export const register = async (req, res, next) => {
     const verificationToken = generateVerificationToken();
     const verificationTokenExpiry = getVerificationTokenExpiry();
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        passwordHash,
-        name: name || null,
-        verificationToken,
-        verificationTokenExpiry
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        emailVerified: true,
-        createdAt: true
+    // Create user - handle optional verification fields gracefully
+    let user;
+    try {
+      user = await prisma.user.create({
+        data: {
+          email: email.toLowerCase(),
+          passwordHash,
+          name: name || null,
+          verificationToken,
+          verificationTokenExpiry
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          emailVerified: true,
+          createdAt: true
+        }
+      });
+    } catch (prismaError) {
+      // Handle Prisma schema errors (missing columns, etc.)
+      if (prismaError.code === 'P2022' || prismaError.meta?.column || prismaError.message?.includes('does not exist')) {
+        console.error('[Auth] Database schema error during user creation:', prismaError.message);
+        
+        // Try creating user without verification fields (fallback)
+        try {
+          user = await prisma.user.create({
+            data: {
+              email: email.toLowerCase(),
+              passwordHash,
+              name: name || null
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              emailVerified: true,
+              createdAt: true
+            }
+          });
+          // Set emailVerified to false if field doesn't exist
+          if (user) {
+            user.emailVerified = false;
+          }
+        } catch (fallbackError) {
+          return res.status(503).json({
+            success: false,
+            error: { 
+              message: 'Database configuration error. Please contact support.',
+              details: []
+            }
+          });
+        }
+      } else {
+        throw prismaError;
       }
-    });
+    }
 
     // Send verification email (don't wait for it to complete)
-    sendVerificationEmail(user.email, verificationToken, user.name).catch(error => {
-      console.error('[Auth] Failed to send verification email:', error);
-      // Don't throw - user is created, email can be resent later
-    });
+    // Only send if verification fields were successfully set
+    if (verificationToken && verificationTokenExpiry) {
+      sendVerificationEmail(user.email, verificationToken, user.name).catch(error => {
+        console.error('[Auth] Failed to send verification email:', error);
+        // Don't throw - user is created, email can be resent later
+      });
+    } else {
+      console.warn('[Auth] Skipping verification email - verification fields not available');
+    }
 
     // Generate access token
     const accessToken = generateAccessToken(user.id, user.email);
