@@ -301,6 +301,21 @@ async function importData(dataToImport) {
                                         paperForApi.tags = paperForApi.tags ? [paperForApi.tags] : [];
                                     }
                                     
+                                    // Clean up readingProgress - API requires totalPages >= 1
+                                    if (paperForApi.readingProgress) {
+                                        // If totalPages is 0, null, undefined, or less than 1, remove readingProgress
+                                        if (!paperForApi.readingProgress.totalPages || 
+                                            paperForApi.readingProgress.totalPages < 1) {
+                                            delete paperForApi.readingProgress;
+                                        } else {
+                                            // Ensure currentPage is valid (>= 0)
+                                            if (paperForApi.readingProgress.currentPage === undefined || 
+                                                paperForApi.readingProgress.currentPage < 0) {
+                                                paperForApi.readingProgress.currentPage = 0;
+                                            }
+                                        }
+                                    }
+                                    
                                     // If paper has s3Key/pdfUrl from import, keep it (but don't upload PDF)
                                     // The adapter will handle mapping s3Key to pdfUrl and readingStatus to status
                                     await addPaperViaAdapter(paperForApi);
