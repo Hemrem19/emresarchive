@@ -116,8 +116,9 @@ S3_REGION=auto
 3. Set **Root Directory** to: `backend` ⬅️ **This is the key fix!**
    - This tells Railway to build from the `backend/` folder
    - Railway will look for `package.json` in the `backend/` directory
-   - Railway will find `railway.json` and `nixpacks.toml` in the `backend/` directory
-4. **Build Command:** Leave empty (Railway will use `backend/nixpacks.toml` or auto-detect)
+   - Railway will find `railway.json` in the `backend/` directory
+   - Railway will auto-detect Node.js 20 from `package.json` `engines` field
+4. **Build Command:** Leave empty (Railway will auto-detect from `package.json`)
 5. **Start Command:** Leave empty (Railway will use `npm start` from `backend/package.json`)
 
 **Why this matters:**
