@@ -40,9 +40,16 @@ function mapPaperDataToApi(paperData) {
         delete apiData.readingStatus;
     }
     
+    // Map s3Key to pdfUrl (backend uses pdfUrl field)
+    if (apiData.s3Key) {
+        apiData.pdfUrl = apiData.s3Key;
+        delete apiData.s3Key;
+    }
+    
     // Remove fields that API doesn't expect
     delete apiData.pdfData; // PDFs are uploaded separately via S3
-    delete apiData.hasPdf; // API doesn't track this field
+    delete apiData.hasPdf; // Backend determines this from pdfUrl existence
+    delete apiData.pdfFile; // PDF files are not sent to API
     delete apiData.createdAt; // API sets this automatically
     delete apiData.id; // API generates IDs
     
@@ -59,6 +66,17 @@ function mapPaperDataFromApi(apiPaper) {
     if (localPaper.status) {
         localPaper.readingStatus = localPaper.status;
         // Keep status too for compatibility
+    }
+    
+    // Map pdfUrl to s3Key (local uses s3Key field)
+    if (localPaper.pdfUrl) {
+        localPaper.s3Key = localPaper.pdfUrl;
+        // Keep pdfUrl too for compatibility, but prefer s3Key
+    }
+    
+    // Set hasPdf based on pdfUrl/s3Key existence
+    if (localPaper.s3Key || localPaper.pdfUrl) {
+        localPaper.hasPdf = true;
     }
     
     return localPaper;
