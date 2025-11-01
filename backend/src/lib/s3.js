@@ -45,10 +45,13 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
       Key: key,
       ContentType: contentType,
       ContentLength: contentLength
+      // Note: Both ContentType and ContentLength must match exactly when uploading
     });
 
     // Generate presigned URL
     // Note: CORS must be configured in R2 bucket settings (see R2_CORS_SETUP.md)
+    // The presigned URL includes ContentType and ContentLength in the signature
+    // DO NOT override these headers when making the PUT request
     const url = await getSignedUrl(s3Client, command, { expiresIn: PRESIGNED_URL_EXPIRY });
 
     return url;

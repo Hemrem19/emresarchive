@@ -348,15 +348,19 @@ export async function getUploadUrl(options) {
  */
 export async function uploadPdf(uploadUrl, file) {
     try {
+        // For presigned URLs, don't set Content-Length or Content-Type in headers
+        // The presigned URL already includes these in the signature
+        // Only set Content-Type if needed, but let browser handle Content-Length
         const response = await fetch(uploadUrl, {
             method: 'PUT',
             body: file,
-            headers: {
-                'Content-Type': file.type || 'application/pdf'
-            }
+            // Don't set headers - let browser automatically set Content-Length and use presigned URL's Content-Type
+            // The presigned URL already includes Content-Type and Content-Length in the signature
         });
 
         if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            console.error('Upload failed response:', response.status, response.statusText, errorText);
             throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
         }
     } catch (error) {
