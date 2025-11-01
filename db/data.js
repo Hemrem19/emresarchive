@@ -237,7 +237,11 @@ async function importData(dataToImport) {
                     // If cloud sync is enabled, use adapter to sync to cloud API
                     const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
                     
-                    for (const paper of papersToImport) {
+                    // Helper function to add delay between requests to avoid overwhelming the network
+                    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                    
+                    for (let i = 0; i < papersToImport.length; i++) {
+                        const paper = papersToImport[i];
                         try {
                             const paperToStore = { ...paper };
                             
@@ -270,6 +274,12 @@ async function importData(dataToImport) {
                             // Otherwise, save directly to IndexedDB
                             if (useCloudSync) {
                                 try {
+                                    // Add delay between API requests to avoid network congestion
+                                    // 200ms delay for all but the first request
+                                    if (i > 0) {
+                                        await delay(200);
+                                    }
+                                    
                                     // Remove fields that shouldn't be sent to API
                                     const paperForApi = { ...paperToStore };
                                     delete paperForApi.pdfData; // PDF data is stored locally only
@@ -282,14 +292,19 @@ async function importData(dataToImport) {
                                     paperSuccessCount++;
                                 } catch (cloudError) {
                                     console.error(`Failed to sync paper "${paper.title}" to cloud:`, cloudError);
-                                    // Fall back to local-only storage
-                                    await new Promise((resolveAdd, rejectAdd) => {
-                                        const addRequest = papersStore.add(paperToStore);
-                                        addRequest.onsuccess = () => resolveAdd();
-                                        addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                    });
-                                    paperSuccessCount++;
-                                    paperErrorCount++; // Count as partial error (local only, not cloud)
+                                    // Always save to local storage as fallback
+                                    try {
+                                        await new Promise((resolveAdd, rejectAdd) => {
+                                            const addRequest = papersStore.add(paperToStore);
+                                            addRequest.onsuccess = () => resolveAdd();
+                                            addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                        });
+                                        paperSuccessCount++;
+                                        paperErrorCount++; // Count as partial error (local only, not cloud)
+                                    } catch (localError) {
+                                        console.error(`Failed to save paper "${paper.title}" locally:`, localError);
+                                        paperErrorCount++;
+                                    }
                                 }
                             } else {
                                 // Local-only: save directly to IndexedDB
@@ -308,7 +323,8 @@ async function importData(dataToImport) {
                     }
 
                     // Import collections
-                    for (const collection of collectionsToImport) {
+                    for (let i = 0; i < collectionsToImport.length; i++) {
+                        const collection = collectionsToImport[i];
                         try {
                             const collectionToStore = { ...collection };
                             
@@ -320,20 +336,30 @@ async function importData(dataToImport) {
                             // If cloud sync is enabled, use adapter which routes to cloud API
                             if (useCloudSync) {
                                 try {
+                                    // Add delay between API requests
+                                    if (i > 0) {
+                                        await delay(200);
+                                    }
+                                    
                                     const collectionForApi = { ...collectionToStore };
                                     delete collectionForApi.id; // API will generate new ID
                                     await addCollectionViaAdapter(collectionForApi);
                                     collectionSuccessCount++;
                                 } catch (cloudError) {
                                     console.error(`Failed to sync collection "${collection.name}" to cloud:`, cloudError);
-                                    // Fall back to local-only storage
-                                    await new Promise((resolveAdd, rejectAdd) => {
-                                        const addRequest = collectionsStore.add(collectionToStore);
-                                        addRequest.onsuccess = () => resolveAdd();
-                                        addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                    });
-                                    collectionSuccessCount++;
-                                    collectionErrorCount++; // Count as partial error
+                                    // Always save to local storage as fallback
+                                    try {
+                                        await new Promise((resolveAdd, rejectAdd) => {
+                                            const addRequest = collectionsStore.add(collectionToStore);
+                                            addRequest.onsuccess = () => resolveAdd();
+                                            addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                        });
+                                        collectionSuccessCount++;
+                                        collectionErrorCount++; // Count as partial error
+                                    } catch (localError) {
+                                        console.error(`Failed to save collection "${collection.name}" locally:`, localError);
+                                        collectionErrorCount++;
+                                    }
                                 }
                             } else {
                                 // Local-only: save directly to IndexedDB
@@ -352,7 +378,8 @@ async function importData(dataToImport) {
                     }
 
                     // Import annotations
-                    for (const annotation of annotationsToImport) {
+                    for (let i = 0; i < annotationsToImport.length; i++) {
+                        const annotation = annotationsToImport[i];
                         try {
                             const annotationToStore = { ...annotation };
                             
@@ -367,20 +394,30 @@ async function importData(dataToImport) {
                             // If cloud sync is enabled, use adapter which routes to cloud API
                             if (useCloudSync) {
                                 try {
+                                    // Add delay between API requests
+                                    if (i > 0) {
+                                        await delay(200);
+                                    }
+                                    
                                     const annotationForApi = { ...annotationToStore };
                                     delete annotationForApi.id; // API will generate new ID
                                     await addAnnotationViaAdapter(annotationForApi);
                                     annotationSuccessCount++;
                                 } catch (cloudError) {
                                     console.error(`Failed to sync annotation to cloud:`, cloudError);
-                                    // Fall back to local-only storage
-                                    await new Promise((resolveAdd, rejectAdd) => {
-                                        const addRequest = annotationsStore.add(annotationToStore);
-                                        addRequest.onsuccess = () => resolveAdd();
-                                        addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                    });
-                                    annotationSuccessCount++;
-                                    annotationErrorCount++; // Count as partial error
+                                    // Always save to local storage as fallback
+                                    try {
+                                        await new Promise((resolveAdd, rejectAdd) => {
+                                            const addRequest = annotationsStore.add(annotationToStore);
+                                            addRequest.onsuccess = () => resolveAdd();
+                                            addRequest.onerror = (event) => rejectAdd(event.target.error);
+                                        });
+                                        annotationSuccessCount++;
+                                        annotationErrorCount++; // Count as partial error
+                                    } catch (localError) {
+                                        console.error(`Failed to save annotation locally:`, localError);
+                                        annotationErrorCount++;
+                                    }
                                 }
                             } else {
                                 // Local-only: save directly to IndexedDB
