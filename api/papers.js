@@ -360,9 +360,9 @@ export async function uploadPdf(uploadUrl, file, fields = null) {
                 formData.append(key, value);
             }
             
-            // Add the file (must be last field)
-            // Note: The field name should match what's expected by S3
-            // For presigned POST, the file field is usually 'file'
+            // Add the file (must be last field in FormData for presigned POST)
+            // The field name doesn't matter for presigned POST - S3 accepts any name
+            // Common names: 'file', 'upload', or just match the key
             formData.append('file', file);
             
             const response = await fetch(uploadUrl, {
@@ -376,6 +376,7 @@ export async function uploadPdf(uploadUrl, file, fields = null) {
                 console.error('Upload failed response:', response.status, response.statusText, errorText);
                 throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
             }
+            return; // Success - exit function
         } else {
             // Presigned PUT: Send file directly (fallback for older API)
             // This may have method mismatch issues with AWS SDK v3
@@ -387,11 +388,11 @@ export async function uploadPdf(uploadUrl, file, fields = null) {
                 }
             });
 
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            console.error('Upload failed response:', response.status, response.statusText, errorText);
-            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-        }
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                console.error('Upload failed response:', response.status, response.statusText, errorText);
+                throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+            }
     } catch (error) {
         console.error('Upload PDF error:', error);
         throw error;
