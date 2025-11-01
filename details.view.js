@@ -560,8 +560,23 @@ export const detailsView = {
             if (tabButton.dataset.tab === 'pdf') {
                 notesPanel.classList.add('hidden');
                 pdfPanel.classList.remove('hidden');
-                if (!pdfState.pdfDoc && paper.pdfFile) {
-                    loadPdfDocument(paper.pdfFile);
+                if (!pdfState.pdfDoc) {
+                    if (paper.pdfFile) {
+                        // Local PDF: load from Blob
+                        loadPdfDocument(paper.pdfFile);
+                    } else if (paper.s3Key && isCloudSyncEnabled() && isAuthenticated()) {
+                        // Cloud PDF: get URL and load
+                        (async () => {
+                            try {
+                                showToast('Loading PDF from cloud...', 'info');
+                                const { pdfUrl } = await getPdfDownloadUrl(paperId);
+                                await loadPdfFromUrl(pdfUrl);
+                            } catch (error) {
+                                console.error('Error loading PDF from S3:', error);
+                                showToast('Failed to load PDF from cloud', 'error');
+                            }
+                        })();
+                    }
                 }
             } else {
                 notesPanel.classList.remove('hidden');
