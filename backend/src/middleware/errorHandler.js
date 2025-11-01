@@ -8,12 +8,32 @@ export const errorHandler = (err, req, res, next) => {
   console.error('Error:', err);
   console.error('Error stack:', err.stack);
 
-  // Default error
-  const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || 'Internal Server Error';
+  // Handle Prisma errors
+  let statusCode = err.statusCode || err.status || 500;
+  let message = err.message || 'Internal Server Error';
 
-  // Don't expose internal errors in production
-  const errorMessage = process.env.NODE_ENV === 'production' && statusCode === 500
+  // Prisma unique constraint violation (P2002)
+  if (err.code === 'P2002') {
+    statusCode = 400;
+    const field = err.meta?.target?.[0] || 'field';
+    message = `A record with this ${field} already exists`;
+  }
+
+  // Prisma record not found (P2025)
+  if (err.code === 'P2025') {
+    statusCode = 404;
+    message = 'Record not found';
+  }
+
+  // Prisma connection errors
+  if (err.code === 'P1001' || err.code === 'P1008' || (err.message && err.message.includes('connection'))) {
+    statusCode = 503; // Service Unavailable
+    message = 'Database connection error. Please try again later.';
+    console.error('⚠️ Database connection error - server will continue running');
+  }
+
+  // Don't expose internal errors in production (except for specific handled errors)
+  const errorMessage = (process.env.NODE_ENV === 'production' && statusCode === 500 && err.code !== 'P2002' && err.code !== 'P2025')
     ? 'Internal Server Error'
     : message;
 

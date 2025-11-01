@@ -183,62 +183,84 @@ export const createPaper = async (req, res, next) => {
     }
 
     // Create paper
-    const paper = await prisma.paper.create({
-      data: {
-        userId,
-        title: paperData.title,
-        authors: paperData.authors || [],
-        year: paperData.year || null,
-        journal: paperData.journal || null,
-        doi: paperData.doi || null,
-        abstract: paperData.abstract || null,
-        tags: paperData.tags || [],
-        status: paperData.status || 'To Read',
-        relatedPaperIds: paperData.relatedPaperIds || [],
-        notes: paperData.notes || null,
-        readingProgress: paperData.readingProgress || null,
-        pdfUrl,
-        pdfSizeBytes,
-        clientId: paperData.clientId || null,
-        version: 1
-      },
-      select: {
-        id: true,
-        title: true,
-        authors: true,
-        year: true,
-        journal: true,
-        doi: true,
-        abstract: true,
-        tags: true,
-        status: true,
-        relatedPaperIds: true,
-        pdfUrl: true,
-        pdfSizeBytes: true,
-        notes: true,
-        readingProgress: true,
-        createdAt: true,
-        updatedAt: true,
-        version: true
-      }
-    });
-
-    // Update user storage if PDF uploaded
-    if (paperData.pdfSizeBytes) {
-      await prisma.user.update({
-        where: { id: userId },
+    let paper;
+    try {
+      paper = await prisma.paper.create({
         data: {
-          storageUsedBytes: {
-            increment: BigInt(paperData.pdfSizeBytes)
-          }
+          userId,
+          title: paperData.title,
+          authors: paperData.authors || [],
+          year: paperData.year || null,
+          journal: paperData.journal || null,
+          doi: paperData.doi || null,
+          abstract: paperData.abstract || null,
+          tags: paperData.tags || [],
+          status: paperData.status || 'To Read',
+          relatedPaperIds: paperData.relatedPaperIds || [],
+          notes: paperData.notes || null,
+          readingProgress: paperData.readingProgress || null,
+          pdfUrl,
+          pdfSizeBytes,
+          clientId: paperData.clientId || null,
+          version: 1
+        },
+        select: {
+          id: true,
+          title: true,
+          authors: true,
+          year: true,
+          journal: true,
+          doi: true,
+          abstract: true,
+          tags: true,
+          status: true,
+          relatedPaperIds: true,
+          pdfUrl: true,
+          pdfSizeBytes: true,
+          notes: true,
+          readingProgress: true,
+          createdAt: true,
+          updatedAt: true,
+          version: true
         }
       });
-    }
 
-    res.status(201).json({
-      success: true,
-      data: { paper }
-    });
+      // Update user storage if PDF uploaded
+      if (paperData.pdfSizeBytes) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            storageUsedBytes: {
+              increment: BigInt(paperData.pdfSizeBytes)
+            }
+          }
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        data: { paper }
+      });
+
+    } catch (prismaError) {
+      // Handle Prisma unique constraint violation (race condition or duplicate)
+      if (prismaError.code === 'P2002') {
+        const field = prismaError.meta?.target?.[0] || 'field';
+        if (field === 'doi' && paperData.doi) {
+          return res.status(400).json({
+            success: false,
+            error: { message: `A paper with DOI ${paperData.doi} already exists` }
+          });
+        }
+        // Generic unique constraint error
+        return res.status(400).json({
+          success: false,
+          error: { message: `A record with this ${field} already exists` }
+        });
+      }
+      // Re-throw other Prisma errors to be handled by error handler
+      throw prismaError;
+    }
 
   } catch (error) {
     next(error);

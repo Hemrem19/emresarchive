@@ -262,12 +262,26 @@ if (DATABASE_URL && !DATABASE_URL.startsWith('postgresql://') && !DATABASE_URL.s
   // Don't exit - let server start so we can see other errors
 }
 
+// Test database connection on startup
+async function testDatabaseConnection() {
+  try {
+    const { prisma } = await import('./lib/prisma.js');
+    await prisma.$connect();
+    console.log('✅ Database: Connected');
+  } catch (error) {
+    console.error('⚠️ Database: Connection failed (server will continue):', error.message);
+    // Don't exit - let server start and handle errors gracefully
+  }
+}
+
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 citavErsa Backend running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`💾 Database: ${DATABASE_URL ? 'Configured' : 'Not configured'}`);
+  
+  // Test database connection
+  await testDatabaseConnection();
   
   // Log deployment URL if available
   if (process.env.RAILWAY_STATIC_URL) {
@@ -279,13 +293,27 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
+  try {
+    const { prisma } = await import('./lib/prisma.js');
+    await prisma.$disconnect();
+    console.log('Database connection closed');
+  } catch (error) {
+    console.error('Error closing database connection:', error);
+  }
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
+  try {
+    const { prisma } = await import('./lib/prisma.js');
+    await prisma.$disconnect();
+    console.log('Database connection closed');
+  } catch (error) {
+    console.error('Error closing database connection:', error);
+  }
   process.exit(0);
 });
 
