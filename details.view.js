@@ -291,16 +291,41 @@ export const detailsView = {
         notesEditor.addEventListener('blur', this.notesSaveHandler);
 
         const downloadPdfBtn = document.getElementById('download-pdf-btn');
-        if (downloadPdfBtn && paper.pdfFile) {
-            downloadPdfBtn.addEventListener('click', () => {
-                const url = URL.createObjectURL(paper.pdfFile);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${paper.title || 'download'}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+        if (downloadPdfBtn && (paper.pdfFile || paper.s3Key)) {
+            downloadPdfBtn.addEventListener('click', async () => {
+                try {
+                    if (paper.pdfFile) {
+                        // Local PDF: download directly
+                        const url = URL.createObjectURL(paper.pdfFile);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${paper.title || 'download'}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } else if (paper.s3Key) {
+                        // Cloud PDF: get download URL and download
+                        const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
+                        if (useCloudSync) {
+                            showToast('Getting download link...', 'info');
+                            const { downloadUrl } = await getPdfDownloadUrl(paperId);
+                            const a = document.createElement('a');
+                            a.href = downloadUrl;
+                            a.download = `${paper.title || 'download'}.pdf`;
+                            a.target = '_blank'; // Open in new tab for presigned URLs
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            showToast('Download started', 'success');
+                        } else {
+                            showToast('Cloud sync is required for cloud-stored PDFs', 'error');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error downloading PDF:', error);
+                    showToast('Failed to download PDF', 'error');
+                }
             });
         }
     }
