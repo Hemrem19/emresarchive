@@ -512,6 +512,34 @@ export const detailsView = {
         }
     };
 
+    // Load PDF from URL (for cloud-stored PDFs)
+    const loadPdfFromUrl = async (pdfUrl) => {
+        if (!pdfUrl || !window.pdfjsLib) {
+            console.error('PDF.js not loaded or no PDF URL provided');
+            return;
+        }
+
+        try {
+            showToast('Loading PDF...', 'info');
+            const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
+            pdfState.pdfDoc = await loadingTask.promise;
+            pdfState.totalPages = pdfState.pdfDoc.numPages;
+            
+            // Update total pages display
+            const totalPagesEl = document.getElementById('pdf-total-pages');
+            if (totalPagesEl) totalPagesEl.textContent = pdfState.totalPages;
+            
+            // Render first page
+            await renderPdfPage(1);
+            
+            console.log(`PDF loaded from URL: ${pdfState.totalPages} pages`);
+            showToast('PDF loaded successfully', 'success');
+        } catch (error) {
+            console.error('Error loading PDF from URL:', error);
+            showToast('Failed to load PDF document', 'error');
+        }
+    };
+
     // Tab Switching
     const tabsContainer = document.getElementById('details-tabs');
     if (tabsContainer) {
