@@ -2,6 +2,8 @@ import { getPaperById, updatePaper, getAllPapers } from './db.js';
 import { escapeHtml, showToast, formatRelativeTime } from './ui.js';
 import { views as templates } from './views.js';
 import { generateCitation } from './citation.js';
+import { getPdfDownloadUrl } from './api/papers.js';
+import { isCloudSyncEnabled, isAuthenticated } from './api/auth.js';
 
 export const detailsView = {
     notesSaveHandler: null,
@@ -13,11 +15,32 @@ export const detailsView = {
         const container = document.getElementById('paper-details-container');
         if (!container) return;
 
-        const paper = await getPaperById(paperId);
+        let paper = await getPaperById(paperId);
 
         if (!paper) {
             container.innerHTML = `<h2>Paper not found</h2><p>The requested paper could not be found. <a href="#/" class="text-primary hover:underline">Go back to dashboard</a>.</p>`;
             return;
+        }
+
+        // If paper has s3Key but no pdfFile, download PDF from S3/R2
+        if (paper.s3Key && !paper.pdfFile && paper.hasPdf) {
+            try {
+                const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
+                if (useCloudSync) {
+                    showToast('Loading PDF from cloud...', 'info');
+                    const { pdfUrl } = await getPdfDownloadUrl(paperId);
+                    const response = await fetch(pdfUrl);
+                    if (!response.ok) {
+                        throw new Error(`Failed to download PDF: ${response.statusText}`);
+                    }
+                    const blob = await response.blob();
+                    paper.pdfFile = new File([blob], `${paper.title || 'download'}.pdf`, { type: 'application/pdf' });
+                    showToast('PDF loaded successfully', 'success');
+                }
+            } catch (error) {
+                console.error('Error loading PDF from S3:', error);
+                showToast('Failed to load PDF from cloud', 'error');
+            }
         }
 
         // Render the view's HTML
