@@ -54,7 +54,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Authentication Initialization ---
     authView.mount().then(() => {
         console.log('Authentication view initialized');
+        
+        // Check for email verification token in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const verificationToken = urlParams.get('token');
+        if (verificationToken) {
+            // Handle email verification
+            handleEmailVerification(verificationToken);
+        }
     }).catch(console.error);
+    
+    // --- Email Verification Handler ---
+    async function handleEmailVerification(token) {
+        try {
+            const { verifyEmail } = await import('./api/auth.js');
+            const { showToast } = await import('./ui.js');
+            const { getUser, setAuth, getAccessToken } = await import('./api/auth.js');
+            
+            // Show loading state
+            showToast('Verifying email...', 'info');
+            
+            // Verify email
+            await verifyEmail(token);
+            
+            // Update user data if logged in
+            if (getAccessToken()) {
+                const user = getUser();
+                if (user) {
+                    user.emailVerified = true;
+                    setAuth(getAccessToken(), user);
+                    authView.updateUIForAuthenticated(user);
+                }
+            }
+            
+            // Show success and redirect
+            showToast('Email verified successfully!', 'success');
+            window.location.hash = '#/';
+            window.location.search = ''; // Remove token from URL
+        } catch (error) {
+            const { showToast } = await import('./ui.js');
+            showToast(error.message || 'Email verification failed', 'error');
+            window.location.hash = '#/';
+            window.location.search = ''; // Remove token from URL
+        }
+    }
     
     // --- Initialize Application State ---
     const app = document.getElementById('app');

@@ -193,6 +193,97 @@ export async function refreshToken() {
 }
 
 /**
+ * Verifies email with a verification token.
+ * @param {string} token - Verification token from email.
+ * @returns {Promise<Object>} Promise resolving to verification result.
+ */
+export async function verifyEmail(token) {
+    try {
+        const response = await fetch(`${AUTH_ENDPOINT}/verify-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ token })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error?.message || result.message || 'Email verification failed');
+        }
+
+        // If user is logged in, update their user data
+        if (isAuthenticated()) {
+            const user = getUser();
+            if (user) {
+                user.emailVerified = true;
+                setAuth(getAccessToken(), user);
+            }
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Email verification error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Resends verification email (requires authentication).
+ * @returns {Promise<Object>} Promise resolving to send result.
+ */
+export async function resendVerificationEmail() {
+    try {
+        const accessToken = getAccessToken();
+        if (!accessToken) {
+            throw new Error('Authentication required');
+        }
+
+        const response = await fetch(`${AUTH_ENDPOINT}/resend-verification`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            // If token expired, try refreshing
+            if (response.status === 401) {
+                try {
+                    const newToken = await refreshToken();
+                    // Retry with new token
+                    const retryResponse = await fetch(`${AUTH_ENDPOINT}/resend-verification`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${newToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const retryResult = await retryResponse.json();
+                    if (!retryResponse.ok) {
+                        throw new Error(retryResult.error?.message || retryResult.message || 'Failed to resend verification email');
+                    }
+                    return retryResult;
+                } catch (refreshError) {
+                    clearAuth();
+                    throw new Error('Session expired. Please log in again.');
+                }
+            }
+            throw new Error(result.error?.message || result.message || 'Failed to resend verification email');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Resend verification email error:', error);
+        throw error;
+    }
+}
+
+/**
  * Gets the current user's profile.
  * @returns {Promise<Object>} Promise resolving to user data.
  */

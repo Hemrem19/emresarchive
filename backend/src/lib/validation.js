@@ -23,6 +23,11 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required')
 });
 
+// Email Verification Schema
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'Verification token is required')
+});
+
 // Paper Schema
 export const paperSchema = z.object({
   title: z.string().min(1, 'Title is required'),

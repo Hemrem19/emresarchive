@@ -3,7 +3,7 @@
  * Handles authentication modal UI and user login/registration
  */
 
-import { login, register, logout, isAuthenticated, getUser } from './api/auth.js';
+import { login, register, logout, isAuthenticated, getUser, verifyEmail, resendVerificationEmail } from './api/auth.js';
 import { showToast } from './ui.js';
 import { setCloudSyncEnabled } from './config.js';
 
@@ -246,19 +246,19 @@ export const authView = {
         try {
             const result = await register({ name, email, password });
             
-            // Success
-            this.showSuccess('Registration successful!');
+            // Success - show verification message
+            const verificationMessage = `Registration successful! Please check your email (${email}) to verify your account.`;
+            this.showSuccess(verificationMessage);
             setCloudSyncEnabled(true);
             
             // Update UI
             this.updateUIForAuthenticated(result.user);
             
-            // Switch to login tab and close after short delay
+            // Close modal after showing message
             setTimeout(() => {
-                this.showLoginTab();
                 this.close();
-                showToast('Account created! Cloud sync is now enabled.', 'success');
-            }, 1000);
+                showToast('Registration successful! Please check your email to verify your account.', 'info');
+            }, 3000);
 
         } catch (error) {
             this.showError(error.message || 'Registration failed. Please try again.');
@@ -337,6 +337,43 @@ export const authView = {
     },
 
     /**
+     * Shows email verification notice if user is not verified.
+     * @param {Object} user - User data.
+     */
+    showEmailVerificationNotice(user) {
+        if (user && !user.emailVerified) {
+            const notice = document.getElementById('email-verification-notice');
+            if (notice) {
+                notice.classList.remove('hidden');
+                const resendBtn = document.getElementById('resend-verification-btn');
+                if (resendBtn && !resendBtn.dataset.listenerAdded) {
+                    resendBtn.dataset.listenerAdded = 'true';
+                    resendBtn.addEventListener('click', async () => {
+                        try {
+                            resendBtn.disabled = true;
+                            const originalText = resendBtn.textContent;
+                            resendBtn.textContent = 'Sending...';
+                            await resendVerificationEmail();
+                            showToast('Verification email sent! Please check your inbox.', 'success');
+                            resendBtn.textContent = originalText;
+                        } catch (error) {
+                            showToast(error.message || 'Failed to resend verification email', 'error');
+                            resendBtn.textContent = originalText;
+                        } finally {
+                            resendBtn.disabled = false;
+                        }
+                    });
+                }
+            }
+        } else {
+            const notice = document.getElementById('email-verification-notice');
+            if (notice) {
+                notice.classList.add('hidden');
+            }
+        }
+    },
+
+    /**
      * Updates UI to show authenticated state.
      * @param {Object} user - User data.
      */
@@ -359,6 +396,9 @@ export const authView = {
                 logoutBtn.addEventListener('click', () => this.handleLogout());
             }
         }
+        
+        // Show email verification notice if needed
+        this.showEmailVerificationNotice(user);
     },
 
     /**

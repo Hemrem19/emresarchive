@@ -281,6 +281,21 @@ export const views = {
                         </div>
                     </section>
                     <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
+                    <section id="email-verification-section" class="hidden">
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-yellow-600 dark:text-yellow-500">Email Verification</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Please verify your email address to complete your account setup.</p>
+                            </div>
+                            <div class="flex items-start md:col-span-2">
+                                <button id="resend-verification-settings-btn" class="rounded-lg bg-yellow-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-yellow-600 flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-base">mail</span>
+                                    <span>Resend Verification Email</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
                     <section>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">

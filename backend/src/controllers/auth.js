@@ -6,6 +6,7 @@
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
+import { generateVerificationToken, getVerificationTokenExpiry, sendVerificationEmail } from '../lib/email.js';
 import crypto from 'crypto';
 
 /**
@@ -31,12 +32,18 @@ export const register = async (req, res, next) => {
     // Hash password
     const passwordHash = await hashPassword(password);
 
+    // Generate verification token
+    const verificationToken = generateVerificationToken();
+    const verificationTokenExpiry = getVerificationTokenExpiry();
+
     // Create user
     const user = await prisma.user.create({
       data: {
         email: email.toLowerCase(),
         passwordHash,
-        name: name || null
+        name: name || null,
+        verificationToken,
+        verificationTokenExpiry
       },
       select: {
         id: true,
@@ -45,6 +52,12 @@ export const register = async (req, res, next) => {
         emailVerified: true,
         createdAt: true
       }
+    });
+
+    // Send verification email (don't wait for it to complete)
+    sendVerificationEmail(user.email, verificationToken, user.name).catch(error => {
+      console.error('[Auth] Failed to send verification email:', error);
+      // Don't throw - user is created, email can be resent later
     });
 
     // Generate access token
@@ -306,14 +319,110 @@ export const getMe = async (req, res, next) => {
 };
 
 /**
- * Verify Email (Placeholder - implement later)
+ * Verify Email
  * POST /api/auth/verify-email
+ * Body: { token: string }
  */
 export const verifyEmail = async (req, res, next) => {
-  res.status(501).json({
-    success: false,
-    error: { message: 'Email verification not implemented yet' }
-  });
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Verification token is required' }
+      });
+    }
+
+    // Find user with this token
+    const user = await prisma.user.findUnique({
+      where: { verificationToken: token }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid verification token' }
+      });
+    }
+
+    // Check if token is expired
+    if (!user.verificationTokenExpiry || user.verificationTokenExpiry < new Date()) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Verification token has expired. Please request a new one.' }
+      });
+    }
+
+    // Check if already verified
+    if (user.emailVerified) {
+      return res.status(200).json({
+        success: true,
+        message: 'Email is already verified'
+      });
+    }
+
+    // Verify email
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        verificationToken: null,
+        verificationTokenExpiry: null
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully'
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Resend Verification Email
+ * POST /api/auth/resend-verification
+ * Requires authentication
+ */
+export const resendVerificationEmail = async (req, res, next) => {
+  try {
+    // User is already attached to request by authenticate middleware
+    const user = req.user;
+
+    if (user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Email is already verified' }
+      });
+    }
+
+    // Generate new verification token
+    const verificationToken = generateVerificationToken();
+    const verificationTokenExpiry = getVerificationTokenExpiry();
+
+    // Update user with new token
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        verificationToken,
+        verificationTokenExpiry
+      }
+    });
+
+    // Send verification email
+    await sendVerificationEmail(user.email, verificationToken, user.name);
+
+    res.json({
+      success: true,
+      message: 'Verification email sent successfully'
+    });
+
+  } catch (error) {
+    next(error);
+  }
 };
 
 /**

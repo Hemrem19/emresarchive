@@ -19,6 +19,8 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   emailVerified   Boolean   @default(false) @map("email_verified")
+  verificationToken String?  @unique @db.VarChar(255) @map("verification_token")
+  verificationTokenExpiry DateTime? @map("verification_token_expiry")
   lastLoginAt     DateTime? @map("last_login_at")
   lastSyncedAt    DateTime? @map("last_synced_at")
   storageUsedBytes BigInt   @default(0) @map("storage_used_bytes")

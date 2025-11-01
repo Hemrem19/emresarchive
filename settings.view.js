@@ -2,7 +2,7 @@ import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPap
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
-import { isAuthenticated, getUser } from './api/auth.js';
+import { isAuthenticated, getUser, resendVerificationEmail } from './api/auth.js';
 import { parseRIS } from './import/ris-parser.js';
 import { restartAutoSync, stopAutoSync, performManualSync } from './core/syncManager.js';
 
