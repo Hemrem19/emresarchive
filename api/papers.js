@@ -393,6 +393,7 @@ export async function uploadPdf(uploadUrl, file, fields = null) {
                 console.error('Upload failed response:', response.status, response.statusText, errorText);
                 throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
             }
+        }
     } catch (error) {
         console.error('Upload PDF error:', error);
         throw error;
