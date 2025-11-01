@@ -121,6 +121,16 @@ For production only (remove localhost origins):
 
 ## Troubleshooting
 
+## Important: Why Direct Bucket Tests Fail
+
+**Testing the bucket root directly (like `/citaversa-pdfs/`) will ALWAYS return 403 Forbidden**, even with CORS configured. This is expected behavior because:
+
+1. R2 doesn't allow unauthenticated requests to bucket roots
+2. CORS only applies to actual object operations (PUT/GET to specific objects)
+3. Presigned URLs include authentication and work with CORS
+
+**You MUST test CORS by actually uploading a PDF through your app** - don't test the bucket URL directly.
+
 ### Still Getting CORS Errors?
 
 **1. Verify Your Exact Origin:**
@@ -148,21 +158,20 @@ Make sure this exact value is in your `AllowedOrigins` array.
 - Try incognito/private browsing mode
 - Check Network tab → OPTIONS request → Response Headers → should see `Access-Control-Allow-Origin`
 
-**4. Test CORS Directly:**
-Open browser console on your site and run:
-```javascript
-fetch('https://a7b962b3375f9a99151d2ae556ec6e31.r2.cloudflarestorage.com/citaversa-pdfs/', {
-  method: 'OPTIONS',
-  headers: {
-    'Origin': window.location.origin,
-    'Access-Control-Request-Method': 'PUT',
-    'Access-Control-Request-Headers': 'content-type'
-  }
-}).then(r => {
-  console.log('CORS Test:', r.status);
-  console.log('Headers:', [...r.headers.entries()]);
-}).catch(e => console.error('CORS Test Failed:', e));
-```
+**4. Check Bucket Permissions:**
+The `403 Forbidden` error suggests R2 is rejecting the request before CORS is checked. This usually means:
+- The bucket needs to be configured to allow public access (or at least CORS preflight)
+- The CORS policy might not be applied correctly
+
+**Important:** R2 CORS only works when:
+1. The CORS policy is correctly configured
+2. You're using a **presigned URL** (not direct bucket access)
+3. The presigned URL is generated correctly by your backend
+
+**5. Test with Presigned URL:**
+CORS won't work when testing against the bucket root. You need to test with an actual presigned URL from your backend. Try uploading a PDF through your app instead of testing the bucket directly.
+
+The 403 error when testing `/citaversa-pdfs/` directly is expected - R2 doesn't allow OPTIONS requests to bucket roots without proper authentication. CORS only applies to actual object operations via presigned URLs.
 
 **5. Alternative: Use Explicit Headers Instead of Wildcard:**
 If `"*"` in `AllowedHeaders` doesn't work, try:
