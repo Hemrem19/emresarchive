@@ -280,6 +280,28 @@ export const views = {
                             </div>
                         </div>
                     </section>
+                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
+                    <section>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Cloud Sync</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Enable cloud sync to access your papers from any device. Data is stored securely in the cloud.</p>
+                            </div>
+                            <div class="flex items-center md:col-span-2">
+                                <div id="cloud-sync-container" class="flex flex-col gap-2">
+                                    <label for="cloud-sync-toggle" class="flex items-center cursor-pointer">
+                                        <div class="relative">
+                                            <input type="checkbox" id="cloud-sync-toggle" class="sr-only peer">
+                                            <div class="w-14 h-8 bg-stone-200 rounded-full dark:bg-stone-700 peer-checked:bg-primary"></div>
+                                            <div class="absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform transform peer-checked:translate-x-6"></div>
+                                        </div>
+                                        <span class="ml-3 text-sm font-medium text-stone-700 dark:text-stone-300">Enable Cloud Sync</span>
+                                    </label>
+                                    <p id="cloud-sync-status" class="text-xs text-gray-500 dark:text-gray-400 ml-20"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                     <div class="border-t border-red-500/30 dark:border-red-500/20"></div>
                     <section>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
@@ -548,6 +570,89 @@ export const views = {
                 <div id="graph-tooltip" class="hidden absolute bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg shadow-xl p-4 max-w-sm pointer-events-none z-50">
                     <div id="graph-tooltip-content"></div>
                 </div>
+            </div>
+        </div>
+    `,
+    
+    // Authentication Modal
+    authModal: `
+        <div id="auth-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+            <!-- Overlay -->
+            <div id="auth-modal-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+            
+            <!-- Modal -->
+            <div class="relative bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 w-full max-w-md p-6 z-10">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-6">
+                    <h2 id="auth-modal-title" class="text-2xl font-bold text-stone-900 dark:text-white">Login</h2>
+                    <button id="auth-modal-close" class="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-stone-500 dark:text-stone-400">close</span>
+                    </button>
+                </div>
+                
+                <!-- Tabs (Login / Register) -->
+                <div class="flex gap-2 mb-6 border-b border-stone-200 dark:border-stone-800">
+                    <button id="auth-tab-login" class="px-4 py-2 text-sm font-medium text-primary border-b-2 border-primary transition-colors">
+                        Login
+                    </button>
+                    <button id="auth-tab-register" class="px-4 py-2 text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 border-b-2 border-transparent transition-colors">
+                        Register
+                    </button>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="auth-error" class="hidden mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p id="auth-error-message" class="text-sm text-red-700 dark:text-red-400"></p>
+                </div>
+                
+                <!-- Success Message -->
+                <div id="auth-success" class="hidden mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <p id="auth-success-message" class="text-sm text-green-700 dark:text-green-400"></p>
+                </div>
+                
+                <!-- Login Form -->
+                <form id="auth-login-form" class="space-y-4">
+                    <div>
+                        <label for="auth-login-email" class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Email</label>
+                        <input type="email" id="auth-login-email" required 
+                            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-stone-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label for="auth-login-password" class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Password</label>
+                        <input type="password" id="auth-login-password" required 
+                            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-stone-800 dark:text-white">
+                    </div>
+                    <button type="submit" 
+                        class="w-full bg-primary text-white py-2 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+                        <span id="auth-login-loading" class="hidden material-symbols-outlined animate-spin">refresh</span>
+                        <span>Login</span>
+                    </button>
+                </form>
+                
+                <!-- Register Form -->
+                <form id="auth-register-form" class="space-y-4 hidden">
+                    <div>
+                        <label for="auth-register-name" class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Name</label>
+                        <input type="text" id="auth-register-name" required 
+                            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-stone-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label for="auth-register-email" class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Email</label>
+                        <input type="email" id="auth-register-email" required 
+                            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-stone-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label for="auth-register-password" class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Password</label>
+                        <input type="password" id="auth-register-password" required minlength="8"
+                            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-stone-800 dark:text-white">
+                        <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">Minimum 8 characters</p>
+                    </div>
+                    <button type="submit" 
+                        class="w-full bg-primary text-white py-2 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+                        <span id="auth-register-loading" class="hidden material-symbols-outlined animate-spin">refresh</span>
+                        <span>Register</span>
+                    </button>
+                </form>
             </div>
         </div>
     `

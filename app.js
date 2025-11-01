@@ -2,6 +2,7 @@ import { openDB } from './db.js';
 import { views as templates } from './views.js';
 import { highlightActiveSidebarLink } from './ui.js';
 import { getStatusOrder } from './config.js';
+import { authView } from './auth.view.js';
 
 // Import refactored core modules
 import { createAppState } from './core/state.js';
@@ -48,6 +49,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     renderSidebarStatusLinks(); // Initial render on page load
+
+    // --- Authentication Initialization ---
+    authView.mount().then(() => {
+        console.log('Authentication view initialized');
+    }).catch(console.error);
     
     // --- Initialize Application State ---
     const app = document.getElementById('app');

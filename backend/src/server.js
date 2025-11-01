@@ -8,6 +8,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 
 // Load environment variables
 dotenv.config();
@@ -32,8 +33,59 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 app.use(helmet());
 
 // CORS configuration
+// Allow common development ports for local testing
+const allowedOrigins = [
+  FRONTEND_URL,
+  'http://localhost:8080',
+  'http://localhost:5500',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:8081',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:8081'
+];
+
+// In development, allow all localhost origins
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: (origin, callback) => {
+    // In development, be more permissive
+    if (isDevelopment) {
+      // Allow requests with no origin (file:// URLs, Postman, etc.)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      
+      // Allow any localhost origin in development
+      if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('::1')) {
+        callback(null, true);
+        return;
+      }
+      
+      // Also check allowed origins list
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      
+      // Log blocked origins in development for debugging
+      console.log(`⚠️  CORS: Blocked origin: ${origin}`);
+      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+      callback(new Error(`Not allowed by CORS: ${origin}`));
+    } else {
+      // Production: strict CORS
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -46,9 +98,25 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// Cookie parser (for refresh tokens)
+app.use(cookieParser());
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// BigInt JSON serialization (Prisma returns BigInt for large integers)
+app.use((req, res, next) => {
+  const originalJson = res.json;
+  res.json = function(data) {
+    const jsonString = JSON.stringify(data, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    );
+    res.setHeader('Content-Type', 'application/json');
+    res.send(jsonString);
+  };
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -80,6 +148,14 @@ app.listen(PORT, () => {
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
   console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  
+  // Log deployment URL if available
+  if (process.env.RAILWAY_STATIC_URL) {
+    console.log(`🔗 Railway URL: ${process.env.RAILWAY_STATIC_URL}`);
+  }
+  if (process.env.RENDER_EXTERNAL_URL) {
+    console.log(`🔗 Render URL: ${process.env.RENDER_EXTERNAL_URL}`);
+  }
 });
 
 // Graceful shutdown

@@ -3,7 +3,7 @@
  * Verifies JWT access tokens
  */
 
-import jwt from 'jsonwebtoken';
+import { verifyAccessToken } from '../lib/jwt.js';
 import { prisma } from '../lib/prisma.js';
 
 export const authenticate = async (req, res, next) => {
@@ -21,7 +21,7 @@ export const authenticate = async (req, res, next) => {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    const decoded = verifyAccessToken(token);
 
     // Get user from database
     const user = await prisma.user.findUnique({
@@ -47,17 +47,17 @@ export const authenticate = async (req, res, next) => {
     next();
 
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        error: { message: 'Invalid token' }
-      });
-    }
-
-    if (error.name === 'TokenExpiredError') {
+    if (error.message.includes('expired')) {
       return res.status(401).json({
         success: false,
         error: { message: 'Token expired' }
+      });
+    }
+
+    if (error.message.includes('Invalid')) {
+      return res.status(401).json({
+        success: false,
+        error: { message: 'Invalid token' }
       });
     }
 

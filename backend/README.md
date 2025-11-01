@@ -33,7 +33,17 @@ Backend API for citavErsa - Research Paper Management System.
    npm run db:migrate
    ```
 
-4. **Start development server:**
+4. **Set up S3 storage (Cloudflare R2):**
+   - See [S3_SETUP.md](./S3_SETUP.md) for detailed instructions
+   - Configure S3 credentials in `.env`:
+     ```env
+     S3_BUCKET_NAME=citaversa-pdfs
+     S3_ENDPOINT=https://xxxxxxxxxxxxxx.r2.cloudflarestorage.com
+     S3_ACCESS_KEY_ID=your-access-key-id
+     S3_SECRET_ACCESS_KEY=your-secret-access-key
+     ```
+
+5. **Start development server:**
    ```bash
    npm run dev
    ```

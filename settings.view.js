@@ -1,7 +1,8 @@
 import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi } from './db.js';
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
-import { getStatusOrder, saveStatusOrder } from './config.js';
+import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled } from './config.js';
+import { isAuthenticated, getUser } from './api/auth.js';
 import { parseRIS } from './import/ris-parser.js';
 
 export const settingsView = {
@@ -11,6 +12,7 @@ export const settingsView = {
         this.setupStatistics();
         this.setupStatusReordering();
         this.setupImportExport(appState);
+        this.setupCloudSync();
         this.setupDangerZone(appState);
     },
 
@@ -84,6 +86,62 @@ export const settingsView = {
                 statsList.innerHTML = `<p class="text-red-500">Failed to load statistics.</p>`;
             }
         }
+    },
+
+    setupCloudSync() {
+        const toggle = document.getElementById('cloud-sync-toggle');
+        const statusText = document.getElementById('cloud-sync-status');
+        
+        if (!toggle || !statusText) return;
+
+        // Update UI based on current state
+        const updateUI = () => {
+            const syncEnabled = isCloudSyncEnabled();
+            const authenticated = isAuthenticated();
+            
+            toggle.checked = syncEnabled && authenticated;
+            toggle.disabled = !authenticated;
+            
+            if (!authenticated) {
+                statusText.textContent = 'Please log in to enable cloud sync.';
+                statusText.classList.add('text-yellow-600', 'dark:text-yellow-500');
+                statusText.classList.remove('text-green-600', 'text-gray-500', 'dark:text-gray-400');
+            } else if (syncEnabled) {
+                const user = getUser();
+                statusText.textContent = `Cloud sync enabled for ${user?.name || user?.email || 'your account'}.`;
+                statusText.classList.add('text-green-600', 'dark:text-green-500');
+                statusText.classList.remove('text-yellow-600', 'dark:text-yellow-500', 'text-gray-500', 'dark:text-gray-400');
+            } else {
+                statusText.textContent = 'Cloud sync disabled. Using local storage only.';
+                statusText.classList.add('text-gray-500', 'dark:text-gray-400');
+                statusText.classList.remove('text-green-600', 'dark:text-green-500', 'text-yellow-600', 'dark:text-yellow-500');
+            }
+        };
+
+        // Initial UI update
+        updateUI();
+
+        // Handle toggle change
+        toggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            
+            if (enabled && !isAuthenticated()) {
+                // Show login prompt
+                showToast('Please log in to enable cloud sync.', 'warning');
+                toggle.checked = false;
+                updateUI();
+                return;
+            }
+
+            setCloudSyncEnabled(enabled);
+            updateUI();
+            
+            if (enabled) {
+                showToast('Cloud sync enabled! Your data will now be synced to the cloud.', 'success');
+            } else {
+                showToast('Cloud sync disabled. Using local storage only.', 'info');
+            }
+        });
     },
 
     setupStatusReordering() {
