@@ -357,7 +357,6 @@ async function startServer() {
       await testDatabaseConnection();
       
       // Verify schema by checking if verification_token column exists
-      // Only verify if we're not in a migration failure state
       try {
         await prisma.$queryRaw`SELECT verification_token FROM users LIMIT 1`;
         console.log('✅ Database: Schema verified (verification_token column exists)');
@@ -366,47 +365,65 @@ async function startServer() {
         if (schemaError.code === '42703' || schemaError.code === 'P2022' || 
             (schemaError.message && schemaError.message.includes('does not exist'))) {
           console.error('⚠️ Database: Schema mismatch detected. verification_token column missing.');
-          console.error('   This means migrations did not run successfully during build.');
-          console.error('   Attempting to run migrations now...');
+          console.error('   Migrations are marked as applied, but column is missing.');
+          console.error('   Applying migration SQL directly...');
           
-          // Try to run migrations one more time
+          // Apply the migration SQL directly to fix the schema mismatch
           try {
-            const childProcess = await import('child_process');
-            const { execSync } = childProcess;
-            const path = await import('path');
+            // Check if column exists using information_schema
+            const columnCheck = await prisma.$queryRaw`
+              SELECT column_name 
+              FROM information_schema.columns 
+              WHERE table_name = 'users' AND column_name = 'verification_token'
+            `;
             
-            const cwd = process.cwd();
-            let backendDir = cwd;
-            
-            // Check if we need to navigate to backend directory
-            // Railway runs start command with "cd backend && npm start", so we're already in backend
-            if (!cwd.endsWith('backend')) {
-              const backendPath = path.join(cwd, 'backend');
-              const fs = await import('fs');
-              if (fs.existsSync(backendPath)) {
-                backendDir = backendPath;
+            if (Array.isArray(columnCheck) && columnCheck.length === 0) {
+              console.log('   Column does not exist, applying migration SQL...');
+              
+              // Apply the migration SQL directly (using IF NOT EXISTS pattern)
+              await prisma.$executeRaw`
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'verification_token'
+                    ) THEN
+                        ALTER TABLE "users" ADD COLUMN "verification_token" VARCHAR(255);
+                    END IF;
+                    
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'verification_token_expiry'
+                    ) THEN
+                        ALTER TABLE "users" ADD COLUMN "verification_token_expiry" TIMESTAMP(3);
+                    END IF;
+                END $$;
+              `;
+              
+              // Create index if it doesn't exist
+              await prisma.$executeRaw`
+                CREATE UNIQUE INDEX IF NOT EXISTS "users_verification_token_key" 
+                ON "users"("verification_token") 
+                WHERE "verification_token" IS NOT NULL;
+              `;
+              
+              console.log('✅ Migration SQL applied directly');
+              
+              // Verify again after applying SQL
+              try {
+                await prisma.$queryRaw`SELECT verification_token FROM users LIMIT 1`;
+                console.log('✅ Database: Schema verified after direct SQL application');
+              } catch (verifyError) {
+                console.error('❌ Schema verification still failed after SQL application');
+                console.error('   Error:', verifyError.message);
               }
+            } else {
+              console.log('   Column exists (schema check passed)');
             }
-            
-            console.log(`   Running migrations from: ${backendDir}`);
-            execSync('npx prisma migrate deploy', {
-              stdio: 'inherit',
-              env: { ...process.env },
-              cwd: backendDir,
-              shell: true
-            });
-            console.log('✅ Migrations completed successfully');
-            
-            // Verify again after migration
-            try {
-              await prisma.$queryRaw`SELECT verification_token FROM users LIMIT 1`;
-              console.log('✅ Database: Schema verified after migration');
-            } catch (verifyError) {
-              console.error('❌ Schema verification still failed after migration attempt');
-            }
-          } catch (migrationError) {
-            console.error('❌ Failed to run migrations:', migrationError.message);
-            console.error('   Please run migrations manually or check Railway build logs');
+          } catch (sqlError) {
+            console.error('❌ Failed to apply migration SQL:', sqlError.message);
+            console.error('   You may need to manually apply the migration');
+            // Don't throw - continue with fallback user creation
           }
         } else {
           // Re-throw unknown schema errors
