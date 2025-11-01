@@ -55,7 +55,6 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
 - Each origin must be listed separately
 - `AllowedHeaders` can be `["*"]` to allow all headers
 - `ExposeHeaders` should be minimal - just `["ETag"]` is usually sufficient
-- `ExposeHeaders` should be minimal - just `["ETag"]` is usually sufficient
 
 3. Click **Save**
 
@@ -124,14 +123,55 @@ For production only (remove localhost origins):
 
 ### Still Getting CORS Errors?
 
-1. **Verify CORS policy saved**: Check R2 bucket Settings → CORS Policy
-2. **Check exact origin match**: Your frontend URL must match exactly (including `https://`)
-3. **Clear browser cache**: Hard refresh (Ctrl+Shift+R / Cmd+Shift+R)
-4. **Wait for propagation**: CORS changes can take 1-2 minutes
-5. **Check Network tab**:
-   - Look at OPTIONS request headers
-   - Check `Access-Control-Allow-Origin` response header
-   - Verify PUT request includes `Content-Type` header
+**1. Verify Your Exact Origin:**
+Open browser console and run this to see your exact origin:
+```javascript
+console.log('Current origin:', window.location.origin);
+```
+Make sure this exact value is in your `AllowedOrigins` array.
+
+**2. Verify CORS Policy Saved:**
+- Go to R2 bucket → Settings → CORS Policy
+- Make sure the policy shows up (not empty)
+- Check that your exact origin is listed
+
+**3. Common Issues:**
+
+**Origin Mismatch:**
+- `https://citaversa.com` ≠ `https://www.citaversa.com` (add both if needed)
+- `https://citaversa.com` ≠ `http://citaversa.com` (must match protocol)
+- Check for trailing slashes or paths in your origin
+
+**CORS Policy Not Applied:**
+- Wait 2-3 minutes after saving
+- Clear browser cache completely
+- Try incognito/private browsing mode
+- Check Network tab → OPTIONS request → Response Headers → should see `Access-Control-Allow-Origin`
+
+**4. Test CORS Directly:**
+Open browser console on your site and run:
+```javascript
+fetch('https://a7b962b3375f9a99151d2ae556ec6e31.r2.cloudflarestorage.com/citaversa-pdfs/', {
+  method: 'OPTIONS',
+  headers: {
+    'Origin': window.location.origin,
+    'Access-Control-Request-Method': 'PUT',
+    'Access-Control-Request-Headers': 'content-type'
+  }
+}).then(r => {
+  console.log('CORS Test:', r.status);
+  console.log('Headers:', [...r.headers.entries()]);
+}).catch(e => console.error('CORS Test Failed:', e));
+```
+
+**5. Alternative: Use Explicit Headers Instead of Wildcard:**
+If `"*"` in `AllowedHeaders` doesn't work, try:
+```json
+"AllowedHeaders": [
+  "Content-Type",
+  "x-amz-*"
+]
+```
 
 ### 400 Bad Request (Not CORS)?
 
