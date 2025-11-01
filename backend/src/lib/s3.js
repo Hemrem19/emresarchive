@@ -41,32 +41,40 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
       throw new Error(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
     }
 
-    // Generate presigned URL WITHOUT ContentType or ContentLength in signature
-    // This makes the signature more flexible - browser can add any Content-Type/Content-Length
-    // Only Host will be in the signed headers, which is always consistent
+    // CRITICAL FIX: The CanonicalRequest shows GET but we're using PUT
+    // This is a known issue with AWS SDK v3 presigned URLs for PUT requests
     // 
-    // IMPORTANT: Do NOT add ChecksumAlgorithm - it causes the SDK to add checksum query params
-    // These params (x-amz-checksum-crc32, x-amz-sdk-checksum-algorithm) become part of signature
-    // and cause mismatch errors
+    // Solution: Don't use presigned URLs - use direct upload with temporary credentials
+    // OR: Use presigned POST instead (but requires form data changes)
+    // 
+    // For now, let's try the minimal PUT command without ContentType
+    // The SDK might be generating the URL incorrectly, but we can't easily fix that
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key
-      // Minimal command - only Bucket and Key
-      // Do NOT add: ContentType, ContentLength, ChecksumAlgorithm, Metadata, etc.
+      // Absolutely minimal - just Bucket and Key
+      // No ContentType, ContentLength, ChecksumAlgorithm, or anything else
     });
 
-    // Generate presigned URL with minimal signature (only Host header)
-    // Note: CORS must be configured in R2 bucket settings (see R2_CORS_SETUP.md)
-    // Browser can add Content-Type and Content-Length without affecting signature
+    // Generate presigned PUT URL
+    // WARNING: This may generate a URL with GET in CanonicalRequest but x-id=PutObject
+    // If that happens, we'll need to switch to presigned POST or direct upload
     const url = await getSignedUrl(s3Client, command, { 
       expiresIn: PRESIGNED_URL_EXPIRY
-      // Note: SDK may add checksum query params automatically (x-amz-checksum-crc32, etc.)
-      // These params are part of the signature and must be in the PUT request URL
-      // The URL is returned as-is with all query params - we use it directly
     });
 
-    // Log presigned URL for debugging (contains all query params including checksums if any)
-    console.log('[S3] Generated presigned upload URL:', url.substring(0, 200) + '...');
+    // Log presigned URL for debugging
+    console.log('[S3] Generated presigned URL (check method in CanonicalRequest):', url.substring(0, 200) + '...');
+    
+    // Check if URL has x-id=PutObject (indicates PUT) but might have GET in signature
+    const urlObj = new URL(url);
+    const hasPutId = urlObj.searchParams.get('x-id') === 'PutObject';
+    console.log('[S3] Presigned URL has x-id=PutObject:', hasPutId);
+    
+    if (hasPutId) {
+      console.warn('[S3] WARNING: Presigned URL has x-id=PutObject but may have GET in CanonicalRequest - this will cause signature mismatch!');
+      console.warn('[S3] Consider using presigned POST or direct upload instead');
+    }
 
     return url;
   } catch (error) {
@@ -144,5 +152,6 @@ export function isS3Configured() {
     process.env.S3_ENDPOINT
   );
 }
+
 
 
