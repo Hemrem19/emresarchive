@@ -10,6 +10,7 @@ import { updateUrlHash, applyFiltersAndRender } from './core/filters.js';
 import { createRouter, renderView, handleBeforeUnload, initializeRouter } from './core/router.js';
 import { createCommandPalette } from './core/commandPalette.js';
 import { createKeyboardShortcuts } from './core/keyboardShortcuts.js';
+import { initializeAutoSync } from './core/syncManager.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
