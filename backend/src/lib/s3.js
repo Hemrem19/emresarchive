@@ -60,9 +60,13 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
     // Browser can add Content-Type and Content-Length without affecting signature
     const url = await getSignedUrl(s3Client, command, { 
       expiresIn: PRESIGNED_URL_EXPIRY
-      // Note: SDK may add checksum query params automatically
-      // These params must be included in the PUT request exactly as in the presigned URL
+      // Note: SDK may add checksum query params automatically (x-amz-checksum-crc32, etc.)
+      // These params are part of the signature and must be in the PUT request URL
+      // The URL is returned as-is with all query params - we use it directly
     });
+
+    // Log presigned URL for debugging (contains all query params including checksums if any)
+    console.log('[S3] Generated presigned upload URL:', url.substring(0, 200) + '...');
 
     return url;
   } catch (error) {
