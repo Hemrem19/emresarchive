@@ -40,21 +40,20 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
       throw new Error(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
     }
 
-    // Generate presigned URL WITHOUT ContentLength in signature
-    // This allows the browser to set Content-Length automatically from file.size
-    // We still set ContentType for metadata, but don't require it in signature
+    // Generate presigned URL WITHOUT ContentType or ContentLength in signature
+    // This makes the signature more flexible - browser can add any Content-Type/Content-Length
+    // Only Host will be in the signed headers, which is always consistent
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
-      Key: key,
-      ContentType: contentType
-      // Do NOT include ContentLength - let browser set it automatically
-      // This prevents signature mismatch if file.size changes or browser adds headers
+      Key: key
+      // Do NOT include ContentType or ContentLength
+      // This prevents signature mismatch - browser can set these headers freely
     });
 
     // Generate presigned URL
     // Note: CORS must be configured in R2 bucket settings (see R2_CORS_SETUP.md)
-    // The signed headers will be: Content-Type, Host (not Content-Length)
-    // The browser will automatically add Content-Length which won't affect the signature
+    // The signed headers will be: Host only
+    // Browser can add Content-Type and Content-Length without affecting signature
     const url = await getSignedUrl(s3Client, command, { expiresIn: PRESIGNED_URL_EXPIRY });
 
     return url;

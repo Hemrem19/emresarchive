@@ -348,20 +348,20 @@ export async function getUploadUrl(options) {
  */
 export async function uploadPdf(uploadUrl, file) {
     try {
-        // For presigned URLs WITHOUT ContentLength in signature:
-        // - Content-Type should match what was used to generate the presigned URL
-        // - Content-Length is automatically set by browser and NOT part of signature
-        // - Browser automatically adds Content-Length from file.size
+        // For presigned URLs WITHOUT ContentType or ContentLength in signature:
+        // - Only Host is in the signature, so we can send any headers
+        // - Browser automatically sets Content-Type and Content-Length
+        // - These headers are NOT part of the signature, so any value works
         const response = await fetch(uploadUrl, {
             method: 'PUT',
             body: file,
             headers: {
-                // Content-Type must match what was used in PutObjectCommand
+                // Set Content-Type for proper file handling
+                // Since ContentType is NOT in presigned URL signature, any value works
                 'Content-Type': 'application/pdf'
             }
-            // DO NOT set Content-Length manually - browser sets it automatically
-            // Since ContentLength is NOT in the presigned URL signature, 
-            // any value the browser sets will work
+            // DO NOT set Content-Length - browser sets it automatically from file.size
+            // Since ContentLength is NOT in presigned URL signature, any value works
         });
 
         if (!response.ok) {
