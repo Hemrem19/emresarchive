@@ -3,7 +3,7 @@ import { showToast } from './ui.js';
 import { fetchDoiMetadata } from './api.js';
 import { isCloudSyncEnabled } from './config.js';
 import { isAuthenticated } from './api/auth.js';
-import { getUploadUrl, uploadPdf } from './api/papers.js';
+import { getUploadUrl, uploadPdf, uploadPdfViaBackend } from './api/papers.js';
 
 export const formView = {
     isEditMode: false,
@@ -213,22 +213,17 @@ export const formView = {
                 const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
                 
                 if (useCloudSync) {
-                    // Cloud sync: Upload PDF to S3
+                    // Cloud sync: Upload PDF to S3 via backend (avoids presigned URL signature issues)
                     try {
                         showToast('Uploading PDF to cloud...', 'info');
-                        // Ensure contentType is exactly 'application/pdf' for presigned URL signature
-                        // The upload request must use the same Content-Type that was signed in the URL
-                        const { uploadUrl, s3Key, fields } = await getUploadUrl({
-                            filename: pdfFile.name,
-                            size: pdfFile.size,
-                            contentType: 'application/pdf', // Always use 'application/pdf' (file.type might vary)
-                            paperId: this.isEditMode ? this.paperId : null
-                        });
+                        // Upload via backend server - avoids signature mismatch issues with presigned URLs
+                        const { s3Key, pdfSizeBytes, filename } = await uploadPdfViaBackend(
+                            pdfFile,
+                            this.isEditMode ? this.paperId : null
+                        );
                         
-                        // Upload using presigned POST (fields) or PUT (fallback)
-                        await uploadPdf(uploadUrl, pdfFile, fields);
                         paperData.s3Key = s3Key;
-                        paperData.pdfSizeBytes = pdfFile.size;
+                        paperData.pdfSizeBytes = pdfSizeBytes;
                         paperData.hasPdf = true;
                         showToast('PDF uploaded to cloud successfully!', 'success');
                     } catch (uploadError) {
