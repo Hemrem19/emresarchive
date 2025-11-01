@@ -131,14 +131,39 @@ For production only (remove localhost origins):
 
 **You MUST test CORS by actually uploading a PDF through your app** - don't test the bucket URL directly.
 
-### Still Getting CORS Errors?
+### Still Getting 403 Forbidden (Even After CORS Configured)?
 
-**1. Verify Your Exact Origin:**
+If OPTIONS preflight succeeds (204) but PUT fails with 403:
+
+**1. Verify CORS Policy is Actually Applied:**
+- Go to R2 bucket → Settings → CORS Policy
+- Make sure the policy shows (not empty)
+- Click **Edit CORS Policy** and verify your exact origin is there
+- Click **Save** again (even if it looks correct)
+
+**2. Check for Additional Headers:**
+The presigned URL might include additional headers that aren't in your CORS policy. Check the Network tab → PUT request → Request Headers. If you see headers like:
+- `x-amz-checksum-*`
+- `x-amz-sdk-*`
+- Custom headers
+
+Add them to `AllowedHeaders` in your CORS policy:
+
+```json
+"AllowedHeaders": [
+  "*",
+  "x-amz-*",
+  "content-type",
+  "content-length"
+]
+```
+
+**3. Verify Your Exact Origin:**
 Open browser console and run this to see your exact origin:
 ```javascript
 console.log('Current origin:', window.location.origin);
 ```
-Make sure this exact value is in your `AllowedOrigins` array.
+Make sure this exact value (including `https://` or `http://`) is in your `AllowedOrigins` array.
 
 **2. Verify CORS Policy Saved:**
 - Go to R2 bucket → Settings → CORS Policy
@@ -173,14 +198,45 @@ CORS won't work when testing against the bucket root. You need to test with an a
 
 The 403 error when testing `/citaversa-pdfs/` directly is expected - R2 doesn't allow OPTIONS requests to bucket roots without proper authentication. CORS only applies to actual object operations via presigned URLs.
 
-**5. Alternative: Use Explicit Headers Instead of Wildcard:**
-If `"*"` in `AllowedHeaders` doesn't work, try:
+**5. Try More Permissive Headers Configuration:**
+If `"*"` in `AllowedHeaders` doesn't work for PUT requests, try explicitly listing all headers:
+
 ```json
-"AllowedHeaders": [
-  "Content-Type",
-  "x-amz-*"
+[
+  {
+    "AllowedOrigins": [
+      "https://citaversa.com",
+      "http://localhost:8080",
+      "http://localhost:5500"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "*",
+      "Content-Type",
+      "Content-Length",
+      "x-amz-*",
+      "x-amz-checksum-*",
+      "x-amz-sdk-*"
+    ],
+    "ExposeHeaders": [
+      "ETag",
+      "Content-Length"
+    ],
+    "MaxAgeSeconds": 3600
+  }
 ]
 ```
+
+**6. Verify CORS Policy Format:**
+Make absolutely sure:
+- No trailing slashes in origins: `https://citaversa.com` (NOT `https://citaversa.com/`)
+- No OPTIONS in AllowedMethods
+- Proper JSON formatting (commas, brackets, quotes)
+- Policy is saved (not just edited but also saved)
 
 ### 400 Bad Request (Not CORS)?
 
