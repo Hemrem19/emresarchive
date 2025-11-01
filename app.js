@@ -268,5 +268,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('IndexedDB initialized.');
         router(); // Initial load
         highlightActiveSidebarLink(); // Also highlight on initial load
+        
+        // Initialize automatic sync (if cloud sync enabled and authenticated)
+        initializeAutoSync();
     }).catch(console.error);
 });
