@@ -274,6 +274,21 @@ async function testDatabaseConnection() {
   }
 }
 
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ Unhandled Promise Rejection:', reason);
+  console.error('Promise:', promise);
+  // Don't exit - log and continue
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('⚠️ Uncaught Exception:', error);
+  console.error('Stack:', error.stack);
+  // Don't exit - log and continue (in production, might want to exit gracefully)
+  // In production, you might want to exit here: process.exit(1);
+});
+
 // Start server
 app.listen(PORT, async () => {
   console.log(`🚀 citavErsa Backend running on port ${PORT}`);

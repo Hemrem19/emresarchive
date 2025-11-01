@@ -4,19 +4,26 @@
  */
 
 export const errorHandler = (err, req, res, next) => {
-  // Log error for debugging
-  console.error('Error:', err);
-  console.error('Error stack:', err.stack);
+  // Prevent sending response twice
+  if (res.headersSent) {
+    return next(err);
+  }
 
   // Handle Prisma errors
   let statusCode = err.statusCode || err.status || 500;
   let message = err.message || 'Internal Server Error';
 
-  // Prisma unique constraint violation (P2002)
+  // Prisma unique constraint violation (P2002) - handled gracefully
   if (err.code === 'P2002') {
     statusCode = 400;
     const field = err.meta?.target?.[0] || 'field';
     message = `A record with this ${field} already exists`;
+    // Don't log these as errors - they're expected business logic errors
+    console.log(`ℹ️  Duplicate ${field} detected (handled gracefully):`, err.meta?.target);
+  } else {
+    // Log unexpected errors
+    console.error('Error:', err);
+    console.error('Error stack:', err.stack);
   }
 
   // Prisma record not found (P2025)
