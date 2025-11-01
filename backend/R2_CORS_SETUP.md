@@ -39,7 +39,10 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
       "HEAD"
     ],
     "AllowedHeaders": [
-      "*"
+      "*",
+      "content-type",
+      "content-length",
+      "host"
     ],
     "ExposeHeaders": [
       "ETag"
@@ -48,6 +51,8 @@ This happens because Cloudflare R2 requires CORS to be configured in the bucket 
   }
 ]
 ```
+
+**Note:** If `"*"` alone doesn't work, explicitly including `content-type`, `content-length`, and `host` helps because these are the headers that presigned URLs sign.
 
 **Important Notes:**
 - **Do NOT include "OPTIONS" in AllowedMethods** - Cloudflare R2 automatically handles OPTIONS preflight requests, so you don't need to include it
