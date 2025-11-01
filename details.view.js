@@ -507,6 +507,7 @@ export const detailsView = {
     };
 
     // Load PDF from URL (for cloud-stored PDFs)
+    // Downloads the PDF first to avoid CORS issues with presigned URLs
     const loadPdfFromUrl = async (pdfUrl) => {
         if (!pdfUrl || !window.pdfjsLib) {
             console.error('PDF.js not loaded or no PDF URL provided');
@@ -515,7 +516,30 @@ export const detailsView = {
 
         try {
             showToast('Loading PDF...', 'info');
-            const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
+            console.log('[Details] Fetching PDF from URL:', pdfUrl);
+            
+            // Fetch PDF as blob to avoid CORS issues with presigned URLs
+            const response = await fetch(pdfUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (contentType && !contentType.includes('application/pdf')) {
+                // If not PDF, read as text to see error message
+                const errorText = await response.text();
+                console.error('[Details] Server returned non-PDF content:', errorText.substring(0, 200));
+                throw new Error(`Server returned ${contentType} instead of PDF. This may be a CORS or authentication error.`);
+            }
+            
+            const blob = await response.blob();
+            console.log('[Details] PDF blob received, size:', blob.size);
+            
+            // Convert blob to array buffer for PDF.js
+            const arrayBuffer = await blob.arrayBuffer();
+            
+            // Load PDF from array buffer (avoids CORS issues)
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
             pdfState.pdfDoc = await loadingTask.promise;
             pdfState.totalPages = pdfState.pdfDoc.numPages;
             
@@ -526,11 +550,16 @@ export const detailsView = {
             // Render first page
             await renderPdfPage(1);
             
-            console.log(`PDF loaded from URL: ${pdfState.totalPages} pages`);
+            console.log(`[Details] PDF loaded from URL: ${pdfState.totalPages} pages`);
             showToast('PDF loaded successfully', 'success');
         } catch (error) {
-            console.error('Error loading PDF from URL:', error);
-            showToast('Failed to load PDF document', 'error');
+            console.error('[Details] Error loading PDF from URL:', error);
+            console.error('[Details] Error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
+            showToast(`Failed to load PDF: ${error.message}`, 'error');
         }
     };
 
