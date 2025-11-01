@@ -200,8 +200,21 @@ export async function uploadFileToS3(fileBuffer, key, contentType) {
   try {
     // Validate S3 configuration
     if (!BUCKET_NAME || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
-      throw new Error('S3 storage is not configured. Please set S3_BUCKET_NAME, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY environment variables.');
+      const missing = [];
+      if (!BUCKET_NAME) missing.push('S3_BUCKET_NAME');
+      if (!process.env.S3_ACCESS_KEY_ID) missing.push('S3_ACCESS_KEY_ID');
+      if (!process.env.S3_SECRET_ACCESS_KEY) missing.push('S3_SECRET_ACCESS_KEY');
+      throw new Error(`S3 storage is not configured. Missing: ${missing.join(', ')}`);
     }
+
+    console.log('[S3] Starting upload:', {
+      key,
+      contentType,
+      bufferType: fileBuffer?.constructor?.name,
+      bufferLength: fileBuffer?.length || fileBuffer?.size,
+      endpoint: process.env.S3_ENDPOINT,
+      bucket: BUCKET_NAME
+    });
 
     // Convert Blob to Buffer if needed
     let buffer;
@@ -212,6 +225,8 @@ export async function uploadFileToS3(fileBuffer, key, contentType) {
       buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     }
 
+    console.log('[S3] Buffer prepared:', { bufferLength: buffer.length, bufferType: buffer.constructor.name });
+
     // Upload directly using PutObjectCommand (server-side, not presigned)
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
@@ -220,10 +235,18 @@ export async function uploadFileToS3(fileBuffer, key, contentType) {
       ContentType: contentType
     });
 
+    console.log('[S3] Sending PutObjectCommand to S3/R2...');
     await s3Client.send(command);
-    console.log('[S3] Uploaded file directly to S3/R2:', key);
+    console.log('[S3] Successfully uploaded file to S3/R2:', key);
   } catch (error) {
-    console.error('Error uploading file to S3:', error);
+    console.error('[S3] Error uploading file to S3:', error);
+    console.error('[S3] Error name:', error.name);
+    console.error('[S3] Error message:', error.message);
+    console.error('[S3] Error code:', error.Code || error.code);
+    console.error('[S3] Error stack:', error.stack);
+    if (error.$metadata) {
+      console.error('[S3] AWS metadata:', error.$metadata);
+    }
     throw error;
   }
 }
