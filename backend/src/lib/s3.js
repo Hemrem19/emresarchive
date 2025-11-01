@@ -44,14 +44,11 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
       Bucket: BUCKET_NAME,
       Key: key,
       ContentType: contentType,
-      ContentLength: contentLength,
-      // Add CORS headers for Cloudflare R2
-      Metadata: {
-        'origin': '*' // Allow all origins (or restrict to your frontend domain)
-      }
+      ContentLength: contentLength
     });
 
-    // Generate presigned URL with CORS support
+    // Generate presigned URL
+    // Note: CORS must be configured in R2 bucket settings (see R2_CORS_SETUP.md)
     const url = await getSignedUrl(s3Client, command, { expiresIn: PRESIGNED_URL_EXPIRY });
 
     return url;
