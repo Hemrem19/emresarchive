@@ -8,7 +8,8 @@ package-lock.json
 .env.*.local
 
 # Prisma
-prisma/migrations/
+# Note: migrations/ should be committed (not ignored)
+# Only ignore generated files, not migration files
 
 # Logs
 logs/
