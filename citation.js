@@ -207,24 +207,31 @@ export const generateCitation = (paper, format) => {
 export const generateBibliography = (papers, format, style = 'numbered') => {
     if (!papers || papers.length === 0) return '';
 
-    // Sort papers if alphabetical style requested
+    // Always sort papers alphabetically by first author's last name
     let sortedPapers = [...papers];
-    if (style === 'alphabetical') {
-        sortedPapers.sort((a, b) => {
-            // Get first author's last name for sorting
-            const getFirstAuthorLastName = (paper) => {
-                if (!paper.authors || paper.authors.length === 0) return '';
-                const firstAuthor = paper.authors[0].trim();
-                const parts = firstAuthor.split(' ');
-                return parts.length > 0 ? parts[parts.length - 1] : firstAuthor;
-            };
-            const lastNameA = getFirstAuthorLastName(a);
-            const lastNameB = getFirstAuthorLastName(b);
-            return lastNameA.localeCompare(lastNameB);
-        });
-    }
+    sortedPapers.sort((a, b) => {
+        // Get first author's last name for sorting
+        const getFirstAuthorLastName = (paper) => {
+            if (!paper.authors || paper.authors.length === 0) {
+                // Fall back to title if no authors
+                return paper.title ? paper.title.toLowerCase() : '';
+            }
+            const firstAuthor = paper.authors[0].trim();
+            const parts = firstAuthor.split(' ');
+            return parts.length > 0 ? parts[parts.length - 1].toLowerCase() : firstAuthor.toLowerCase();
+        };
+        const lastNameA = getFirstAuthorLastName(a);
+        const lastNameB = getFirstAuthorLastName(b);
+        // Compare by last name, then by title if last names are equal
+        const lastNameCompare = lastNameA.localeCompare(lastNameB);
+        if (lastNameCompare !== 0) return lastNameCompare;
+        // If last names are the same, sort by title
+        const titleA = (a.title || '').toLowerCase();
+        const titleB = (b.title || '').toLowerCase();
+        return titleA.localeCompare(titleB);
+    });
 
-    // Generate citations for all papers (now sorted if alphabetical)
+    // Generate citations for all papers (already sorted alphabetically)
     const citations = sortedPapers.map(paper => generateCitation(paper, format));
 
     // Format with numbers or alphabetical markers
