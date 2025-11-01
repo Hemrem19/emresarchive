@@ -306,7 +306,16 @@ async function importData(dataToImport) {
                                     await addPaperViaAdapter(paperForApi);
                                     paperSuccessCount++;
                                 } catch (cloudError) {
-                                    console.error(`Failed to sync paper "${paper.title}" to cloud:`, cloudError);
+                                    // Log detailed error information before page refresh
+                                    console.error(`=== Failed to sync paper "${paper.title}" to cloud ===`);
+                                    console.error('Error message:', cloudError.message);
+                                    console.error('Error stack:', cloudError.stack);
+                                    if (cloudError.message && cloudError.message.includes('Validation:')) {
+                                        console.error('Validation details are in the error message above');
+                                    }
+                                    console.error(`Paper data that failed:`, JSON.stringify(paperForApi, null, 2));
+                                    console.error('==========================================');
+                                    
                                     // Always save to local storage as fallback
                                     try {
                                         await new Promise((resolveAdd, rejectAdd) => {

@@ -297,10 +297,11 @@ export const settingsView = {
                         appState.allPapersCache = []; // Clear cache in app state
                         
                         // Reload page to ensure clean state
+                        // Delay reload to allow user to see any error messages
                         setTimeout(() => {
                             window.location.hash = '#/';
                             window.location.reload();
-                        }, 1000);
+                        }, 3000); // Increased from 1000ms to 3000ms to see validation errors
                     } catch (error) {
                         console.error('Import failed:', error);
                         showToast(error.message || 'Import failed. The file may be corrupt or in the wrong format.', 'error', {
