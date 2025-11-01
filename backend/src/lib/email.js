@@ -1,17 +1,26 @@
 /**
  * Email Service
  * Handles sending verification emails and other transactional emails
+ * Supports Resend API and SMTP (via Nodemailer)
  */
 
 import crypto from 'crypto';
 
 // Email service configuration
 const EMAIL_CONFIG = {
-  // For now, we'll use a simple email service
-  // In production, integrate with Resend, SendGrid, AWS SES, etc.
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:8080',
-  FROM_EMAIL: process.env.FROM_EMAIL || 'noreply@citaversa.com',
-  FROM_NAME: process.env.FROM_NAME || 'Citaversa'
+  FROM_EMAIL: process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'noreply@citaversa.com',
+  FROM_NAME: process.env.EMAIL_FROM_NAME || process.env.FROM_NAME || 'Citaversa',
+  // Service type: 'resend', 'smtp', or 'log' (for development)
+  SERVICE_TYPE: process.env.EMAIL_SERVICE_TYPE || 'log',
+  // Resend API key (if using Resend)
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  // SMTP configuration (if using SMTP)
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  SMTP_SECURE: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465'
 };
 
 /**
@@ -108,7 +117,7 @@ ${EMAIL_CONFIG.FROM_NAME}
 };
 
 /**
- * Sends a verification email
+ * Sends a verification email using the configured email service
  * @param {string} email - Recipient email address
  * @param {string} token - Verification token
  * @param {string} name - User's name (optional)
@@ -120,32 +129,91 @@ export const sendVerificationEmail = async (email, token, name = null) => {
   
   const html = createVerificationEmailHTML(name, verificationUrl);
   const text = createVerificationEmailText(name, verificationUrl);
+  const subject = 'Verify Your Email Address';
+  const from = `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`;
   
-  // For development: log the email instead of actually sending
-  if (process.env.NODE_ENV !== 'production' || !process.env.EMAIL_SERVICE_ENABLED) {
-    console.log('\n=== VERIFICATION EMAIL ===');
+  // Determine which service to use
+  const serviceType = EMAIL_CONFIG.SERVICE_TYPE.toLowerCase();
+  
+  // Log mode (development or no service configured)
+  if (serviceType === 'log' || (!EMAIL_CONFIG.RESEND_API_KEY && !EMAIL_CONFIG.SMTP_HOST)) {
+    console.log('\n=== VERIFICATION EMAIL (LOG MODE) ===');
     console.log(`To: ${email}`);
-    console.log(`From: ${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`);
-    console.log(`Subject: Verify Your Email Address`);
+    console.log(`From: ${from}`);
+    console.log(`Subject: ${subject}`);
     console.log(`\nVerification URL: ${verificationUrl}`);
-    console.log('==========================\n');
+    console.log('=====================================\n');
     return;
   }
   
-  // TODO: Integrate with actual email service (Resend, SendGrid, AWS SES, etc.)
-  // Example with Resend:
-  // const resend = new Resend(process.env.RESEND_API_KEY);
-  // await resend.emails.send({
-  //   from: `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`,
-  //   to: email,
-  //   subject: 'Verify Your Email Address',
-  //   html,
-  //   text
-  // });
-  
-  // For now, in production without email service, log the URL
-  console.log(`[Email Service] Verification email would be sent to ${email}`);
-  console.log(`[Email Service] Verification URL: ${verificationUrl}`);
+  try {
+    if (serviceType === 'resend') {
+      // Use Resend API
+      if (!EMAIL_CONFIG.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY environment variable is required for Resend service');
+      }
+      
+      // Dynamic import to avoid requiring it if not used
+      const { Resend } = await import('resend');
+      const resend = new Resend(EMAIL_CONFIG.RESEND_API_KEY);
+      
+      const result = await resend.emails.send({
+        from: from,
+        to: email,
+        subject: subject,
+        html: html,
+        text: text
+      });
+      
+      if (result.error) {
+        throw new Error(`Resend API error: ${result.error.message}`);
+      }
+      
+      console.log(`✅ Verification email sent via Resend to ${email}`);
+      return;
+      
+    } else if (serviceType === 'smtp') {
+      // Use SMTP via Nodemailer
+      if (!EMAIL_CONFIG.SMTP_HOST || !EMAIL_CONFIG.SMTP_USER || !EMAIL_CONFIG.SMTP_PASS) {
+        throw new Error('SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables are required for SMTP service');
+      }
+      
+      // Dynamic import to avoid requiring it if not used
+      const nodemailer = await import('nodemailer');
+      
+      const transporter = nodemailer.createTransport({
+        host: EMAIL_CONFIG.SMTP_HOST,
+        port: EMAIL_CONFIG.SMTP_PORT,
+        secure: EMAIL_CONFIG.SMTP_SECURE, // true for 465, false for other ports
+        auth: {
+          user: EMAIL_CONFIG.SMTP_USER,
+          pass: EMAIL_CONFIG.SMTP_PASS
+        }
+      });
+      
+      const info = await transporter.sendMail({
+        from: from,
+        to: email,
+        subject: subject,
+        text: text,
+        html: html
+      });
+      
+      console.log(`✅ Verification email sent via SMTP to ${email} (Message ID: ${info.messageId})`);
+      return;
+      
+    } else {
+      throw new Error(`Unknown email service type: ${serviceType}. Use 'resend', 'smtp', or 'log'`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to send verification email:', error.message);
+    console.error(`   Email was supposed to go to: ${email}`);
+    console.error(`   Verification URL: ${verificationUrl}`);
+    // Don't throw - user registration should still succeed
+    // Email can be resent later
+    throw error;
+  }
 };
 
 /**
