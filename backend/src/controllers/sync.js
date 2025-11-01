@@ -1,27 +1,503 @@
 /**
  * Sync Controller
- * Placeholder for sync controller implementation
+ * Handles full and incremental sync operations
  */
 
-// TODO: Implement sync logic
+import { prisma } from '../lib/prisma.js';
+
+/**
+ * Full Sync
+ * GET /api/sync/full
+ * Returns all papers, collections, and annotations for the authenticated user
+ */
 export const fullSync = async (req, res, next) => {
-  res.status(501).json({
-    success: false,
-    error: { message: 'Not implemented yet' }
-  });
+  try {
+    const userId = req.user.id;
+
+    // Get all papers
+    const papers = await prisma.paper.findMany({
+      where: {
+        userId,
+        deletedAt: null
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      },
+      select: {
+        id: true,
+        title: true,
+        authors: true,
+        year: true,
+        journal: true,
+        doi: true,
+        abstract: true,
+        tags: true,
+        status: true,
+        relatedPaperIds: true,
+        pdfUrl: true,
+        pdfSizeBytes: true,
+        notes: true,
+        readingProgress: true,
+        createdAt: true,
+        updatedAt: true,
+        version: true
+      }
+    });
+
+    // Get all collections
+    const collections = await prisma.collection.findMany({
+      where: {
+        userId,
+        deletedAt: null
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      },
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        color: true,
+        filters: true,
+        createdAt: true,
+        updatedAt: true,
+        version: true
+      }
+    });
+
+    // Get all annotations (with paper IDs)
+    const annotations = await prisma.annotation.findMany({
+      where: {
+        userId,
+        deletedAt: null
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      },
+      select: {
+        id: true,
+        paperId: true,
+        type: true,
+        pageNumber: true,
+        position: true,
+        content: true,
+        color: true,
+        createdAt: true,
+        updatedAt: true,
+        version: true
+      }
+    });
+
+    // Update user's lastSyncedAt (if field exists in schema)
+    // Note: We'll need to add lastSyncedAt to User schema via migration
+    const now = new Date();
+
+    res.json({
+      success: true,
+      data: {
+        papers,
+        collections,
+        annotations,
+        syncedAt: now.toISOString()
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
 };
 
+/**
+ * Incremental Sync
+ * POST /api/sync/incremental
+ * Receives changes from client and returns changes from server since lastSyncAt
+ * Implements conflict resolution (last-write-wins with version tracking)
+ */
 export const incrementalSync = async (req, res, next) => {
-  res.status(501).json({
-    success: false,
-    error: { message: 'Not implemented yet' }
-  });
+  try {
+    const userId = req.user.id;
+    const { lastSyncedAt, changes, clientId } = req.body;
+
+    const syncStartTime = new Date();
+    const lastSyncDate = lastSyncedAt ? new Date(lastSyncedAt) : null;
+
+    // Process client changes (apply to server)
+    const appliedChanges = {
+      papers: { created: 0, updated: 0, deleted: 0, conflicts: [] },
+      collections: { created: 0, updated: 0, deleted: 0, conflicts: [] },
+      annotations: { created: 0, updated: 0, deleted: 0, conflicts: [] }
+    };
+
+    // Process papers
+    for (const paper of changes.papers?.created || []) {
+      try {
+        await prisma.paper.create({
+          data: {
+            ...paper,
+            userId,
+            clientId,
+            version: 1
+          }
+        });
+        appliedChanges.papers.created++;
+      } catch (error) {
+        // Log conflict if paper with same DOI exists
+        if (error.code === 'P2002') {
+          appliedChanges.papers.conflicts.push({ id: paper.id, reason: 'Duplicate DOI' });
+        }
+      }
+    }
+
+    for (const paperUpdate of changes.papers?.updated || []) {
+      try {
+        const existing = await prisma.paper.findFirst({
+          where: { id: paperUpdate.id, userId }
+        });
+
+        if (!existing) {
+          appliedChanges.papers.conflicts.push({ id: paperUpdate.id, reason: 'Not found' });
+          continue;
+        }
+
+        // Conflict resolution: last-write-wins
+        // If client version is >= server version, apply update
+        const clientVersion = paperUpdate.version || 1;
+        if (clientVersion >= existing.version) {
+          const { id, version, ...updateData } = paperUpdate;
+          await prisma.paper.update({
+            where: { id },
+            data: {
+              ...updateData,
+              version: existing.version + 1,
+              clientId
+            }
+          });
+          appliedChanges.papers.updated++;
+        } else {
+          appliedChanges.papers.conflicts.push({ 
+            id: paperUpdate.id, 
+            reason: 'Version conflict (server has newer version)' 
+          });
+        }
+      } catch (error) {
+        appliedChanges.papers.conflicts.push({ id: paperUpdate.id, reason: error.message });
+      }
+    }
+
+    for (const paperId of changes.papers?.deleted || []) {
+      try {
+        await prisma.paper.update({
+          where: { id: paperId, userId },
+          data: {
+            deletedAt: new Date(),
+            clientId
+          }
+        });
+        appliedChanges.papers.deleted++;
+      } catch (error) {
+        // Ignore if already deleted or not found
+      }
+    }
+
+    // Process collections
+    for (const collection of changes.collections?.created || []) {
+      try {
+        await prisma.collection.create({
+          data: {
+            ...collection,
+            userId,
+            clientId,
+            version: 1
+          }
+        });
+        appliedChanges.collections.created++;
+      } catch (error) {
+        appliedChanges.collections.conflicts.push({ id: collection.id, reason: error.message });
+      }
+    }
+
+    for (const collectionUpdate of changes.collections?.updated || []) {
+      try {
+        const existing = await prisma.collection.findFirst({
+          where: { id: collectionUpdate.id, userId }
+        });
+
+        if (!existing) {
+          appliedChanges.collections.conflicts.push({ id: collectionUpdate.id, reason: 'Not found' });
+          continue;
+        }
+
+        const clientVersion = collectionUpdate.version || 1;
+        if (clientVersion >= existing.version) {
+          const { id, version, ...updateData } = collectionUpdate;
+          await prisma.collection.update({
+            where: { id },
+            data: {
+              ...updateData,
+              version: existing.version + 1,
+              clientId
+            }
+          });
+          appliedChanges.collections.updated++;
+        } else {
+          appliedChanges.collections.conflicts.push({ 
+            id: collectionUpdate.id, 
+            reason: 'Version conflict' 
+          });
+        }
+      } catch (error) {
+        appliedChanges.collections.conflicts.push({ id: collectionUpdate.id, reason: error.message });
+      }
+    }
+
+    for (const collectionId of changes.collections?.deleted || []) {
+      try {
+        await prisma.collection.update({
+          where: { id: collectionId, userId },
+          data: {
+            deletedAt: new Date(),
+            clientId
+          }
+        });
+        appliedChanges.collections.deleted++;
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    // Process annotations
+    for (const annotation of changes.annotations?.created || []) {
+      try {
+        await prisma.annotation.create({
+          data: {
+            ...annotation,
+            userId,
+            clientId,
+            version: 1
+          }
+        });
+        appliedChanges.annotations.created++;
+      } catch (error) {
+        appliedChanges.annotations.conflicts.push({ id: annotation.id, reason: error.message });
+      }
+    }
+
+    for (const annotationUpdate of changes.annotations?.updated || []) {
+      try {
+        const existing = await prisma.annotation.findFirst({
+          where: { id: annotationUpdate.id, userId }
+        });
+
+        if (!existing) {
+          appliedChanges.annotations.conflicts.push({ id: annotationUpdate.id, reason: 'Not found' });
+          continue;
+        }
+
+        const clientVersion = annotationUpdate.version || 1;
+        if (clientVersion >= existing.version) {
+          const { id, version, ...updateData } = annotationUpdate;
+          await prisma.annotation.update({
+            where: { id },
+            data: {
+              ...updateData,
+              version: existing.version + 1,
+              clientId
+            }
+          });
+          appliedChanges.annotations.updated++;
+        } else {
+          appliedChanges.annotations.conflicts.push({ 
+            id: annotationUpdate.id, 
+            reason: 'Version conflict' 
+          });
+        }
+      } catch (error) {
+        appliedChanges.annotations.conflicts.push({ id: annotationUpdate.id, reason: error.message });
+      }
+    }
+
+    for (const annotationId of changes.annotations?.deleted || []) {
+      try {
+        await prisma.annotation.update({
+          where: { id: annotationId, userId },
+          data: {
+            deletedAt: new Date(),
+            clientId
+          }
+        });
+        appliedChanges.annotations.deleted++;
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+
+    // Get server changes since lastSyncAt
+    const whereCondition = lastSyncDate 
+      ? { userId, updatedAt: { gt: lastSyncDate }, deletedAt: null }
+      : { userId, deletedAt: null };
+
+    const serverPapers = await prisma.paper.findMany({
+      where: whereCondition,
+      select: {
+        id: true,
+        title: true,
+        authors: true,
+        year: true,
+        journal: true,
+        doi: true,
+        abstract: true,
+        tags: true,
+        status: true,
+        relatedPaperIds: true,
+        pdfUrl: true,
+        pdfSizeBytes: true,
+        notes: true,
+        readingProgress: true,
+        createdAt: true,
+        updatedAt: true,
+        version: true
+      }
+    });
+
+    const serverCollections = await prisma.collection.findMany({
+      where: whereCondition,
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        color: true,
+        filters: true,
+        createdAt: true,
+        updatedAt: true,
+        version: true
+      }
+    });
+
+    const serverAnnotations = await prisma.annotation.findMany({
+      where: whereCondition,
+      select: {
+        id: true,
+        paperId: true,
+        type: true,
+        pageNumber: true,
+        position: true,
+        content: true,
+        color: true,
+        createdAt: true,
+        updatedAt: true,
+        version: true
+      }
+    });
+
+    // Get deleted items
+    const deletedPapers = await prisma.paper.findMany({
+      where: {
+        userId,
+        deletedAt: { not: null },
+        ...(lastSyncDate && { deletedAt: { gt: lastSyncDate } })
+      },
+      select: { id: true }
+    });
+
+    const deletedCollections = await prisma.collection.findMany({
+      where: {
+        userId,
+        deletedAt: { not: null },
+        ...(lastSyncDate && { deletedAt: { gt: lastSyncDate } })
+      },
+      select: { id: true }
+    });
+
+    const deletedAnnotations = await prisma.annotation.findMany({
+      where: {
+        userId,
+        deletedAt: { not: null },
+        ...(lastSyncDate && { deletedAt: { gt: lastSyncDate } })
+      },
+      select: { id: true }
+    });
+
+    // Log sync operation
+    await prisma.syncLog.create({
+      data: {
+        userId,
+        entityType: 'sync',
+        action: 'incremental',
+        clientId
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        appliedChanges,
+        serverChanges: {
+          papers: serverPapers,
+          collections: serverCollections,
+          annotations: serverAnnotations,
+          deleted: {
+            papers: deletedPapers.map(p => p.id),
+            collections: deletedCollections.map(c => c.id),
+            annotations: deletedAnnotations.map(a => a.id)
+          }
+        },
+        syncedAt: syncStartTime.toISOString()
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
 };
 
+/**
+ * Get Sync Status
+ * GET /api/sync/status
+ * Returns last sync timestamp and sync metadata
+ */
 export const getSyncStatus = async (req, res, next) => {
-  res.status(501).json({
-    success: false,
-    error: { message: 'Not implemented yet' }
-  });
-};
+  try {
+    const userId = req.user.id;
 
+    // Get most recent sync log
+    const lastSync = await prisma.syncLog.findFirst({
+      where: { userId },
+      orderBy: { syncedAt: 'desc' },
+      select: {
+        syncedAt: true,
+        action: true,
+        clientId: true
+      }
+    });
+
+    // Get counts of entities
+    const paperCount = await prisma.paper.count({
+      where: { userId, deletedAt: null }
+    });
+
+    const collectionCount = await prisma.collection.count({
+      where: { userId, deletedAt: null }
+    });
+
+    const annotationCount = await prisma.annotation.count({
+      where: { userId, deletedAt: null }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        lastSyncedAt: lastSync?.syncedAt?.toISOString() || null,
+        lastSyncAction: lastSync?.action || null,
+        lastClientId: lastSync?.clientId || null,
+        counts: {
+          papers: paperCount,
+          collections: collectionCount,
+          annotations: annotationCount
+        }
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};

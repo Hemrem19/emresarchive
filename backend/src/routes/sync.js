@@ -10,6 +10,7 @@ import {
   getSyncStatus
 } from '../controllers/sync.js';
 import { authenticate } from '../middleware/auth.js';
+import { validate, incrementalSyncSchema } from '../lib/validation.js';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/full', fullSync);
-router.post('/incremental', incrementalSync);
+router.post('/incremental', validate(incrementalSyncSchema), incrementalSync);
 router.get('/status', getSyncStatus);
 
 export default router;

@@ -85,6 +85,29 @@ export const annotationSchema = z.object({
 // Annotation Update Schema (all fields optional)
 export const annotationUpdateSchema = annotationSchema.partial();
 
+// Sync Schemas
+export const incrementalSyncSchema = z.object({
+  lastSyncedAt: z.string().datetime().optional().nullable(),
+  changes: z.object({
+    papers: z.object({
+      created: z.array(paperSchema).default([]),
+      updated: z.array(paperUpdateSchema.extend({ id: z.number().int() })).default([]),
+      deleted: z.array(z.number().int()).default([])
+    }).default({ created: [], updated: [], deleted: [] }),
+    collections: z.object({
+      created: z.array(collectionSchema).default([]),
+      updated: z.array(collectionUpdateSchema.extend({ id: z.number().int() })).default([]),
+      deleted: z.array(z.number().int()).default([])
+    }).default({ created: [], updated: [], deleted: [] }),
+    annotations: z.object({
+      created: z.array(annotationSchema).default([]),
+      updated: z.array(annotationUpdateSchema.extend({ id: z.number().int() })).default([]),
+      deleted: z.array(z.number().int()).default([])
+    }).default({ created: [], updated: [], deleted: [] })
+  }),
+  clientId: z.string().min(1).max(100)
+});
+
 // Request Validation Middleware Factory
 export const validate = (schema) => {
   return (req, res, next) => {
