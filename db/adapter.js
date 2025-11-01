@@ -17,6 +17,19 @@ import * as apiPapers from '../api/papers.js';
 import * as apiCollections from '../api/collections.js';
 import * as apiAnnotations from '../api/annotations.js';
 
+// Import sync change tracking
+import {
+    trackPaperCreated,
+    trackPaperUpdated,
+    trackPaperDeleted,
+    trackCollectionCreated,
+    trackCollectionUpdated,
+    trackCollectionDeleted,
+    trackAnnotationCreated,
+    trackAnnotationUpdated,
+    trackAnnotationDeleted
+} from './sync.js';
+
 /**
  * Checks if cloud sync should be used.
  * @returns {boolean} True if cloud sync is enabled and user is authenticated.
@@ -117,7 +130,8 @@ export const papers = {
                 // Convert API response to match local format (API returns paper object, local returns ID)
                 // Also save to local for offline access
                 try {
-                    await localPapers.addPaper(paperData);
+                    const localPaper = mapPaperDataFromApi(paper);
+                    await localPapers.addPaper(localPaper);
                 } catch (localError) {
                     // Ignore local save errors (not critical in cloud mode)
                 }
@@ -125,10 +139,20 @@ export const papers = {
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
                 // Fall back to local if cloud fails
-                return localPapers.addPaper(paperData);
+                const localId = await localPapers.addPaper(paperData);
+                // Track change for later sync
+                if (shouldUseCloudSync()) {
+                    trackPaperCreated({ ...paperData, localId });
+                }
+                return localId;
             }
         }
-        return localPapers.addPaper(paperData);
+        // Local-only mode: add and track for potential future sync
+        const localId = await localPapers.addPaper(paperData);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackPaperCreated({ ...paperData, localId });
+        }
+        return localId;
     },
 
     async getAllPapers() {
@@ -178,14 +202,31 @@ export const papers = {
                 // Map local format to API format
                 const apiData = mapPaperDataToApi(updateData);
                 const paper = await apiPapers.updatePaper(id, apiData);
-                // Map API format to local format
-                return mapPaperDataFromApi(paper);
+                // Also update local
+                try {
+                    const localPaper = mapPaperDataFromApi(paper);
+                    await localPapers.updatePaper(id, localPaper);
+                } catch (localError) {
+                    // Ignore local update errors
+                }
+                return paper.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localPapers.updatePaper(id, updateData);
+                const result = await localPapers.updatePaper(id, updateData);
+                // Track change for later sync
+                if (shouldUseCloudSync()) {
+                    const paper = await localPapers.getPaperById(id);
+                    trackPaperUpdated(id, updateData);
+                }
+                return result;
             }
         }
-        return localPapers.updatePaper(id, updateData);
+        // Local-only mode: update and track for potential future sync
+        const result = await localPapers.updatePaper(id, updateData);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackPaperUpdated(id, updateData);
+        }
+        return result;
     },
 
     async deletePaper(id) {
@@ -204,13 +245,23 @@ export const papers = {
                 // Delete from local and don't treat it as an error
                 if (error.message && (error.message.includes('not found') || error.message.includes('404'))) {
                     console.log(`Paper ${id} not found on cloud, deleting from local only`);
-                    return localPapers.deletePaper(id);
+                    await localPapers.deletePaper(id);
+                    return;
                 }
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localPapers.deletePaper(id);
+                await localPapers.deletePaper(id);
+                // Track deletion for later sync
+                if (shouldUseCloudSync()) {
+                    trackPaperDeleted(id);
+                }
+                return;
             }
         }
-        return localPapers.deletePaper(id);
+        // Local-only mode: delete and track for potential future sync
+        await localPapers.deletePaper(id);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackPaperDeleted(id);
+        }
     },
 
     // Additional API-only functions
@@ -283,13 +334,29 @@ export const collections = {
         if (shouldUseCloudSync()) {
             try {
                 const collection = await apiCollections.createCollection(collectionData);
+                // Also save to local
+                try {
+                    await localCollections.addCollection(collection);
+                } catch (localError) {
+                    // Ignore local save errors
+                }
                 return collection.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localCollections.addCollection(collectionData);
+                const localId = await localCollections.addCollection(collectionData);
+                // Track change for later sync
+                if (shouldUseCloudSync()) {
+                    trackCollectionCreated({ ...collectionData, localId });
+                }
+                return localId;
             }
         }
-        return localCollections.addCollection(collectionData);
+        // Local-only mode: add and track for potential future sync
+        const localId = await localCollections.addCollection(collectionData);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackCollectionCreated({ ...collectionData, localId });
+        }
+        return localId;
     },
 
     async getAllCollections() {
@@ -320,26 +387,57 @@ export const collections = {
         if (shouldUseCloudSync()) {
             try {
                 const collection = await apiCollections.updateCollection(id, updateData);
+                // Also update local
+                try {
+                    await localCollections.updateCollection(id, collection);
+                } catch (localError) {
+                    // Ignore local update errors
+                }
                 return collection.id || id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localCollections.updateCollection(id, updateData);
+                const result = await localCollections.updateCollection(id, updateData);
+                // Track change for later sync
+                if (shouldUseCloudSync()) {
+                    trackCollectionUpdated(id, updateData);
+                }
+                return result;
             }
         }
-        return localCollections.updateCollection(id, updateData);
+        // Local-only mode: update and track for potential future sync
+        const result = await localCollections.updateCollection(id, updateData);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackCollectionUpdated(id, updateData);
+        }
+        return result;
     },
 
     async deleteCollection(id) {
         if (shouldUseCloudSync()) {
             try {
                 await apiCollections.deleteCollection(id);
+                // Also delete from local
+                try {
+                    await localCollections.deleteCollection(id);
+                } catch (localError) {
+                    // Ignore local delete errors
+                }
                 return;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localCollections.deleteCollection(id);
+                await localCollections.deleteCollection(id);
+                // Track deletion for later sync
+                if (shouldUseCloudSync()) {
+                    trackCollectionDeleted(id);
+                }
+                return;
             }
         }
-        return localCollections.deleteCollection(id);
+        // Local-only mode: delete and track for potential future sync
+        await localCollections.deleteCollection(id);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackCollectionDeleted(id);
+        }
     }
 };
 
@@ -404,13 +502,28 @@ export const annotations = {
         if (shouldUseCloudSync()) {
             try {
                 await apiAnnotations.deleteAnnotation(id);
+                // Also delete from local
+                try {
+                    await localAnnotations.deleteAnnotation(id);
+                } catch (localError) {
+                    // Ignore local delete errors
+                }
                 return;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localAnnotations.deleteAnnotation(id);
+                await localAnnotations.deleteAnnotation(id);
+                // Track deletion for later sync
+                if (shouldUseCloudSync()) {
+                    trackAnnotationDeleted(id);
+                }
+                return;
             }
         }
-        return localAnnotations.deleteAnnotation(id);
+        // Local-only mode: delete and track for potential future sync
+        await localAnnotations.deleteAnnotation(id);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackAnnotationDeleted(id);
+        }
     },
 
     async deleteAnnotationsByPaperId(paperId) {

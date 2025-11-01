@@ -6,7 +6,8 @@
 
 import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
-import { fullSync, incrementalSync, getSyncStatus, getClientId, mapPaperFromApi, mapCollectionFromApi, mapAnnotationFromApi } from '../api/sync.js';
+import { fullSync, incrementalSync, getSyncStatus, getClientId } from '../api/sync.js';
+import { mapPaperFromApi, mapCollectionFromApi, mapAnnotationFromApi, mapPaperToApi, mapCollectionToApi, mapAnnotationToApi } from '../api/sync.js';
 import { getAllPapers, addPaper, updatePaper, deletePaper } from '../db.js';
 import { getAllCollections, addCollection, updateCollection, deleteCollection } from '../db.js';
 import { getAnnotationsByPaperId, addAnnotation, updateAnnotation, deleteAnnotation } from '../db.js';
@@ -293,11 +294,9 @@ async function applyServerChanges(serverChanges) {
 /**
  * Prepares local changes for sync by converting local format to API format.
  * @param {Object} changes - Local changes.
- * @returns {Promise<Object>} Changes in API format.
+ * @returns {Object} Changes in API format.
  */
-async function prepareChangesForSync(changes) {
-    const { mapPaperToApi, mapCollectionToApi, mapAnnotationToApi } = await import('../api/sync.js');
-    
+function prepareChangesForSync(changes) {
     return {
         papers: {
             created: (changes.papers?.created || []).map(mapPaperToApi),
@@ -425,7 +424,7 @@ export async function performIncrementalSync() {
             (localChanges.annotations?.deleted?.length || 0) > 0;
 
         // Prepare changes for API
-        const apiChanges = await prepareChangesForSync(localChanges);
+        const apiChanges = prepareChangesForSync(localChanges);
 
         // Perform incremental sync
         const result = await incrementalSync(apiChanges);
