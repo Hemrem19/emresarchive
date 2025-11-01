@@ -670,7 +670,15 @@ export const uploadPdfDirect = async (req, res, next) => {
     const s3Key = generatePdfKey(userId, tempPaperId, filename);
 
     // Upload file directly to S3/R2 (server-side, avoids presigned URL signature issues)
-    await uploadFileToS3(req.file.buffer, s3Key, req.file.mimetype);
+    try {
+      await uploadFileToS3(req.file.buffer, s3Key, req.file.mimetype);
+    } catch (s3Error) {
+      console.error('[Upload] S3 upload error:', s3Error);
+      console.error('[Upload] S3 error message:', s3Error.message);
+      console.error('[Upload] S3 error stack:', s3Error.stack);
+      // Re-throw with more context
+      throw new Error(`S3 upload failed: ${s3Error.message || 'Unknown error'}`);
+    }
 
     // Return S3 key and file size
     res.json({
@@ -683,6 +691,9 @@ export const uploadPdfDirect = async (req, res, next) => {
     });
 
   } catch (error) {
+    console.error('[Upload] uploadPdfDirect error:', error);
+    console.error('[Upload] Error message:', error.message);
+    console.error('[Upload] Error stack:', error.stack);
     next(error);
   }
 };
