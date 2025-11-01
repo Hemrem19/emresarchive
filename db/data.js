@@ -12,6 +12,14 @@ import { isAuthenticated } from '../api/auth.js';
 import { addPaper as addPaperViaAdapter } from '../db.js';
 import { addCollection as addCollectionViaAdapter } from '../db.js';
 import { addAnnotation as addAnnotationViaAdapter } from '../db.js';
+import { deletePaper as deletePaperViaAdapter } from '../db.js';
+import { deleteCollection as deleteCollectionViaAdapter } from '../db.js';
+import { deleteAnnotation as deleteAnnotationViaAdapter } from '../db.js';
+import { getAllPapers as getAllPapersViaAdapter } from '../db.js';
+import { getAllCollections as getAllCollectionsViaAdapter } from '../db.js';
+import * as apiPapers from '../api/papers.js';
+import * as apiCollections from '../api/collections.js';
+import * as apiAnnotations from '../api/annotations.js';
 
 /**
  * Exports all data from the database into a serializable format with error handling.
@@ -514,9 +522,49 @@ async function importData(dataToImport) {
 
 /**
  * Clears all data from the 'papers', 'collections', and 'annotations' object stores.
+ * If cloud sync is enabled, also deletes all data from the cloud API.
  * @returns {Promise<void>} A promise that resolves when all stores are cleared.
  */
 async function clearAllData() {
+    const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
+    
+    // If cloud sync is enabled, delete all data from cloud first
+    if (useCloudSync) {
+        try {
+            // Get all papers from cloud
+            const cloudPapers = await getAllPapersViaAdapter();
+            
+            // Delete each paper from cloud (this will also delete associated annotations)
+            for (const paper of cloudPapers) {
+                try {
+                    await deletePaperViaAdapter(paper.id);
+                } catch (error) {
+                    // Log error but continue deleting other papers
+                    console.error(`Failed to delete paper ${paper.id} from cloud:`, error);
+                }
+            }
+            
+            // Get all collections from cloud
+            const cloudCollections = await getAllCollectionsViaAdapter();
+            
+            // Delete each collection from cloud
+            for (const collection of cloudCollections) {
+                try {
+                    await deleteCollectionViaAdapter(collection.id);
+                } catch (error) {
+                    // Log error but continue deleting other collections
+                    console.error(`Failed to delete collection ${collection.id} from cloud:`, error);
+                }
+            }
+            
+            console.log('Cloud data cleared successfully');
+        } catch (error) {
+            // Log error but continue with local clear
+            console.error('Error clearing cloud data (will continue with local clear):', error);
+        }
+    }
+    
+    // Clear local IndexedDB
     const database = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
