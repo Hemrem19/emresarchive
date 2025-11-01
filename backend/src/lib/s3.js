@@ -5,6 +5,7 @@
 
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 
 // Initialize S3 client (works with Cloudflare R2 and other S3-compatible services)
 // Note: We don't configure checksum middleware here to avoid issues with presigned URLs
@@ -41,42 +42,29 @@ export async function getPresignedUploadUrl(key, contentType, contentLength) {
       throw new Error(`File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
     }
 
-    // CRITICAL FIX: The CanonicalRequest shows GET but we're using PUT
-    // This is a known issue with AWS SDK v3 presigned URLs for PUT requests
+    // CRITICAL FIX: Presigned PUT URLs from AWS SDK v3 have GET in CanonicalRequest
+    // but x-id=PutObject in query params, causing signature mismatch when browser uses PUT
     // 
-    // Solution: Don't use presigned URLs - use direct upload with temporary credentials
-    // OR: Use presigned POST instead (but requires form data changes)
-    // 
-    // For now, let's try the minimal PUT command without ContentType
-    // The SDK might be generating the URL incorrectly, but we can't easily fix that
-    const command = new PutObjectCommand({
+    // Solution: Use presigned POST instead, which is designed for browser uploads
+    // Presigned POST uses POST method which matches the signature correctly
+    const { url, fields } = await createPresignedPost(s3Client, {
       Bucket: BUCKET_NAME,
-      Key: key
-      // Absolutely minimal - just Bucket and Key
-      // No ContentType, ContentLength, ChecksumAlgorithm, or anything else
+      Key: key,
+      Conditions: [
+        ['content-length-range', 1, MAX_FILE_SIZE], // File size limits (1 byte to MAX_FILE_SIZE)
+        ['eq', '$Content-Type', contentType] // Content-Type must match exactly
+      ],
+      Fields: {
+        'Content-Type': contentType
+      },
+      Expires: PRESIGNED_URL_EXPIRY // Expiry in seconds
     });
 
-    // Generate presigned PUT URL
-    // WARNING: This may generate a URL with GET in CanonicalRequest but x-id=PutObject
-    // If that happens, we'll need to switch to presigned POST or direct upload
-    const url = await getSignedUrl(s3Client, command, { 
-      expiresIn: PRESIGNED_URL_EXPIRY
-    });
-
-    // Log presigned URL for debugging
-    console.log('[S3] Generated presigned URL (check method in CanonicalRequest):', url.substring(0, 200) + '...');
+    // Return both URL and fields
+    // Frontend must send FormData with all fields + file
+    console.log('[S3] Generated presigned POST URL and fields for key:', key);
     
-    // Check if URL has x-id=PutObject (indicates PUT) but might have GET in signature
-    const urlObj = new URL(url);
-    const hasPutId = urlObj.searchParams.get('x-id') === 'PutObject';
-    console.log('[S3] Presigned URL has x-id=PutObject:', hasPutId);
-    
-    if (hasPutId) {
-      console.warn('[S3] WARNING: Presigned URL has x-id=PutObject but may have GET in CanonicalRequest - this will cause signature mismatch!');
-      console.warn('[S3] Consider using presigned POST or direct upload instead');
-    }
-
-    return url;
+    return { url, fields };
   } catch (error) {
     console.error('Error generating presigned upload URL:', error);
     throw error;

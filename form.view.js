@@ -218,14 +218,15 @@ export const formView = {
                         showToast('Uploading PDF to cloud...', 'info');
                         // Ensure contentType is exactly 'application/pdf' for presigned URL signature
                         // The upload request must use the same Content-Type that was signed in the URL
-                        const { uploadUrl, s3Key } = await getUploadUrl({
+                        const { uploadUrl, s3Key, fields } = await getUploadUrl({
                             filename: pdfFile.name,
                             size: pdfFile.size,
                             contentType: 'application/pdf', // Always use 'application/pdf' (file.type might vary)
                             paperId: this.isEditMode ? this.paperId : null
                         });
                         
-                        await uploadPdf(uploadUrl, pdfFile);
+                        // Upload using presigned POST (fields) or PUT (fallback)
+                        await uploadPdf(uploadUrl, pdfFile, fields);
                         paperData.s3Key = s3Key;
                         paperData.pdfSizeBytes = pdfFile.size;
                         paperData.hasPdf = true;

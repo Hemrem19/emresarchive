@@ -328,6 +328,7 @@ export async function getUploadUrl(options) {
         if (result.success && result.data) {
             return {
                 uploadUrl: result.data.uploadUrl,
+                fields: result.data.fields || null, // Presigned POST fields (if using POST)
                 s3Key: result.data.s3Key,
                 expiresIn: result.data.expiresIn
             };
@@ -341,34 +342,50 @@ export async function getUploadUrl(options) {
 }
 
 /**
- * Uploads a PDF file to S3 using presigned URL.
+ * Uploads a PDF file to S3 using presigned URL (supports both POST and PUT).
  * @param {string} uploadUrl - Presigned upload URL.
  * @param {File|Blob} file - PDF file to upload.
+ * @param {Object|null} fields - Presigned POST fields (if using POST method).
  * @returns {Promise<void>}
  */
-export async function uploadPdf(uploadUrl, file) {
+export async function uploadPdf(uploadUrl, file, fields = null) {
     try {
-        // IMPORTANT: Presigned URLs from AWS SDK v3 may include checksum query params
-        // These params (x-amz-checksum-crc32, x-amz-sdk-checksum-algorithm) are part of the signature
-        // We MUST use the presigned URL exactly as-is, including all query params
-        // 
-        // The presigned URL is already signed with all query params, so we just use it directly
-        // Browser automatically adds Content-Type and Content-Length headers
-        const response = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: file,
-            headers: {
-                // Set Content-Type for proper file handling
-                // Presigned URL doesn't include ContentType in signature, so any value works
-                'Content-Type': 'application/pdf'
+        if (fields) {
+            // Presigned POST: Send FormData with fields + file
+            // This is more reliable than PUT and avoids method mismatch issues
+            const formData = new FormData();
+            
+            // Add all presigned POST fields
+            for (const [key, value] of Object.entries(fields)) {
+                formData.append(key, value);
             }
-            // DO NOT set Content-Length - browser sets it automatically from file.size
-            // Presigned URL doesn't include ContentLength in signature, so any value works
-            // 
-            // NOTE: The presigned URL may have checksum query params (x-amz-checksum-crc32, etc.)
-            // These are already in the URL and are part of the signature
-            // We don't need to add them - they're already in uploadUrl
-        });
+            
+            // Add the file (must be last field)
+            // Note: The field name should match what's expected by S3
+            // For presigned POST, the file field is usually 'file'
+            formData.append('file', file);
+            
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                body: formData
+                // DO NOT set Content-Type header - browser sets it with boundary for multipart/form-data
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                console.error('Upload failed response:', response.status, response.statusText, errorText);
+                throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+            }
+        } else {
+            // Presigned PUT: Send file directly (fallback for older API)
+            // This may have method mismatch issues with AWS SDK v3
+            const response = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': 'application/pdf'
+                }
+            });
 
         if (!response.ok) {
             const errorText = await response.text().catch(() => '');

@@ -592,17 +592,34 @@ export const getUploadUrl = async (req, res, next) => {
     const tempPaperId = paperId || `temp-${Date.now()}`;
     const s3Key = generatePdfKey(userId, tempPaperId, filename);
 
-    // Generate presigned upload URL
-    const uploadUrl = await getPresignedUploadUrl(s3Key, contentType, parseInt(size));
+    // Generate presigned upload URL/fields (using POST instead of PUT to avoid method mismatch)
+    const uploadData = await getPresignedUploadUrl(s3Key, contentType, parseInt(size));
 
-    res.json({
-      success: true,
-      data: {
-        uploadUrl,
-        s3Key,
-        expiresIn: 3600 // 1 hour
-      }
-    });
+    // uploadData can be either { url, fields } (POST) or string (PUT fallback)
+    // For presigned POST, return both url and fields
+    // For PUT fallback, return uploadUrl string
+    if (typeof uploadData === 'object' && uploadData.url && uploadData.fields) {
+      // Presigned POST
+      res.json({
+        success: true,
+        data: {
+          uploadUrl: uploadData.url,
+          fields: uploadData.fields, // FormData fields to include
+          s3Key,
+          expiresIn: 3600 // 1 hour
+        }
+      });
+    } else {
+      // PUT fallback (string URL)
+      res.json({
+        success: true,
+        data: {
+          uploadUrl: uploadData, // String URL
+          s3Key,
+          expiresIn: 3600 // 1 hour
+        }
+      });
+    }
 
   } catch (error) {
     next(error);
