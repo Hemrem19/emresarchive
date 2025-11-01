@@ -555,21 +555,42 @@ export const detailsView = {
                 notesPanel.classList.add('hidden');
                 pdfPanel.classList.remove('hidden');
                 if (!pdfState.pdfDoc) {
+                    console.log('[Details] Loading PDF, paper state:', {
+                        hasPdfFile: !!paper.pdfFile,
+                        hasS3Key: !!paper.s3Key,
+                        s3Key: paper.s3Key,
+                        hasPdf: paper.hasPdf,
+                        cloudSyncEnabled: isCloudSyncEnabled(),
+                        isAuth: isAuthenticated()
+                    });
+                    
                     if (paper.pdfFile) {
                         // Local PDF: load from Blob
+                        console.log('[Details] Loading local PDF from Blob');
                         loadPdfDocument(paper.pdfFile);
-                    } else if (paper.s3Key && isCloudSyncEnabled() && isAuthenticated()) {
+                    } else if (paper.s3Key && paper.hasPdf) {
                         // Cloud PDF: get URL and load
-                        (async () => {
-                            try {
-                                showToast('Loading PDF from cloud...', 'info');
-                                const { pdfUrl } = await getPdfDownloadUrl(paperId);
-                                await loadPdfFromUrl(pdfUrl);
-                            } catch (error) {
-                                console.error('Error loading PDF from S3:', error);
-                                showToast('Failed to load PDF from cloud', 'error');
-                            }
-                        })();
+                        const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
+                        if (useCloudSync) {
+                            console.log('[Details] Loading cloud PDF from S3');
+                            (async () => {
+                                try {
+                                    showToast('Loading PDF from cloud...', 'info');
+                                    const { pdfUrl } = await getPdfDownloadUrl(paperId);
+                                    console.log('[Details] Got PDF URL from backend:', pdfUrl);
+                                    await loadPdfFromUrl(pdfUrl);
+                                } catch (error) {
+                                    console.error('[Details] Error loading PDF from S3:', error);
+                                    showToast('Failed to load PDF from cloud', 'error');
+                                }
+                            })();
+                        } else {
+                            console.warn('[Details] Cloud sync not enabled or not authenticated');
+                            showToast('Cloud sync is required for cloud-stored PDFs', 'error');
+                        }
+                    } else {
+                        console.warn('[Details] No PDF file or S3 key available');
+                        showToast('PDF not available', 'error');
                     }
                 }
             } else {
