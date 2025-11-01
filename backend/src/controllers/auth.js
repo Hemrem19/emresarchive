@@ -17,15 +17,39 @@ export const register = async (req, res, next) => {
   try {
     const { email, password, name } = req.body;
 
+    // Input validation (already done by validation middleware, but double-check for safety)
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Email is required',
+          details: [{ field: 'email', message: 'Email is required' }]
+        }
+      });
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Password must be at least 8 characters long',
+          details: [{ field: 'password', message: 'Password must be at least 8 characters long' }]
+        }
+      });
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase().trim() }
     });
 
     if (existingUser) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
-        error: { message: 'User with this email already exists' }
+        error: { 
+          message: 'An account with this email already exists. Please log in instead.',
+          details: [{ field: 'email', message: 'This email is already registered' }]
+        }
       });
     }
 
@@ -120,15 +144,40 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
+    // Input validation (already done by validation middleware, but double-check for safety)
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Email is required',
+          details: [{ field: 'email', message: 'Email is required' }]
+        }
+      });
+    }
+
+    if (!password || typeof password !== 'string' || password.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { 
+          message: 'Password is required',
+          details: [{ field: 'password', message: 'Password is required' }]
+        }
+      });
+    }
+
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase().trim() }
     });
 
     if (!user) {
+      // Don't reveal if email exists or not (security best practice)
       return res.status(401).json({
         success: false,
-        error: { message: 'Invalid email or password' }
+        error: { 
+          message: 'Invalid email or password. Please check your credentials and try again.',
+          details: [] // Don't provide field-specific errors for auth failures
+        }
       });
     }
 
@@ -136,9 +185,13 @@ export const login = async (req, res, next) => {
     const isValidPassword = await verifyPassword(password, user.passwordHash);
 
     if (!isValidPassword) {
+      // Don't reveal if email exists or not (security best practice)
       return res.status(401).json({
         success: false,
-        error: { message: 'Invalid email or password' }
+        error: { 
+          message: 'Invalid email or password. Please check your credentials and try again.',
+          details: [] // Don't provide field-specific errors for auth failures
+        }
       });
     }
 
@@ -215,13 +268,18 @@ export const logout = async (req, res, next) => {
     // Get refresh token from cookie or body
     const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
-    if (refreshToken) {
-      // Hash token and delete session
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      
-      await prisma.session.deleteMany({
-        where: { tokenHash }
-      });
+    if (refreshToken && typeof refreshToken === 'string' && refreshToken.trim().length > 0) {
+      try {
+        // Hash token and delete session
+        const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+        
+        await prisma.session.deleteMany({
+          where: { tokenHash }
+        });
+      } catch (sessionError) {
+        // Log but don't fail logout - session might already be deleted
+        console.warn('[Auth] Failed to delete session during logout:', sessionError.message);
+      }
     }
 
     // Clear cookie (use same options as when setting)
@@ -238,7 +296,19 @@ export const logout = async (req, res, next) => {
     });
 
   } catch (error) {
-    next(error);
+    // Logout should always succeed - clear cookie even on error
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax'
+    });
+    
+    // Return success even if session deletion failed
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
   }
 };
 
@@ -251,15 +321,31 @@ export const refresh = async (req, res, next) => {
     // Get refresh token from cookie or body
     const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
-    if (!refreshToken) {
+    if (!refreshToken || typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
       return res.status(401).json({
         success: false,
-        error: { message: 'Refresh token required' }
+        error: { 
+          message: 'Refresh token required. Please log in again.',
+          details: []
+        }
       });
     }
 
     // Verify refresh token
-    const decoded = verifyRefreshToken(refreshToken);
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (tokenError) {
+      return res.status(401).json({
+        success: false,
+        error: { 
+          message: tokenError.name === 'TokenExpiredError' 
+            ? 'Session expired. Please log in again.'
+            : 'Invalid refresh token. Please log in again.',
+          details: []
+        }
+      });
+    }
 
     // Check session exists and is valid
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
@@ -268,10 +354,25 @@ export const refresh = async (req, res, next) => {
       include: { user: true }
     });
 
-    if (!session || session.expiresAt < new Date()) {
+    if (!session) {
       return res.status(401).json({
         success: false,
-        error: { message: 'Invalid or expired refresh token' }
+        error: { 
+          message: 'Session not found. Please log in again.',
+          details: []
+        }
+      });
+    }
+
+    if (session.expiresAt < new Date()) {
+      // Clean up expired session
+      await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+      return res.status(401).json({
+        success: false,
+        error: { 
+          message: 'Session expired. Please log in again.',
+          details: []
+        }
       });
     }
 
@@ -327,22 +428,28 @@ export const verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.body;
 
-    if (!token) {
+    if (!token || typeof token !== 'string' || token.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        error: { message: 'Verification token is required' }
+        error: { 
+          message: 'Verification token is required',
+          details: [{ field: 'token', message: 'Verification token is required' }]
+        }
       });
     }
 
     // Find user with this token
     const user = await prisma.user.findUnique({
-      where: { verificationToken: token }
+      where: { verificationToken: token.trim() }
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        error: { message: 'Invalid verification token' }
+        error: { 
+          message: 'Invalid verification token. Please check your email for the correct link or request a new verification email.',
+          details: []
+        }
       });
     }
 
@@ -350,7 +457,10 @@ export const verifyEmail = async (req, res, next) => {
     if (!user.verificationTokenExpiry || user.verificationTokenExpiry < new Date()) {
       return res.status(400).json({
         success: false,
-        error: { message: 'Verification token has expired. Please request a new one.' }
+        error: { 
+          message: 'Verification token has expired. Please request a new verification email.',
+          details: []
+        }
       });
     }
 
@@ -392,10 +502,23 @@ export const resendVerificationEmail = async (req, res, next) => {
     // User is already attached to request by authenticate middleware
     const user = req.user;
 
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: { 
+          message: 'Authentication required. Please log in to resend verification email.',
+          details: []
+        }
+      });
+    }
+
     if (user.emailVerified) {
       return res.status(400).json({
         success: false,
-        error: { message: 'Email is already verified' }
+        error: { 
+          message: 'Email is already verified',
+          details: []
+        }
       });
     }
 

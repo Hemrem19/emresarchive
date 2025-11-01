@@ -7,15 +7,32 @@ import { z } from 'zod';
 
 // User Registration Schema
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().optional()
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .toLowerCase()
+    .trim(),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .max(128, 'Password is too long (maximum 128 characters)')
+    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  name: z.string()
+    .min(1, 'Name is required')
+    .max(100, 'Name is too long (maximum 100 characters)')
+    .trim()
+    .optional()
 });
 
 // User Login Schema
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required')
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .toLowerCase()
+    .trim(),
+  password: z.string()
+    .min(1, 'Password is required')
 });
 
 // Refresh Token Schema
@@ -121,10 +138,10 @@ export const validate = (schema) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({
+        return res.status(422).json({
           success: false,
           error: {
-            message: 'Validation error',
+            message: 'Please check your input and try again.',
             details: error.errors.map(err => ({
               field: err.path.join('.'),
               message: err.message

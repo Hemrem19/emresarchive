@@ -53,24 +53,126 @@ export function isAuthenticated() {
 }
 
 /**
+ * Parses API error response to extract user-friendly error message.
+ * @param {Response} response - Fetch response object.
+ * @param {Object} result - Parsed JSON result.
+ * @returns {string} User-friendly error message.
+ */
+function parseApiError(response, result) {
+    // Handle validation errors (422 or 400 with details)
+    if (result.error?.details && Array.isArray(result.error.details)) {
+        const fieldErrors = result.error.details.map(err => {
+            const field = err.field || err.path?.[0] || '';
+            const message = err.message || '';
+            return field ? `${field.charAt(0).toUpperCase() + field.slice(1)}: ${message}` : message;
+        });
+        return fieldErrors.join('. ') || result.error.message || 'Validation error';
+    }
+    
+    // Handle error object with message
+    if (result.error?.message) {
+        return result.error.message;
+    }
+    
+    // Handle direct message
+    if (result.message) {
+        return result.message;
+    }
+    
+    // Handle HTTP status codes
+    switch (response.status) {
+        case 400:
+            return 'Invalid request. Please check your input.';
+        case 401:
+            return 'Invalid email or password.';
+        case 403:
+            return 'Access denied.';
+        case 404:
+            return 'Service not found.';
+        case 409:
+            return 'This account already exists.';
+        case 422:
+            return 'Invalid input data. Please check all fields.';
+        case 429:
+            return 'Too many requests. Please try again later.';
+        case 500:
+        case 502:
+        case 503:
+            return 'Server error. Please try again later.';
+        default:
+            return 'An error occurred. Please try again.';
+    }
+}
+
+/**
+ * Handles network errors and creates user-friendly messages.
+ * @param {Error} error - Network error.
+ * @returns {Error} Error with user-friendly message.
+ */
+function handleNetworkError(error) {
+    // Network fetch failed (offline, CORS, timeout, etc.)
+    if (error.message.includes('fetch') || error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        return new Error('Network error. Please check your internet connection and try again.');
+    }
+    
+    // Timeout errors
+    if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+        return new Error('Request timed out. Please try again.');
+    }
+    
+    // CORS errors
+    if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
+        return new Error('Connection error. Please contact support if this persists.');
+    }
+    
+    return error;
+}
+
+/**
  * Registers a new user.
  * @param {Object} data - Registration data { email, password, name }.
  * @returns {Promise<Object>} Promise resolving to { accessToken, user }.
  */
 export async function register(data) {
     try {
+        // Validate input before sending
+        if (!data.email || !data.password) {
+            throw new Error('Email and password are required.');
+        }
+        
+        if (data.email && !data.email.includes('@')) {
+            throw new Error('Please enter a valid email address.');
+        }
+        
+        if (data.password && data.password.length < 8) {
+            throw new Error('Password must be at least 8 characters long.');
+        }
+        
         const response = await fetch(`${AUTH_ENDPOINT}/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
-        const result = await response.json();
+        // Handle non-JSON responses
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            const text = await response.text();
+            throw new Error(`Server returned invalid response: ${text.substring(0, 100)}`);
+        }
 
         if (!response.ok) {
-            throw new Error(result.message || result.error || 'Registration failed');
+            const errorMessage = parseApiError(response, result);
+            const error = new Error(errorMessage);
+            error.status = response.status;
+            error.details = result.error?.details;
+            throw error;
         }
 
         if (result.success && result.data) {
@@ -88,8 +190,23 @@ export async function register(data) {
 
         throw new Error('Invalid response from server');
     } catch (error) {
+        // Handle AbortError (timeout)
+        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+            throw new Error('Request timed out. Please try again.');
+        }
+        
+        // Handle network errors
+        if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+            throw handleNetworkError(error);
+        }
+        
+        // Re-throw known errors
+        if (error.message && !error.message.includes('Server returned')) {
+            throw error;
+        }
+        
         console.error('Registration error:', error);
-        throw error;
+        throw handleNetworkError(error);
     }
 }
 
@@ -100,19 +217,41 @@ export async function register(data) {
  */
 export async function login(data) {
     try {
+        // Validate input before sending
+        if (!data.email || !data.password) {
+            throw new Error('Email and password are required.');
+        }
+        
+        if (data.email && !data.email.includes('@')) {
+            throw new Error('Please enter a valid email address.');
+        }
+        
         const response = await fetch(`${AUTH_ENDPOINT}/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             credentials: 'include', // Include cookies for refresh token
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
-        const result = await response.json();
+        // Handle non-JSON responses
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            const text = await response.text();
+            throw new Error(`Server returned invalid response: ${text.substring(0, 100)}`);
+        }
 
         if (!response.ok) {
-            throw new Error(result.message || result.error || 'Login failed');
+            const errorMessage = parseApiError(response, result);
+            const error = new Error(errorMessage);
+            error.status = response.status;
+            error.details = result.error?.details;
+            throw error;
         }
 
         if (result.success && result.data) {
@@ -127,8 +266,23 @@ export async function login(data) {
 
         throw new Error('Invalid response from server');
     } catch (error) {
+        // Handle AbortError (timeout)
+        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+            throw new Error('Request timed out. Please try again.');
+        }
+        
+        // Handle network errors
+        if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+            throw handleNetworkError(error);
+        }
+        
+        // Re-throw known errors
+        if (error.message && !error.message.includes('Server returned')) {
+            throw error;
+        }
+        
         console.error('Login error:', error);
-        throw error;
+        throw handleNetworkError(error);
     }
 }
 
@@ -168,13 +322,24 @@ export async function refreshToken() {
     try {
         const response = await fetch(`${AUTH_ENDPOINT}/refresh`, {
             method: 'POST',
-            credentials: 'include' // Include refresh token cookie
+            credentials: 'include', // Include refresh token cookie
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
-        const result = await response.json();
+        // Handle non-JSON responses
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            throw new Error('Invalid response from server');
+        }
 
         if (!response.ok) {
-            throw new Error(result.message || result.error || 'Token refresh failed');
+            const errorMessage = parseApiError(response, result);
+            const error = new Error(errorMessage);
+            error.status = response.status;
+            throw error;
         }
 
         if (result.success && result.data && result.data.accessToken) {
@@ -185,9 +350,25 @@ export async function refreshToken() {
 
         throw new Error('Invalid response from server');
     } catch (error) {
+        // Handle AbortError (timeout)
+        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+            clearAuth();
+            throw new Error('Session refresh timed out. Please log in again.');
+        }
+        
+        // Handle network errors
+        if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+            // Don't clear auth on network errors - might be temporary
+            throw new Error('Network error. Please check your connection.');
+        }
+        
         console.error('Token refresh error:', error);
-        // If refresh fails, user needs to log in again
-        clearAuth();
+        // If refresh fails (401, 403, etc.), user needs to log in again
+        if (error.status === 401 || error.status === 403) {
+            clearAuth();
+            throw new Error('Session expired. Please log in again.');
+        }
+        
         throw error;
     }
 }
@@ -199,18 +380,34 @@ export async function refreshToken() {
  */
 export async function verifyEmail(token) {
     try {
+        if (!token || typeof token !== 'string' || token.trim().length === 0) {
+            throw new Error('Verification token is required.');
+        }
+        
         const response = await fetch(`${AUTH_ENDPOINT}/verify-email`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ token })
+            body: JSON.stringify({ token }),
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
-        const result = await response.json();
+        // Handle non-JSON responses
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            const text = await response.text();
+            throw new Error('Server returned invalid response. Please try again.');
+        }
 
         if (!response.ok) {
-            throw new Error(result.error?.message || result.message || 'Email verification failed');
+            const errorMessage = parseApiError(response, result);
+            const error = new Error(errorMessage);
+            error.status = response.status;
+            throw error;
         }
 
         // If user is logged in, update their user data
@@ -224,6 +421,16 @@ export async function verifyEmail(token) {
 
         return result;
     } catch (error) {
+        // Handle AbortError (timeout)
+        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+            throw new Error('Verification request timed out. Please try again.');
+        }
+        
+        // Handle network errors
+        if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+            throw handleNetworkError(error);
+        }
+        
         console.error('Email verification error:', error);
         throw error;
     }
@@ -237,7 +444,7 @@ export async function resendVerificationEmail() {
     try {
         const accessToken = getAccessToken();
         if (!accessToken) {
-            throw new Error('Authentication required');
+            throw new Error('Please log in to resend verification email.');
         }
 
         const response = await fetch(`${AUTH_ENDPOINT}/resend-verification`, {
@@ -245,10 +452,18 @@ export async function resendVerificationEmail() {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
-        const result = await response.json();
+        // Handle non-JSON responses
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            throw new Error('Server returned invalid response. Please try again.');
+        }
 
         if (!response.ok) {
             // If token expired, try refreshing
@@ -261,11 +476,21 @@ export async function resendVerificationEmail() {
                         headers: {
                             'Authorization': `Bearer ${newToken}`,
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        signal: AbortSignal.timeout(10000)
                     });
-                    const retryResult = await retryResponse.json();
+                    
+                    const retryContentType = retryResponse.headers.get('content-type');
+                    let retryResult;
+                    if (retryContentType && retryContentType.includes('application/json')) {
+                        retryResult = await retryResponse.json();
+                    } else {
+                        throw new Error('Server returned invalid response. Please try again.');
+                    }
+                    
                     if (!retryResponse.ok) {
-                        throw new Error(retryResult.error?.message || retryResult.message || 'Failed to resend verification email');
+                        const errorMessage = parseApiError(retryResponse, retryResult);
+                        throw new Error(errorMessage);
                     }
                     return retryResult;
                 } catch (refreshError) {
@@ -273,11 +498,23 @@ export async function resendVerificationEmail() {
                     throw new Error('Session expired. Please log in again.');
                 }
             }
-            throw new Error(result.error?.message || result.message || 'Failed to resend verification email');
+            
+            const errorMessage = parseApiError(response, result);
+            throw new Error(errorMessage);
         }
 
         return result;
     } catch (error) {
+        // Handle AbortError (timeout)
+        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+            throw new Error('Request timed out. Please try again.');
+        }
+        
+        // Handle network errors
+        if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+            throw handleNetworkError(error);
+        }
+        
         console.error('Resend verification email error:', error);
         throw error;
     }
@@ -291,7 +528,7 @@ export async function getCurrentUser() {
     try {
         const accessToken = getAccessToken();
         if (!accessToken) {
-            throw new Error('Not authenticated');
+            throw new Error('Not authenticated. Please log in.');
         }
 
         const response = await fetch(`${AUTH_ENDPOINT}/me`, {
@@ -299,10 +536,18 @@ export async function getCurrentUser() {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
-        const result = await response.json();
+        // Handle non-JSON responses
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            throw new Error('Server returned invalid response. Please try again.');
+        }
 
         if (!response.ok) {
             // If token expired, try refreshing
@@ -315,9 +560,18 @@ export async function getCurrentUser() {
                         headers: {
                             'Authorization': `Bearer ${newToken}`,
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        signal: AbortSignal.timeout(10000)
                     });
-                    const retryResult = await retryResponse.json();
+                    
+                    const retryContentType = retryResponse.headers.get('content-type');
+                    let retryResult;
+                    if (retryContentType && retryContentType.includes('application/json')) {
+                        retryResult = await retryResponse.json();
+                    } else {
+                        throw new Error('Server returned invalid response. Please try again.');
+                    }
+                    
                     if (retryResponse.ok && retryResult.success) {
                         setAuth(newToken, retryResult.data.user);
                         return retryResult.data.user;
@@ -328,7 +582,9 @@ export async function getCurrentUser() {
                     throw new Error('Session expired. Please log in again.');
                 }
             }
-            throw new Error(result.message || result.error || 'Failed to get user');
+            
+            const errorMessage = parseApiError(response, result);
+            throw new Error(errorMessage);
         }
 
         if (result.success && result.data) {
@@ -338,6 +594,16 @@ export async function getCurrentUser() {
 
         throw new Error('Invalid response from server');
     } catch (error) {
+        // Handle AbortError (timeout)
+        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+            throw new Error('Request timed out. Please try again.');
+        }
+        
+        // Handle network errors
+        if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+            throw handleNetworkError(error);
+        }
+        
         console.error('Get user error:', error);
         throw error;
     }

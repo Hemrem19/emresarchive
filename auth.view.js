@@ -67,9 +67,115 @@ export const authView = {
         // Form submissions
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+            
+            // Real-time validation feedback
+            const loginEmailInput = document.getElementById('auth-login-email');
+            const loginPasswordInput = document.getElementById('auth-login-password');
+            
+            if (loginEmailInput) {
+                loginEmailInput.addEventListener('blur', () => {
+                    const email = loginEmailInput.value.trim();
+                    if (email && !this.validateEmail(email)) {
+                        this.showFieldError('auth-login-email', 'Please enter a valid email address');
+                    } else if (email) {
+                        this.clearFieldError('auth-login-email');
+                    }
+                });
+                loginEmailInput.addEventListener('input', () => {
+                    if (loginEmailInput.classList.contains('border-red-500')) {
+                        const email = loginEmailInput.value.trim();
+                        if (email && this.validateEmail(email)) {
+                            this.clearFieldError('auth-login-email');
+                        }
+                    }
+                });
+            }
+            
+            if (loginPasswordInput) {
+                loginPasswordInput.addEventListener('blur', () => {
+                    if (!loginPasswordInput.value) {
+                        this.showFieldError('auth-login-password', 'Password is required');
+                    } else {
+                        this.clearFieldError('auth-login-password');
+                    }
+                });
+                loginPasswordInput.addEventListener('input', () => {
+                    if (loginPasswordInput.classList.contains('border-red-500') && loginPasswordInput.value) {
+                        this.clearFieldError('auth-login-password');
+                    }
+                });
+            }
         }
         if (registerForm) {
             registerForm.addEventListener('submit', (e) => this.handleRegister(e));
+            
+            // Real-time validation feedback
+            const registerNameInput = document.getElementById('auth-register-name');
+            const registerEmailInput = document.getElementById('auth-register-email');
+            const registerPasswordInput = document.getElementById('auth-register-password');
+            
+            if (registerNameInput) {
+                registerNameInput.addEventListener('blur', () => {
+                    const name = registerNameInput.value.trim();
+                    if (!name) {
+                        this.showFieldError('auth-register-name', 'Name is required');
+                    } else if (name.length < 2) {
+                        this.showFieldError('auth-register-name', 'Name must be at least 2 characters');
+                    } else {
+                        this.clearFieldError('auth-register-name');
+                    }
+                });
+                registerNameInput.addEventListener('input', () => {
+                    if (registerNameInput.classList.contains('border-red-500')) {
+                        const name = registerNameInput.value.trim();
+                        if (name && name.length >= 2) {
+                            this.clearFieldError('auth-register-name');
+                        }
+                    }
+                });
+            }
+            
+            if (registerEmailInput) {
+                registerEmailInput.addEventListener('blur', () => {
+                    const email = registerEmailInput.value.trim();
+                    if (!email) {
+                        this.showFieldError('auth-register-email', 'Email is required');
+                    } else if (!this.validateEmail(email)) {
+                        this.showFieldError('auth-register-email', 'Please enter a valid email address');
+                    } else {
+                        this.clearFieldError('auth-register-email');
+                    }
+                });
+                registerEmailInput.addEventListener('input', () => {
+                    if (registerEmailInput.classList.contains('border-red-500')) {
+                        const email = registerEmailInput.value.trim();
+                        if (email && this.validateEmail(email)) {
+                            this.clearFieldError('auth-register-email');
+                        }
+                    }
+                });
+            }
+            
+            if (registerPasswordInput) {
+                registerPasswordInput.addEventListener('blur', () => {
+                    const password = registerPasswordInput.value;
+                    if (!password) {
+                        this.showFieldError('auth-register-password', 'Password is required');
+                    } else if (password.length < 8) {
+                        this.showFieldError('auth-register-password', 'Password must be at least 8 characters');
+                    } else {
+                        this.clearFieldError('auth-register-password');
+                    }
+                });
+                registerPasswordInput.addEventListener('input', () => {
+                    if (registerPasswordInput.classList.contains('border-red-500')) {
+                        const password = registerPasswordInput.value;
+                        if (password && password.length >= 8) {
+                            this.clearFieldError('auth-register-password');
+                        }
+                    }
+                });
+            }
         }
     },
 
@@ -158,6 +264,66 @@ export const authView = {
     },
 
     /**
+     * Validates email format.
+     * @param {string} email - Email address to validate.
+     * @returns {boolean} True if valid, false otherwise.
+     */
+    validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    },
+
+    /**
+     * Shows field-specific error.
+     * @param {string} fieldId - Input field ID.
+     * @param {string} message - Error message.
+     */
+    showFieldError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.classList.add('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
+            field.classList.remove('border-stone-300', 'dark:border-stone-700');
+            
+            // Remove existing error message
+            const existingError = field.parentElement.querySelector('.field-error');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Add error message
+            const errorEl = document.createElement('p');
+            errorEl.className = 'field-error mt-1 text-xs text-red-600 dark:text-red-400';
+            errorEl.textContent = message;
+            field.parentElement.appendChild(errorEl);
+        }
+    },
+
+    /**
+     * Clears field-specific errors.
+     * @param {string} fieldId - Input field ID (optional, clears all if not provided).
+     */
+    clearFieldError(fieldId) {
+        if (fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.classList.remove('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
+                field.classList.add('border-stone-300', 'dark:border-stone-700');
+                const errorEl = field.parentElement.querySelector('.field-error');
+                if (errorEl) {
+                    errorEl.remove();
+                }
+            }
+        } else {
+            // Clear all field errors
+            document.querySelectorAll('.field-error').forEach(el => el.remove());
+            document.querySelectorAll('input').forEach(input => {
+                input.classList.remove('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
+                input.classList.add('border-stone-300', 'dark:border-stone-700');
+            });
+        }
+    },
+
+    /**
      * Handles login form submission.
      * @param {Event} e - Form submission event.
      */
@@ -174,15 +340,33 @@ export const authView = {
         const email = emailInput.value.trim();
         const password = passwordInput.value;
 
-        if (!email || !password) {
-            this.showError('Please fill in all fields');
+        // Clear previous errors
+        this.clearFieldError();
+        this.hideMessages();
+
+        // Client-side validation
+        let hasErrors = false;
+        
+        if (!email) {
+            this.showFieldError('auth-login-email', 'Email is required');
+            hasErrors = true;
+        } else if (!this.validateEmail(email)) {
+            this.showFieldError('auth-login-email', 'Please enter a valid email address');
+            hasErrors = true;
+        }
+        
+        if (!password) {
+            this.showFieldError('auth-login-password', 'Password is required');
+            hasErrors = true;
+        }
+        
+        if (hasErrors) {
             return;
         }
 
         // Show loading state
         if (loading) loading.classList.remove('hidden');
         if (submitBtn) submitBtn.disabled = true;
-        this.hideMessages();
 
         try {
             const result = await login({ email, password });
@@ -201,7 +385,26 @@ export const authView = {
             }, 1000);
 
         } catch (error) {
-            this.showError(error.message || 'Login failed. Please try again.');
+            // Handle field-specific errors
+            if (error.details && Array.isArray(error.details)) {
+                error.details.forEach(detail => {
+                    const field = detail.field || detail.path?.[0];
+                    if (field === 'email') {
+                        this.showFieldError('auth-login-email', detail.message || 'Invalid email');
+                    } else if (field === 'password') {
+                        this.showFieldError('auth-login-password', detail.message || 'Invalid password');
+                    }
+                });
+            }
+            
+            // Show general error message
+            const errorMessage = error.message || 'Login failed. Please check your credentials and try again.';
+            this.showError(errorMessage);
+            
+            // Focus on first error field
+            const firstErrorField = emailInput.classList.contains('border-red-500') ? emailInput : 
+                                   passwordInput.classList.contains('border-red-500') ? passwordInput : emailInput;
+            firstErrorField.focus();
         } finally {
             // Hide loading state
             if (loading) loading.classList.add('hidden');
@@ -228,20 +431,44 @@ export const authView = {
         const email = emailInput.value.trim();
         const password = passwordInput.value;
 
-        if (!name || !email || !password) {
-            this.showError('Please fill in all fields');
-            return;
-        }
+        // Clear previous errors
+        this.clearFieldError();
+        this.hideMessages();
 
-        if (password.length < 8) {
-            this.showError('Password must be at least 8 characters');
+        // Client-side validation
+        let hasErrors = false;
+        
+        if (!name) {
+            this.showFieldError('auth-register-name', 'Name is required');
+            hasErrors = true;
+        } else if (name.length < 2) {
+            this.showFieldError('auth-register-name', 'Name must be at least 2 characters');
+            hasErrors = true;
+        }
+        
+        if (!email) {
+            this.showFieldError('auth-register-email', 'Email is required');
+            hasErrors = true;
+        } else if (!this.validateEmail(email)) {
+            this.showFieldError('auth-register-email', 'Please enter a valid email address');
+            hasErrors = true;
+        }
+        
+        if (!password) {
+            this.showFieldError('auth-register-password', 'Password is required');
+            hasErrors = true;
+        } else if (password.length < 8) {
+            this.showFieldError('auth-register-password', 'Password must be at least 8 characters');
+            hasErrors = true;
+        }
+        
+        if (hasErrors) {
             return;
         }
 
         // Show loading state
         if (loading) loading.classList.remove('hidden');
         if (submitBtn) submitBtn.disabled = true;
-        this.hideMessages();
 
         try {
             const result = await register({ name, email, password });
@@ -261,7 +488,40 @@ export const authView = {
             }, 3000);
 
         } catch (error) {
-            this.showError(error.message || 'Registration failed. Please try again.');
+            // Handle field-specific errors
+            if (error.details && Array.isArray(error.details)) {
+                error.details.forEach(detail => {
+                    const field = detail.field || detail.path?.[0];
+                    if (field === 'email' || field === 'emailAddress') {
+                        this.showFieldError('auth-register-email', detail.message || 'Invalid email');
+                    } else if (field === 'password') {
+                        this.showFieldError('auth-register-password', detail.message || 'Invalid password');
+                    } else if (field === 'name') {
+                        this.showFieldError('auth-register-name', detail.message || 'Invalid name');
+                    }
+                });
+            }
+            
+            // Show general error message
+            let errorMessage = error.message || 'Registration failed. Please check your information and try again.';
+            
+            // Handle specific error cases
+            if (error.message && error.message.toLowerCase().includes('already exists')) {
+                errorMessage = 'An account with this email already exists. Please log in instead.';
+                this.showFieldError('auth-register-email', 'This email is already registered');
+            } else if (error.status === 429) {
+                errorMessage = 'Too many registration attempts. Please wait a few minutes and try again.';
+            } else if (error.status === 503 || error.message.includes('server error')) {
+                errorMessage = 'Server is temporarily unavailable. Please try again in a few moments.';
+            }
+            
+            this.showError(errorMessage);
+            
+            // Focus on first error field
+            const firstErrorField = nameInput.classList.contains('border-red-500') ? nameInput :
+                                   emailInput.classList.contains('border-red-500') ? emailInput :
+                                   passwordInput.classList.contains('border-red-500') ? passwordInput : emailInput;
+            firstErrorField.focus();
         } finally {
             // Hide loading state
             if (loading) loading.classList.add('hidden');
@@ -331,6 +591,9 @@ export const authView = {
     clearForms() {
         const loginForm = document.getElementById('auth-login-form');
         const registerForm = document.getElementById('auth-register-form');
+        
+        // Clear field errors
+        this.clearFieldError();
         
         if (loginForm) loginForm.reset();
         if (registerForm) registerForm.reset();
