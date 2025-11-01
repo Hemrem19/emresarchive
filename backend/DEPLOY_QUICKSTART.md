@@ -84,7 +84,7 @@ PORT=3000
 # Frontend URL (your Cloudflare Pages URL)
 FRONTEND_URL=https://citaversa.pages.dev
 
-# Database (your Neon.tech production URL)
+# Database (your Neon.tech production URL) - MUST start with postgresql:// or postgres://
 DATABASE_URL=postgresql://user:password@ep-xxx-xxx.region.aws.neon.tech/citaversa?sslmode=require
 
 # JWT Secrets (use the secrets you generated in Step 1)
@@ -102,8 +102,11 @@ S3_REGION=auto
 **Important Notes:**
 - Replace `<paste-your-access-secret-here>` with the actual secrets from Step 1
 - Replace `<your-r2-access-key>` with your actual Cloudflare R2 credentials
-- Replace `FRONTEND_URL` with your actual Cloudflare Pages URL
+- Replace `FRONTEND_URL` with your actual Cloudflare Pages URL (or custom domain)
 - Replace `DATABASE_URL` with your Neon.tech production database URL
+  - **CRITICAL:** The `DATABASE_URL` must start with `postgresql://` or `postgres://`
+  - Copy the full connection string from Neon.tech dashboard
+  - It should look like: `postgresql://user:pass@host:port/dbname?sslmode=require`
 
 ---
 

@@ -28,6 +28,10 @@ import { notFound } from './middleware/notFound.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy - required for Railway/production environments
+// Railway uses a reverse proxy, so we need to trust the X-Forwarded-* headers
+app.set('trust proxy', true);
+
 // Normalize FRONTEND_URL - ensure it has a protocol
 let FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 if (FRONTEND_URL && !FRONTEND_URL.startsWith('http://') && !FRONTEND_URL.startsWith('https://')) {
@@ -223,12 +227,27 @@ app.use(notFound);
 // Error handler (must be last)
 app.use(errorHandler);
 
+// Validate critical environment variables before starting
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error('❌ ERROR: DATABASE_URL environment variable is not set!');
+  console.error('   Please set DATABASE_URL in Railway Variables.');
+  process.exit(1);
+}
+
+if (!DATABASE_URL.startsWith('postgresql://') && !DATABASE_URL.startsWith('postgres://')) {
+  console.error('❌ ERROR: DATABASE_URL must start with postgresql:// or postgres://');
+  console.error(`   Current value: ${DATABASE_URL.substring(0, 50)}...`);
+  console.error('   Please check your Railway DATABASE_URL variable.');
+  process.exit(1);
+}
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 citavErsa Backend running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  console.log(`💾 Database: ${DATABASE_URL ? 'Configured' : 'Not configured'}`);
   
   // Log deployment URL if available
   if (process.env.RAILWAY_STATIC_URL) {
