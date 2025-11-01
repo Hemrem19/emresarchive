@@ -75,11 +75,14 @@ export const register = async (req, res, next) => {
     });
 
     // Set refresh token in httpOnly cookie
+    // For cross-site cookies (different domains), use SameSite=None with Secure
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: isProduction, // Required for SameSite=None
+      sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      partitioned: false // Explicitly set (default, but clear for compatibility)
     });
 
     res.status(201).json({
@@ -160,11 +163,14 @@ export const login = async (req, res, next) => {
     });
 
     // Set refresh token in httpOnly cookie
+    // For cross-site cookies (different domains), use SameSite=None with Secure
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: isProduction, // Required for SameSite=None
+      sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      partitioned: false // Explicitly set (default, but clear for compatibility)
     });
 
     res.json({
@@ -205,8 +211,13 @@ export const logout = async (req, res, next) => {
       });
     }
 
-    // Clear cookie
-    res.clearCookie('refreshToken');
+    // Clear cookie (use same options as when setting)
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax'
+    });
 
     res.json({
       success: true,
