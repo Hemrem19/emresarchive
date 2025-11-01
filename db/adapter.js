@@ -452,13 +452,29 @@ export const annotations = {
                     annotationData.paperId,
                     annotationData
                 );
+                // Also save to local
+                try {
+                    await localAnnotations.addAnnotation(annotation);
+                } catch (localError) {
+                    // Ignore local save errors
+                }
                 return annotation.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localAnnotations.addAnnotation(annotationData);
+                const localId = await localAnnotations.addAnnotation(annotationData);
+                // Track change for later sync
+                if (shouldUseCloudSync()) {
+                    trackAnnotationCreated({ ...annotationData, localId });
+                }
+                return localId;
             }
         }
-        return localAnnotations.addAnnotation(annotationData);
+        // Local-only mode: add and track for potential future sync
+        const localId = await localAnnotations.addAnnotation(annotationData);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackAnnotationCreated({ ...annotationData, localId });
+        }
+        return localId;
     },
 
     async getAnnotationsByPaperId(paperId) {
@@ -489,13 +505,29 @@ export const annotations = {
         if (shouldUseCloudSync()) {
             try {
                 const annotation = await apiAnnotations.updateAnnotation(id, updateData);
+                // Also update local
+                try {
+                    await localAnnotations.updateAnnotation(id, annotation);
+                } catch (localError) {
+                    // Ignore local update errors
+                }
                 return annotation.id || id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                return localAnnotations.updateAnnotation(id, updateData);
+                const result = await localAnnotations.updateAnnotation(id, updateData);
+                // Track change for later sync
+                if (shouldUseCloudSync()) {
+                    trackAnnotationUpdated(id, updateData);
+                }
+                return result;
             }
         }
-        return localAnnotations.updateAnnotation(id, updateData);
+        // Local-only mode: update and track for potential future sync
+        const result = await localAnnotations.updateAnnotation(id, updateData);
+        if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackAnnotationUpdated(id, updateData);
+        }
+        return result;
     },
 
     async deleteAnnotation(id) {
