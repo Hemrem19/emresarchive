@@ -605,9 +605,9 @@ export const detailsView = {
                             (async () => {
                                 try {
                                     showToast('Loading PDF from cloud...', 'info');
-                                    const { pdfUrl } = await getPdfDownloadUrl(paperId);
-                                    console.log('[Details] Got PDF URL from backend:', pdfUrl);
-                                    await loadPdfFromUrl(pdfUrl);
+                                    const { downloadUrl } = await getPdfDownloadUrl(paperId);
+                                    console.log('[Details] Got presigned download URL from backend:', downloadUrl);
+                                    await loadPdfFromUrl(downloadUrl);
                                 } catch (error) {
                                     console.error('[Details] Error loading PDF from S3:', error);
                                     showToast('Failed to load PDF from cloud', 'error');
