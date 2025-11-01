@@ -245,13 +245,15 @@ export const createPaper = async (req, res, next) => {
     } catch (prismaError) {
       // Handle Prisma unique constraint violation (race condition or duplicate)
       if (prismaError.code === 'P2002') {
-        const field = prismaError.meta?.target?.[0] || 'field';
-        if (field === 'doi' && paperData.doi) {
+        const target = prismaError.meta?.target || [];
+        // Check if it's the userId+doi composite constraint
+        if (target.includes('userId') && target.includes('doi') && paperData.doi) {
           return res.status(400).json({
             success: false,
-            error: { message: `A paper with DOI ${paperData.doi} already exists` }
+            error: { message: `You already have a paper with DOI ${paperData.doi} in your library` }
           });
         }
+        const field = target[0] || 'field';
         // Generic unique constraint error
         return res.status(400).json({
           success: false,

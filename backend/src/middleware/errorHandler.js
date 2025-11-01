@@ -16,10 +16,16 @@ export const errorHandler = (err, req, res, next) => {
   // Prisma unique constraint violation (P2002) - handled gracefully
   if (err.code === 'P2002') {
     statusCode = 400;
-    const field = err.meta?.target?.[0] || 'field';
-    message = `A record with this ${field} already exists`;
+    const target = err.meta?.target || [];
+    // Check if it's the userId+doi composite constraint
+    if (target.includes('userId') && target.includes('doi')) {
+      message = 'You already have a paper with this DOI in your library';
+    } else {
+      const field = target[0] || 'field';
+      message = `A record with this ${field} already exists`;
+    }
     // Don't log these as errors - they're expected business logic errors
-    console.log(`ℹ️  Duplicate ${field} detected (handled gracefully):`, err.meta?.target);
+    console.log(`ℹ️  Duplicate constraint detected (handled gracefully):`, target);
   } else {
     // Log unexpected errors
     console.error('Error:', err);

@@ -47,7 +47,7 @@ model Paper {
   authors         String[]  @default([])
   year            Int?
   journal         String?   @db.VarChar(255)
-  doi             String?   @unique
+  doi             String?
   abstract        String?   @db.Text
   tags            String[]  @default([])
   status          String    @default("To Read") @db.VarChar(50)
@@ -76,6 +76,7 @@ model Paper {
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   annotations    Annotation[]
   
+  @@unique([userId, doi]) // DOI must be unique per user (allows NULL doi)
   @@index([userId])
   @@index([userId, status])
   @@index([doi])
