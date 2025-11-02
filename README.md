@@ -134,6 +134,7 @@ research/
 
 ## 📖 Documentation
 
+- [`PROJECT_EXPLANATION.md`](PROJECT_EXPLANATION.md) - **Comprehensive project explanation** (architecture, features, structure)
 - [`TESTING.md`](TESTING.md) - Testing guide
 - [`REFACTORING_PLAN.md`](REFACTORING_PLAN.md) - Refactoring documentation
 - [`enhancement_plan.md`](enhancement_plan.md) - Feature roadmap
