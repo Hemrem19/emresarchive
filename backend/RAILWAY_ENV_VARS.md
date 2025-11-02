@@ -15,11 +15,13 @@ EMAIL_FROM_NAME=Citavers
 
 ### How to Add in Railway:
 
+**Important:** Add variables to the **service** (not as shared variables)
+
 1. Go to your Railway project dashboard
-2. Select your backend service
-3. Click on the **Variables** tab
-4. Click **+ New Variable** for each variable
-5. Add the variables one by one:
+2. Select your **backend service** (click on the service name)
+3. Click on the **Variables** tab (in the service, not project)
+4. Click **+ New Variable** (do NOT use "Add Shared Variable")
+5. Add the variables one by one directly to the service:
 
    - **Key:** `EMAIL_SERVICE_TYPE`
      - **Value:** `resend`
@@ -102,12 +104,49 @@ After adding variables in Railway:
 
 ## Common Issues
 
-### Variables Not Showing in Railway
+### Variables Not Showing in Railway Variables Tab
 
-Railway doesn't auto-detect variables - you must manually add them:
-1. Go to your service → **Variables** tab
-2. Click **+ New Variable**
-3. Add each variable manually
+**If you added variables as Shared Variables:**
+- Shared variables may not appear in the service's Variables tab
+- However, they should still be available to your service at runtime
+- Check Railway logs to see if variables are being loaded
+
+**Solution - Add as Service-Specific Variables:**
+1. Go to your **backend service** (not project)
+2. Click on **Variables** tab
+3. Click **+ New Variable** (not "Add Shared Variable")
+4. Add each Resend variable directly to the service:
+   - `EMAIL_SERVICE_TYPE`
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM`
+   - `EMAIL_FROM_NAME`
+
+**Verify Variables Are Available:**
+- Check Railway logs after deployment
+- Look for: `📧 Email Service: resend`
+- Should show: `Resend API: ✅ Configured`
+- If it shows `❌ Missing API key`, the variable isn't accessible
+
+### Shared Variables vs Service Variables
+
+**Shared Variables (Project-level):**
+- Added at project level
+- Available to all services
+- May not show in service Variables tab
+- Use when same value needed across multiple services
+
+**Service Variables (Service-specific):**
+- Added to specific service
+- Show up in service Variables tab
+- Use for service-specific configuration
+- **Recommended for Resend variables**
+
+### Why Use Service Variables Instead?
+
+1. **Visibility**: Show up in service Variables tab
+2. **Isolation**: Only available to that service
+3. **Easier Debugging**: Can see all variables in one place
+4. **Railway Best Practice**: Service-specific config should be service variables
 
 ### Variable Name Typos
 
