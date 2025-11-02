@@ -7,45 +7,53 @@
 import crypto from 'crypto';
 
 // Email service configuration
+// Read directly from process.env (Railway injects these automatically)
 const EMAIL_CONFIG = {
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:8080',
   FROM_EMAIL: process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'onboarding@resend.dev',
   FROM_NAME: process.env.EMAIL_FROM_NAME || process.env.FROM_NAME || 'Citavers',
   // Service type: 'resend', 'smtp', or 'log' (for development)
-  SERVICE_TYPE: process.env.EMAIL_SERVICE_TYPE || 'log',
+  SERVICE_TYPE: (process.env.EMAIL_SERVICE_TYPE || 'log').toLowerCase().trim(),
   // Resend API key (if using Resend)
-  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
   // SMTP configuration (if using SMTP)
-  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_HOST: process.env.SMTP_HOST?.trim(),
   SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
-  SMTP_USER: process.env.SMTP_USER,
-  SMTP_PASS: process.env.SMTP_PASS,
+  SMTP_USER: process.env.SMTP_USER?.trim(),
+  SMTP_PASS: process.env.SMTP_PASS?.trim(),
   SMTP_SECURE: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465'
 };
 
 // Log email service configuration on startup (without sensitive data)
 if (process.env.NODE_ENV !== 'test') {
-  console.log(`📧 Email Service: ${EMAIL_CONFIG.SERVICE_TYPE}`);
+  console.log(`📧 Email Service Configuration:`);
+  console.log(`   SERVICE_TYPE: "${EMAIL_CONFIG.SERVICE_TYPE}" (raw: "${process.env.EMAIL_SERVICE_TYPE || 'undefined'}")`);
+  console.log(`   RESEND_API_KEY: ${EMAIL_CONFIG.RESEND_API_KEY ? '✅ Set (hidden)' : '❌ NOT SET'}`);
+  console.log(`   FROM_EMAIL: ${EMAIL_CONFIG.FROM_EMAIL}`);
+  console.log(`   FROM_NAME: ${EMAIL_CONFIG.FROM_NAME}`);
+  
   if (EMAIL_CONFIG.SERVICE_TYPE === 'resend') {
     console.log(`   From: ${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`);
     if (EMAIL_CONFIG.RESEND_API_KEY) {
-      console.log(`   Resend API: ✅ Configured`);
+      console.log(`   ✅ Resend API: Configured - emails WILL be sent`);
     } else {
-      console.log(`   Resend API: ❌ Missing API key`);
+      console.log(`   ❌ Resend API: Missing API key`);
       console.log(`   ⚠️  Will use LOG MODE - emails will NOT be sent!`);
-      console.log(`   💡 Set RESEND_API_KEY environment variable to enable email sending`);
+      console.log(`   💡 Set RESEND_API_KEY environment variable in Railway`);
+      console.log(`   💡 Check: Service → Variables tab → Add RESEND_API_KEY`);
     }
   } else if (EMAIL_CONFIG.SERVICE_TYPE === 'smtp') {
     if (EMAIL_CONFIG.SMTP_HOST && EMAIL_CONFIG.SMTP_USER && EMAIL_CONFIG.SMTP_PASS) {
       console.log(`   SMTP Host: ${EMAIL_CONFIG.SMTP_HOST}`);
-      console.log(`   SMTP: ✅ Configured`);
+      console.log(`   ✅ SMTP: Configured`);
     } else {
-      console.log(`   SMTP: ❌ Not fully configured`);
+      console.log(`   ❌ SMTP: Not fully configured`);
       console.log(`   ⚠️  Missing SMTP credentials - will use LOG MODE`);
     }
   } else {
-    console.log(`   Mode: Log (emails will be printed to console)`);
-    console.log(`   ⚠️  Set EMAIL_SERVICE_TYPE=resend to enable email sending`);
+    console.log(`   ⚠️  Mode: Log (emails will be printed to console)`);
+    console.log(`   💡 To enable Resend: Set EMAIL_SERVICE_TYPE=resend in Railway`);
+    console.log(`   💡 Railway → Service → Variables → Add EMAIL_SERVICE_TYPE=resend`);
   }
 }
 
@@ -158,8 +166,8 @@ export const sendVerificationEmail = async (email, token, name = null) => {
   const subject = 'Verify Your Email Address';
   const from = `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`;
   
-  // Determine which service to use
-  const serviceType = EMAIL_CONFIG.SERVICE_TYPE.toLowerCase();
+  // Determine which service to use (already lowercased in EMAIL_CONFIG)
+  const serviceType = EMAIL_CONFIG.SERVICE_TYPE;
   
   // Log mode (development or no service configured)
   if (serviceType === 'log' || (!EMAIL_CONFIG.RESEND_API_KEY && !EMAIL_CONFIG.SMTP_HOST)) {
