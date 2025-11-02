@@ -79,6 +79,12 @@ S3_ACCESS_KEY_ID=<your-access-key>
 S3_SECRET_ACCESS_KEY=<your-secret-key>
 S3_REGION=auto
 
+# Email Service (Resend - Recommended)
+EMAIL_SERVICE_TYPE=resend
+RESEND_API_KEY=re_your_api_key_here
+EMAIL_FROM=onboarding@resend.dev
+EMAIL_FROM_NAME=Citavers
+
 # Optional
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
