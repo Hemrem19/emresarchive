@@ -4,6 +4,12 @@
 .DS_Store
 Thumbs.db
 
+# Logo files (comment out when logo files are added)
+# Uncomment the line below if you want to exclude logo files from git
+# assets/logos/*.png
+# assets/logos/*.svg
+# assets/logos/*.ico
+
 # Editor/IDE specific files
 .vscode/
 .idea/
