@@ -28,11 +28,24 @@ if (process.env.NODE_ENV !== 'test') {
   console.log(`📧 Email Service: ${EMAIL_CONFIG.SERVICE_TYPE}`);
   if (EMAIL_CONFIG.SERVICE_TYPE === 'resend') {
     console.log(`   From: ${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`);
-    console.log(`   Resend API: ${EMAIL_CONFIG.RESEND_API_KEY ? '✅ Configured' : '❌ Missing API key'}`);
+    if (EMAIL_CONFIG.RESEND_API_KEY) {
+      console.log(`   Resend API: ✅ Configured`);
+    } else {
+      console.log(`   Resend API: ❌ Missing API key`);
+      console.log(`   ⚠️  Will use LOG MODE - emails will NOT be sent!`);
+      console.log(`   💡 Set RESEND_API_KEY environment variable to enable email sending`);
+    }
   } else if (EMAIL_CONFIG.SERVICE_TYPE === 'smtp') {
-    console.log(`   SMTP Host: ${EMAIL_CONFIG.SMTP_HOST || 'Not configured'}`);
+    if (EMAIL_CONFIG.SMTP_HOST && EMAIL_CONFIG.SMTP_USER && EMAIL_CONFIG.SMTP_PASS) {
+      console.log(`   SMTP Host: ${EMAIL_CONFIG.SMTP_HOST}`);
+      console.log(`   SMTP: ✅ Configured`);
+    } else {
+      console.log(`   SMTP: ❌ Not fully configured`);
+      console.log(`   ⚠️  Missing SMTP credentials - will use LOG MODE`);
+    }
   } else {
     console.log(`   Mode: Log (emails will be printed to console)`);
+    console.log(`   ⚠️  Set EMAIL_SERVICE_TYPE=resend to enable email sending`);
   }
 }
 
@@ -155,6 +168,16 @@ export const sendVerificationEmail = async (email, token, name = null) => {
     console.log(`From: ${from}`);
     console.log(`Subject: ${subject}`);
     console.log(`\nVerification URL: ${verificationUrl}`);
+    
+    // Diagnostic information
+    console.log('\n--- Email Configuration ---');
+    console.log(`   SERVICE_TYPE: ${EMAIL_CONFIG.SERVICE_TYPE}`);
+    console.log(`   RESEND_API_KEY: ${EMAIL_CONFIG.RESEND_API_KEY ? 'Set (hidden)' : 'NOT SET'}`);
+    console.log(`   SMTP_HOST: ${EMAIL_CONFIG.SMTP_HOST || 'NOT SET'}`);
+    console.log('\n⚠️  Email service is in LOG MODE - emails will NOT be sent!');
+    console.log('   To enable Resend:');
+    console.log('   1. Set EMAIL_SERVICE_TYPE=resend');
+    console.log('   2. Set RESEND_API_KEY=re_your_api_key');
     console.log('=====================================\n');
     return;
   }
