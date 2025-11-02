@@ -612,9 +612,10 @@ export const authView = {
                 if (resendBtn && !resendBtn.dataset.listenerAdded) {
                     resendBtn.dataset.listenerAdded = 'true';
                     resendBtn.addEventListener('click', async () => {
+                        // Store original text outside try block so it's available in catch
+                        const originalText = resendBtn.textContent;
                         try {
                             resendBtn.disabled = true;
-                            const originalText = resendBtn.textContent;
                             resendBtn.textContent = 'Sending...';
                             await resendVerificationEmail();
                             showToast('Verification email sent! Please check your inbox.', 'success');

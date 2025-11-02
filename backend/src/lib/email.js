@@ -193,7 +193,25 @@ export const sendVerificationEmail = async (email, token, name = null) => {
   const html = createVerificationEmailHTML(name, verificationUrl);
   const text = createVerificationEmailText(name, verificationUrl);
   const subject = 'Verify Your Email Address';
-  const from = `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`;
+  
+  // Format 'from' field for Resend API
+  // Resend accepts: "email@domain.com" or "Name <email@domain.com>"
+  // Ensure email is valid and name doesn't contain invalid characters
+  const fromEmail = EMAIL_CONFIG.FROM_EMAIL.trim();
+  const fromName = EMAIL_CONFIG.FROM_NAME?.trim() || 'Citavers';
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(fromEmail)) {
+    throw new Error(`Invalid FROM_EMAIL format: "${fromEmail}". Must be a valid email address.`);
+  }
+  
+  // Format for Resend: "Name <email@domain.com>"
+  // Remove any angle brackets or special characters from name that might break the format
+  const sanitizedName = fromName.replace(/[<>"]/g, '').trim();
+  const from = sanitizedName && sanitizedName.length > 0 
+    ? `${sanitizedName} <${fromEmail}>`
+    : fromEmail; // Fallback to just email if name is empty
   
   // Determine which service to use (already lowercased in EMAIL_CONFIG)
   const serviceType = EMAIL_CONFIG.SERVICE_TYPE;
