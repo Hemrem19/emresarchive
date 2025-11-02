@@ -197,13 +197,30 @@ export const sendVerificationEmail = async (email, token, name = null) => {
   // Format 'from' field for Resend API
   // Resend accepts: "email@domain.com" or "Name <email@domain.com>"
   // Ensure email is valid and name doesn't contain invalid characters
-  const fromEmail = EMAIL_CONFIG.FROM_EMAIL.trim();
+  let fromEmail = EMAIL_CONFIG.FROM_EMAIL.trim();
   const fromName = EMAIL_CONFIG.FROM_NAME?.trim() || 'Citavers';
+  
+  // Check for common mistakes (missing @ sign)
+  if (fromEmail && !fromEmail.includes('@')) {
+    console.error(`⚠️  Invalid EMAIL_FROM format detected: "${fromEmail}"`);
+    console.error(`   It looks like you're missing the @ sign.`);
+    console.error(`   Should be: "${fromEmail.replace(/\./g, '@')}" or "${fromEmail.replace('.', '@')}"`);
+    console.error(`   Using fallback: onboarding@resend.dev`);
+    fromEmail = 'onboarding@resend.dev';
+  }
   
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(fromEmail)) {
-    throw new Error(`Invalid FROM_EMAIL format: "${fromEmail}". Must be a valid email address.`);
+    const suggestedFix = fromEmail.includes('.') && !fromEmail.includes('@') 
+      ? fromEmail.replace(/\./, '@')
+      : 'onboarding@resend.dev';
+    throw new Error(
+      `Invalid FROM_EMAIL format: "${EMAIL_CONFIG.FROM_EMAIL}". ` +
+      `Must be a valid email address (e.g., "noreply@citavers.com" or "onboarding@resend.dev"). ` +
+      `Current value: "${fromEmail}". ` +
+      `Suggestion: Use "${suggestedFix}"`
+    );
   }
   
   // Format for Resend: "Name <email@domain.com>"
