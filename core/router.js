@@ -6,6 +6,7 @@ import { detailsView } from '../details.view.js';
 import { formView } from '../form.view.js';
 import { settingsView } from '../settings.view.js';
 import { graphView } from '../graph.view.js';
+import { docsView } from '../docs.view.js';
 import { views as templates } from '../views.js';
 import { highlightActiveSidebarLink } from '../ui.js';
 import { parseUrlHash, applyFiltersAndRender } from './filters.js';
@@ -99,6 +100,9 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
         } else if (requestedPath === '/graph') {
             appState.currentView = graphView;
             renderView(app, templates.graph, () => appState.currentView.mount(appState));
+        } else if (requestedPath === '/docs' || requestedPath.startsWith('/docs')) {
+            appState.currentView = docsView;
+            renderView(app, templates.docs, () => appState.currentView.mount(appState));
         } else if (requestedPath.startsWith('/verify-email')) {
             // Handle email verification - extract token from hash query string
             const hashQueryString = requestedPath.split('?')[1] || '';

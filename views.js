@@ -680,5 +680,385 @@ export const views = {
                 </form>
             </div>
         </div>
+    `,
+    docs: `
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="max-w-4xl mx-auto">
+                <!-- Header -->
+                <div class="text-center mb-12">
+                    <h1 class="text-4xl font-bold text-stone-900 dark:text-white mb-4">Welcome to citavErs</h1>
+                    <p class="text-lg text-stone-600 dark:text-stone-400">Your comprehensive guide to managing research papers</p>
+                </div>
+
+                <!-- Quick Start -->
+                <section id="section-quick-start" class="mb-12">
+                    <div class="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-lg p-6 mb-8 border border-primary/20">
+                        <h2 class="text-2xl font-bold text-stone-900 dark:text-white mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">rocket_launch</span>
+                            Quick Start
+                        </h2>
+                        <ol class="space-y-3 text-stone-700 dark:text-stone-300">
+                            <li class="flex items-start gap-3">
+                                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">1</span>
+                                <span>Add your first paper using the <strong>"Add Paper"</strong> button or use <strong>"Quick Add by DOI"</strong> on the dashboard</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">2</span>
+                                <span>Organize papers with <strong>tags</strong> and set their <strong>reading status</strong></span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">3</span>
+                                <span>Click on any paper to view details, read PDFs, and take notes</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">4</span>
+                                <span>Use <strong>collections</strong> to save your favorite filter combinations</span>
+                            </li>
+                        </ol>
+                    </div>
+                </section>
+
+                <!-- Core Features -->
+                <section id="section-core-features" class="mb-12">
+                    <h2 class="text-3xl font-bold text-stone-900 dark:text-white mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">star</span>
+                        Core Features
+                    </h2>
+                    <div class="space-y-8">
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">library_books</span>
+                                Paper Management
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Add, organize, and manage your research papers with ease.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Add Papers:</strong> Manually enter details or use Quick Add by DOI to fetch metadata automatically</li>
+                                <li><strong>Edit Papers:</strong> Update any paper's information at any time</li>
+                                <li><strong>Upload PDFs:</strong> Attach PDF files to papers for easy access</li>
+                                <li><strong>Link Papers:</strong> Connect related papers together to track research relationships</li>
+                                <li><strong>Reading Status:</strong> Track progress with statuses like "To Read", "Reading", "Finished", "Archived"</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">search</span>
+                                Powerful Search & Filtering
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Find papers quickly with advanced search and filtering options.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Full-Text Search:</strong> Search across titles, authors, and notes</li>
+                                <li><strong>Notes-Only Search:</strong> Switch to "Notes Only" mode to search only in paper notes</li>
+                                <li><strong>Exact Phrase Search:</strong> Use double quotes (e.g., "machine learning") for exact matches</li>
+                                <li><strong>Status Filters:</strong> Filter papers by reading status</li>
+                                <li><strong>Tag Filters:</strong> Select multiple tags to find papers matching all selected tags</li>
+                                <li><strong>Advanced Filtering:</strong> Combine status and tag filters for precise results</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">label</span>
+                                Tags & Organization
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Organize your papers with custom tags and collections.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Custom Tags:</strong> Add any number of tags to categorize papers (e.g., "machine-learning", "neuroscience", "2024")</li>
+                                <li><strong>Smart Tag Suggestions:</strong> Get automatic tag suggestions based on paper titles</li>
+                                <li><strong>Tag Filtering:</strong> Click tags in the sidebar to filter papers by that tag</li>
+                                <li><strong>Collections:</strong> Save filter combinations as collections for quick access</li>
+                                <li><strong>Sidebar Tags:</strong> Quickly see all your tags and filter counts</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">description</span>
+                                Rich Notes & Annotations
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Take detailed notes with rich text formatting support.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Rich Text Editor:</strong> Format notes with bold, italic, lists, and more</li>
+                                <li><strong>Auto-Save:</strong> Notes are automatically saved as you type</li>
+                                <li><strong>Note Search:</strong> Search specifically within notes using "Notes Only" mode</li>
+                                <li><strong>Note Snippets:</strong> See note previews in search results when matches are found</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+                                PDF Viewer
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">View PDFs directly in the browser with professional tools.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Built-in Viewer:</strong> View PDFs without leaving the app</li>
+                                <li><strong>Search in PDF:</strong> Search for text within PDF documents with highlighting</li>
+                                <li><strong>Zoom Controls:</strong> Zoom from 25% to 300% with crisp rendering</li>
+                                <li><strong>Page Navigation:</strong> Jump to any page or navigate page by page</li>
+                                <li><strong>Rotation:</strong> Rotate PDF pages in 90° increments</li>
+                                <li><strong>Fullscreen Mode:</strong> Full-screen PDF viewing for focused reading</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">device_hub</span>
+                                Paper Network Graph
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Visualize relationships between your papers with an interactive network graph.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Interactive Graph:</strong> See all papers and their connections visually</li>
+                                <li><strong>Color Coding:</strong> Papers are color-coded by reading status</li>
+                                <li><strong>Filters:</strong> Filter the graph by status, tags, or search terms</li>
+                                <li><strong>Navigation:</strong> Click any node to view that paper's details</li>
+                                <li><strong>Hover Tooltips:</strong> See paper information on hover</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">format_list_bulleted</span>
+                                Batch Operations
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Manage multiple papers at once with batch operations.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Select Papers:</strong> Use checkboxes to select multiple papers</li>
+                                <li><strong>Select All:</strong> Quickly select all visible papers</li>
+                                <li><strong>Batch Status Change:</strong> Change reading status for multiple papers at once</li>
+                                <li><strong>Batch Tag Management:</strong> Add or remove tags from multiple papers</li>
+                                <li><strong>Batch Delete:</strong> Delete multiple papers with confirmation</li>
+                                <li><strong>Batch Export Bibliography:</strong> Export citations for selected papers in various formats</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">sort</span>
+                                Sorting & Pagination
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Organize and navigate large paper collections efficiently.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Multiple Sort Options:</strong> Sort by date added, last updated, title, year, status, or reading progress</li>
+                                <li><strong>Pagination:</strong> View papers in pages (10, 25, 50, or 100 per page)</li>
+                                <li><strong>Smart Pagination:</strong> Automatically resets to page 1 when filters change</li>
+                                <li><strong>Reading Progress Sorting:</strong> Sort papers by how much you've read</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Advanced Features -->
+                <section id="section-advanced-features" class="mb-12">
+                    <h2 class="text-3xl font-bold text-stone-900 dark:text-white mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">auto_awesome</span>
+                        Advanced Features
+                    </h2>
+                    <div class="space-y-8">
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">keyboard</span>
+                                Keyboard Shortcuts
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Speed up your workflow with keyboard shortcuts.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-stone-700 dark:text-stone-300">
+                                <div>
+                                    <p class="font-semibold mb-2">Global Shortcuts</p>
+                                    <ul class="space-y-1 ml-4 list-disc text-sm">
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">n</kbd> - New Paper</li>
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">/</kbd> - Focus Search</li>
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">?</kbd> - Show Shortcuts</li>
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">g</kbd> <kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">h</kbd> - Go Home</li>
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">g</kbd> <kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">s</kbd> - Go Settings</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p class="font-semibold mb-2">Dashboard Shortcuts</p>
+                                    <ul class="space-y-1 ml-4 list-disc text-sm">
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">Ctrl</kbd> + <kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">A</kbd> - Select All</li>
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">Ctrl</kbd> + <kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">D</kbd> - Clear Selection</li>
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">Delete</kbd> - Delete Selected</li>
+                                        <li><kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">Esc</kbd> - Clear Selection</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">flash_on</span>
+                                Command Palette
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Quickly navigate and perform actions using the command palette.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li>Press <kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">Ctrl+K</kbd> (or <kbd class="px-2 py-1 bg-stone-100 dark:bg-stone-800 rounded">Cmd+K</kbd> on Mac) to open</li>
+                                <li>Search for papers, tags, collections, or actions</li>
+                                <li>Use arrow keys to navigate, Enter to execute</li>
+                                <li>Works from anywhere in the app</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">bookmark</span>
+                                Collections
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Save and restore filter combinations for quick access.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Save Collections:</strong> Apply filters (status, tags, search), then click "Save Collection"</li>
+                                <li><strong>Quick Access:</strong> Click any collection in the sidebar to instantly apply those filters</li>
+                                <li><strong>Edit Collections:</strong> Rename or delete collections from the sidebar</li>
+                                <li><strong>Custom Icons:</strong> Each collection can have a custom icon and color</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">track_changes</span>
+                                Reading Progress
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Track your progress through long papers.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li>Set current page and total pages for papers with "Reading" status</li>
+                                <li>See progress bars on paper cards and details view</li>
+                                <li>Sort papers by reading progress to find nearly-finished papers</li>
+                                <li>Progress automatically calculates percentage</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">description</span>
+                                Citation Export
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Export bibliographies in multiple citation formats.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>6 Citation Formats:</strong> APA, IEEE, MLA, Chicago, Harvard, Vancouver</li>
+                                <li><strong>Bibliography Styles:</strong> Numbered or alphabetical ordering</li>
+                                <li><strong>Batch Export:</strong> Select multiple papers and export their citations</li>
+                                <li><strong>Export Options:</strong> Download as text file or copy to clipboard</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">sync</span>
+                                Cloud Sync (Optional)
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Access your papers from any device with optional cloud sync.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Account Required:</strong> Create a free account to enable cloud sync</li>
+                                <li><strong>Email Verification:</strong> Verify your email to activate cloud sync</li>
+                                <li><strong>Automatic Sync:</strong> Changes sync automatically when enabled</li>
+                                <li><strong>Manual Sync:</strong> Trigger sync manually from settings</li>
+                                <li><strong>Multi-Device Access:</strong> Access your papers from any device</li>
+                                <li><strong>Local-First:</strong> All data works offline - cloud sync is optional</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Data Management -->
+                <section id="section-data-management" class="mb-12">
+                    <h2 class="text-3xl font-bold text-stone-900 dark:text-white mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">storage</span>
+                        Data Management
+                    </h2>
+                    <div class="space-y-8">
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">download</span>
+                                Export Library
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Back up your entire library to a single JSON file.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li>Export all papers, notes, PDFs, collections, and metadata</li>
+                                <li>Single JSON file contains everything</li>
+                                <li>Perfect for backups and migration</li>
+                                <li>Access from Settings → Export Library</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">upload</span>
+                                Import Library
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Restore your library from a backup file.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li>Import from exported JSON backup files</li>
+                                <li>Import from Zotero/Mendeley RIS files</li>
+                                <li><strong>Warning:</strong> Import replaces all current data - export first!</li>
+                                <li>Access from Settings → Import Library</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-6">
+                            <h3 class="text-xl font-semibold text-stone-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">shield</span>
+                                Privacy & Data Ownership
+                            </h3>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">Your data, your control.</p>
+                            <ul class="space-y-2 text-stone-700 dark:text-stone-300 ml-6 list-disc">
+                                <li><strong>Local-First:</strong> All data stored locally in your browser (IndexedDB)</li>
+                                <li><strong>Offline Capable:</strong> Full functionality without internet connection</li>
+                                <li><strong>No Tracking:</strong> No analytics, no user tracking</li>
+                                <li><strong>Cloud Optional:</strong> Cloud sync is completely optional</li>
+                                <li><strong>Full Export:</strong> Export all data including PDFs anytime</li>
+                                <li><strong>Data Ownership:</strong> You own and control all your data</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tips & Tricks -->
+                <section id="section-tips" class="mb-12">
+                    <h2 class="text-3xl font-bold text-stone-900 dark:text-white mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">lightbulb</span>
+                        Tips & Tricks
+                    </h2>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+                        <ul class="space-y-3 text-stone-700 dark:text-stone-300">
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0">tips_and_updates</span>
+                                <span><strong>Use Quick Add:</strong> Save time by pasting DOI URLs directly into the Quick Add field - metadata will be fetched automatically</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0">tips_and_updates</span>
+                                <span><strong>Create Collections:</strong> Save common filter combinations as collections for one-click access to specific paper sets</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0">tips_and_updates</span>
+                                <span><strong>Batch Operations:</strong> Use checkboxes to select multiple papers for quick status changes or tag updates</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0">tips_and_updates</span>
+                                <span><strong>Command Palette:</strong> Press <kbd class="px-2 py-1 bg-white dark:bg-stone-800 rounded">Ctrl+K</kbd> to quickly navigate to any paper or tag</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0">tips_and_updates</span>
+                                <span><strong>Exact Search:</strong> Use double quotes for exact phrase matching (e.g., "neural networks")</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0">tips_and_updates</span>
+                                <span><strong>Reading Progress:</strong> Track progress on long papers to quickly find what you haven't finished</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 flex-shrink-0">tips_and_updates</span>
+                                <span><strong>Regular Backups:</strong> Export your library regularly to ensure your research is safe</span>
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Navigation -->
+                <div class="text-center mt-12 pt-8 border-t border-stone-200 dark:border-stone-800">
+                    <a href="#/" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                        <span class="material-symbols-outlined">home</span>
+                        <span>Go to Dashboard</span>
+                    </a>
+                </div>
+            </div>
+        </div>
     `
 };
