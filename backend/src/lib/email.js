@@ -178,8 +178,8 @@ export const sendVerificationEmail = async (email, token, name = null) => {
         subject: subject,
         html: html,
         text: text,
-        // Add reply-to if FROM_EMAIL is set
-        replyTo: EMAIL_CONFIG.FROM_EMAIL !== 'noreply@citavers.com' ? EMAIL_CONFIG.FROM_EMAIL : undefined
+        // Add reply-to (optional - Resend will use from address if not set)
+        replyTo: EMAIL_CONFIG.FROM_EMAIL
       });
       
       // Resend v3 returns { data, error } structure
