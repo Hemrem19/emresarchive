@@ -228,19 +228,39 @@ app.use(cors({
 // Rate limiting
 // Skip IP-based limiting when trust proxy is enabled (Railway handles this)
 // Use a more lenient approach or disable validation warnings
+
+// More lenient rate limiter for auth routes (login, registration, etc.)
+// Auth routes need higher limits because users might retry login attempts
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 login/register attempts per 15 minutes per IP
+  message: 'Too many authentication attempts from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.socket.remoteAddress || 'unknown';
+  },
+  skipSuccessfulRequests: true, // Don't count successful requests
+  skipFailedRequests: false, // Count failed requests
+});
+
+// General API rate limiter (for all other routes)
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
-  // Skip strict validation when behind Railway proxy
   standardHeaders: true,
   legacyHeaders: false,
-  // Use custom key generator that doesn't rely on trust proxy warnings
   keyGenerator: (req) => {
     // Use X-Forwarded-For if available, otherwise use IP
     return req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.socket.remoteAddress || 'unknown';
   }
 });
+
+// Apply auth rate limiter to auth routes
+app.use('/api/auth', authLimiter);
+
+// Apply general rate limiter to all other API routes
 app.use('/api/', limiter);
 
 // Cookie parser (for refresh tokens)
