@@ -1,6 +1,6 @@
 # Email Service Setup Guide
 
-This guide explains how to configure email sending for verification emails in citavErsa.
+This guide explains how to configure email sending for verification emails in citavErs.
 
 ## Available Email Services
 
@@ -24,12 +24,12 @@ Resend is a modern, developer-friendly email API service.
 2. **Create an API key:**
    - Go to https://resend.com/api-keys
    - Click "Create API Key"
-   - Name it (e.g., "citavErsa Production")
+   - Name it (e.g., "citavErs Production")
    - Copy the API key (starts with `re_`)
 
 3. **Verify your domain (recommended):**
    - Go to https://resend.com/domains
-   - Add your domain (e.g., `citaversa.com`)
+   - Add your domain (e.g., `citavers.com`)
    - Add the DNS records provided by Resend
    - Wait for verification (can take a few minutes to hours)
 
@@ -37,8 +37,8 @@ Resend is a modern, developer-friendly email API service.
    ```
    EMAIL_SERVICE_TYPE=resend
    RESEND_API_KEY=re_your_api_key_here
-   EMAIL_FROM=noreply@citaversa.com  # Must be verified domain
-   EMAIL_FROM_NAME=Citaversa
+   EMAIL_FROM=noreply@citavers.com  # Must be verified domain
+   EMAIL_FROM_NAME=Citavers
    ```
 
 5. **Test the setup:**
@@ -79,8 +79,8 @@ Works with any SMTP provider: Gmail, SendGrid, Mailgun, AWS SES, etc.
    SMTP_USER=your-email@gmail.com  # or API username
    SMTP_PASS=your-app-password  # or API key
    SMTP_SECURE=false  # true for port 465, false for 587
-   EMAIL_FROM=noreply@citaversa.com
-   EMAIL_FROM_NAME=Citaversa
+   EMAIL_FROM=noreply@citavers.com
+   EMAIL_FROM_NAME=Citavers
    ```
 
 ### Example SMTP Configurations:
@@ -94,7 +94,7 @@ SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-16-char-app-password
 SMTP_SECURE=false
 EMAIL_FROM=your-email@gmail.com
-EMAIL_FROM_NAME=Citaversa
+EMAIL_FROM_NAME=Citavers
 ```
 
 **SendGrid:**
@@ -106,7 +106,7 @@ SMTP_USER=apikey
 SMTP_PASS=your-sendgrid-api-key
 SMTP_SECURE=false
 EMAIL_FROM=noreply@yourdomain.com
-EMAIL_FROM_NAME=Citaversa
+EMAIL_FROM_NAME=Citavers
 ```
 
 **Mailgun:**
@@ -118,7 +118,7 @@ SMTP_USER=postmaster@yourdomain.mailgun.org
 SMTP_PASS=your-mailgun-password
 SMTP_SECURE=false
 EMAIL_FROM=noreply@yourdomain.com
-EMAIL_FROM_NAME=Citaversa
+EMAIL_FROM_NAME=Citavers
 ```
 
 ## Option 3: Log Mode (Development)
@@ -138,8 +138,8 @@ EMAIL_SERVICE_TYPE=log
 ```
 EMAIL_SERVICE_TYPE=resend
 RESEND_API_KEY=re_your_api_key_here
-EMAIL_FROM=noreply@citaversa.com
-EMAIL_FROM_NAME=Citaversa
+EMAIL_FROM=noreply@citavers.com
+EMAIL_FROM_NAME=Citavers
 ```
 
 ### For SMTP:
@@ -150,8 +150,8 @@ SMTP_PORT=587
 SMTP_USER=your-username
 SMTP_PASS=your-password
 SMTP_SECURE=false
-EMAIL_FROM=noreply@citaversa.com
-EMAIL_FROM_NAME=Citaversa
+EMAIL_FROM=noreply@citavers.com
+EMAIL_FROM_NAME=Citavers
 ```
 
 ### For Development/Logging:

@@ -206,7 +206,7 @@ describe('db/sync.js - Sync Orchestration', () => {
         });
 
         it('should perform incremental sync when synced before', async () => {
-            localStorage.setItem('citaversa_last_synced_at', new Date().toISOString());
+            localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
             
             const { incrementalSync } = await import('../../api/sync.js');
             incrementalSync.mockResolvedValue({

@@ -1,7 +1,7 @@
 {
-  "name": "citaversa-backend",
+  "name": "citavers-backend",
   "version": "1.0.0",
-  "description": "Backend API for citavErsa - Research Paper Management",
+  "description": "Backend API for citavErs - Research Paper Management",
   "type": "module",
   "main": "src/server.js",
   "scripts": {

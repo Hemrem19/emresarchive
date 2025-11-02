@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: citaversa-backend
+    name: citavers-backend
     env: node
     buildCommand: npm install && npm run db:generate
     startCommand: npm start

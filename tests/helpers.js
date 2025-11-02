@@ -82,14 +82,14 @@ export const resetAllMocks = () => {
  */
 export const setMockAuth = (authenticated = true, user = null) => {
   if (authenticated) {
-    localStorage.setItem('citaversa_access_token', 'mock-access-token');
+    localStorage.setItem('citavers_access_token', 'mock-access-token');
     if (user) {
-      localStorage.setItem('citaversa_user', JSON.stringify(user));
+      localStorage.setItem('citavers_user', JSON.stringify(user));
     }
   } else {
-    localStorage.removeItem('citaversa_access_token');
-    localStorage.removeItem('citaversa_refresh_token');
-    localStorage.removeItem('citaversa_user');
+    localStorage.removeItem('citavers_access_token');
+    localStorage.removeItem('citavers_refresh_token');
+    localStorage.removeItem('citavers_user');
   }
 };
 
@@ -97,27 +97,27 @@ export const setMockAuth = (authenticated = true, user = null) => {
  * Clear mock authentication state
  */
 export const clearMockAuth = () => {
-  localStorage.removeItem('citaversa_access_token');
-  localStorage.removeItem('citaversa_refresh_token');
-  localStorage.removeItem('citaversa_user');
+  localStorage.removeItem('citavers_access_token');
+  localStorage.removeItem('citavers_refresh_token');
+  localStorage.removeItem('citavers_user');
 };
 
 /**
  * Mock cloud sync state
  */
 export const setMockSyncEnabled = (enabled = true) => {
-  localStorage.setItem('citaversa_sync_mode', enabled ? 'cloud' : 'local');
+  localStorage.setItem('citavers_sync_mode', enabled ? 'cloud' : 'local');
 };
 
 /**
  * Clear mock sync state
  */
 export const clearMockSync = () => {
-  localStorage.removeItem('citaversa_sync_mode');
-  localStorage.removeItem('citaversa_last_synced_at');
-  localStorage.removeItem('citaversa_client_id');
-  localStorage.removeItem('citaversa_pending_changes');
-  localStorage.removeItem('citaversa_sync_in_progress');
+  localStorage.removeItem('citavers_sync_mode');
+  localStorage.removeItem('citavers_last_synced_at');
+  localStorage.removeItem('citavers_client_id');
+  localStorage.removeItem('citavers_pending_changes');
+  localStorage.removeItem('citavers_sync_in_progress');
 };
 
 /**

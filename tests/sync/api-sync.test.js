@@ -45,12 +45,12 @@ describe('api/sync.js - Client ID Management', () => {
             const clientId = getClientId();
             
             expect(clientId).toMatch(/^client_\d+_[a-z0-9]+$/);
-            expect(localStorage.getItem('citaversa_client_id')).toBe(clientId);
+            expect(localStorage.getItem('citavers_client_id')).toBe(clientId);
         });
 
         it('should return existing client ID from localStorage', () => {
             const existingId = 'client_1234567890_abc123';
-            localStorage.setItem('citaversa_client_id', existingId);
+            localStorage.setItem('citavers_client_id', existingId);
             
             const clientId = getClientId();
             
@@ -80,7 +80,7 @@ describe('api/sync.js - Last Sync Timestamp', () => {
 
         it('should return stored timestamp', () => {
             const timestamp = new Date().toISOString();
-            localStorage.setItem('citaversa_last_synced_at', timestamp);
+            localStorage.setItem('citavers_last_synced_at', timestamp);
             
             expect(getLastSyncedAt()).toBe(timestamp);
         });
@@ -91,7 +91,7 @@ describe('api/sync.js - Last Sync Timestamp', () => {
             const timestamp = new Date().toISOString();
             setLastSyncedAt(timestamp);
             
-            expect(localStorage.getItem('citaversa_last_synced_at')).toBe(timestamp);
+            expect(localStorage.getItem('citavers_last_synced_at')).toBe(timestamp);
         });
 
         it('should update existing timestamp', () => {

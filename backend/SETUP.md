@@ -1,6 +1,6 @@
 # Backend Setup Guide
 
-Step-by-step guide to set up the citavErsa backend.
+Step-by-step guide to set up the citavErs backend.
 
 ## 📋 Prerequisites
 
@@ -47,7 +47,7 @@ npm install
    FRONTEND_URL=http://localhost:8080
    
    # Database (PostgreSQL)
-   DATABASE_URL=postgresql://user:password@localhost:5432/citaversa?schema=public
+   DATABASE_URL=postgresql://user:password@localhost:5432/citavers?schema=public
    
    # JWT Secrets (generate random strings)
    JWT_ACCESS_SECRET=your-super-secret-access-token-key
@@ -57,7 +57,7 @@ npm install
    STORAGE_PROVIDER=digitalocean
    STORAGE_ENDPOINT=https://nyc3.digitaloceanspaces.com
    STORAGE_REGION=nyc3
-   STORAGE_BUCKET=citaversa-pdfs
+   STORAGE_BUCKET=citavers-pdfs
    STORAGE_ACCESS_KEY_ID=your-access-key
    STORAGE_SECRET_ACCESS_KEY=your-secret-key
    ```
@@ -75,17 +75,17 @@ npm install
 
 1. **Create a new database:**
    ```sql
-   CREATE DATABASE citaversa;
+   CREATE DATABASE citavers;
    ```
 
 2. **Or using psql:**
    ```bash
-   createdb citaversa
+   createdb citavers
    ```
 
 3. **Update DATABASE_URL** in `.env`:
    ```env
-   DATABASE_URL=postgresql://your_username:your_password@localhost:5432/citaversa?schema=public
+   DATABASE_URL=postgresql://your_username:your_password@localhost:5432/citavers?schema=public
    ```
 
 ### Step 4: Set Up Prisma
@@ -116,7 +116,7 @@ npm install
 
 1. **Create a Space:**
    - Go to DigitalOcean → Spaces
-   - Create new Space: `citaversa-pdfs`
+   - Create new Space: `citavers-pdfs`
    - Choose region (e.g., `nyc3`)
    - Select "Private" for security
 
@@ -130,7 +130,7 @@ npm install
    STORAGE_PROVIDER=digitalocean
    STORAGE_ENDPOINT=https://nyc3.digitaloceanspaces.com
    STORAGE_REGION=nyc3
-   STORAGE_BUCKET=citaversa-pdfs
+   STORAGE_BUCKET=citavers-pdfs
    STORAGE_ACCESS_KEY_ID=your-access-key-id
    STORAGE_SECRET_ACCESS_KEY=your-secret-access-key
    ```
@@ -141,7 +141,7 @@ npm install
 STORAGE_PROVIDER=aws
 STORAGE_ENDPOINT=https://s3.amazonaws.com
 STORAGE_REGION=us-east-1
-STORAGE_BUCKET=citaversa-pdfs
+STORAGE_BUCKET=citavers-pdfs
 STORAGE_ACCESS_KEY_ID=your-access-key-id
 STORAGE_SECRET_ACCESS_KEY=your-secret-access-key
 ```
@@ -152,7 +152,7 @@ STORAGE_SECRET_ACCESS_KEY=your-secret-access-key
 STORAGE_PROVIDER=cloudflare
 STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 STORAGE_REGION=auto
-STORAGE_BUCKET=citaversa-pdfs
+STORAGE_BUCKET=citavers-pdfs
 STORAGE_ACCESS_KEY_ID=your-access-key-id
 STORAGE_SECRET_ACCESS_KEY=your-secret-access-key
 ```
@@ -167,7 +167,7 @@ The server should start on `http://localhost:3000`
 
 You should see:
 ```
-🚀 citavErsa Backend running on port 3000
+🚀 citavErs Backend running on port 3000
 📡 Environment: development
 🌐 Frontend URL: http://localhost:8080
 💾 Database: Connected
@@ -218,7 +218,7 @@ Expected response:
 
 2. Verify `DATABASE_URL` in `.env`:
    ```env
-   DATABASE_URL=postgresql://username:password@localhost:5432/citaversa?schema=public
+   DATABASE_URL=postgresql://username:password@localhost:5432/citavers?schema=public
    ```
 
 3. Check PostgreSQL is listening on port 5432:
@@ -242,7 +242,7 @@ Expected response:
 
 2. Check database permissions:
    ```sql
-   GRANT ALL PRIVILEGES ON DATABASE citaversa TO your_username;
+   GRANT ALL PRIVILEGES ON DATABASE citavers TO your_username;
    ```
 
 ### Storage Connection Error

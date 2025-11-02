@@ -1,7 +1,7 @@
-# citavErsa
+# citavErs
 
-[![Tests](https://github.com/Hemrem19/citaversa/actions/workflows/test.yml/badge.svg)](https://github.com/Hemrem19/citaversa/actions/workflows/test.yml)
-[![Coverage](https://github.com/Hemrem19/citaversa/actions/workflows/coverage.yml/badge.svg)](https://github.com/Hemrem19/citaversa/actions/workflows/coverage.yml)
+[![Tests](https://github.com/Hemrem19/citavers/actions/workflows/test.yml/badge.svg)](https://github.com/Hemrem19/citavers/actions/workflows/coverage.yml)
+[![Coverage](https://github.com/Hemrem19/citavers/actions/workflows/coverage.yml/badge.svg)](https://github.com/Hemrem19/citavers/actions/workflows/coverage.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > A local-first research paper management application built with vanilla JavaScript
@@ -25,13 +25,13 @@
 ## 🚀 Quick Start
 
 ### Use Online
-Visit: **https://hemrem19.github.io/citaversa/**
+Visit: **https://citavers.com**
 
 ### Run Locally
 ```bash
 # Clone the repository
-git clone https://github.com/Hemrem19/citaversa.git
-cd citaversa
+git clone https://github.com/Hemrem19/citavers.git
+cd citavers
 
 # Serve with any static file server
 python -m http.server 8000

@@ -14,8 +14,8 @@ import { getAnnotationsByPaperId, addAnnotation, updateAnnotation, deleteAnnotat
 import { openDB, STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS } from './core.js';
 
 // Storage keys for change tracking
-const CHANGES_KEY = 'citaversa_pending_changes';
-const SYNC_IN_PROGRESS_KEY = 'citaversa_sync_in_progress';
+const CHANGES_KEY = 'citavers_pending_changes';
+const SYNC_IN_PROGRESS_KEY = 'citavers_sync_in_progress';
 
 /**
  * Gets pending changes from localStorage.
@@ -464,7 +464,7 @@ export async function performIncrementalSync() {
  * @returns {Promise<Object>} Sync result.
  */
 export async function performSync() {
-    const lastSyncedAt = localStorage.getItem('citaversa_last_synced_at');
+    const lastSyncedAt = localStorage.getItem('citavers_last_synced_at');
     
     // If never synced, perform full sync
     if (!lastSyncedAt) {

@@ -9,8 +9,8 @@ import { getAccessToken, refreshToken } from './auth.js';
 const API_BASE = `${getApiBaseUrl()}/api/sync`;
 
 // Storage keys for sync state
-const LAST_SYNCED_KEY = 'citaversa_last_synced_at';
-const CLIENT_ID_KEY = 'citaversa_client_id';
+const LAST_SYNCED_KEY = 'citavers_last_synced_at';
+const CLIENT_ID_KEY = 'citavers_client_id';
 
 /**
  * Gets or generates a unique client ID for this browser/device.

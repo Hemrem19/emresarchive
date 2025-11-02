@@ -1,6 +1,6 @@
 # Backend Deployment Guide
 
-Complete guide to deploy citavErsa backend to production.
+Complete guide to deploy citavErs backend to production.
 
 ## 🚀 Platform Options
 
@@ -63,7 +63,7 @@ NODE_ENV=production
 PORT=3000
 
 # Frontend URL (your Cloudflare Pages URL)
-FRONTEND_URL=https://citaversa.pages.dev
+FRONTEND_URL=https://citavers.com
 
 # Database (Neon.tech production URL)
 DATABASE_URL=postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/citaversa?sslmode=require
@@ -73,7 +73,7 @@ JWT_ACCESS_SECRET=<generate-random-string>
 JWT_REFRESH_SECRET=<generate-random-string>
 
 # S3 (Cloudflare R2)
-S3_BUCKET_NAME=citaversa-pdfs
+S3_BUCKET_NAME=citavers-pdfs
 S3_ENDPOINT=https://xxxxxx.r2.cloudflarestorage.com
 S3_ACCESS_KEY_ID=<your-access-key>
 S3_SECRET_ACCESS_KEY=<your-secret-key>
@@ -169,7 +169,7 @@ Update your frontend to use production API:
 ### Step 3: Configure Service
 
 **Basic Settings:**
-- **Name:** citaversa-backend
+- **Name:** citavers-backend
 - **Environment:** Node
 - **Build Command:** `cd backend && npm install && npm run db:generate`
 - **Start Command:** `cd backend && npm start`
@@ -183,7 +183,7 @@ Go to Environment → Add all required variables (same as Railway above)
 
 1. Click "Create Web Service"
 2. Render will deploy automatically
-3. Get your URL: `https://citaversa-backend.onrender.com`
+3. Get your URL: `https://citavers-backend.onrender.com`
 
 ### Step 6: Run Migrations
 

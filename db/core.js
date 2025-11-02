@@ -3,7 +3,7 @@
  * Handles IndexedDB initialization, schema migrations, and database lifecycle
  */
 
-const DB_NAME = 'CitaversaDB';
+const DB_NAME = 'CitaversDB';
 const DB_VERSION = 5;
 const STORE_NAME_PAPERS = 'papers';
 const STORE_NAME_COLLECTIONS = 'collections';

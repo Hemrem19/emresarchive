@@ -10,11 +10,11 @@ export const API_CONFIG = {
     // API URL - defaults to localhost for development, can be overridden
     BASE_URL: localStorage.getItem('apiBaseUrl') || 'https://emresarchive-production.up.railway.app',
     // Storage keys for auth tokens
-    ACCESS_TOKEN_KEY: 'citaversa_access_token',
-    REFRESH_TOKEN_KEY: 'citaversa_refresh_token',
-    USER_KEY: 'citaversa_user',
+    ACCESS_TOKEN_KEY: 'citavers_access_token',
+    REFRESH_TOKEN_KEY: 'citavers_refresh_token',
+    USER_KEY: 'citavers_user',
     // Sync mode
-    SYNC_MODE_KEY: 'citaversa_sync_mode' // 'local' | 'cloud'
+    SYNC_MODE_KEY: 'citavers_sync_mode' // 'local' | 'cloud'
 };
 
 /**

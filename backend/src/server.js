@@ -1,5 +1,5 @@
 /**
- * citavErsa Backend Server
+ * citavErs Backend Server
  * Express.js API server for research paper management
  */
 
@@ -349,7 +349,7 @@ async function startServer() {
 
   return new Promise((resolve) => {
     const server = app.listen(PORT, async () => {
-      console.log(`🚀 citavErsa Backend running on port ${PORT}`);
+      console.log(`🚀 citavErs Backend running on port ${PORT}`);
       console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
       

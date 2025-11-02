@@ -1,4 +1,4 @@
-# Testing Guide - citavErsa
+# Testing Guide - citavErs
 
 **Version:** 2.1  
 **Status:** ✅ 119/119 tests passing (100%)  
@@ -525,5 +525,5 @@ jobs:
 ---
 
 **Status:** ✅ Complete & Passing  
-**Maintainer:** citavErsa Team  
+**Maintainer:** citavErs Team  
 **Questions?** Check test files for examples or open an issue.

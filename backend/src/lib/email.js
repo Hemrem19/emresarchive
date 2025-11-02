@@ -9,8 +9,8 @@ import crypto from 'crypto';
 // Email service configuration
 const EMAIL_CONFIG = {
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:8080',
-  FROM_EMAIL: process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'noreply@citaversa.com',
-  FROM_NAME: process.env.EMAIL_FROM_NAME || process.env.FROM_NAME || 'Citaversa',
+  FROM_EMAIL: process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'noreply@citavers.com',
+  FROM_NAME: process.env.EMAIL_FROM_NAME || process.env.FROM_NAME || 'Citavers',
   // Service type: 'resend', 'smtp', or 'log' (for development)
   SERVICE_TYPE: process.env.EMAIL_SERVICE_TYPE || 'log',
   // Resend API key (if using Resend)
