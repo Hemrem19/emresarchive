@@ -2,9 +2,16 @@
  * Email Service
  * Handles sending verification emails and other transactional emails
  * Supports Resend API and SMTP (via Nodemailer)
+ * 
+ * Note: Railway injects environment variables automatically via process.env
+ * No .env file needed in production - variables are set in Railway dashboard
  */
 
 import crypto from 'crypto';
+
+// Ensure we have access to environment variables
+// In Railway, process.env is automatically populated - no dotenv needed
+// But we check if variables exist at runtime
 
 // Email service configuration
 // Read directly from process.env (Railway injects these automatically)
@@ -31,6 +38,28 @@ if (process.env.NODE_ENV !== 'test') {
   console.log(`   RESEND_API_KEY: ${EMAIL_CONFIG.RESEND_API_KEY ? '✅ Set (hidden)' : '❌ NOT SET'}`);
   console.log(`   FROM_EMAIL: ${EMAIL_CONFIG.FROM_EMAIL}`);
   console.log(`   FROM_NAME: ${EMAIL_CONFIG.FROM_NAME}`);
+  
+  // Debug: List all EMAIL_* and RESEND_* environment variables (for Railway debugging)
+  const emailVars = Object.keys(process.env).filter(key => 
+    key.toUpperCase().startsWith('EMAIL_') || key.toUpperCase().startsWith('RESEND_') || key.toUpperCase() === 'EMAIL_SERVICE_TYPE'
+  );
+  if (emailVars.length > 0) {
+    console.log(`\n🔍 Railway Environment Variables Found:`);
+    emailVars.forEach(key => {
+      const value = process.env[key];
+      // Hide sensitive values
+      if (key.includes('KEY') || key.includes('PASS') || key.includes('SECRET')) {
+        console.log(`   ${key}: ${value ? 'Set (hidden)' : 'NOT SET'}`);
+      } else {
+        console.log(`   ${key}: "${value || 'undefined'}"`);
+      }
+    });
+  } else {
+    console.log(`\n⚠️  NO EMAIL/RESEND environment variables found in process.env!`);
+    console.log(`   This means Railway is not injecting the variables.`);
+    console.log(`   Check: Railway → Service → Variables tab`);
+    console.log(`   Make sure variables are added to the SERVICE (not just shared)`);
+  }
   
   if (EMAIL_CONFIG.SERVICE_TYPE === 'resend') {
     console.log(`   From: ${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`);
