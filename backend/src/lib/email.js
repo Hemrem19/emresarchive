@@ -9,7 +9,7 @@ import crypto from 'crypto';
 // Email service configuration
 const EMAIL_CONFIG = {
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:8080',
-  FROM_EMAIL: process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'noreply@citavers.com',
+  FROM_EMAIL: process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'onboarding@resend.dev',
   FROM_NAME: process.env.EMAIL_FROM_NAME || process.env.FROM_NAME || 'Citavers',
   // Service type: 'resend', 'smtp', or 'log' (for development)
   SERVICE_TYPE: process.env.EMAIL_SERVICE_TYPE || 'log',
@@ -22,6 +22,19 @@ const EMAIL_CONFIG = {
   SMTP_PASS: process.env.SMTP_PASS,
   SMTP_SECURE: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465'
 };
+
+// Log email service configuration on startup (without sensitive data)
+if (process.env.NODE_ENV !== 'test') {
+  console.log(`📧 Email Service: ${EMAIL_CONFIG.SERVICE_TYPE}`);
+  if (EMAIL_CONFIG.SERVICE_TYPE === 'resend') {
+    console.log(`   From: ${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`);
+    console.log(`   Resend API: ${EMAIL_CONFIG.RESEND_API_KEY ? '✅ Configured' : '❌ Missing API key'}`);
+  } else if (EMAIL_CONFIG.SERVICE_TYPE === 'smtp') {
+    console.log(`   SMTP Host: ${EMAIL_CONFIG.SMTP_HOST || 'Not configured'}`);
+  } else {
+    console.log(`   Mode: Log (emails will be printed to console)`);
+  }
+}
 
 /**
  * Generates a secure verification token
@@ -157,19 +170,35 @@ export const sendVerificationEmail = async (email, token, name = null) => {
       const { Resend } = await import('resend');
       const resend = new Resend(EMAIL_CONFIG.RESEND_API_KEY);
       
+      // Resend accepts "Name <email@domain.com>" format for from field
+      // If domain is not verified, Resend will use onboarding@resend.dev automatically
       const result = await resend.emails.send({
         from: from,
         to: email,
         subject: subject,
         html: html,
-        text: text
+        text: text,
+        // Add reply-to if FROM_EMAIL is set
+        replyTo: EMAIL_CONFIG.FROM_EMAIL !== 'noreply@citavers.com' ? EMAIL_CONFIG.FROM_EMAIL : undefined
       });
       
+      // Resend v3 returns { data, error } structure
       if (result.error) {
-        throw new Error(`Resend API error: ${result.error.message}`);
+        console.error('❌ Resend API error:', result.error);
+        throw new Error(`Resend API error: ${result.error.message || JSON.stringify(result.error)}`);
       }
       
-      console.log(`✅ Verification email sent via Resend to ${email}`);
+      // Log success with message ID if available
+      const messageId = result.data?.id || 'unknown';
+      console.log(`✅ Verification email sent via Resend to ${email} (ID: ${messageId})`);
+      
+      // Log if using default domain (domain not verified)
+      if (EMAIL_CONFIG.FROM_EMAIL && !EMAIL_CONFIG.FROM_EMAIL.includes('resend.dev')) {
+        // Domain is custom - should be verified
+      } else {
+        console.log(`   ⚠️  Note: Using default Resend domain. Verify your domain to use ${EMAIL_CONFIG.FROM_EMAIL}`);
+      }
+      
       return;
       
     } else if (serviceType === 'smtp') {
