@@ -99,6 +99,93 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
         } else if (requestedPath === '/graph') {
             appState.currentView = graphView;
             renderView(app, templates.graph, () => appState.currentView.mount(appState));
+        } else if (requestedPath.startsWith('/verify-email')) {
+            // Handle email verification - extract token from hash query string
+            const hashQueryString = requestedPath.split('?')[1] || '';
+            const hashParams = new URLSearchParams(hashQueryString);
+            const token = hashParams.get('token');
+            
+            if (token) {
+                // Show verification loading state
+                renderView(app, `
+                    <div class="flex items-center justify-center min-h-screen">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                            <h2 class="text-xl font-semibold text-stone-900 dark:text-stone-100 mb-2">Verifying Email...</h2>
+                            <p class="text-stone-600 dark:text-stone-400">Please wait while we verify your email address.</p>
+                        </div>
+                    </div>
+                `);
+                
+                // Handle email verification
+                try {
+                    const { verifyEmail } = await import('../api/auth.js');
+                    const { showToast } = await import('../ui.js');
+                    const { getUser, setAuth, getAccessToken } = await import('../api/auth.js');
+                    
+                    // Verify email
+                    await verifyEmail(token);
+                    
+                    // Update user data if logged in
+                    if (getAccessToken()) {
+                        const user = getUser();
+                        if (user) {
+                            user.emailVerified = true;
+                            setAuth(getAccessToken(), user);
+                            // Import authView to update UI
+                            const { authView } = await import('../auth.view.js');
+                            authView.updateUIForAuthenticated(user);
+                        }
+                    }
+                    
+                    // Show success message and redirect
+                    showToast('Email verified successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.hash = '#/';
+                        window.location.search = ''; // Remove any query params from URL
+                    }, 2000);
+                } catch (error) {
+                    const { showToast } = await import('../ui.js');
+                    showToast(error.message || 'Email verification failed', 'error');
+                    
+                    // Show error state
+                    renderView(app, `
+                        <div class="flex items-center justify-center min-h-screen">
+                            <div class="text-center max-w-md mx-auto px-4">
+                                <div class="inline-block rounded-full bg-red-100 dark:bg-red-900 p-4 mb-4">
+                                    <span class="material-symbols-outlined text-red-600 dark:text-red-400 text-4xl">error</span>
+                                </div>
+                                <h2 class="text-xl font-semibold text-stone-900 dark:text-stone-100 mb-2">Verification Failed</h2>
+                                <p class="text-stone-600 dark:text-stone-400 mb-4">${error.message || 'Email verification failed. The link may have expired or is invalid.'}</p>
+                                <a href="#/" class="inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                                    Go to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    `);
+                    
+                    setTimeout(() => {
+                        window.location.hash = '#/';
+                        window.location.search = '';
+                    }, 5000);
+                }
+            } else {
+                // No token in URL - show error
+                renderView(app, `
+                    <div class="flex items-center justify-center min-h-screen">
+                        <div class="text-center max-w-md mx-auto px-4">
+                            <div class="inline-block rounded-full bg-yellow-100 dark:bg-yellow-900 p-4 mb-4">
+                                <span class="material-symbols-outlined text-yellow-600 dark:text-yellow-400 text-4xl">warning</span>
+                            </div>
+                            <h2 class="text-xl font-semibold text-stone-900 dark:text-stone-100 mb-2">Invalid Verification Link</h2>
+                            <p class="text-stone-600 dark:text-stone-400 mb-4">No verification token found in the URL. Please check your email for the correct link.</p>
+                            <a href="#/" class="inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                                Go to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                `);
+            }
         } else if (requestedPath === '/' || requestedPath.startsWith('/tag/') || requestedPath.startsWith('/status/') || requestedPath.startsWith('/filter/')) {
             // Parse URL hash to update filters
             parseUrlHash(appState);
