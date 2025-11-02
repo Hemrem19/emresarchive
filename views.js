@@ -210,6 +210,21 @@ export const views = {
                     <section>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Documentation</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Learn how to use all features of citavErs.</p>
+                            </div>
+                            <div class="flex items-start md:col-span-2">
+                                <a href="#/docs" class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary/90">
+                                    <span class="material-symbols-outlined text-base">menu_book</span>
+                                    <span>View Documentation</span>
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
+                    <section>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Appearance</h3>
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Choose between light and dark theme.</p>
                             </div>
