@@ -17,9 +17,11 @@
 - 🔗 **Paper Linking** - Connect related papers visually
 - 📈 **Network Graph** - Interactive visualization of paper relationships
 - ⌨️ **Keyboard Shortcuts** - Command palette and global shortcuts
+- ☁️ **Cloud Sync** - Optional cloud sync for multi-device access (requires account)
+- 🔐 **Authentication** - Secure user accounts with email verification
 - 🌙 **Dark Mode** - Easy on the eyes
 - 📱 **Mobile Friendly** - Touch gestures and responsive design
-- 💾 **Local-First** - All data stored in your browser (IndexedDB)
+- 💾 **Local-First** - All data stored locally (IndexedDB), cloud sync optional
 - 📤 **Export/Import** - Full data portability
 
 ## 🚀 Quick Start
@@ -67,7 +69,7 @@ npm run test:coverage
 ```
 
 ### Test Status
-- ✅ **119 tests passing** (100% pass rate)
+- ✅ **167 tests passing** (100% pass rate)
 - ⏱️ **~2 second execution time**
 - 📊 **Coverage:** 93% state, 87% filter branches, 74% database
 
@@ -79,7 +81,9 @@ research/
 ├── app.js                  # Application initialization
 ├── views.js                # HTML templates
 ├── ui.js                   # UI helpers
-├── api.js                  # External API calls
+├── api/                    # API clients
+│   ├── auth.js            # Authentication API
+│   └── sync.js            # Sync API
 ├── config.js               # Configuration
 ├── core/                   # Core modules
 │   ├── state.js           # State management
@@ -92,34 +96,51 @@ research/
 │   ├── papers.js          # Paper CRUD
 │   ├── collections.js     # Collections CRUD
 │   ├── annotations.js     # Annotations CRUD
+│   ├── sync.js            # Sync operations
 │   └── data.js            # Import/Export
 ├── *.view.js              # View modules
+├── backend/                # Backend server
+│   ├── src/
+│   │   ├── server.js      # Express server
+│   │   ├── routes/        # API routes
+│   │   ├── controllers/   # Request handlers
+│   │   ├── middleware/    # Express middleware
+│   │   └── lib/           # Utilities (auth, email, etc.)
+│   └── prisma/            # Database schema & migrations
 └── tests/                 # Test suite
 ```
 
 ## 🏗️ Architecture
 
-- **No Framework** - Pure vanilla JavaScript (ES6+)
+- **No Framework** - Pure vanilla JavaScript (ES6+) on frontend
 - **No Build Tools** - Browser-native ES6 modules
-- **Local-First** - IndexedDB for all data storage
+- **Local-First** - IndexedDB for all local data storage
+- **Optional Cloud Sync** - PostgreSQL + S3 for multi-device access
 - **CDN Libraries** - PDF.js, vis-network, Tailwind CSS
 - **View-Based Routing** - Clean separation of concerns
 - **Repository Pattern** - Database abstraction layer
+- **Progressive Enhancement** - Works offline, enhanced with cloud sync
 
 ## 🎨 Tech Stack
 
 - **Frontend:** HTML5, CSS3 (Tailwind), Vanilla JavaScript (ES6+)
-- **Storage:** IndexedDB
+- **Backend:** Node.js, Express.js, PostgreSQL (Prisma ORM)
+- **Storage:** IndexedDB (local), PostgreSQL + S3 (cloud sync)
+- **Authentication:** JWT, bcrypt, email verification
 - **Libraries:** PDF.js, vis-network, Material Symbols
 - **Testing:** Vitest, fake-indexeddb
 - **CI/CD:** GitHub Actions
+- **Deployment:** Railway (backend), Cloudflare Pages (frontend)
 
 ## 📖 Documentation
 
 - [`TESTING.md`](TESTING.md) - Testing guide
 - [`REFACTORING_PLAN.md`](REFACTORING_PLAN.md) - Refactoring documentation
 - [`enhancement_plan.md`](enhancement_plan.md) - Feature roadmap
-- [`MOBILE_IMPLEMENTATION_SUMMARY.md`](MOBILE_IMPLEMENTATION_SUMMARY.md) - Mobile optimization
+- [`MEMBERSHIP_PLAN.md`](MEMBERSHIP_PLAN.md) - Membership & subscription system roadmap
+- [`backend/DEPLOYMENT.md`](backend/DEPLOYMENT.md) - Backend deployment guide
+- [`backend/EMAIL_SETUP.md`](backend/EMAIL_SETUP.md) - Email service configuration
+- [`REBRANDING_GUIDE.md`](REBRANDING_GUIDE.md) - Project rebranding documentation
 
 ## 🤝 Contributing
 
@@ -140,15 +161,17 @@ This project is licensed under the MIT License.
 
 - Built with ❤️ for researchers everywhere
 - Inspired by the need for a simple, privacy-focused research tool
-- No user tracking, no analytics, no servers - just your data, your way
+- Privacy-first: Your data stays local, cloud sync is optional
+- Open source: Free and open for everyone to use and improve
 
 ## 📊 Project Stats
 
-- **Version:** 2.1
-- **Total Features:** 47+
-- **Lines of Code:** ~4,000
-- **Test Coverage:** Growing!
+- **Version:** 2.2
+- **Total Features:** 50+
+- **Lines of Code:** ~8,000 (frontend + backend)
+- **Test Coverage:** 93% state, 87% filter branches, 74% database
 - **Status:** Production Ready ✅
+- **Deployment:** Live at https://citavers.com
 
 ---
 
