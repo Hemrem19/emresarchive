@@ -32,7 +32,9 @@ EMAIL_FROM_NAME=Citavers
    
    - **Key:** `EMAIL_FROM`
      - **Value:** `onboarding@resend.dev` (default - works immediately)
-     - **Or:** `noreply@citavers.com` (after domain verification)
+     - **Or:** `noreply@noreply.citavers.com` (after domain verification - use your verified domain)
+     - **Or:** `noreply@send.noreply.citavers.com` (if using sending subdomain)
+     - **Important:** Must include `@` sign! Common mistake: `noreply.citavers.com` ❌
    
    - **Key:** `EMAIL_FROM_NAME`
      - **Value:** `Citavers`

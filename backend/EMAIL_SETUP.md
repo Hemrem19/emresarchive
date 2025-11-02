@@ -37,8 +37,13 @@ Resend is a modern, developer-friendly email API service.
    ```
    EMAIL_SERVICE_TYPE=resend
    RESEND_API_KEY=re_your_api_key_here
-   EMAIL_FROM=noreply@citavers.com  # Must be verified domain
+   EMAIL_FROM=noreply@noreply.citavers.com  # Use your verified domain from Resend dashboard
    EMAIL_FROM_NAME=Citavers
+   
+   # Note: If you verified "noreply.citavers.com" in Resend:
+   # - You can use: noreply@noreply.citavers.com
+   # - Or: anything@noreply.citavers.com (any address on your verified domain)
+   # - If sending subdomain is configured: use send.noreply.citavers.com format
    ```
 
 5. **Test the setup:**
