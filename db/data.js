@@ -9,9 +9,8 @@ import { getAllCollections } from './collections.js';
 import { getAnnotationsByPaperId } from './annotations.js';
 import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
-import { addPaper as addPaperViaAdapter } from '../db.js';
-import { addCollection as addCollectionViaAdapter } from '../db.js';
-import { addAnnotation as addAnnotationViaAdapter } from '../db.js';
+// Removed adapter imports - using local-first approach for imports
+// Import function now saves directly to local storage and tracks changes for later sync
 import { deletePaper as deletePaperViaAdapter } from '../db.js';
 import { deleteCollection as deleteCollectionViaAdapter } from '../db.js';
 import { deleteAnnotation as deleteAnnotationViaAdapter } from '../db.js';
@@ -242,11 +241,12 @@ async function importData(dataToImport) {
                     let annotationErrorCount = 0;
 
                     // Import papers
-                    // If cloud sync is enabled, use adapter to sync to cloud API
+                    // Local-first: Save directly to local storage, track changes for later sync
                     const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
                     
-                    // Helper function to add delay between requests to avoid overwhelming the network
-                    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                    // Import sync tracking functions
+                    const { trackPaperCreated } = await import('./sync.js');
+                    const { addPaper: addPaperLocal } = await import('./papers.js');
                     
                     for (let i = 0; i < papersToImport.length; i++) {
                         const paper = papersToImport[i];
@@ -278,89 +278,45 @@ async function importData(dataToImport) {
                                 paperToStore.updatedAt = new Date(paperToStore.updatedAt);
                             }
                             
-                            // If cloud sync is enabled, use adapter which routes to cloud API
-                            // Otherwise, save directly to IndexedDB
+                            // Local-first: Save directly to IndexedDB (guaranteed to work)
+                            // This bypasses the adapter to avoid network errors during import
+                            const localId = await addPaperLocal(paperToStore);
+                            paperSuccessCount++;
+                            
+                            // Track change for later sync if cloud sync is enabled
+                            // The sync manager will handle syncing these papers in the background
                             if (useCloudSync) {
-                                try {
-                                    // Add delay between API requests to avoid network congestion
-                                    // 200ms delay for all but the first request
-                                    if (i > 0) {
-                                        await delay(200);
-                                    }
-                                    
-                                    // Remove fields that shouldn't be sent to API
-                                    // The adapter's mapPaperDataToApi will handle the mapping
-                                    const paperForApi = { ...paperToStore };
-                                    
-                                    // Remove fields that API doesn't expect at all
-                                    delete paperForApi.pdfData; // PDF data is stored locally only
-                                    delete paperForApi.id; // API will generate new ID
-                                    delete paperForApi.pdfFile; // Already handled above
-                                    delete paperForApi.updatedAt; // API sets this automatically
-                                    delete paperForApi.createdAt; // API sets this automatically (but adapter also removes it)
-                                    
-                                    // Ensure authors is an array (API expects array)
-                                    if (!Array.isArray(paperForApi.authors)) {
-                                        paperForApi.authors = paperForApi.authors ? [paperForApi.authors] : [];
-                                    }
-                                    
-                                    // Ensure tags is an array (API expects array)
-                                    if (!Array.isArray(paperForApi.tags)) {
-                                        paperForApi.tags = paperForApi.tags ? [paperForApi.tags] : [];
-                                    }
-                                    
-                                    // Clean up readingProgress - API requires totalPages >= 1
-                                    if (paperForApi.readingProgress) {
-                                        // If totalPages is 0, null, undefined, or less than 1, remove readingProgress
-                                        if (!paperForApi.readingProgress.totalPages || 
-                                            paperForApi.readingProgress.totalPages < 1) {
-                                            delete paperForApi.readingProgress;
-                                        } else {
-                                            // Ensure currentPage is valid (>= 0)
-                                            if (paperForApi.readingProgress.currentPage === undefined || 
-                                                paperForApi.readingProgress.currentPage < 0) {
-                                                paperForApi.readingProgress.currentPage = 0;
-                                            }
+                                // Prepare paper data for sync (remove fields that shouldn't be synced)
+                                const paperForSync = { ...paperToStore };
+                                delete paperForSync.pdfData; // PDF data stays local, uploaded separately if needed
+                                delete paperForSync.id; // API will generate new ID
+                                delete paperForSync.localId; // Remove if present
+                                paperForSync.localId = localId; // Use the local ID for tracking
+                                
+                                // Ensure arrays are arrays (API expects arrays)
+                                if (!Array.isArray(paperForSync.authors)) {
+                                    paperForSync.authors = paperForSync.authors ? [paperForSync.authors] : [];
+                                }
+                                if (!Array.isArray(paperForSync.tags)) {
+                                    paperForSync.tags = paperForSync.tags ? [paperForSync.tags] : [];
+                                }
+                                
+                                // Clean up readingProgress - API requires totalPages >= 1
+                                if (paperForSync.readingProgress) {
+                                    if (!paperForSync.readingProgress.totalPages || 
+                                        paperForSync.readingProgress.totalPages < 1) {
+                                        delete paperForSync.readingProgress;
+                                    } else {
+                                        // Ensure currentPage is valid (>= 0)
+                                        if (paperForSync.readingProgress.currentPage === undefined || 
+                                            paperForSync.readingProgress.currentPage < 0) {
+                                            paperForSync.readingProgress.currentPage = 0;
                                         }
                                     }
-                                    
-                                    // If paper has s3Key/pdfUrl from import, keep it (but don't upload PDF)
-                                    // The adapter will handle mapping s3Key to pdfUrl and readingStatus to status
-                                    await addPaperViaAdapter(paperForApi);
-                                    paperSuccessCount++;
-                                } catch (cloudError) {
-                                    // Log detailed error information before page refresh
-                                    console.error(`=== Failed to sync paper "${paper.title}" to cloud ===`);
-                                    console.error('Error message:', cloudError.message);
-                                    console.error('Error stack:', cloudError.stack);
-                                    if (cloudError.message && cloudError.message.includes('Validation:')) {
-                                        console.error('Validation details are in the error message above');
-                                    }
-                                    console.error(`Paper data that failed:`, JSON.stringify(paperForApi, null, 2));
-                                    console.error('==========================================');
-                                    
-                                    // Always save to local storage as fallback
-                                    try {
-                                        await new Promise((resolveAdd, rejectAdd) => {
-                                            const addRequest = papersStore.add(paperToStore);
-                                            addRequest.onsuccess = () => resolveAdd();
-                                            addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                        });
-                                        paperSuccessCount++;
-                                        paperErrorCount++; // Count as partial error (local only, not cloud)
-                                    } catch (localError) {
-                                        console.error(`Failed to save paper "${paper.title}" locally:`, localError);
-                                        paperErrorCount++;
-                                    }
                                 }
-                            } else {
-                                // Local-only: save directly to IndexedDB
-                                await new Promise((resolveAdd, rejectAdd) => {
-                                    const addRequest = papersStore.add(paperToStore);
-                                    addRequest.onsuccess = () => resolveAdd();
-                                    addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                });
-                                paperSuccessCount++;
+                                
+                                // Track as pending change for later sync
+                                trackPaperCreated(paperForSync);
                             }
                         } catch (paperError) {
                             console.error(`Error importing paper "${paper.title}":`, paperError);
@@ -370,6 +326,10 @@ async function importData(dataToImport) {
                     }
 
                     // Import collections
+                    // Local-first: Save directly to local storage, track changes for later sync
+                    const { trackCollectionCreated } = await import('./sync.js');
+                    const { addCollection: addCollectionLocal } = await import('./collections.js');
+                    
                     for (let i = 0; i < collectionsToImport.length; i++) {
                         const collection = collectionsToImport[i];
                         try {
@@ -380,42 +340,17 @@ async function importData(dataToImport) {
                                 collectionToStore.createdAt = new Date(collectionToStore.createdAt);
                             }
                             
-                            // If cloud sync is enabled, use adapter which routes to cloud API
+                            // Local-first: Save directly to IndexedDB (guaranteed to work)
+                            const localId = await addCollectionLocal(collectionToStore);
+                            collectionSuccessCount++;
+                            
+                            // Track change for later sync if cloud sync is enabled
                             if (useCloudSync) {
-                                try {
-                                    // Add delay between API requests
-                                    if (i > 0) {
-                                        await delay(200);
-                                    }
-                                    
-                                    const collectionForApi = { ...collectionToStore };
-                                    delete collectionForApi.id; // API will generate new ID
-                                    await addCollectionViaAdapter(collectionForApi);
-                                    collectionSuccessCount++;
-                                } catch (cloudError) {
-                                    console.error(`Failed to sync collection "${collection.name}" to cloud:`, cloudError);
-                                    // Always save to local storage as fallback
-                                    try {
-                                        await new Promise((resolveAdd, rejectAdd) => {
-                                            const addRequest = collectionsStore.add(collectionToStore);
-                                            addRequest.onsuccess = () => resolveAdd();
-                                            addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                        });
-                                        collectionSuccessCount++;
-                                        collectionErrorCount++; // Count as partial error
-                                    } catch (localError) {
-                                        console.error(`Failed to save collection "${collection.name}" locally:`, localError);
-                                        collectionErrorCount++;
-                                    }
-                                }
-                            } else {
-                                // Local-only: save directly to IndexedDB
-                                await new Promise((resolveAdd, rejectAdd) => {
-                                    const addRequest = collectionsStore.add(collectionToStore);
-                                    addRequest.onsuccess = () => resolveAdd();
-                                    addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                });
-                                collectionSuccessCount++;
+                                const collectionForSync = { ...collectionToStore };
+                                delete collectionForSync.id; // API will generate new ID
+                                delete collectionForSync.localId; // Remove if present
+                                collectionForSync.localId = localId; // Use the local ID for tracking
+                                trackCollectionCreated(collectionForSync);
                             }
                         } catch (collectionError) {
                             console.error(`Error importing collection "${collection.name}":`, collectionError);
@@ -425,6 +360,10 @@ async function importData(dataToImport) {
                     }
 
                     // Import annotations
+                    // Local-first: Save directly to local storage, track changes for later sync
+                    const { trackAnnotationCreated } = await import('./sync.js');
+                    const { addAnnotation: addAnnotationLocal } = await import('./annotations.js');
+                    
                     for (let i = 0; i < annotationsToImport.length; i++) {
                         const annotation = annotationsToImport[i];
                         try {
@@ -438,42 +377,17 @@ async function importData(dataToImport) {
                                 annotationToStore.updatedAt = new Date(annotationToStore.updatedAt);
                             }
                             
-                            // If cloud sync is enabled, use adapter which routes to cloud API
+                            // Local-first: Save directly to IndexedDB (guaranteed to work)
+                            const localId = await addAnnotationLocal(annotationToStore);
+                            annotationSuccessCount++;
+                            
+                            // Track change for later sync if cloud sync is enabled
                             if (useCloudSync) {
-                                try {
-                                    // Add delay between API requests
-                                    if (i > 0) {
-                                        await delay(200);
-                                    }
-                                    
-                                    const annotationForApi = { ...annotationToStore };
-                                    delete annotationForApi.id; // API will generate new ID
-                                    await addAnnotationViaAdapter(annotationForApi);
-                                    annotationSuccessCount++;
-                                } catch (cloudError) {
-                                    console.error(`Failed to sync annotation to cloud:`, cloudError);
-                                    // Always save to local storage as fallback
-                                    try {
-                                        await new Promise((resolveAdd, rejectAdd) => {
-                                            const addRequest = annotationsStore.add(annotationToStore);
-                                            addRequest.onsuccess = () => resolveAdd();
-                                            addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                        });
-                                        annotationSuccessCount++;
-                                        annotationErrorCount++; // Count as partial error
-                                    } catch (localError) {
-                                        console.error(`Failed to save annotation locally:`, localError);
-                                        annotationErrorCount++;
-                                    }
-                                }
-                            } else {
-                                // Local-only: save directly to IndexedDB
-                                await new Promise((resolveAdd, rejectAdd) => {
-                                    const addRequest = annotationsStore.add(annotationToStore);
-                                    addRequest.onsuccess = () => resolveAdd();
-                                    addRequest.onerror = (event) => rejectAdd(event.target.error);
-                                });
-                                annotationSuccessCount++;
+                                const annotationForSync = { ...annotationToStore };
+                                delete annotationForSync.id; // API will generate new ID
+                                delete annotationForSync.localId; // Remove if present
+                                annotationForSync.localId = localId; // Use the local ID for tracking
+                                trackAnnotationCreated(annotationForSync);
                             }
                         } catch (annotationError) {
                             console.error(`Error importing annotation:`, annotationError);
