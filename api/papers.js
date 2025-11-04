@@ -519,10 +519,22 @@ export async function getPdfDownloadUrl(paperId) {
 
         if (result.success && result.data) {
             // Construct full proxy URL if backend returned relative path
-            let proxyUrl = result.data.proxyUrl || `${getApiBaseUrl()}/api/papers/${paperId}/pdf-proxy`;
-            if (proxyUrl.startsWith('/')) {
-                proxyUrl = `${getApiBaseUrl()}${proxyUrl}`;
+            let proxyUrl = result.data.proxyUrl || `/api/papers/${paperId}/pdf-proxy`;
+            console.log('[API] getPdfDownloadUrl - raw proxyUrl from backend:', proxyUrl);
+            
+            // Always construct full URL for proxy endpoint
+            if (proxyUrl && proxyUrl.startsWith('/')) {
+                const baseUrl = getApiBaseUrl();
+                proxyUrl = `${baseUrl}${proxyUrl}`;
+                console.log('[API] getPdfDownloadUrl - constructed full proxyUrl:', proxyUrl);
+            } else if (!proxyUrl || !proxyUrl.startsWith('http')) {
+                // Fallback: construct from base URL
+                const baseUrl = getApiBaseUrl();
+                proxyUrl = `${baseUrl}/api/papers/${paperId}/pdf-proxy`;
+                console.log('[API] getPdfDownloadUrl - fallback constructed proxyUrl:', proxyUrl);
             }
+            
+            console.log('[API] getPdfDownloadUrl - final proxyUrl:', proxyUrl);
             
             return {
                 pdfUrl: result.data.pdfUrl,
@@ -547,32 +559,42 @@ export async function getPdfDownloadUrl(paperId) {
 export async function getPdfViewUrl(paperId) {
     try {
         const { proxyUrl, downloadUrl } = await getPdfDownloadUrl(paperId);
-        console.log('[API] getPdfDownloadUrl returned:', { proxyUrl, downloadUrl });
+        console.log('[API] getPdfViewUrl - getPdfDownloadUrl returned:', { proxyUrl, downloadUrl });
         
         // Always construct full URL for proxy endpoint
         let finalUrl;
+        const baseUrl = getApiBaseUrl();
+        console.log('[API] getPdfViewUrl - baseUrl:', baseUrl);
+        
         if (proxyUrl) {
-            if (proxyUrl.startsWith('/')) {
-                // Relative path - construct full backend URL
-                const baseUrl = getApiBaseUrl();
-                finalUrl = `${baseUrl}${proxyUrl}`;
-                console.log('[API] Constructed full proxy URL:', finalUrl);
-            } else if (proxyUrl.startsWith('http')) {
+            if (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://')) {
                 // Already a full URL
                 finalUrl = proxyUrl;
-                console.log('[API] Using full proxy URL:', finalUrl);
+                console.log('[API] getPdfViewUrl - using full proxy URL:', finalUrl);
+            } else if (proxyUrl.startsWith('/')) {
+                // Relative path - construct full backend URL
+                finalUrl = `${baseUrl}${proxyUrl}`;
+                console.log('[API] getPdfViewUrl - constructed full proxy URL from relative:', finalUrl);
             } else {
                 // Fallback: construct from base URL
-                const baseUrl = getApiBaseUrl();
                 finalUrl = `${baseUrl}/api/papers/${paperId}/pdf-proxy`;
-                console.log('[API] Fallback: constructed proxy URL:', finalUrl);
+                console.log('[API] getPdfViewUrl - fallback constructed proxy URL:', finalUrl);
             }
         } else {
             // No proxy URL, use download URL
             finalUrl = downloadUrl;
-            console.log('[API] No proxy URL, using download URL:', finalUrl);
+            console.log('[API] getPdfViewUrl - no proxy URL, using download URL:', finalUrl);
         }
         
+        // Final validation - ensure URL is absolute
+        if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+            console.error('[API] getPdfViewUrl - ERROR: URL is still not absolute!', finalUrl);
+            // Force construct from base URL
+            finalUrl = `${baseUrl}/api/papers/${paperId}/pdf-proxy`;
+            console.log('[API] getPdfViewUrl - forced construction:', finalUrl);
+        }
+        
+        console.log('[API] getPdfViewUrl - returning final URL:', finalUrl);
         return finalUrl;
     } catch (error) {
         console.error('Get PDF view URL error:', error);
