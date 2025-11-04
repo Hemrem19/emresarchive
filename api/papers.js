@@ -518,10 +518,16 @@ export async function getPdfDownloadUrl(paperId) {
         }
 
         if (result.success && result.data) {
+            // Construct full proxy URL if backend returned relative path
+            let proxyUrl = result.data.proxyUrl || `${getApiBaseUrl()}/api/papers/${paperId}/pdf-proxy`;
+            if (proxyUrl.startsWith('/')) {
+                proxyUrl = `${getApiBaseUrl()}${proxyUrl}`;
+            }
+            
             return {
                 pdfUrl: result.data.pdfUrl,
                 downloadUrl: result.data.downloadUrl,
-                proxyUrl: result.data.proxyUrl || `${getApiBaseUrl()}/api/papers/${paperId}/pdf-proxy`,
+                proxyUrl,
                 expiresIn: result.data.expiresIn
             };
         }
@@ -541,6 +547,13 @@ export async function getPdfDownloadUrl(paperId) {
 export async function getPdfViewUrl(paperId) {
     try {
         const { proxyUrl, downloadUrl } = await getPdfDownloadUrl(paperId);
+        
+        // If proxyUrl is relative, construct full URL using backend base URL
+        if (proxyUrl && proxyUrl.startsWith('/')) {
+            const baseUrl = getApiBaseUrl();
+            return `${baseUrl}${proxyUrl}`;
+        }
+        
         // Prefer proxy URL to avoid CORS issues
         return proxyUrl || downloadUrl;
     } catch (error) {

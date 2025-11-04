@@ -520,8 +520,29 @@ export const detailsView = {
             showToast('Loading PDF...', 'info');
             console.log('[Details] Fetching PDF from URL:', pdfUrl);
             
-            // Fetch PDF as blob to avoid CORS issues with presigned URLs
-            const response = await fetch(pdfUrl);
+            // If URL is a proxy endpoint, use authenticated request
+            // Otherwise, use plain fetch (for presigned URLs)
+            let response;
+            if (pdfUrl.includes('/pdf-proxy')) {
+                // Proxy endpoint requires authentication
+                const { getAccessToken } = await import('./api/auth.js');
+                const accessToken = getAccessToken();
+                if (!accessToken) {
+                    throw new Error('Not authenticated. Please log in to view PDF.');
+                }
+                
+                response = await fetch(pdfUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    credentials: 'include' // Include cookies for refresh token
+                });
+            } else {
+                // Presigned URL - plain fetch
+                response = await fetch(pdfUrl);
+            }
+            
             if (!response.ok) {
                 throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
             }
