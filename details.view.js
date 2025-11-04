@@ -631,6 +631,11 @@ export const detailsView = {
                                     // Use proxy URL to avoid CORS issues with R2
                                     const pdfUrl = await getPdfViewUrl(paperId);
                                     console.log('[Details] Got PDF URL from backend (proxy):', pdfUrl);
+                                    console.log('[Details] PDF URL type check:', {
+                                        isAbsolute: pdfUrl.startsWith('http'),
+                                        url: pdfUrl,
+                                        baseUrl: (await import('./config.js')).getApiBaseUrl()
+                                    });
                                     await loadPdfFromUrl(pdfUrl);
                                 } catch (error) {
                                     console.error('[Details] Error loading PDF from S3:', error);

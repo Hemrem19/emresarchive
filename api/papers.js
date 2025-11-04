@@ -547,15 +547,33 @@ export async function getPdfDownloadUrl(paperId) {
 export async function getPdfViewUrl(paperId) {
     try {
         const { proxyUrl, downloadUrl } = await getPdfDownloadUrl(paperId);
+        console.log('[API] getPdfDownloadUrl returned:', { proxyUrl, downloadUrl });
         
-        // If proxyUrl is relative, construct full URL using backend base URL
-        if (proxyUrl && proxyUrl.startsWith('/')) {
-            const baseUrl = getApiBaseUrl();
-            return `${baseUrl}${proxyUrl}`;
+        // Always construct full URL for proxy endpoint
+        let finalUrl;
+        if (proxyUrl) {
+            if (proxyUrl.startsWith('/')) {
+                // Relative path - construct full backend URL
+                const baseUrl = getApiBaseUrl();
+                finalUrl = `${baseUrl}${proxyUrl}`;
+                console.log('[API] Constructed full proxy URL:', finalUrl);
+            } else if (proxyUrl.startsWith('http')) {
+                // Already a full URL
+                finalUrl = proxyUrl;
+                console.log('[API] Using full proxy URL:', finalUrl);
+            } else {
+                // Fallback: construct from base URL
+                const baseUrl = getApiBaseUrl();
+                finalUrl = `${baseUrl}/api/papers/${paperId}/pdf-proxy`;
+                console.log('[API] Fallback: constructed proxy URL:', finalUrl);
+            }
+        } else {
+            // No proxy URL, use download URL
+            finalUrl = downloadUrl;
+            console.log('[API] No proxy URL, using download URL:', finalUrl);
         }
         
-        // Prefer proxy URL to avoid CORS issues
-        return proxyUrl || downloadUrl;
+        return finalUrl;
     } catch (error) {
         console.error('Get PDF view URL error:', error);
         throw error;
