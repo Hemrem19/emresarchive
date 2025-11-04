@@ -14,7 +14,8 @@ import {
   searchPapers,
   getUploadUrl,
   getPdfDownloadUrl,
-  uploadPdfDirect
+  uploadPdfDirect,
+  proxyPdfStream
 } from '../controllers/papers.js';
 import { getAnnotations, createAnnotation } from '../controllers/annotations.js';
 import { authenticate } from '../middleware/auth.js';
@@ -58,6 +59,7 @@ router.post('/:id/annotations', validate(annotationSchema), createAnnotation);
 router.post('/upload', upload.single('file'), uploadPdfDirect); // Direct upload endpoint (must be first)
 router.post('/upload-url', getUploadUrl);
 router.get('/:id/pdf', getPdfDownloadUrl);
+router.get('/:id/pdf-proxy', proxyPdfStream); // Proxy endpoint to avoid CORS issues
 
 export default router;
 

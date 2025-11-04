@@ -171,6 +171,37 @@ export function generatePdfKey(userId, paperId, filename) {
 }
 
 /**
+ * Get S3 object as a stream (for proxying to client)
+ * @param {string} key - S3 object key
+ * @returns {Promise<ReadableStream>} Stream of the S3 object
+ */
+export async function getS3ObjectStream(key) {
+  try {
+    // Validate S3 configuration
+    if (!BUCKET_NAME || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
+      throw new Error('S3 storage is not configured.');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key
+    });
+
+    const response = await s3Client.send(command);
+    
+    // Return the stream from the response
+    if (!response.Body) {
+      throw new Error('No body in S3 response');
+    }
+    
+    return response.Body; // This is a ReadableStream
+  } catch (error) {
+    console.error('Error getting S3 object stream:', error);
+    throw error;
+  }
+}
+
+/**
  * Extract S3 key from a full S3 URL or key string
  * @param {string} urlOrKey - S3 URL or key
  * @returns {string} S3 object key

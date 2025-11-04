@@ -748,6 +748,7 @@ export const getPdfDownloadUrl = async (req, res, next) => {
           data: {
             pdfUrl: paper.pdfUrl,
             downloadUrl,
+            proxyUrl: `/api/papers/${paperId}/pdf-proxy`, // Proxy endpoint to avoid CORS
             expiresIn: 3600 // 1 hour
           }
         });
@@ -762,9 +763,105 @@ export const getPdfDownloadUrl = async (req, res, next) => {
       success: true,
       data: {
         pdfUrl: paper.pdfUrl,
-        downloadUrl: paper.pdfUrl
+        downloadUrl: paper.pdfUrl,
+        proxyUrl: `/api/papers/${paperId}/pdf-proxy` // Proxy endpoint
       }
     });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Proxy PDF Stream (avoids CORS issues)
+ * GET /api/papers/:id/pdf-proxy
+ */
+export const proxyPdfStream = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const paperId = parseInt(req.params.id);
+
+    const paper = await prisma.paper.findFirst({
+      where: {
+        id: paperId,
+        userId,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        pdfUrl: true
+      }
+    });
+
+    if (!paper) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Paper not found' }
+      });
+    }
+
+    if (!paper.pdfUrl) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'PDF not found for this paper' }
+      });
+    }
+
+    // Import S3 functions
+    const { getS3ObjectStream, extractS3Key, isS3Configured } = await import('../lib/s3.js');
+
+    // If S3 is configured, fetch PDF from S3 and stream it
+    if (isS3Configured() && (paper.pdfUrl.startsWith('papers/') || paper.pdfUrl.includes('/r2.'))) {
+      try {
+        const s3Key = extractS3Key(paper.pdfUrl);
+        const response = await getS3ObjectStream(s3Key);
+        
+        // Set headers for PDF streaming
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="paper-${paperId}.pdf"`);
+        res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
+        
+        // Read stream into buffer (AWS SDK v3 returns a stream)
+        const chunks = [];
+        for await (const chunk of response) {
+          chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+        
+        // Send PDF buffer to client
+        res.send(buffer);
+        
+        return; // Stream is handled asynchronously
+      } catch (s3Error) {
+        console.error('Error fetching PDF from S3:', s3Error);
+        return res.status(500).json({
+          success: false,
+          error: { message: 'Failed to fetch PDF from storage' }
+        });
+      }
+    }
+
+    // Fallback: try to fetch from direct URL (if not S3)
+    // This is unlikely to work due to CORS, but included for completeness
+    try {
+      const response = await fetch(paper.pdfUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF: ${response.status}`);
+      }
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="paper-${paperId}.pdf"`);
+      
+      const buffer = await response.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (fetchError) {
+      console.error('Error fetching PDF from URL:', fetchError);
+      res.status(500).json({
+        success: false,
+        error: { message: 'Failed to fetch PDF' }
+      });
+    }
 
   } catch (error) {
     next(error);

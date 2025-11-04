@@ -498,9 +498,9 @@ export async function uploadPdf(uploadUrl, file, fields = null) {
 }
 
 /**
- * Gets a presigned URL for PDF download.
+ * Gets a presigned URL for PDF download or proxy URL.
  * @param {number|string} paperId - The paper ID.
- * @returns {Promise<Object>} Promise resolving to { pdfUrl, downloadUrl, expiresIn }.
+ * @returns {Promise<Object>} Promise resolving to { pdfUrl, downloadUrl, proxyUrl, expiresIn }.
  */
 export async function getPdfDownloadUrl(paperId) {
     try {
@@ -521,6 +521,7 @@ export async function getPdfDownloadUrl(paperId) {
             return {
                 pdfUrl: result.data.pdfUrl,
                 downloadUrl: result.data.downloadUrl,
+                proxyUrl: result.data.proxyUrl || `${getApiBaseUrl()}/api/papers/${paperId}/pdf-proxy`,
                 expiresIn: result.data.expiresIn
             };
         }
@@ -528,6 +529,22 @@ export async function getPdfDownloadUrl(paperId) {
         throw new Error('Invalid response from server');
     } catch (error) {
         console.error('Get download URL error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Gets PDF URL for viewing (prefers proxy to avoid CORS).
+ * @param {number|string} paperId - The paper ID.
+ * @returns {Promise<string>} Promise resolving to PDF URL (proxy URL preferred).
+ */
+export async function getPdfViewUrl(paperId) {
+    try {
+        const { proxyUrl, downloadUrl } = await getPdfDownloadUrl(paperId);
+        // Prefer proxy URL to avoid CORS issues
+        return proxyUrl || downloadUrl;
+    } catch (error) {
+        console.error('Get PDF view URL error:', error);
         throw error;
     }
 }

@@ -2,7 +2,7 @@ import { getPaperById, updatePaper, getAllPapers } from './db.js';
 import { escapeHtml, showToast, formatRelativeTime } from './ui.js';
 import { views as templates } from './views.js';
 import { generateCitation } from './citation.js';
-import { getPdfDownloadUrl } from './api/papers.js';
+import { getPdfDownloadUrl, getPdfViewUrl } from './api/papers.js';
 import { isCloudSyncEnabled } from './config.js';
 import { isAuthenticated } from './api/auth.js';
 
@@ -303,7 +303,9 @@ export const detailsView = {
                         const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
                         if (useCloudSync) {
                             showToast('Getting download link...', 'info');
-                            const { downloadUrl } = await getPdfDownloadUrl(paperId);
+                            const { proxyUrl, downloadUrl } = await getPdfDownloadUrl(paperId);
+                            // Use proxy URL for viewing, presigned URL for direct download
+                            const pdfUrl = proxyUrl || downloadUrl;
                             const a = document.createElement('a');
                             a.href = downloadUrl;
                             a.download = `${paper.title || 'download'}.pdf`;
@@ -605,9 +607,10 @@ export const detailsView = {
                             (async () => {
                                 try {
                                     showToast('Loading PDF from cloud...', 'info');
-                                    const { downloadUrl } = await getPdfDownloadUrl(paperId);
-                                    console.log('[Details] Got presigned download URL from backend:', downloadUrl);
-                                    await loadPdfFromUrl(downloadUrl);
+                                    // Use proxy URL to avoid CORS issues with R2
+                                    const pdfUrl = await getPdfViewUrl(paperId);
+                                    console.log('[Details] Got PDF URL from backend (proxy):', pdfUrl);
+                                    await loadPdfFromUrl(pdfUrl);
                                 } catch (error) {
                                     console.error('[Details] Error loading PDF from S3:', error);
                                     showToast('Failed to load PDF from cloud', 'error');
