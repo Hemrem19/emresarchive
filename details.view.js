@@ -629,8 +629,24 @@ export const detailsView = {
                                 try {
                                     showToast('Loading PDF from cloud...', 'info');
                                     // Use proxy URL to avoid CORS issues with R2
-                                    const pdfUrl = await getPdfViewUrl(paperId);
+                                    let pdfUrl = await getPdfViewUrl(paperId);
                                     console.log('[Details] Got PDF URL from backend (proxy):', pdfUrl);
+                                    
+                                    // Safety check: Ensure URL is absolute (not relative)
+                                    // If it's relative, construct full backend URL
+                                    if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
+                                        console.warn('[Details] PDF URL is relative, constructing full URL');
+                                        const { getApiBaseUrl } = await import('./config.js');
+                                        const baseUrl = getApiBaseUrl();
+                                        // If it starts with /, append to base URL, otherwise construct full path
+                                        if (pdfUrl.startsWith('/')) {
+                                            pdfUrl = `${baseUrl}${pdfUrl}`;
+                                        } else {
+                                            pdfUrl = `${baseUrl}/api/papers/${paperId}/pdf-proxy`;
+                                        }
+                                        console.log('[Details] Constructed full PDF URL:', pdfUrl);
+                                    }
+                                    
                                     console.log('[Details] PDF URL type check:', {
                                         isAbsolute: pdfUrl.startsWith('http'),
                                         url: pdfUrl,
