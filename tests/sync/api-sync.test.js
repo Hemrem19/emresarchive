@@ -62,7 +62,7 @@ describe('api/sync.js - Client ID Management', () => {
             const secondId = getClientId();
             
             expect(firstId).toBe(secondId);
-            expect(localStorage.getItem('citaversa_client_id')).toBe(firstId);
+            expect(localStorage.getItem('citavers_client_id')).toBe(firstId);
         });
     });
 });
@@ -101,7 +101,7 @@ describe('api/sync.js - Last Sync Timestamp', () => {
             setLastSyncedAt(timestamp1);
             setLastSyncedAt(timestamp2);
             
-            expect(localStorage.getItem('citaversa_last_synced_at')).toBe(timestamp2);
+            expect(localStorage.getItem('citavers_last_synced_at')).toBe(timestamp2);
         });
     });
 });

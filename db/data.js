@@ -182,252 +182,196 @@ async function importData(dataToImport) {
     }
 
     try {
+        // Phase 1: Clear all existing data
         const database = await openDB();
-        return new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
             const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
             const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
             const collectionsStore = transaction.objectStore(STORE_NAME_COLLECTIONS);
             const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
 
-            // 1. Clear all existing data
-            const clearPapersRequest = papersStore.clear();
-            const clearCollectionsRequest = collectionsStore.clear();
-            const clearAnnotationsRequest = annotationsStore.clear();
+            // Clear all stores
+            papersStore.clear();
+            collectionsStore.clear();
+            annotationsStore.clear();
             
-            let papersCleared = false;
-            let collectionsCleared = false;
-            let annotationsCleared = false;
-            
-            clearPapersRequest.onerror = (event) => {
-                console.error('Error clearing papers for import:', event.target.error);
-                reject(new Error('Import failed: Unable to clear existing papers. Please try again.'));
-            };
-            
-            clearCollectionsRequest.onerror = (event) => {
-                console.error('Error clearing collections for import:', event.target.error);
-                reject(new Error('Import failed: Unable to clear existing collections. Please try again.'));
-            };
-            
-            clearAnnotationsRequest.onerror = (event) => {
-                console.error('Error clearing annotations for import:', event.target.error);
-                reject(new Error('Import failed: Unable to clear existing annotations. Please try again.'));
-            };
-
-            clearPapersRequest.onsuccess = () => {
-                papersCleared = true;
-                checkAndProceed();
-            };
-            
-            clearCollectionsRequest.onsuccess = () => {
-                collectionsCleared = true;
-                checkAndProceed();
-            };
-            
-            clearAnnotationsRequest.onsuccess = () => {
-                annotationsCleared = true;
-                checkAndProceed();
-            };
-            
-            const checkAndProceed = async () => {
-                if (!papersCleared || !collectionsCleared || !annotationsCleared) return;
-                
-                // 2. Add all new papers, collections, and annotations
-                try {
-                    let paperSuccessCount = 0;
-                    let paperErrorCount = 0;
-                    let collectionSuccessCount = 0;
-                    let collectionErrorCount = 0;
-                    let annotationSuccessCount = 0;
-                    let annotationErrorCount = 0;
-
-                    // Import papers
-                    // Local-first: Save directly to local storage, track changes for later sync
-                    const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
-                    
-                    // Import sync tracking functions
-                    const { trackPaperCreated } = await import('./sync.js');
-                    const { addPaper: addPaperLocal } = await import('./papers.js');
-                    
-                    for (let i = 0; i < papersToImport.length; i++) {
-                        const paper = papersToImport[i];
-                        try {
-                            const paperToStore = { ...paper };
-                            
-                            // Convert Base64 back to Blob if it exists
-                            // Note: Import format uses 'pdfFile', but database stores as 'pdfData'
-                            if (paperToStore.pdfFile && typeof paperToStore.pdfFile === 'string' && paperToStore.pdfFile.startsWith('data:')) {
-                                try {
-                                    const fetchRes = await fetch(paperToStore.pdfFile);
-                                    paperToStore.pdfData = await fetchRes.blob();
-                                    delete paperToStore.pdfFile;
-                                } catch (pdfError) {
-                                    console.warn(`Failed to convert PDF for "${paper.title}":`, pdfError);
-                                    delete paperToStore.pdfFile;
-                                    paperToStore.pdfData = null;
-                                }
-                            } else if (paperToStore.pdfFile) {
-                                // If pdfFile exists but is not base64, remove it
-                                delete paperToStore.pdfFile;
-                            }
-                            
-                            // Convert ISO date strings back to Date objects
-                            if (paperToStore.createdAt && typeof paperToStore.createdAt === 'string') {
-                                paperToStore.createdAt = new Date(paperToStore.createdAt);
-                            }
-                            if (paperToStore.updatedAt && typeof paperToStore.updatedAt === 'string') {
-                                paperToStore.updatedAt = new Date(paperToStore.updatedAt);
-                            }
-                            
-                            // Local-first: Save directly to IndexedDB (guaranteed to work)
-                            // This bypasses the adapter to avoid network errors during import
-                            const localId = await addPaperLocal(paperToStore);
-                            paperSuccessCount++;
-                            
-                            // Track change for later sync if cloud sync is enabled
-                            // The sync manager will handle syncing these papers in the background
-                            if (useCloudSync) {
-                                // Prepare paper data for sync (remove fields that shouldn't be synced)
-                                const paperForSync = { ...paperToStore };
-                                delete paperForSync.pdfData; // PDF data stays local, uploaded separately if needed
-                                delete paperForSync.id; // API will generate new ID
-                                delete paperForSync.localId; // Remove if present
-                                paperForSync.localId = localId; // Use the local ID for tracking
-                                
-                                // Ensure arrays are arrays (API expects arrays)
-                                if (!Array.isArray(paperForSync.authors)) {
-                                    paperForSync.authors = paperForSync.authors ? [paperForSync.authors] : [];
-                                }
-                                if (!Array.isArray(paperForSync.tags)) {
-                                    paperForSync.tags = paperForSync.tags ? [paperForSync.tags] : [];
-                                }
-                                
-                                // Clean up readingProgress - API requires totalPages >= 1
-                                if (paperForSync.readingProgress) {
-                                    if (!paperForSync.readingProgress.totalPages || 
-                                        paperForSync.readingProgress.totalPages < 1) {
-                                        delete paperForSync.readingProgress;
-                                    } else {
-                                        // Ensure currentPage is valid (>= 0)
-                                        if (paperForSync.readingProgress.currentPage === undefined || 
-                                            paperForSync.readingProgress.currentPage < 0) {
-                                            paperForSync.readingProgress.currentPage = 0;
-                                        }
-                                    }
-                                }
-                                
-                                // Track as pending change for later sync
-                                trackPaperCreated(paperForSync);
-                            }
-                        } catch (paperError) {
-                            console.error(`Error importing paper "${paper.title}":`, paperError);
-                            paperErrorCount++;
-                            // Continue with next paper
-                        }
-                    }
-
-                    // Import collections
-                    // Local-first: Save directly to local storage, track changes for later sync
-                    const { trackCollectionCreated } = await import('./sync.js');
-                    const { addCollection: addCollectionLocal } = await import('./collections.js');
-                    
-                    for (let i = 0; i < collectionsToImport.length; i++) {
-                        const collection = collectionsToImport[i];
-                        try {
-                            const collectionToStore = { ...collection };
-                            
-                            // Convert ISO date strings back to Date objects
-                            if (collectionToStore.createdAt && typeof collectionToStore.createdAt === 'string') {
-                                collectionToStore.createdAt = new Date(collectionToStore.createdAt);
-                            }
-                            
-                            // Local-first: Save directly to IndexedDB (guaranteed to work)
-                            const localId = await addCollectionLocal(collectionToStore);
-                            collectionSuccessCount++;
-                            
-                            // Track change for later sync if cloud sync is enabled
-                            if (useCloudSync) {
-                                const collectionForSync = { ...collectionToStore };
-                                delete collectionForSync.id; // API will generate new ID
-                                delete collectionForSync.localId; // Remove if present
-                                collectionForSync.localId = localId; // Use the local ID for tracking
-                                trackCollectionCreated(collectionForSync);
-                            }
-                        } catch (collectionError) {
-                            console.error(`Error importing collection "${collection.name}":`, collectionError);
-                            collectionErrorCount++;
-                            // Continue with next collection
-                        }
-                    }
-
-                    // Import annotations
-                    // Local-first: Save directly to local storage, track changes for later sync
-                    const { trackAnnotationCreated } = await import('./sync.js');
-                    const { addAnnotation: addAnnotationLocal } = await import('./annotations.js');
-                    
-                    for (let i = 0; i < annotationsToImport.length; i++) {
-                        const annotation = annotationsToImport[i];
-                        try {
-                            const annotationToStore = { ...annotation };
-                            
-                            // Convert ISO date strings back to Date objects
-                            if (annotationToStore.createdAt && typeof annotationToStore.createdAt === 'string') {
-                                annotationToStore.createdAt = new Date(annotationToStore.createdAt);
-                            }
-                            if (annotationToStore.updatedAt && typeof annotationToStore.updatedAt === 'string') {
-                                annotationToStore.updatedAt = new Date(annotationToStore.updatedAt);
-                            }
-                            
-                            // Local-first: Save directly to IndexedDB (guaranteed to work)
-                            const localId = await addAnnotationLocal(annotationToStore);
-                            annotationSuccessCount++;
-                            
-                            // Track change for later sync if cloud sync is enabled
-                            if (useCloudSync) {
-                                const annotationForSync = { ...annotationToStore };
-                                delete annotationForSync.id; // API will generate new ID
-                                delete annotationForSync.localId; // Remove if present
-                                annotationForSync.localId = localId; // Use the local ID for tracking
-                                trackAnnotationCreated(annotationForSync);
-                            }
-                        } catch (annotationError) {
-                            console.error(`Error importing annotation:`, annotationError);
-                            annotationErrorCount++;
-                            // Continue with next annotation
-                        }
-                    }
-
-                    if (paperSuccessCount === 0 && papersToImport.length > 0) {
-                        transaction.abort();
-                        reject(new Error('Import failed: Unable to import any papers. Please check the file format and try again.'));
-                    } else if (paperErrorCount > 0 || collectionErrorCount > 0 || annotationErrorCount > 0) {
-                        console.warn(`Import completed with ${paperErrorCount} paper errors, ${collectionErrorCount} collection errors, and ${annotationErrorCount} annotation errors`);
-                    }
-                } catch (error) {
-                    transaction.abort();
-                    console.error('Error during import:', error);
-                    reject(new Error(`Import failed: ${error.message || 'Unknown error occurred.'}`));
-                }
-            };
-
-            transaction.oncomplete = () => {
-                resolve();
-            };
-
+            transaction.oncomplete = () => resolve();
             transaction.onerror = (event) => {
                 const error = event.target.error;
-                console.error('Import transaction error:', error);
-                
-                let errorMessage = 'Import failed: ';
-                
-                if (error.name === 'QuotaExceededError') {
-                    errorMessage = 'Storage quota exceeded: The import file is too large for your browser storage. Try importing fewer papers or with smaller PDF files.';
-                } else {
-                    errorMessage += error.message || 'Database error occurred during import.';
-                }
-                
-                reject(new Error(errorMessage));
+                console.error('Error clearing stores for import:', error);
+                reject(new Error('Import failed: Unable to clear existing data. Please try again.'));
             };
         });
+        
+        // Phase 2: Import all data using async add functions
+        // This ensures all items are properly added with their own transactions
+        let paperSuccessCount = 0;
+        let paperErrorCount = 0;
+        let collectionSuccessCount = 0;
+        let collectionErrorCount = 0;
+        let annotationSuccessCount = 0;
+        let annotationErrorCount = 0;
+        
+        // Import sync tracking functions
+        const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
+        const { trackPaperCreated } = await import('./sync.js');
+        const { addPaper: addPaperLocal } = await import('./papers.js');
+        
+        // Import papers
+        for (let i = 0; i < papersToImport.length; i++) {
+            const paper = papersToImport[i];
+            try {
+                const paperToStore = { ...paper };
+                
+                // Convert Base64 back to Blob if it exists
+                // Note: Import format uses 'pdfFile', but database stores as 'pdfData'
+                if (paperToStore.pdfFile && typeof paperToStore.pdfFile === 'string' && paperToStore.pdfFile.startsWith('data:')) {
+                    try {
+                        const fetchRes = await fetch(paperToStore.pdfFile);
+                        paperToStore.pdfData = await fetchRes.blob();
+                        delete paperToStore.pdfFile;
+                    } catch (pdfError) {
+                        console.warn(`Failed to convert PDF for "${paper.title}":`, pdfError);
+                        delete paperToStore.pdfFile;
+                        paperToStore.pdfData = null;
+                    }
+                } else if (paperToStore.pdfFile) {
+                    // If pdfFile exists but is not base64, remove it
+                    delete paperToStore.pdfFile;
+                }
+                
+                // Convert ISO date strings back to Date objects
+                if (paperToStore.createdAt && typeof paperToStore.createdAt === 'string') {
+                    paperToStore.createdAt = new Date(paperToStore.createdAt);
+                }
+                if (paperToStore.updatedAt && typeof paperToStore.updatedAt === 'string') {
+                    paperToStore.updatedAt = new Date(paperToStore.updatedAt);
+                }
+                
+                // Local-first: Save directly to IndexedDB (guaranteed to work)
+                // This bypasses the adapter to avoid network errors during import
+                const localId = await addPaperLocal(paperToStore);
+                paperSuccessCount++;
+                
+                // Track change for later sync if cloud sync is enabled
+                // The sync manager will handle syncing these papers in the background
+                if (useCloudSync) {
+                    // Prepare paper data for sync (remove fields that shouldn't be synced)
+                    const paperForSync = { ...paperToStore };
+                    delete paperForSync.pdfData; // PDF data stays local, uploaded separately if needed
+                    delete paperForSync.id; // API will generate new ID
+                    delete paperForSync.localId; // Remove if present
+                    paperForSync.localId = localId; // Use the local ID for tracking
+                    
+                    // Ensure arrays are arrays (API expects arrays)
+                    if (!Array.isArray(paperForSync.authors)) {
+                        paperForSync.authors = paperForSync.authors ? [paperForSync.authors] : [];
+                    }
+                    if (!Array.isArray(paperForSync.tags)) {
+                        paperForSync.tags = paperForSync.tags ? [paperForSync.tags] : [];
+                    }
+                    
+                    // Clean up readingProgress - API requires totalPages >= 1
+                    if (paperForSync.readingProgress) {
+                        if (!paperForSync.readingProgress.totalPages || 
+                            paperForSync.readingProgress.totalPages < 1) {
+                            delete paperForSync.readingProgress;
+                        } else {
+                            // Ensure currentPage is valid (>= 0)
+                            if (paperForSync.readingProgress.currentPage === undefined || 
+                                paperForSync.readingProgress.currentPage < 0) {
+                                paperForSync.readingProgress.currentPage = 0;
+                            }
+                        }
+                    }
+                    
+                    // Track as pending change for later sync
+                    trackPaperCreated(paperForSync);
+                }
+            } catch (paperError) {
+                console.error(`Error importing paper "${paper.title}":`, paperError);
+                paperErrorCount++;
+                // Continue with next paper
+            }
+        }
+
+        // Import collections
+        // Local-first: Save directly to local storage, track changes for later sync
+        const { trackCollectionCreated } = await import('./sync.js');
+        const { addCollection: addCollectionLocal } = await import('./collections.js');
+        
+        for (let i = 0; i < collectionsToImport.length; i++) {
+            const collection = collectionsToImport[i];
+            try {
+                const collectionToStore = { ...collection };
+                
+                // Convert ISO date strings back to Date objects
+                if (collectionToStore.createdAt && typeof collectionToStore.createdAt === 'string') {
+                    collectionToStore.createdAt = new Date(collectionToStore.createdAt);
+                }
+                
+                // Local-first: Save directly to IndexedDB (guaranteed to work)
+                const localId = await addCollectionLocal(collectionToStore);
+                collectionSuccessCount++;
+                
+                // Track change for later sync if cloud sync is enabled
+                if (useCloudSync) {
+                    const collectionForSync = { ...collectionToStore };
+                    delete collectionForSync.id; // API will generate new ID
+                    delete collectionForSync.localId; // Remove if present
+                    collectionForSync.localId = localId; // Use the local ID for tracking
+                    trackCollectionCreated(collectionForSync);
+                }
+            } catch (collectionError) {
+                console.error(`Error importing collection "${collection.name}":`, collectionError);
+                collectionErrorCount++;
+                // Continue with next collection
+            }
+        }
+
+        // Import annotations
+        // Local-first: Save directly to local storage, track changes for later sync
+        const { trackAnnotationCreated } = await import('./sync.js');
+        const { addAnnotation: addAnnotationLocal } = await import('./annotations.js');
+        
+        for (let i = 0; i < annotationsToImport.length; i++) {
+            const annotation = annotationsToImport[i];
+            try {
+                const annotationToStore = { ...annotation };
+                
+                // Convert ISO date strings back to Date objects
+                if (annotationToStore.createdAt && typeof annotationToStore.createdAt === 'string') {
+                    annotationToStore.createdAt = new Date(annotationToStore.createdAt);
+                }
+                if (annotationToStore.updatedAt && typeof annotationToStore.updatedAt === 'string') {
+                    annotationToStore.updatedAt = new Date(annotationToStore.updatedAt);
+                }
+                
+                // Local-first: Save directly to IndexedDB (guaranteed to work)
+                const localId = await addAnnotationLocal(annotationToStore);
+                annotationSuccessCount++;
+                
+                // Track change for later sync if cloud sync is enabled
+                if (useCloudSync) {
+                    const annotationForSync = { ...annotationToStore };
+                    delete annotationForSync.id; // API will generate new ID
+                    delete annotationForSync.localId; // Remove if present
+                    annotationForSync.localId = localId; // Use the local ID for tracking
+                    trackAnnotationCreated(annotationForSync);
+                }
+            } catch (annotationError) {
+                console.error(`Error importing annotation:`, annotationError);
+                annotationErrorCount++;
+                // Continue with next annotation
+            }
+        }
+
+        // Check results
+        if (paperSuccessCount === 0 && papersToImport.length > 0) {
+            throw new Error('Import failed: Unable to import any papers. Please check the file format and try again.');
+        } else if (paperErrorCount > 0 || collectionErrorCount > 0 || annotationErrorCount > 0) {
+            console.warn(`Import completed with ${paperErrorCount} paper errors, ${collectionErrorCount} collection errors, and ${annotationErrorCount} annotation errors`);
+        }
     } catch (error) {
         console.error('Error in importData:', error);
         throw error;
