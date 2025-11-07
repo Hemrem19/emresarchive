@@ -4,6 +4,11 @@
  */
 
 import { showToast } from '../../ui.js';
+import { 
+    parseTags as parseTagsService,
+    addTagsToPaper as addTagsService,
+    removeTagsFromPaper as removeTagsService
+} from '../services/tag-manager.js';
 
 /**
  * Executes a batch operation on multiple papers with consistent error handling
@@ -91,18 +96,18 @@ export function removePapersFromCache(cache, paperIds) {
 }
 
 /**
+ * Note: Tag parsing and management functions have been moved to
+ * dashboard/services/tag-manager.js for better organization and validation.
+ * These functions are kept here for backward compatibility.
+ */
+
+/**
  * Parses and sanitizes tag input
  * @param {string} input - Comma-separated tag input
  * @returns {Array<string>} Array of sanitized, unique tags
  */
 export function parseTags(input) {
-    if (!input || typeof input !== 'string') return [];
-    
-    return input
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0)
-        .filter((tag, index, self) => self.indexOf(tag) === index); // Remove duplicates
+    return parseTagsService(input);
 }
 
 /**
@@ -112,8 +117,8 @@ export function parseTags(input) {
  * @returns {Array<string>} Updated tags array
  */
 export function addTagsToPaper(paper, tagsToAdd) {
-    const currentTags = paper.tags || [];
-    return [...new Set([...currentTags, ...tagsToAdd])];
+    const result = addTagsService(paper, tagsToAdd);
+    return result.tags;
 }
 
 /**
@@ -123,7 +128,7 @@ export function addTagsToPaper(paper, tagsToAdd) {
  * @returns {Array<string>} Updated tags array
  */
 export function removeTagsFromPaper(paper, tagsToRemove) {
-    const currentTags = paper.tags || [];
-    return currentTags.filter(tag => !tagsToRemove.includes(tag));
+    const result = removeTagsService(paper, tagsToRemove);
+    return result.tags;
 }
 

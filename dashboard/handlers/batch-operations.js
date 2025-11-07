@@ -16,6 +16,7 @@ import {
     removeTagsFromPaper
 } from '../utils/batch-operations-utils.js';
 import { handleOperationError } from '../services/error-handler.js';
+import { showModal, closeModal } from '../services/modal-manager.js';
 
 /**
  * Creates batch status change handler
@@ -200,74 +201,76 @@ export function createBatchExportBibliographyHandler(appState) {
                 return;
             }
 
-            // Inject modal HTML
-            if (document.getElementById('bibliography-export-modal')) {
-                document.getElementById('bibliography-export-modal').remove();
-            }
-            document.body.insertAdjacentHTML('beforeend', templates.bibliographyExportModal);
+            // Show modal using Modal Manager
+            const modalId = 'bibliography-export-modal';
             
-            const modal = document.getElementById('bibliography-export-modal');
-            const closeBtn = document.getElementById('close-bibliography-modal-btn');
-            const formatSelect = document.getElementById('bibliography-format-select');
-            const styleSelect = document.getElementById('bibliography-style-select');
-            const previewDiv = document.getElementById('bibliography-preview');
-            const copyBtn = document.getElementById('bibliography-copy-btn');
-            const downloadBtn = document.getElementById('bibliography-download-btn');
-
-            // Function to update preview
-            const updatePreview = () => {
-                const format = formatSelect.value;
-                const style = styleSelect.value;
-                const bibliography = generateBibliography(selectedPapers, format, style);
-                previewDiv.textContent = bibliography || 'No bibliography generated.';
-            };
-
-            // Initial preview
-            updatePreview();
-
-            // Update preview on format/style change
-            formatSelect.addEventListener('change', updatePreview);
-            styleSelect.addEventListener('change', updatePreview);
-
-            // Copy to clipboard
-            copyBtn.addEventListener('click', async () => {
-                const format = formatSelect.value;
-                const style = styleSelect.value;
-                const bibliography = generateBibliography(selectedPapers, format, style);
-                const success = await copyBibliographyToClipboard(bibliography);
-                if (success) {
-                    showToast(`Bibliography copied to clipboard! (${selectedPapers.length} papers)`, 'success');
-                } else {
-                    showToast('Failed to copy to clipboard. Please try again.', 'error');
+            showModal({
+                id: modalId,
+                html: templates.bibliographyExportModal,
+                handlers: {
+                    'close-bibliography-modal-btn': {
+                        event: 'click',
+                        callback: () => closeModal(modalId)
+                    },
+                    'bibliography-copy-btn': {
+                        event: 'click',
+                        callback: async () => {
+                            const format = document.getElementById('bibliography-format-select').value;
+                            const style = document.getElementById('bibliography-style-select').value;
+                            const bibliography = generateBibliography(selectedPapers, format, style);
+                            const success = await copyBibliographyToClipboard(bibliography);
+                            if (success) {
+                                showToast(`Bibliography copied to clipboard! (${selectedPapers.length} papers)`, 'success');
+                            } else {
+                                showToast('Failed to copy to clipboard. Please try again.', 'error');
+                            }
+                        }
+                    },
+                    'bibliography-download-btn': {
+                        event: 'click',
+                        callback: () => {
+                            const format = document.getElementById('bibliography-format-select').value;
+                            const style = document.getElementById('bibliography-style-select').value;
+                            const bibliography = generateBibliography(selectedPapers, format, style);
+                            exportBibliographyToFile(bibliography, format);
+                            showToast(`Bibliography downloaded! (${selectedPapers.length} papers)`, 'success');
+                        }
+                    },
+                    'bibliography-format-select': {
+                        event: 'change',
+                        callback: () => updateBibliographyPreview(selectedPapers)
+                    },
+                    'bibliography-style-select': {
+                        event: 'change',
+                        callback: () => updateBibliographyPreview(selectedPapers)
+                    }
+                },
+                onOpen: () => {
+                    // Initial preview
+                    updateBibliographyPreview(selectedPapers);
                 }
             });
-
-            // Download file
-            downloadBtn.addEventListener('click', () => {
-                const format = formatSelect.value;
-                const style = styleSelect.value;
-                const bibliography = generateBibliography(selectedPapers, format, style);
-                exportBibliographyToFile(bibliography, format);
-                showToast(`Bibliography downloaded! (${selectedPapers.length} papers)`, 'success');
-            });
-
-            // Close modal handlers
-            const closeModal = () => {
-                modal.classList.add('hidden');
-                setTimeout(() => modal.remove(), 300);
-            };
-
-            closeBtn.addEventListener('click', closeModal);
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) closeModal();
-            });
-
-            // Show modal
-            modal.classList.remove('hidden');
         } catch (error) {
             handleOperationError(error, 'export bibliography');
         }
     };
+}
+
+/**
+ * Updates bibliography preview in modal
+ * @param {Array} selectedPapers - Array of selected papers
+ */
+function updateBibliographyPreview(selectedPapers) {
+    const formatSelect = document.getElementById('bibliography-format-select');
+    const styleSelect = document.getElementById('bibliography-style-select');
+    const previewDiv = document.getElementById('bibliography-preview');
+    
+    if (formatSelect && styleSelect && previewDiv) {
+        const format = formatSelect.value;
+        const style = styleSelect.value;
+        const bibliography = generateBibliography(selectedPapers, format, style);
+        previewDiv.textContent = bibliography || 'No bibliography generated.';
+    }
 }
 
 /**
@@ -348,9 +351,6 @@ export function unregisterBatchOperationHandlers(handlers) {
         batchExportBibliographyBtn.removeEventListener('click', handlers.batchExportBibliographyHandler);
     }
 
-    // Remove bibliography modal if it exists
-    const bibliographyModal = document.getElementById('bibliography-export-modal');
-    if (bibliographyModal) {
-        bibliographyModal.remove();
-    }
+    // Modal Manager handles cleanup automatically
+    closeModal('bibliography-export-modal');
 }
