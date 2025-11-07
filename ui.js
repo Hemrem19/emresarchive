@@ -460,7 +460,7 @@ export const highlightActiveSidebarLink = () => {
     const path = window.location.hash;
     
     // Reset all links to inactive state
-    document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .collection-item').forEach(el => {
+    document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .sidebar-docs-link, .collection-item').forEach(el => {
         el.classList.remove('text-primary', 'bg-primary/10', 'dark:bg-primary/20');
         el.classList.add('text-stone-500', 'dark:text-stone-400', 'hover:text-stone-900', 'dark:hover:text-stone-100', 'hover:bg-stone-100', 'dark:hover:bg-stone-800');
     });
@@ -499,6 +499,10 @@ export const highlightActiveSidebarLink = () => {
     else if (path.startsWith('#/tag/')) {
         const tag = decodeURIComponent(path.split('/')[2]);
         setActive(`.sidebar-tag[data-tag="${tag}"]`);
+    }
+    // Documentation page
+    else if (path.startsWith('#/docs')) {
+        setActive('.sidebar-docs-link');
     }
     // No filters active - highlight "All Papers"
     else if (path === '#/' || path === '') {
