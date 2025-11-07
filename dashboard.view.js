@@ -53,7 +53,13 @@ export const dashboardView = {
             renderSidebarCollections(appState.collectionsCache);
         } catch (error) {
             console.error('Error loading collections:', error);
-            showToast('Failed to load collections. Some features may be unavailable.', 'warning', { duration: 5000 });
+            showToast('Failed to load collections. Some features may be unavailable.', 'warning', { 
+                duration: 0,
+                actions: [{
+                    label: 'Refresh',
+                    onClick: () => window.location.reload()
+                }]
+            });
             appState.collectionsCache = [];
         }
 

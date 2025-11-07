@@ -291,11 +291,23 @@ export const graphView = {
             ? paper.authors.slice(0, 3).join(', ') + (paper.authors.length > 3 ? '...' : '')
             : 'No authors';
         const tags = paper.tags && paper.tags.length > 0
-            ? paper.tags.join(', ')
+            ? paper.tags.map(tag => `<span style="background-color: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 99px; font-size: 10px;">#${tag}</span>`).join(' ')
             : 'No tags';
         
-        // vis.js tooltips only support plain text, not HTML
-        return `${paper.title || 'Untitled'}\n${authors}\nStatus: ${paper.readingStatus || 'Unknown'}\nTags: ${tags}`;
+        const tooltipElement = document.createElement('div');
+        tooltipElement.style.cssText = 'width: 300px; font-family: Manrope, sans-serif;';
+        tooltipElement.innerHTML = `
+            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: normal;">${paper.title || 'Untitled'}</div>
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; white-space: normal;">${authors}</div>
+            <div style="font-size: 12px; margin-bottom: 8px;">
+                <strong>Status:</strong> 
+                <span style="color: ${this.getNodeColor(paper.readingStatus)}; font-weight: 500;">${paper.readingStatus || 'Unknown'}</span>
+            </div>
+            <div style="font-size: 12px;">
+                <strong>Tags:</strong> ${tags}
+            </div>
+        `;
+        return tooltipElement;
     },
 
     populateTagFilter() {
@@ -488,4 +500,3 @@ export const graphView = {
         if (visibleCount) visibleCount.textContent = visibleNodes;
     }
 };
-
