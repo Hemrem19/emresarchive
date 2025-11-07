@@ -51,6 +51,7 @@
   "devDependencies": {
     "@types/node": "^20.10.6",
     "@vitest/coverage-v8": "^1.6.0",
+    "patch-package": "^8.0.1",
     "prisma": "^5.7.1",
     "supertest": "^6.1.6",
     "vitest": "^1.0.4"
