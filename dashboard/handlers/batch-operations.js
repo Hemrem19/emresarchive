@@ -1,0 +1,356 @@
+/**
+ * Batch Operations Handler (Refactored)
+ * Handles batch actions on selected papers: status change, tag management, delete, and export
+ */
+
+import { updatePaper, deletePaper } from '../../db.js';
+import { renderSidebarTags, showToast } from '../../ui.js';
+import { generateBibliography, exportBibliographyToFile, copyBibliographyToClipboard } from '../../citation.js';
+import { views as templates } from '../../views.js';
+import { 
+    executeBatchOperation, 
+    updatePaperInCache, 
+    removePapersFromCache,
+    parseTags,
+    addTagsToPaper,
+    removeTagsFromPaper
+} from '../utils/batch-operations-utils.js';
+import { handleOperationError } from '../services/error-handler.js';
+
+/**
+ * Creates batch status change handler
+ * @param {Object} appState - Application state
+ * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
+ * @returns {Function} Event handler for batch status change
+ */
+export function createBatchStatusChangeHandler(appState, applyFiltersAndRender) {
+    return async (e) => {
+        const newStatus = e.target.value;
+        if (!newStatus || appState.selectedPaperIds.size === 0) return;
+
+        try {
+            const selectedIds = Array.from(appState.selectedPaperIds);
+            
+            const { successCount, errorCount } = await executeBatchOperation(
+                selectedIds,
+                async (paperId) => {
+                    await updatePaper(paperId, { readingStatus: newStatus });
+                    updatePaperInCache(appState.allPapersCache, paperId, { readingStatus: newStatus });
+                },
+                { actionName: `Update status to "${newStatus}"` }
+            );
+
+            e.target.value = ''; // Reset select
+            
+            if (successCount > 0) {
+                applyFiltersAndRender();
+            }
+        } catch (error) {
+            handleOperationError(error, 'batch status update');
+        }
+    };
+}
+
+/**
+ * Creates batch add tags handler
+ * @param {Object} appState - Application state
+ * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
+ * @returns {Function} Event handler for batch add tags
+ */
+export function createBatchAddTagsHandler(appState, applyFiltersAndRender) {
+    return async () => {
+        const input = document.getElementById('batch-tags-input');
+        if (!input || !input.value.trim() || appState.selectedPaperIds.size === 0) return;
+
+        const tagsToAdd = parseTags(input.value);
+        if (tagsToAdd.length === 0) return;
+
+        try {
+            const selectedIds = Array.from(appState.selectedPaperIds);
+            
+            const { successCount } = await executeBatchOperation(
+                selectedIds,
+                async (paperId) => {
+                    const paper = appState.allPapersCache.find(p => p.id === paperId);
+                    if (paper) {
+                        const updatedTags = addTagsToPaper(paper, tagsToAdd);
+                        await updatePaper(paperId, { tags: updatedTags });
+                        updatePaperInCache(appState.allPapersCache, paperId, { tags: updatedTags });
+                    }
+                },
+                { actionName: 'Add tags' }
+            );
+
+            input.value = ''; // Clear input
+            
+            if (successCount > 0) {
+                renderSidebarTags(appState.allPapersCache); // Update sidebar tags
+                applyFiltersAndRender();
+            }
+        } catch (error) {
+            handleOperationError(error, 'batch add tags');
+        }
+    };
+}
+
+/**
+ * Creates batch remove tags handler
+ * @param {Object} appState - Application state
+ * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
+ * @returns {Function} Event handler for batch remove tags
+ */
+export function createBatchRemoveTagsHandler(appState, applyFiltersAndRender) {
+    return async () => {
+        const input = document.getElementById('batch-tags-input');
+        if (!input || !input.value.trim() || appState.selectedPaperIds.size === 0) return;
+
+        const tagsToRemove = parseTags(input.value);
+        if (tagsToRemove.length === 0) return;
+
+        try {
+            const selectedIds = Array.from(appState.selectedPaperIds);
+            
+            const { successCount } = await executeBatchOperation(
+                selectedIds,
+                async (paperId) => {
+                    const paper = appState.allPapersCache.find(p => p.id === paperId);
+                    if (paper) {
+                        const updatedTags = removeTagsFromPaper(paper, tagsToRemove);
+                        await updatePaper(paperId, { tags: updatedTags });
+                        updatePaperInCache(appState.allPapersCache, paperId, { tags: updatedTags });
+                    }
+                },
+                { actionName: 'Remove tags' }
+            );
+
+            input.value = ''; // Clear input
+            
+            if (successCount > 0) {
+                renderSidebarTags(appState.allPapersCache); // Update sidebar tags
+                applyFiltersAndRender();
+            }
+        } catch (error) {
+            handleOperationError(error, 'batch remove tags');
+        }
+    };
+}
+
+/**
+ * Creates batch delete handler
+ * @param {Object} appState - Application state
+ * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
+ * @param {Function} updateBatchToolbar - Function to update batch toolbar UI
+ * @returns {Function} Event handler for batch delete
+ */
+export function createBatchDeleteHandler(appState, applyFiltersAndRender, updateBatchToolbar) {
+    return async () => {
+        if (appState.selectedPaperIds.size === 0) return;
+
+        const count = appState.selectedPaperIds.size;
+        if (!confirm(`Are you sure you want to delete ${count} paper(s)? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const selectedIds = Array.from(appState.selectedPaperIds);
+            const successfulDeletes = [];
+            
+            const { successCount, errorCount, results } = await executeBatchOperation(
+                selectedIds,
+                async (paperId) => {
+                    await deletePaper(paperId);
+                    successfulDeletes.push(paperId);
+                },
+                { actionName: 'Delete papers' }
+            );
+
+            // Remove successfully deleted papers from cache
+            if (successfulDeletes.length > 0) {
+                appState.allPapersCache = removePapersFromCache(appState.allPapersCache, successfulDeletes);
+                appState.selectedPaperIds.clear();
+                renderSidebarTags(appState.allPapersCache); // Update sidebar tags
+                updateBatchToolbar(appState);
+                applyFiltersAndRender();
+            }
+        } catch (error) {
+            handleOperationError(error, 'batch delete');
+        }
+    };
+}
+
+/**
+ * Creates batch export bibliography handler
+ * @param {Object} appState - Application state
+ * @returns {Function} Event handler for batch export bibliography
+ */
+export function createBatchExportBibliographyHandler(appState) {
+    return async () => {
+        if (appState.selectedPaperIds.size === 0) {
+            showToast('Please select papers to export.', 'warning');
+            return;
+        }
+
+        try {
+            // Get selected papers
+            const selectedIds = Array.from(appState.selectedPaperIds);
+            const selectedPapers = appState.allPapersCache.filter(p => selectedIds.includes(p.id));
+            
+            if (selectedPapers.length === 0) {
+                showToast('No papers found for export.', 'error');
+                return;
+            }
+
+            // Inject modal HTML
+            if (document.getElementById('bibliography-export-modal')) {
+                document.getElementById('bibliography-export-modal').remove();
+            }
+            document.body.insertAdjacentHTML('beforeend', templates.bibliographyExportModal);
+            
+            const modal = document.getElementById('bibliography-export-modal');
+            const closeBtn = document.getElementById('close-bibliography-modal-btn');
+            const formatSelect = document.getElementById('bibliography-format-select');
+            const styleSelect = document.getElementById('bibliography-style-select');
+            const previewDiv = document.getElementById('bibliography-preview');
+            const copyBtn = document.getElementById('bibliography-copy-btn');
+            const downloadBtn = document.getElementById('bibliography-download-btn');
+
+            // Function to update preview
+            const updatePreview = () => {
+                const format = formatSelect.value;
+                const style = styleSelect.value;
+                const bibliography = generateBibliography(selectedPapers, format, style);
+                previewDiv.textContent = bibliography || 'No bibliography generated.';
+            };
+
+            // Initial preview
+            updatePreview();
+
+            // Update preview on format/style change
+            formatSelect.addEventListener('change', updatePreview);
+            styleSelect.addEventListener('change', updatePreview);
+
+            // Copy to clipboard
+            copyBtn.addEventListener('click', async () => {
+                const format = formatSelect.value;
+                const style = styleSelect.value;
+                const bibliography = generateBibliography(selectedPapers, format, style);
+                const success = await copyBibliographyToClipboard(bibliography);
+                if (success) {
+                    showToast(`Bibliography copied to clipboard! (${selectedPapers.length} papers)`, 'success');
+                } else {
+                    showToast('Failed to copy to clipboard. Please try again.', 'error');
+                }
+            });
+
+            // Download file
+            downloadBtn.addEventListener('click', () => {
+                const format = formatSelect.value;
+                const style = styleSelect.value;
+                const bibliography = generateBibliography(selectedPapers, format, style);
+                exportBibliographyToFile(bibliography, format);
+                showToast(`Bibliography downloaded! (${selectedPapers.length} papers)`, 'success');
+            });
+
+            // Close modal handlers
+            const closeModal = () => {
+                modal.classList.add('hidden');
+                setTimeout(() => modal.remove(), 300);
+            };
+
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            // Show modal
+            modal.classList.remove('hidden');
+        } catch (error) {
+            handleOperationError(error, 'export bibliography');
+        }
+    };
+}
+
+/**
+ * Registers all batch operation event listeners
+ * @param {Object} appState - Application state
+ * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
+ * @param {Function} updateBatchToolbar - Function to update batch toolbar UI
+ * @returns {Object} Object containing all handler functions for cleanup
+ */
+export function registerBatchOperationHandlers(appState, applyFiltersAndRender, updateBatchToolbar) {
+    const handlers = {};
+
+    // Batch Status Change
+    const batchStatusSelect = document.getElementById('batch-status-select');
+    if (batchStatusSelect) {
+        handlers.batchStatusChangeHandler = createBatchStatusChangeHandler(appState, applyFiltersAndRender);
+        batchStatusSelect.addEventListener('change', handlers.batchStatusChangeHandler);
+    }
+
+    // Batch Add Tags
+    const batchAddTagsBtn = document.getElementById('batch-add-tags-btn');
+    if (batchAddTagsBtn) {
+        handlers.batchAddTagsHandler = createBatchAddTagsHandler(appState, applyFiltersAndRender);
+        batchAddTagsBtn.addEventListener('click', handlers.batchAddTagsHandler);
+    }
+
+    // Batch Remove Tags
+    const batchRemoveTagsBtn = document.getElementById('batch-remove-tags-btn');
+    if (batchRemoveTagsBtn) {
+        handlers.batchRemoveTagsHandler = createBatchRemoveTagsHandler(appState, applyFiltersAndRender);
+        batchRemoveTagsBtn.addEventListener('click', handlers.batchRemoveTagsHandler);
+    }
+
+    // Batch Delete
+    const batchDeleteBtn = document.getElementById('batch-delete-btn');
+    if (batchDeleteBtn) {
+        handlers.batchDeleteHandler = createBatchDeleteHandler(appState, applyFiltersAndRender, updateBatchToolbar);
+        batchDeleteBtn.addEventListener('click', handlers.batchDeleteHandler);
+    }
+
+    // Batch Export Bibliography
+    const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');
+    if (batchExportBibliographyBtn) {
+        handlers.batchExportBibliographyHandler = createBatchExportBibliographyHandler(appState);
+        batchExportBibliographyBtn.addEventListener('click', handlers.batchExportBibliographyHandler);
+    }
+
+    return handlers;
+}
+
+/**
+ * Unregisters all batch operation event listeners
+ * @param {Object} handlers - Object containing all handler functions
+ */
+export function unregisterBatchOperationHandlers(handlers) {
+    const batchStatusSelect = document.getElementById('batch-status-select');
+    if (batchStatusSelect && handlers.batchStatusChangeHandler) {
+        batchStatusSelect.removeEventListener('change', handlers.batchStatusChangeHandler);
+    }
+
+    const batchAddTagsBtn = document.getElementById('batch-add-tags-btn');
+    if (batchAddTagsBtn && handlers.batchAddTagsHandler) {
+        batchAddTagsBtn.removeEventListener('click', handlers.batchAddTagsHandler);
+    }
+
+    const batchRemoveTagsBtn = document.getElementById('batch-remove-tags-btn');
+    if (batchRemoveTagsBtn && handlers.batchRemoveTagsHandler) {
+        batchRemoveTagsBtn.removeEventListener('click', handlers.batchRemoveTagsHandler);
+    }
+
+    const batchDeleteBtn = document.getElementById('batch-delete-btn');
+    if (batchDeleteBtn && handlers.batchDeleteHandler) {
+        batchDeleteBtn.removeEventListener('click', handlers.batchDeleteHandler);
+    }
+
+    const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');
+    if (batchExportBibliographyBtn && handlers.batchExportBibliographyHandler) {
+        batchExportBibliographyBtn.removeEventListener('click', handlers.batchExportBibliographyHandler);
+    }
+
+    // Remove bibliography modal if it exists
+    const bibliographyModal = document.getElementById('bibliography-export-modal');
+    if (bibliographyModal) {
+        bibliographyModal.remove();
+    }
+}
