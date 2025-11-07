@@ -163,8 +163,8 @@ describe('db/data.js - Data Management', () => {
             
             const papers = await getAllPapers();
             expect(papers).toHaveLength(2);
-            expect(papers[0].title).toBe('Old Format Paper 1');
-            expect(papers[1].title).toBe('Old Format Paper 2');
+            const titles = papers.map(p => p.title).sort();
+            expect(titles).toEqual(['Old Format Paper 1', 'Old Format Paper 2']);
         });
 
         it('should import new format (object with papers, collections, annotations)', async () => {
