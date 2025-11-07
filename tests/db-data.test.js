@@ -163,8 +163,10 @@ describe('db/data.js - Data Management', () => {
             
             const papers = await getAllPapers();
             expect(papers).toHaveLength(2);
+            // Sort titles to make test order-independent
             const titles = papers.map(p => p.title).sort();
-            expect(titles).toEqual(['Old Format Paper 1', 'Old Format Paper 2']);
+            expect(titles[0]).toBe('Old Format Paper 1');
+            expect(titles[1]).toBe('Old Format Paper 2');
         });
 
         it('should import new format (object with papers, collections, annotations)', async () => {
