@@ -281,9 +281,11 @@ export const incrementalSync = async (req, res, next) => {
     // Process annotations
     for (const annotation of changes.annotations?.created || []) {
       try {
+        // Extract only valid Prisma fields, exclude localId and other client-only fields
+        const { localId, id, createdAt, updatedAt, ...validFields } = annotation;
         await prisma.annotation.create({
           data: {
-            ...annotation,
+            ...validFields,
             userId,
             clientId,
             version: 1
@@ -291,7 +293,7 @@ export const incrementalSync = async (req, res, next) => {
         });
         appliedChanges.annotations.created++;
       } catch (error) {
-        appliedChanges.annotations.conflicts.push({ id: annotation.id, reason: error.message });
+        appliedChanges.annotations.conflicts.push({ id: annotation.id || annotation.localId, reason: error.message });
       }
     }
 

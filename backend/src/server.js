@@ -132,10 +132,8 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Always log origin for debugging
-    if (origin) {
-      console.log(`🌐 CORS: Request from origin: ${origin}`);
-    }
+    // Only log origin in development or for blocked requests
+    // Removed excessive logging to avoid Railway rate limits
     
     // Helper to check if origin matches allowed origins (with protocol flexibility)
     function isOriginAllowed(checkOrigin) {
@@ -198,14 +196,19 @@ app.use(cors({
       
       // Check if origin is allowed (with flexible matching)
       if (isOriginAllowed(origin)) {
-        console.log(`✅ CORS: Allowed origin: ${origin}`);
+        // Removed excessive logging - only log in development
+        if (isDevelopment) {
+          console.log(`✅ CORS: Allowed origin: ${origin}`);
+        }
         callback(null, true);
         return;
       }
       
       // Allow Cloudflare Pages origins (pages.dev, cloudflarepages.com)
       if (origin.includes('pages.dev') || origin.includes('cloudflarepages.com')) {
-        console.log(`✅ CORS: Allowed Cloudflare Pages origin: ${origin}`);
+        if (isDevelopment) {
+          console.log(`✅ CORS: Allowed Cloudflare Pages origin: ${origin}`);
+        }
         callback(null, true);
         return;
       }

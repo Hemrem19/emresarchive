@@ -136,6 +136,7 @@ export const createAnnotation = async (req, res, next) => {
     }
 
     // Create annotation
+    // Filter out fields that don't exist in Prisma schema (localId, clientId, etc.)
     const annotation = await prisma.annotation.create({
       data: {
         paperId,
@@ -146,6 +147,7 @@ export const createAnnotation = async (req, res, next) => {
         content: annotationData.content || null,
         color: annotationData.color || null,
         version: 1
+        // Note: localId and clientId are not stored in database
       },
       select: {
         id: true,
