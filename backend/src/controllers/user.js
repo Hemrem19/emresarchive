@@ -37,50 +37,32 @@ export const updateSettings = async (req, res, next) => {
 /**
  * Clear All User Data
  * DELETE /api/user/data
- * Deletes all papers, collections, and annotations for the authenticated user
+ * Permanently deletes all papers, collections, and annotations for the authenticated user
+ * Uses hard delete to ensure unique constraints don't block re-imports
  */
 export const clearAllData = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    // Use soft delete (set deletedAt) for all entities
-    // This is safer and allows potential recovery
-    const now = new Date();
-
-    // Delete all annotations
-    const deletedAnnotations = await prisma.annotation.updateMany({
-      where: { 
-        userId,
-        deletedAt: null
-      },
-      data: {
-        deletedAt: now
-      }
+    // Use HARD delete (deleteMany) instead of soft delete
+    // This ensures unique constraints don't block re-importing papers with same DOIs
+    
+    // Delete all annotations first (foreign key dependency)
+    const deletedAnnotations = await prisma.annotation.deleteMany({
+      where: { userId }
     });
 
-    // Delete all papers (cascade will handle related data)
-    const deletedPapers = await prisma.paper.updateMany({
-      where: { 
-        userId,
-        deletedAt: null
-      },
-      data: {
-        deletedAt: now
-      }
+    // Delete all papers (no soft-deleted or active distinction)
+    const deletedPapers = await prisma.paper.deleteMany({
+      where: { userId }
     });
 
     // Delete all collections
-    const deletedCollections = await prisma.collection.updateMany({
-      where: { 
-        userId,
-        deletedAt: null
-      },
-      data: {
-        deletedAt: now
-      }
+    const deletedCollections = await prisma.collection.deleteMany({
+      where: { userId }
     });
 
-    console.log(`Cleared all data for user ${userId}: ${deletedPapers.count} papers, ${deletedCollections.count} collections, ${deletedAnnotations.count} annotations`);
+    console.log(`Permanently cleared all data for user ${userId}: ${deletedPapers.count} papers, ${deletedCollections.count} collections, ${deletedAnnotations.count} annotations`);
 
     res.json({
       success: true,
@@ -90,7 +72,7 @@ export const clearAllData = async (req, res, next) => {
           collections: deletedCollections.count,
           annotations: deletedAnnotations.count
         },
-        message: 'All user data has been cleared successfully'
+        message: 'All user data has been permanently cleared'
       }
     });
   } catch (error) {
