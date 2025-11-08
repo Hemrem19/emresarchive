@@ -439,7 +439,7 @@ export const settingsView = {
                 const file = event.target.files[0];
                 if (!file) return;
 
-                if (!confirm('Are you sure you want to import this file? All existing data will be permanently replaced.')) {
+                if (!confirm('Are you sure you want to import this file? All existing data (local AND cloud) will be permanently replaced.')) {
                     importFileInput.value = '';
                     return;
                 }
@@ -447,7 +447,7 @@ export const settingsView = {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
-                        showToast('Importing data... Please wait.', 'info', { duration: 10000 });
+                        showToast('Preparing import... Please wait.', 'info', { duration: 10000 });
                         
                         let papersToImport;
                         try {
@@ -456,13 +456,30 @@ export const settingsView = {
                             throw new Error('Invalid file format: Unable to parse JSON. Please use a valid backup file.');
                         }
                         
+                        // Step 1: Clear ALL data (local + cloud) before importing
+                        // This prevents conflicts when syncing imported data
+                        if (isCloudSyncEnabled() && isAuthenticated()) {
+                            showToast('Clearing existing data from cloud...', 'info', { duration: 10000 });
+                            try {
+                                await clearAllData();
+                                // Small delay to let cloud deletions complete
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                            } catch (clearError) {
+                                console.error('Failed to clear cloud data:', clearError);
+                                // Continue anyway - importData will clear local
+                                showToast('Warning: Cloud data may not have been fully cleared', 'warning', { duration: 3000 });
+                            }
+                        }
+                        
+                        // Step 2: Import data (clears local automatically)
+                        showToast('Importing data... Please wait.', 'info', { duration: 10000 });
                         await importData(papersToImport);
                         showToast('Import successful! Library has been restored.', 'success');
                         appState.allPapersCache = []; // Clear cache in app state
                         
-                        // Trigger sync if cloud sync is enabled
+                        // Step 3: Sync imported data to cloud
                         if (isCloudSyncEnabled() && isAuthenticated()) {
-                            showToast('Syncing imported data to cloud...', 'info', { duration: 5000 });
+                            showToast('Syncing imported data to cloud...', 'info', { duration: 10000 });
                             try {
                                 await performManualSync();
                                 showToast('Data synced successfully!', 'success');
