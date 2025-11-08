@@ -134,49 +134,6 @@ export const incrementalSync = async (req, res, next) => {
     const syncStartTime = new Date();
     const lastSyncDate = lastSyncedAt ? new Date(lastSyncedAt) : null;
 
-    // Track mappings between client/local paper IDs and server IDs
-    const localPaperIdToServerId = new Map();
-    const paperLookupCache = new Map(); // cache to avoid repeated DB lookups
-
-    const recordPaperIdMapping = (originalId, serverId) => {
-      if (originalId === undefined || originalId === null) return;
-      const key = String(originalId);
-      localPaperIdToServerId.set(key, serverId);
-    };
-
-    const resolvePaperId = async (rawId) => {
-      if (rawId === undefined || rawId === null) {
-        return null;
-      }
-
-      const key = String(rawId);
-
-      if (localPaperIdToServerId.has(key)) {
-        return localPaperIdToServerId.get(key);
-      }
-
-      if (paperLookupCache.has(key)) {
-        return paperLookupCache.get(key);
-      }
-
-      const numericId = Number(rawId);
-      if (!Number.isNaN(numericId)) {
-        const existingPaper = await prisma.paper.findFirst({
-          where: { id: numericId, userId },
-          select: { id: true }
-        });
-
-        if (existingPaper) {
-          localPaperIdToServerId.set(key, existingPaper.id);
-          paperLookupCache.set(key, existingPaper.id);
-          return existingPaper.id;
-        }
-      }
-
-      paperLookupCache.set(key, null);
-      return null;
-    };
-
     // Process client changes (apply to server)
     const appliedChanges = {
       papers: { created: 0, updated: 0, deleted: 0, conflicts: [] },
@@ -210,29 +167,12 @@ export const incrementalSync = async (req, res, next) => {
                 updatedAt: undefined // let Prisma handle updatedAt
               }
             });
-            recordPaperIdMapping(localId, existingPaper.id);
-            recordPaperIdMapping(id, existingPaper.id);
-            recordPaperIdMapping(existingPaper.id, existingPaper.id);
             appliedChanges.papers.updated++;
             continue;
           }
         }
 
-        // Map related paper IDs to server IDs if we have them
-        if (Array.isArray(validFields.relatedPaperIds) && validFields.relatedPaperIds.length > 0) {
-          const mappedRelated = [];
-          for (const relatedId of validFields.relatedPaperIds) {
-            const resolved = await resolvePaperId(relatedId);
-            if (resolved) {
-              mappedRelated.push(resolved);
-            }
-          }
-          if (mappedRelated.length > 0) {
-            validFields.relatedPaperIds = mappedRelated;
-          }
-        }
-
-        const createdPaper = await prisma.paper.create({
+        await prisma.paper.create({
           data: {
             ...validFields,
             userId,
@@ -240,9 +180,6 @@ export const incrementalSync = async (req, res, next) => {
             ...(paperClientId ? { clientId: paperClientId } : {})
           }
         });
-        recordPaperIdMapping(localId, createdPaper.id);
-        recordPaperIdMapping(id, createdPaper.id);
-        recordPaperIdMapping(createdPaper.id, createdPaper.id);
         appliedChanges.papers.created++;
       } catch (error) {
         appliedChanges.papers.conflicts.push({ id: paper.id || paper.localId, reason: error.message });
@@ -265,19 +202,6 @@ export const incrementalSync = async (req, res, next) => {
         const clientVersion = paperUpdate.version || 1;
         if (clientVersion >= existing.version) {
           const { id, version, clientId: updateClientId, createdAt, updatedAt, ...updateData } = paperUpdate;
-          recordPaperIdMapping(id, existing.id);
-
-          if (Array.isArray(updateData.relatedPaperIds) && updateData.relatedPaperIds.length > 0) {
-            const mappedRelated = [];
-            for (const relatedId of updateData.relatedPaperIds) {
-              const resolved = await resolvePaperId(relatedId);
-              if (resolved) {
-                mappedRelated.push(resolved);
-              }
-            }
-            updateData.relatedPaperIds = mappedRelated;
-          }
-
           await prisma.paper.update({
             where: { id },
             data: {
@@ -409,17 +333,6 @@ export const incrementalSync = async (req, res, next) => {
           validFields.content = textContent;
         }
 
-        const resolvedPaperId = await resolvePaperId(validFields.paperId);
-        if (!resolvedPaperId) {
-          appliedChanges.annotations.conflicts.push({
-            id: annotation.id || annotation.localId,
-            reason: `Paper ${validFields.paperId} not found`
-          });
-          continue;
-        }
-
-        validFields.paperId = resolvedPaperId;
-
         await prisma.annotation.create({
           data: {
             ...validFields,
@@ -470,18 +383,6 @@ export const incrementalSync = async (req, res, next) => {
             annotationUpdateData.content = content;
           } else if (textContent !== undefined) {
             annotationUpdateData.content = textContent;
-          }
-
-          if (annotationUpdateData.paperId !== undefined) {
-            const resolvedPaperId = await resolvePaperId(annotationUpdateData.paperId);
-            if (!resolvedPaperId) {
-              appliedChanges.annotations.conflicts.push({
-                id: annotationUpdate.id,
-                reason: `Paper ${annotationUpdateData.paperId} not found`
-              });
-              continue;
-            }
-            annotationUpdateData.paperId = resolvedPaperId;
           }
 
           await prisma.annotation.update({
