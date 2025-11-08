@@ -515,10 +515,10 @@ export const settingsView = {
                 reader.onload = async (e) => {
                     try {
                         showToast('Parsing RIS file... Please wait.', 'info', { duration: 10000 });
-                        
+
                         const risContent = e.target.result;
                         const papers = parseRIS(risContent);
-
+                        
                         if (!papers || papers.length === 0) {
                             showToast('No papers found in RIS file. Please check the file format.', 'warning');
                             importRISFileInput.value = '';
@@ -526,7 +526,40 @@ export const settingsView = {
                         }
 
                         // Show preview modal before importing
-                        this.showRISImportPreview(papers, appState);
+                        // Fetch all existing papers once for efficient duplicate checking
+                        const allExistingPapers = await getAllPapers();
+
+                        const papersWithStatus = [];
+                        for (const paper of papers) {
+                            let existingPaper = null;
+
+                            // 1. Check by DOI (highest priority)
+                            if (paper.doi && paper.doi.trim()) {
+                                const cleanDOI = paper.doi.trim().toLowerCase();
+                                existingPaper = allExistingPapers.find(p => p.doi && p.doi.trim().toLowerCase() === cleanDOI);
+                            }
+
+                            // 2. If no DOI match, check by Title and Year (if title and year exist)
+                            if (!existingPaper && paper.title && paper.year) {
+                                const cleanTitle = paper.title.trim().toLowerCase();
+                                const cleanYear = parseInt(paper.year, 10);
+
+                                if (cleanTitle && !isNaN(cleanYear)) {
+                                    existingPaper = allExistingPapers.find(p => 
+                                        p.title && p.title.trim().toLowerCase() === cleanTitle &&
+                                        p.year && parseInt(p.year, 10) === cleanYear
+                                    );
+                                }
+                            }
+
+                            if (existingPaper) {
+                                papersWithStatus.push({ ...paper, status: 'duplicate', existingId: existingPaper.id });
+                            } else {
+                                papersWithStatus.push({ ...paper, status: 'new' });
+                            }
+                        }
+
+                        this.showRISImportPreview(papersWithStatus, appState);
 
                     } catch (error) {
                         console.error('RIS import error:', error);
@@ -549,7 +582,7 @@ export const settingsView = {
         }
     },
 
-    showRISImportPreview(papers, appState) {
+    showRISImportPreview(papersWithStatus, appState) {
         // Remove existing modal if present
         const existingModal = document.getElementById('ris-import-modal');
         if (existingModal) {
@@ -557,6 +590,9 @@ export const settingsView = {
         }
 
         // Create preview modal
+        const newCount = papersWithStatus.filter(p => p.status === 'new').length;
+        const duplicateCount = papersWithStatus.filter(p => p.status === 'duplicate').length;
+
         const modalHtml = `
             <div id="ris-import-modal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
                 <div class="bg-white dark:bg-stone-900 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
@@ -568,28 +604,60 @@ export const settingsView = {
                     </div>
                     <div class="p-6 overflow-y-auto flex-grow">
                         <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">
-                            Found <strong>${papers.length}</strong> paper(s) in RIS file. Review the list below and click "Import All" to add them to your library.
+                            Found <strong>${papersWithStatus.length}</strong> paper(s): 
+                            <span class="font-semibold text-green-600">${newCount} new</span> and 
+                            <span class="font-semibold text-yellow-600">${duplicateCount} duplicate(s)</span>. 
+                            Review and confirm actions below.
                         </p>
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 border-b border-t border-stone-200 dark:border-stone-800 py-2">
+                            <div class="flex items-center gap-4 flex-wrap">
+                                <label for="ris-select-all" class="flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ris-select-all" class="w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800" checked>
+                                    <span class="ml-2 text-sm font-medium text-stone-700 dark:text-stone-300">Select All</span>
+                                </label>
+                                <div class="flex items-center gap-2">
+                                    <button id="ris-select-new" class="text-xs font-medium text-primary hover:underline">Select New</button>
+                                    <button id="ris-deselect-duplicates" class="text-xs font-medium text-primary hover:underline">Deselect Duplicates</button>
+                                    <button id="ris-clear-selection" class="text-xs font-medium text-red-600 dark:text-red-500 hover:underline">Clear Selection</button>
+                                </div>
+                                ${duplicateCount > 0 ? `
+                                    <div class="border-l border-stone-300 dark:border-stone-700 pl-3 ml-3 flex items-center gap-2">
+                                        <button id="ris-set-all-skip" class="text-xs font-medium text-primary hover:underline" title="Set all selected duplicates to be skipped">Set All to Skip</button>
+                                        <button id="ris-set-all-overwrite" class="text-xs font-medium text-primary hover:underline" title="Set all selected duplicates to be overwritten">Set All to Overwrite</button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <span id="ris-selected-count" class="text-sm font-medium text-stone-600 dark:text-stone-400">${papersWithStatus.length} selected</span>
+                        </div>
                         <div class="space-y-3 max-h-[400px] overflow-y-auto">
-                            ${papers.map((paper, index) => `
-                                <div class="p-3 bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-md">
-                                    <div class="flex items-start gap-3">
-                                        <span class="text-sm font-semibold text-stone-500 dark:text-stone-400 flex-shrink-0">${index + 1}.</span>
+                            ${papersWithStatus.map((paper, index) => {
+                                const isDuplicate = paper.status === 'duplicate';
+                                return `
+                                <div class="ris-paper-item p-3 ${isDuplicate ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/30' : 'bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700'} border rounded-md" data-index="${index}" data-status="${paper.status}">
+                                    <div class="flex items-start gap-4">
+                                        <input type="checkbox" class="ris-item-checkbox mt-1 w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800" data-index="${index}" checked>
                                         <div class="flex-1 min-w-0">
-                                            <p class="font-semibold text-stone-900 dark:text-stone-100">${paper.title || 'Untitled'}</p>
-                                            ${paper.authors && paper.authors.length > 0 ? `
-                                                <p class="text-sm text-stone-600 dark:text-stone-400 mt-1">${paper.authors.join(', ')}</p>
-                                            ` : ''}
-                                            ${paper.year ? `
-                                                <p class="text-xs text-stone-500 dark:text-stone-500 mt-1">${paper.year}</p>
-                                            ` : ''}
-                                            ${paper.journal ? `
-                                                <p class="text-xs text-stone-500 dark:text-stone-500 mt-1">${paper.journal}</p>
-                                            ` : ''}
+                                            <div class="flex justify-between items-center mb-1">
+                                                <p class="font-semibold text-stone-900 dark:text-stone-100 truncate" title="${paper.title || ''}">${paper.title || 'Untitled'}</p>
+                                                <span class="text-xs font-bold uppercase ${isDuplicate ? 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50' : 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50'} px-2 py-1 rounded-full flex-shrink-0">${paper.status}</span>
+                                            </div>
+                                            <p class="text-sm text-stone-600 dark:text-stone-400 truncate">${paper.authors?.join(', ') || 'No authors'}</p>
+                                            ${isDuplicate ? `
+                                                <div class="mt-3 flex items-center gap-4">
+                                                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                                        <input type="radio" name="action-${index}" value="skip" checked class="ris-action-radio w-4 h-4 text-primary focus:ring-primary"> Skip (Keep Existing)
+                                                    </label>
+                                                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                                        <input type="radio" name="action-${index}" value="overwrite" data-existing-id="${paper.existingId}" class="ris-action-radio w-4 h-4 text-primary focus:ring-primary"> Overwrite
+                                                    </label>
+                                                </div>
+                                            ` : `
+                                                <input type="hidden" name="action-${index}" value="import">
+                                            `}
                                         </div>
                                     </div>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                     </div>
                     <div class="p-4 bg-stone-50 dark:bg-stone-900/50 border-t dark:border-stone-800 flex justify-end gap-2 flex-shrink-0">
@@ -597,7 +665,7 @@ export const settingsView = {
                             Cancel
                         </button>
                         <button id="confirm-ris-import-btn" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90">
-                            Import All (${papers.length})
+                            Confirm Import
                         </button>
                     </div>
                 </div>
@@ -610,6 +678,14 @@ export const settingsView = {
         const closeBtn = document.getElementById('close-ris-import-modal-btn');
         const cancelBtn = document.getElementById('cancel-ris-import-btn');
         const confirmBtn = document.getElementById('confirm-ris-import-btn');
+        const selectAllCheckbox = document.getElementById('ris-select-all');
+        const itemCheckboxes = modal.querySelectorAll('.ris-item-checkbox');
+        const selectNewBtn = document.getElementById('ris-select-new');
+        const deselectDuplicatesBtn = document.getElementById('ris-deselect-duplicates');
+        const clearSelectionBtn = document.getElementById('ris-clear-selection');
+        const setAllSkipBtn = document.getElementById('ris-set-all-skip');
+        const setAllOverwriteBtn = document.getElementById('ris-set-all-overwrite');
+        const selectedCountSpan = document.getElementById('ris-selected-count');
 
         const closeModal = () => {
             modal.classList.add('hidden');
@@ -619,6 +695,85 @@ export const settingsView = {
             if (risInput) risInput.value = '';
         };
 
+        const updateSelection = () => {
+            const selectedCheckboxes = modal.querySelectorAll('.ris-item-checkbox:checked');
+            const selectedCount = selectedCheckboxes.length;
+            selectedCountSpan.textContent = `${selectedCount} selected`;
+            selectAllCheckbox.checked = selectedCount === itemCheckboxes.length;
+            selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < itemCheckboxes.length;
+        };
+
+        selectAllCheckbox.addEventListener('change', () => {
+            itemCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            updateSelection();
+        });
+
+        itemCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelection);
+        });
+
+        selectNewBtn.addEventListener('click', () => {
+            modal.querySelectorAll('.ris-paper-item[data-status="new"] .ris-item-checkbox').forEach(cb => {
+                cb.checked = true;
+            });
+            updateSelection();
+        });
+
+        deselectDuplicatesBtn.addEventListener('click', () => {
+            modal.querySelectorAll('.ris-paper-item[data-status="duplicate"] .ris-item-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            updateSelection();
+        });
+
+        if (clearSelectionBtn) {
+            clearSelectionBtn.addEventListener('click', () => {
+                itemCheckboxes.forEach(cb => cb.checked = false);
+                updateSelection();
+            });
+        }
+
+        if (setAllSkipBtn) {
+            setAllSkipBtn.addEventListener('click', () => {
+                // Find all *selected* duplicate items and set their radio to 'skip'
+                modal.querySelectorAll('.ris-paper-item[data-status="duplicate"] .ris-item-checkbox:checked').forEach(cb => {
+                    const itemDiv = cb.closest('.ris-paper-item');
+                    itemDiv.querySelector('input[type="radio"][value="skip"]').checked = true;
+                });
+            });
+        }
+
+        if (setAllOverwriteBtn) {
+            setAllOverwriteBtn.addEventListener('click', () => {
+                modal.querySelectorAll('.ris-paper-item[data-status="duplicate"] .ris-item-checkbox:checked').forEach(cb => {
+                    const itemDiv = cb.closest('.ris-paper-item');
+                    itemDiv.querySelector('input[type="radio"][value="overwrite"]').checked = true;
+                });
+                const selectedDuplicates = modal.querySelectorAll('.ris-paper-item[data-status="duplicate"] .ris-item-checkbox:checked');
+
+                if (selectedDuplicates.length === 0) {
+                    showToast('No selected duplicates to modify.', 'info');
+                    return;
+                }
+
+                if (confirm(`Are you sure you want to set all ${selectedDuplicates.length} selected duplicate(s) to be overwritten? This action cannot be undone upon import.`)) {
+                    selectedDuplicates.forEach(cb => {
+                        const itemDiv = cb.closest('.ris-paper-item');
+                        itemDiv.querySelector('input[type="radio"][value="overwrite"]').checked = true;
+                    });
+                    showToast(`${selectedDuplicates.length} duplicate(s) set to be overwritten.`, 'success');
+                } else {
+                    showToast('Action cancelled.', 'info');
+                }
+            });
+        }
+
+        // Initial count
+        updateSelection();
+
+
         closeBtn.addEventListener('click', closeModal);
         cancelBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => {
@@ -626,80 +781,156 @@ export const settingsView = {
         });
 
         confirmBtn.addEventListener('click', async () => {
-            await this.importRISPapers(papers, appState);
+            // Collect user choices for each paper
+            const selectedIndices = Array.from(modal.querySelectorAll('.ris-item-checkbox:checked')).map(cb => parseInt(cb.dataset.index, 10));
+
+            if (selectedIndices.length === 0) {
+                showToast('No papers selected for import.', 'warning');
+                return;
+            }
+
+            const actions = selectedIndices.map(index => {
+                const paper = papersWithStatus[index];
+                const radio = document.querySelector(`input[name="action-${index}"]:checked`);
+                const action = radio ? radio.value : 'import'; // Default to 'import' for new papers
+                return {
+                    paperData: paper,
+                    action: action,
+                    existingId: action === 'overwrite' ? parseInt(radio.dataset.existingId, 10) : null
+                };
+            });
+
+            // Pass the actions to the import function
+            await this.importRISPapers(actions, appState);
+
+            // Close the preview modal
             closeModal();
         });
     },
 
-    async importRISPapers(papers, appState) {
+    showRISImportSummaryModal({ successCount, errorCount, errors }) {
+        // Remove existing modal if present
+        const existingModal = document.getElementById('ris-summary-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        const hasErrors = errorCount > 0;
+
+        // Create modal HTML
+        const modalHtml = `
+            <div id="ris-summary-modal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in">
+                <div class="bg-white dark:bg-stone-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-slide-down">
+                    <div class="p-4 border-b dark:border-stone-800 flex justify-between items-center">
+                        <h3 class="text-lg font-bold">Import Summary</h3>
+                        <button id="close-ris-summary-modal-btn" class="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                    <div class="p-6 overflow-y-auto flex-grow">
+                        <div class="flex items-center gap-6 mb-6">
+                            <div class="flex items-center gap-2 text-green-600 dark:text-green-400">
+                                <span class="material-symbols-outlined text-2xl">check_circle</span>
+                                <span class="font-semibold text-lg">${successCount} Imported</span>
+                            </div>
+                            <div class="flex items-center gap-2 ${hasErrors ? 'text-red-600 dark:text-red-400' : 'text-stone-500 dark:text-stone-400'}">
+                                <span class="material-symbols-outlined text-2xl">${hasErrors ? 'cancel' : 'check_circle'}</span>
+                                <span class="font-semibold text-lg">${errorCount} Skipped/Failed</span>
+                            </div>
+                        </div>
+                        
+                        ${hasErrors ? `
+                            <div>
+                                <h4 class="text-md font-semibold text-stone-800 dark:text-stone-200 mb-3">Details:</h4>
+                                <div class="space-y-2 max-h-[40vh] overflow-y-auto p-3 bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-md">
+                                    ${errors.map(error => `
+                                        <p class="text-sm text-stone-700 dark:text-stone-300">${error}</p>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="text-center p-8 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <span class="material-symbols-outlined text-4xl text-green-500">task_alt</span>
+                                <p class="mt-2 font-semibold text-green-800 dark:text-green-200">All papers were imported successfully!</p>
+                            </div>
+                        `}
+                    </div>
+                    <div class="p-4 bg-stone-50 dark:bg-stone-900/50 border-t dark:border-stone-800 flex justify-end gap-2 flex-shrink-0">
+                        <button id="confirm-ris-summary-btn" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90">
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = document.getElementById('ris-summary-modal');
+        const closeBtn = document.getElementById('close-ris-summary-modal-btn');
+        const confirmBtn = document.getElementById('confirm-ris-summary-btn');
+
+        const closeModal = () => modal.remove();
+
+        closeBtn.addEventListener('click', closeModal);
+        confirmBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => e.target === modal && closeModal());
+    },
+
+    async importRISPapers(actions, appState) {
         try {
-            showToast(`Importing ${papers.length} paper(s)...`, 'info', { duration: 15000 });
+            showToast(`Processing ${actions.length} paper(s)...`, 'info', { duration: 15000 });
 
             let successCount = 0;
             let errorCount = 0;
             const errors = [];
 
-            for (const paperData of papers) {
+            for (const item of actions) {
+                const { paperData, action, existingId } = item;
                 try {
-                    // Skip papers without titles (required field)
-                    if (!paperData.title || !paperData.title.trim()) {
-                        errorCount++;
-                        errors.push(`Skipped paper: Missing title`);
-                        continue;
-                    }
-
-                    // Check for duplicate DOI (optional - only if DOI exists)
-                    if (paperData.doi && paperData.doi.trim()) {
-                        try {
-                            const existingPaper = await getPaperByDoi(paperData.doi.trim());
-                            if (existingPaper) {
-                                errorCount++;
-                                errors.push(`Skipped "${paperData.title}": Already exists (DOI: ${paperData.doi})`);
-                                continue;
+                    switch (action) {
+                        case 'import':
+                            // Add new paper
+                            await addPaper(paperData);
+                            successCount++;
+                            break;
+                        case 'overwrite':
+                            // Update existing paper
+                            if (existingId) {
+                                await updatePaper(existingId, paperData);
+                                successCount++;
+                            } else {
+                                throw new Error('Cannot overwrite: existing paper ID not found.');
                             }
-                        } catch (e) {
-                            // getPaperByDoi throws "Paper not found" if not found, which is expected
-                            // This means the DOI doesn't exist yet, so we can proceed
-                        }
+                            break;
+                        case 'skip':
+                            // Do nothing
+                            break;
+                        default:
+                            throw new Error(`Unknown action: ${action}`);
                     }
-
-                    // Add paper to database
-                    await addPaper(paperData);
-                    successCount++;
-
                 } catch (error) {
                     errorCount++;
                     const title = paperData.title || 'Untitled';
-                    errors.push(`Failed to import "${title}": ${error.message}`);
+                    errors.push(`Failed to process "${title}": ${error.message}`);
                     console.error(`Error importing paper:`, paperData, error);
                 }
             }
-
+            
             // Update cache
             appState.allPapersCache = await getAllPapers();
 
-            // Show results
-            let message = `Import complete! `;
-            if (successCount > 0) {
-                message += `${successCount} paper(s) imported successfully.`;
-            }
-            if (errorCount > 0) {
-                message += ` ${errorCount} paper(s) failed or were skipped.`;
-            }
+            // Show a simple toast for completion
+            const toastMessage = successCount > 0 
+                ? `Import complete. ${successCount} paper(s) added.`
+                : 'Import finished. No new papers were added.';
+            showToast(toastMessage, successCount > 0 ? 'success' : 'info');
 
-            showToast(message, successCount > 0 ? 'success' : 'warning', {
-                duration: 7000,
-                ...(errors.length > 0 && errors.length <= 5 ? {
-                    actions: [{
-                        label: 'Show Errors',
-                        onClick: () => {
-                            alert('Import Errors:\n\n' + errors.join('\n'));
-                        }
-                    }]
-                } : {})
-            });
+            // Show the detailed summary modal
+            this.showRISImportSummaryModal({ successCount, errorCount, errors });
 
             // Refresh dashboard if on home page
+            // This ensures the new papers are visible immediately
             if (window.location.hash === '#/' || window.location.hash === '') {
                 window.location.reload();
             }
