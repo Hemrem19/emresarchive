@@ -204,8 +204,7 @@ export const incrementalSync = async (req, res, next) => {
         await prisma.paper.update({
           where: { id: paperId, userId },
           data: {
-            deletedAt: new Date(),
-            clientId
+            deletedAt: new Date()
           }
         });
         appliedChanges.papers.deleted++;
@@ -218,12 +217,11 @@ export const incrementalSync = async (req, res, next) => {
     for (const collection of changes.collections?.created || []) {
       try {
         // Extract only valid Prisma fields, exclude localId and other client-only fields
-        const { localId, id, createdAt, updatedAt, ...validFields } = collection;
+        const { localId, id, createdAt, updatedAt, clientId: _collectionClientId, ...validFields } = collection;
         await prisma.collection.create({
           data: {
             ...validFields,
             userId,
-            clientId,
             version: 1
           }
         });
@@ -246,13 +244,12 @@ export const incrementalSync = async (req, res, next) => {
 
         const clientVersion = collectionUpdate.version || 1;
         if (clientVersion >= existing.version) {
-          const { id, version, ...updateData } = collectionUpdate;
+          const { id, version, clientId: _collectionUpdateClientId, ...updateData } = collectionUpdate;
           await prisma.collection.update({
             where: { id },
             data: {
               ...updateData,
-              version: existing.version + 1,
-              clientId
+              version: existing.version + 1
             }
           });
           appliedChanges.collections.updated++;
@@ -272,8 +269,7 @@ export const incrementalSync = async (req, res, next) => {
         await prisma.collection.update({
           where: { id: collectionId, userId },
           data: {
-            deletedAt: new Date(),
-            clientId
+            deletedAt: new Date()
           }
         });
         appliedChanges.collections.deleted++;
@@ -286,13 +282,29 @@ export const incrementalSync = async (req, res, next) => {
     for (const annotation of changes.annotations?.created || []) {
       try {
         // Extract only valid Prisma fields, exclude localId and other client-only fields
-        const { localId, id, createdAt, updatedAt, ...validFields } = annotation;
+        const { localId, id, createdAt, updatedAt, clientId: _annotationClientId, textContent, rects, position, content, ...rest } = annotation;
+
+        const annotationData = {
+          ...rest,
+          userId,
+          version: 1
+        };
+
+        if (!annotationData.content) {
+          annotationData.content = content ?? textContent ?? null;
+        }
+
+        if (!annotationData.position) {
+          if (position) {
+            annotationData.position = position;
+          } else if (rects) {
+            annotationData.position = { rects };
+          }
+        }
+
         await prisma.annotation.create({
           data: {
-            ...validFields,
-            userId,
-            clientId,
-            version: 1
+            ...annotationData
           }
         });
         appliedChanges.annotations.created++;
@@ -314,13 +326,27 @@ export const incrementalSync = async (req, res, next) => {
 
         const clientVersion = annotationUpdate.version || 1;
         if (clientVersion >= existing.version) {
-          const { id, version, ...updateData } = annotationUpdate;
+          const { id, version, clientId: _annotationUpdateClientId, textContent, rects, position, content, ...updateData } = annotationUpdate;
+
+          const annotationUpdateData = {
+            ...updateData
+          };
+
+          if (content !== undefined || textContent !== undefined) {
+            annotationUpdateData.content = content ?? textContent ?? null;
+          }
+
+          if (position !== undefined) {
+            annotationUpdateData.position = position;
+          } else if (rects !== undefined) {
+            annotationUpdateData.position = rects ? { rects } : undefined;
+          }
+
           await prisma.annotation.update({
             where: { id },
             data: {
-              ...updateData,
-              version: existing.version + 1,
-              clientId
+              ...annotationUpdateData,
+              version: existing.version + 1
             }
           });
           appliedChanges.annotations.updated++;
@@ -340,8 +366,7 @@ export const incrementalSync = async (req, res, next) => {
         await prisma.annotation.update({
           where: { id: annotationId, userId },
           data: {
-            deletedAt: new Date(),
-            clientId
+            deletedAt: new Date()
           }
         });
         appliedChanges.annotations.deleted++;
