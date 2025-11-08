@@ -464,15 +464,38 @@ export async function performIncrementalSync() {
  * @returns {Promise<Object>} Sync result.
  */
 export async function performSync() {
-    const lastSyncedAt = localStorage.getItem('citavers_last_synced_at');
-    
-    // If never synced, perform full sync
-    if (!lastSyncedAt) {
-        return await performFullSync();
+    // Safety check: if sync has been in progress for more than 5 minutes, clear the lock
+    const syncStartTime = localStorage.getItem('citavers_sync_start_time');
+    if (syncStartTime) {
+        const elapsed = Date.now() - parseInt(syncStartTime, 10);
+        if (elapsed > 5 * 60 * 1000) { // 5 minutes
+            console.warn('[Sync] Clearing stale sync lock (stuck for >5 minutes)');
+            setSyncInProgress(false);
+            localStorage.removeItem('citavers_sync_start_time');
+        }
     }
     
-    // Otherwise, perform incremental sync
-    return await performIncrementalSync();
+    if (isSyncInProgress()) {
+        throw new Error('Sync already in progress');
+    }
+    
+    try {
+        // Set sync start time for stale lock detection
+        localStorage.setItem('citavers_sync_start_time', Date.now().toString());
+        
+        const lastSyncedAt = localStorage.getItem('citavers_last_synced_at');
+        
+        // If never synced, perform full sync
+        if (!lastSyncedAt) {
+            return await performFullSync();
+        }
+        
+        // Otherwise, perform incremental sync
+        return await performIncrementalSync();
+    } finally {
+        // Clean up sync start time
+        localStorage.removeItem('citavers_sync_start_time');
+    }
 }
 
 /**
