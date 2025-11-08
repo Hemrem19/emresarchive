@@ -66,7 +66,7 @@ PORT=3000
 FRONTEND_URL=https://citavers.com
 
 # Database (Neon.tech production URL)
-DATABASE_URL=postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/citaversa?sslmode=require
+DATABASE_URL=postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/citavers?sslmode=require
 
 # JWT Secrets (generate secure random strings)
 JWT_ACCESS_SECRET=<generate-random-string>
@@ -115,7 +115,7 @@ openssl rand -base64 32
 1. Railway will automatically deploy on every push to your main branch
 2. Or click "Deploy" button to deploy manually
 3. Wait for deployment to complete
-4. Railway will provide a URL like: `https://citaversa-production.railway.app`
+4. Railway will provide a URL like: `https://citavers-production.up.railway.app`
 
 ### Step 6: Run Database Migrations
 
@@ -225,7 +225,7 @@ Go to Environment → Add all required variables (same as Railway above)
 
 1. Review and create
 2. DigitalOcean will deploy automatically
-3. Get your URL: `https://citaversa-xxxxx.ondigitalocean.app`
+3. Get your URL: `https://citavers-xxxxx.ondigitalocean.app`
 
 ---
 

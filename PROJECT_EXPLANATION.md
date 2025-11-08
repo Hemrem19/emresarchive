@@ -958,7 +958,7 @@ tests/
 - **Build**: `npm install` + `npx prisma migrate deploy`
 - **Start**: `npm start` (from `backend/` directory)
 - **Environment**: Production with environment variables
-- **URL**: `https://emresarchive-production.up.railway.app`
+- **URL**: `https://api.citavers.com`
 
 ### Database (Neon.tech)
 

@@ -6,7 +6,7 @@ This guide helps you systematically test the production backend deployment on Ra
 
 ### Phase 1: Authentication ✅
 - [ ] **1.1** Register a new user
-  - Open frontend at `https://citaversa.com`
+  - Open frontend at `https://citavers.com`
   - Click "Sign Up" or "Login" button
   - Create new account (email + password)
   - Expected: Success message, logged in state
@@ -132,7 +132,7 @@ This guide helps you systematically test the production backend deployment on Ra
 
 ### 1. Open Frontend
 ```
-URL: https://citaversa.com
+URL: https://citavers.com
 ```
 
 ### 2. Open Browser DevTools
@@ -143,12 +143,12 @@ URL: https://citaversa.com
 ### 3. Monitor API Calls
 In Network tab:
 - Filter by "Fetch/XHR"
-- Look for requests to `emresarchive-production.up.railway.app`
+- Look for requests to `https://api.citavers.com`
 - Check status codes (200 = success, 401 = auth error, 500 = server error)
 
 ### 4. Check Console Logs
 Look for:
-- ✅ `CORS: Allowed origin: https://citaversa.com` (CORS working)
+- ✅ `CORS: Allowed origin: https://citavers.com` (CORS working)
 - ✅ `Cloud sync enabled` (when enabled)
 - ⚠️ `Cloud sync failed, falling back to local` (fallback working)
 - ❌ `Error:` (any errors)
