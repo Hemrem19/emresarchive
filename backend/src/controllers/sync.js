@@ -380,49 +380,113 @@ export const incrementalSync = async (req, res, next) => {
     }
 
     // Process annotations
+    const sanitizeAnnotationPayload = async (annotation, { isUpdate = false } = {}) => {
+      const {
+        clientId: _annotationClientId,
+        localId,
+        id,
+        createdAt,
+        updatedAt,
+        textContent,
+        content,
+        rects,
+        position,
+        rotation,
+        scale,
+        width,
+        height,
+        selectionBounds,
+        boundingRect,
+        metadata,
+        paperId: rawPaperId,
+        ...rest
+      } = annotation;
+
+      const sanitized = {};
+
+      const paperIdProvided = rawPaperId !== undefined || rest.paperId !== undefined;
+      if (!isUpdate || paperIdProvided) {
+        const targetPaperId = rawPaperId ?? rest.paperId;
+        if (targetPaperId !== undefined) {
+          const resolvedPaperId = await resolvePaperId(targetPaperId);
+          if (!resolvedPaperId) {
+            return { error: `Paper ${targetPaperId} not found`, localId, id };
+          }
+          sanitized.paperId = resolvedPaperId;
+        } else if (!isUpdate) {
+          return { error: 'Missing paperId', localId, id };
+        }
+      }
+
+      if (!isUpdate || rest.type !== undefined) {
+        if (!rest.type && !isUpdate) {
+          return { error: 'Missing annotation type', localId, id };
+        }
+        if (rest.type !== undefined) {
+          sanitized.type = rest.type;
+        }
+      }
+
+      if (!isUpdate || rest.pageNumber !== undefined) {
+        if ((rest.pageNumber === undefined || rest.pageNumber === null) && !isUpdate) {
+          return { error: 'Missing page number', localId, id };
+        }
+        if (rest.pageNumber !== undefined) {
+          sanitized.pageNumber = rest.pageNumber;
+        }
+      }
+
+      if (!isUpdate || rest.color !== undefined) {
+        if (rest.color !== undefined) {
+          sanitized.color = rest.color;
+        }
+      }
+
+      if (position !== undefined && position !== null) {
+        sanitized.position = position;
+      } else if (rects) {
+        sanitized.position = { rects };
+      } else if (rest.position) {
+        sanitized.position = rest.position;
+      }
+
+      if (!isUpdate || content !== undefined || textContent !== undefined || rest.content !== undefined) {
+        if (content !== undefined && content !== null) {
+          sanitized.content = content;
+        } else if (textContent !== undefined) {
+          sanitized.content = textContent;
+        } else if (rest.content !== undefined) {
+          sanitized.content = rest.content;
+        }
+      }
+
+      if (!isUpdate) {
+        if (!sanitized.type) {
+          return { error: 'Missing annotation type', localId, id };
+        }
+        if (sanitized.pageNumber === undefined || sanitized.pageNumber === null) {
+          return { error: 'Missing page number', localId, id };
+        }
+      }
+
+      return { sanitized, localId, id };
+    };
+
     for (const annotation of changes.annotations?.created || []) {
       try {
-        // Remove client-only fields and map textContent to content if present
-        const {
-          clientId: _annotationClientId,
-          localId,
-          id,
-          createdAt,
-          updatedAt,
-          textContent,
-          content,
-          rects,
-          position,
-          ...rest
-        } = annotation;
+        const { sanitized, error, localId, id } = await sanitizeAnnotationPayload(annotation);
 
-        const validFields = { ...rest };
-        if (position !== undefined && position !== null) {
-          validFields.position = position;
-        } else if (rects) {
-          validFields.position = { rects };
-        }
-
-        if (content !== undefined && content !== null) {
-          validFields.content = content;
-        } else if (textContent !== undefined) {
-          validFields.content = textContent;
-        }
-
-        const resolvedPaperId = await resolvePaperId(validFields.paperId);
-        if (!resolvedPaperId) {
+        if (error) {
           appliedChanges.annotations.conflicts.push({
-            id: annotation.id || annotation.localId,
-            reason: `Paper ${validFields.paperId} not found`
+            id: id || localId,
+            reason: error
           });
           continue;
         }
 
-        validFields.paperId = resolvedPaperId;
-
         await prisma.annotation.create({
           data: {
-            ...validFields,
+            ...sanitized,
             userId,
             version: 1
           }
@@ -446,48 +510,20 @@ export const incrementalSync = async (req, res, next) => {
 
         const clientVersion = annotationUpdate.version || 1;
         if (clientVersion >= existing.version) {
-          const {
-            id,
-            version,
-            createdAt,
-            updatedAt,
-            textContent,
-            content,
-            rects,
-            position,
-            ...updateData
-          } = annotationUpdate;
+          const { sanitized, error } = await sanitizeAnnotationPayload(annotationUpdate, { isUpdate: true });
 
-          const annotationUpdateData = { ...updateData };
-
-          if (position !== undefined && position !== null) {
-            annotationUpdateData.position = position;
-          } else if (rects) {
-            annotationUpdateData.position = { rects };
-          }
-
-          if (content !== undefined) {
-            annotationUpdateData.content = content;
-          } else if (textContent !== undefined) {
-            annotationUpdateData.content = textContent;
-          }
-
-          if (annotationUpdateData.paperId !== undefined) {
-            const resolvedPaperId = await resolvePaperId(annotationUpdateData.paperId);
-            if (!resolvedPaperId) {
-              appliedChanges.annotations.conflicts.push({
-                id: annotationUpdate.id,
-                reason: `Paper ${annotationUpdateData.paperId} not found`
-              });
-              continue;
-            }
-            annotationUpdateData.paperId = resolvedPaperId;
+          if (error) {
+            appliedChanges.annotations.conflicts.push({
+              id: annotationUpdate.id,
+              reason: error
+            });
+            continue;
           }
 
           await prisma.annotation.update({
             where: { id },
             data: {
-              ...annotationUpdateData,
+              ...sanitized,
               version: existing.version + 1
             }
           });
