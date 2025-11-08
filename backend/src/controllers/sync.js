@@ -150,78 +150,88 @@ export const incrementalSync = async (req, res, next) => {
         // Extract only valid Prisma fields, exclude localId and other client-only fields
         const { localId, id, createdAt, updatedAt, ...validFields } = paper;
         
-        // Normalize DOI - convert empty strings to null
-        if (validFields.doi === '') {
+        // Normalize DOI - convert empty strings to null and trim whitespace
+        if (validFields.doi) {
+          validFields.doi = validFields.doi.trim() || null;
+        } else {
           validFields.doi = null;
         }
         
-        // Check if paper with same DOI already exists for this user
-        // Only check if DOI is not null (papers without DOI can coexist)
-        if (validFields.doi && validFields.doi.trim()) {
-          const normalizedDoi = validFields.doi.trim();
-          
-          // Check if we've already seen this DOI in this batch
-          if (seenDoisInBatch.has(normalizedDoi)) {
+        // For papers WITH a DOI: use upsert to handle duplicates gracefully
+        // For papers WITHOUT a DOI: use create (they can coexist)
+        if (validFields.doi) {
+          // Check if we've already processed this DOI in this batch
+          if (seenDoisInBatch.has(validFields.doi)) {
             appliedChanges.papers.conflicts.push({ 
               id: paper.id || paper.localId, 
-              reason: 'Duplicate DOI in import batch',
-              doi: normalizedDoi
+              reason: 'Duplicate DOI in same batch',
+              doi: validFields.doi
             });
             continue;
           }
+          seenDoisInBatch.add(validFields.doi);
           
-          // Check if paper already exists in database
-          const existingPaper = await prisma.paper.findFirst({
-            where: { 
-              userId, 
-              doi: normalizedDoi,
-              deletedAt: null
+          // Use upsert for papers with DOI - this prevents unique constraint errors
+          const result = await prisma.paper.upsert({
+            where: {
+              userId_doi: {
+                userId: userId,
+                doi: validFields.doi
+              }
+            },
+            update: {
+              // Update with new data if paper exists
+              ...validFields,
+              version: { increment: 1 },
+              clientId,
+              deletedAt: null // Restore if was soft-deleted
+            },
+            create: {
+              // Create new paper if doesn't exist
+              ...validFields,
+              userId,
+              clientId,
+              version: 1
             }
           });
           
-          if (existingPaper) {
-            // Paper already exists - skip creation and log as conflict
+          // Check if this was a create or update
+          // If paper existed, log as conflict; otherwise count as created
+          const wasExisting = await prisma.paper.findFirst({
+            where: {
+              id: result.id,
+              createdAt: { lt: syncStartTime }
+            }
+          });
+          
+          if (wasExisting) {
             appliedChanges.papers.conflicts.push({ 
               id: paper.id || paper.localId, 
-              reason: 'Paper with this DOI already exists',
-              doi: normalizedDoi,
-              existingId: existingPaper.id
+              reason: 'Paper already existed (updated instead)',
+              doi: validFields.doi,
+              existingId: result.id
             });
-            continue;
+          } else {
+            appliedChanges.papers.created++;
           }
-          
-          // Mark this DOI as seen in this batch
-          seenDoisInBatch.add(normalizedDoi);
-          // Use the normalized DOI for storage
-          validFields.doi = normalizedDoi;
-        }
-        
-        await prisma.paper.create({
-          data: {
-            ...validFields,
-            userId,
-            clientId,
-            version: 1
-          }
-        });
-        appliedChanges.papers.created++;
-      } catch (error) {
-        // Silently skip duplicates - they're expected during imports
-        if (error.code === 'P2002') {
-          // Unique constraint violation - duplicate DOI
-          appliedChanges.papers.conflicts.push({ 
-            id: paper.id || paper.localId, 
-            reason: 'Duplicate DOI',
-            doi: paper.doi || 'unknown'
-          });
-          // Don't log error - this is expected behavior
         } else {
-          console.error('Error creating paper during sync:', error.message);
-          appliedChanges.papers.conflicts.push({ 
-            id: paper.id || paper.localId, 
-            reason: error.message 
+          // Papers without DOI: use regular create
+          await prisma.paper.create({
+            data: {
+              ...validFields,
+              userId,
+              clientId,
+              version: 1
+            }
           });
+          appliedChanges.papers.created++;
         }
+      } catch (error) {
+        console.error('Error processing paper during sync:', error.message);
+        appliedChanges.papers.conflicts.push({ 
+          id: paper.id || paper.localId, 
+          reason: error.message 
+        });
       }
     }
 
