@@ -8,7 +8,8 @@ import {
   getStats,
   getSessions,
   revokeSession,
-  updateSettings
+  updateSettings,
+  clearAllData
 } from '../controllers/user.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -21,6 +22,7 @@ router.get('/stats', getStats);
 router.get('/sessions', getSessions);
 router.delete('/sessions/:id', revokeSession);
 router.put('/settings', updateSettings);
+router.delete('/data', clearAllData); // Clear all user data
 
 export default router;
 

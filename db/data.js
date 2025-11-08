@@ -19,6 +19,7 @@ import { getAllCollections as getAllCollectionsViaAdapter } from '../db.js';
 import * as apiPapers from '../api/papers.js';
 import * as apiCollections from '../api/collections.js';
 import * as apiAnnotations from '../api/annotations.js';
+import { clearAllUserData } from '../api/user.js';
 
 /**
  * Exports all data from the database into a serializable format with error handling.
@@ -380,79 +381,27 @@ async function importData(dataToImport) {
 
 /**
  * Clears all data from the 'papers', 'collections', and 'annotations' object stores.
- * If cloud sync is enabled, also deletes all data from the cloud API.
+ * If cloud sync is enabled, also deletes all data from the cloud API using a single atomic operation.
  * @returns {Promise<void>} A promise that resolves when all stores are cleared.
  */
 async function clearAllData() {
     const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
     
-    // If cloud sync is enabled, delete all data from cloud first
+    // If cloud sync is enabled, delete all data from cloud first using atomic endpoint
     if (useCloudSync) {
         console.log('Clearing cloud data...');
         
         try {
-            // Get all data from cloud
-            const [cloudPapers, cloudCollections] = await Promise.all([
-                getAllPapersViaAdapter().catch(() => []),
-                getAllCollectionsViaAdapter().catch(() => [])
-            ]);
-            
-            console.log(`Found ${cloudPapers.length} papers and ${cloudCollections.length} collections to delete from cloud`);
-            
-            // Delete papers in smaller batches to avoid overwhelming the connection
-            const BATCH_SIZE = 5;
-            let deletedPapers = 0;
-            let failedPapers = 0;
-            
-            for (let i = 0; i < cloudPapers.length; i += BATCH_SIZE) {
-                const batch = cloudPapers.slice(i, i + BATCH_SIZE);
-                await Promise.allSettled(
-                    batch.map(async (paper) => {
-                        try {
-                            await deletePaperViaAdapter(paper.id);
-                            deletedPapers++;
-                        } catch (error) {
-                            failedPapers++;
-                            console.warn(`Failed to delete paper ${paper.id}:`, error.message);
-                        }
-                    })
-                );
-                // Small delay between batches to prevent rate limiting
-                if (i + BATCH_SIZE < cloudPapers.length) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-            }
-            
-            // Delete collections in batches
-            let deletedCollections = 0;
-            let failedCollections = 0;
-            
-            for (let i = 0; i < cloudCollections.length; i += BATCH_SIZE) {
-                const batch = cloudCollections.slice(i, i + BATCH_SIZE);
-                await Promise.allSettled(
-                    batch.map(async (collection) => {
-                        try {
-                            await deleteCollectionViaAdapter(collection.id);
-                            deletedCollections++;
-                        } catch (error) {
-                            failedCollections++;
-                            console.warn(`Failed to delete collection ${collection.id}:`, error.message);
-                        }
-                    })
-                );
-                if (i + BATCH_SIZE < cloudCollections.length) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-            }
-            
-            console.log(`Cloud data cleared: ${deletedPapers}/${cloudPapers.length} papers, ${deletedCollections}/${cloudCollections.length} collections`);
-            
-            if (failedPapers > 0 || failedCollections > 0) {
-                console.warn(`Some items failed to delete from cloud (${failedPapers} papers, ${failedCollections} collections). Continuing with local clear...`);
-            }
+            // Use new atomic clear endpoint - much more reliable than one-by-one deletion
+            const result = await clearAllUserData();
+            console.log(`Cloud data cleared successfully:`, result);
+            console.log(`  - ${result.deleted.papers} papers deleted`);
+            console.log(`  - ${result.deleted.collections} collections deleted`);
+            console.log(`  - ${result.deleted.annotations} annotations deleted`);
         } catch (error) {
             // Log error but continue with local clear
-            console.error('Error clearing cloud data (will continue with local clear):', error);
+            console.error('Error clearing cloud data:', error);
+            throw new Error(`Failed to clear cloud data: ${error.message}. Please try again or contact support.`);
         }
     }
     
