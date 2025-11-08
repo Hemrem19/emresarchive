@@ -460,12 +460,9 @@ export const settingsView = {
                         showToast('Import successful! Library has been restored.', 'success');
                         appState.allPapersCache = []; // Clear cache in app state
                         
-                        // Reload page to ensure clean state
-                        // Delay reload to allow user to see any error messages
-                        setTimeout(() => {
-                            window.location.hash = '#/';
-                            window.location.reload();
-                        }, 3000); // Increased from 1000ms to 3000ms to see validation errors
+                        // Navigate to dashboard without full page reload to avoid aborting pending requests
+                        window.location.hash = '#/';
+                        // Let the router handle the view change naturally
                     } catch (error) {
                         console.error('Import failed:', error);
                         showToast(error.message || 'Import failed. The file may be corrupt or in the wrong format.', 'error', {
