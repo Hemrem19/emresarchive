@@ -134,14 +134,16 @@ research/
 
 ## 📖 Documentation
 
-- [`PROJECT_EXPLANATION.md`](PROJECT_EXPLANATION.md) - **Comprehensive project explanation** (architecture, features, structure)
-- [`TESTING.md`](TESTING.md) - Testing guide
-- [`REFACTORING_PLAN.md`](REFACTORING_PLAN.md) - Refactoring documentation
-- [`enhancement_plan.md`](enhancement_plan.md) - Feature roadmap
-- [`MEMBERSHIP_PLAN.md`](MEMBERSHIP_PLAN.md) - Membership & subscription system roadmap
-- [`backend/DEPLOYMENT.md`](backend/DEPLOYMENT.md) - Backend deployment guide
-- [`backend/EMAIL_SETUP.md`](backend/EMAIL_SETUP.md) - Email service configuration
-- [`REBRANDING_GUIDE.md`](REBRANDING_GUIDE.md) - Project rebranding documentation
+- [`PROJECT_EXPLANATION.md`](PROJECT_EXPLANATION.md) – **Comprehensive project explanation** (architecture, features, structure)
+- [`plans/TESTING.md`](plans/TESTING.md) – Testing guide
+- [`plans/PRODUCTION_TEST_GUIDE.md`](plans/PRODUCTION_TEST_GUIDE.md) – Production smoke test checklist
+- [`plans/DASHBOARD_REFACTORING_PLAN.md`](plans/DASHBOARD_REFACTORING_PLAN.md) – Dashboard refactoring plan
+- [`plans/REFACTORING_SUMMARY.md`](plans/REFACTORING_SUMMARY.md) – Refactoring results and metrics
+- [`plans/future-polish.md`](plans/future-polish.md) – Backlog of polish opportunities
+- [`plans/MEMBERSHIP_PLAN.md`](plans/MEMBERSHIP_PLAN.md) – Membership & subscription roadmap
+- [`plans/MOBILE_IMPLEMENTATION_SUMMARY.md`](plans/MOBILE_IMPLEMENTATION_SUMMARY.md) – Mobile implementation notes
+- [`backend/EMAIL_SETUP.md`](backend/EMAIL_SETUP.md) – Email service configuration
+- [`REBRANDING_GUIDE.md`](REBRANDING_GUIDE.md) – Project rebranding documentation
 
 ## 🤝 Contributing
 
