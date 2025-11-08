@@ -146,6 +146,28 @@ export const incrementalSync = async (req, res, next) => {
       try {
         // Extract only valid Prisma fields, exclude localId and other client-only fields
         const { localId, id, createdAt, updatedAt, ...validFields } = paper;
+        
+        // Check if paper with same DOI already exists for this user
+        if (validFields.doi) {
+          const existingPaper = await prisma.paper.findFirst({
+            where: { 
+              userId, 
+              doi: validFields.doi,
+              deletedAt: null
+            }
+          });
+          
+          if (existingPaper) {
+            // Paper already exists - skip creation and log as conflict
+            appliedChanges.papers.conflicts.push({ 
+              id: paper.id || paper.localId, 
+              reason: 'Paper with this DOI already exists',
+              existingId: existingPaper.id
+            });
+            continue;
+          }
+        }
+        
         await prisma.paper.create({
           data: {
             ...validFields,
@@ -156,9 +178,17 @@ export const incrementalSync = async (req, res, next) => {
         });
         appliedChanges.papers.created++;
       } catch (error) {
-        // Log conflict if paper with same DOI exists
+        // Log conflict if paper with same DOI exists (backup check)
         if (error.code === 'P2002') {
-          appliedChanges.papers.conflicts.push({ id: paper.id || paper.localId, reason: 'Duplicate DOI' });
+          appliedChanges.papers.conflicts.push({ 
+            id: paper.id || paper.localId, 
+            reason: 'Duplicate DOI (database constraint)' 
+          });
+        } else {
+          appliedChanges.papers.conflicts.push({ 
+            id: paper.id || paper.localId, 
+            reason: error.message 
+          });
         }
       }
     }
@@ -284,6 +314,26 @@ export const incrementalSync = async (req, res, next) => {
         // Extract only valid Prisma fields, exclude localId and other client-only fields
         const { localId, id, createdAt, updatedAt, clientId: _annotationClientId, textContent, rects, position, content, ...rest } = annotation;
 
+        // Check if the referenced paper exists before creating annotation
+        if (rest.paperId) {
+          const referencedPaper = await prisma.paper.findFirst({
+            where: { 
+              id: rest.paperId, 
+              userId,
+              deletedAt: null
+            }
+          });
+          
+          if (!referencedPaper) {
+            // Paper doesn't exist - skip annotation creation
+            appliedChanges.annotations.conflicts.push({ 
+              id: annotation.id || annotation.localId, 
+              reason: `Referenced paper (ID: ${rest.paperId}) does not exist`
+            });
+            continue;
+          }
+        }
+
         const annotationData = {
           ...rest,
           userId,
@@ -309,7 +359,18 @@ export const incrementalSync = async (req, res, next) => {
         });
         appliedChanges.annotations.created++;
       } catch (error) {
-        appliedChanges.annotations.conflicts.push({ id: annotation.id || annotation.localId, reason: error.message });
+        // Log specific error for foreign key violations
+        if (error.code === 'P2003') {
+          appliedChanges.annotations.conflicts.push({ 
+            id: annotation.id || annotation.localId, 
+            reason: 'Referenced paper does not exist (foreign key constraint)' 
+          });
+        } else {
+          appliedChanges.annotations.conflicts.push({ 
+            id: annotation.id || annotation.localId, 
+            reason: error.message 
+          });
+        }
       }
     }
 
