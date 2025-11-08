@@ -460,6 +460,18 @@ export const settingsView = {
                         showToast('Import successful! Library has been restored.', 'success');
                         appState.allPapersCache = []; // Clear cache in app state
                         
+                        // Trigger sync if cloud sync is enabled
+                        if (isCloudSyncEnabled() && isAuthenticated()) {
+                            showToast('Syncing imported data to cloud...', 'info', { duration: 5000 });
+                            try {
+                                await performManualSync();
+                                showToast('Data synced successfully!', 'success');
+                            } catch (syncError) {
+                                console.error('Sync after import failed:', syncError);
+                                showToast('Import successful, but sync failed. You can sync manually from settings.', 'warning', { duration: 7000 });
+                            }
+                        }
+                        
                         // Navigate to dashboard without full page reload to avoid aborting pending requests
                         window.location.hash = '#/';
                         // Let the router handle the view change naturally
