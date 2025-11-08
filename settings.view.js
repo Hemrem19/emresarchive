@@ -485,6 +485,15 @@ export const settingsView = {
             importFileInput.addEventListener('change', fileChangeHandler);
         }
 
+        // Setup reset button for import preferences
+        const resetPreferenceBtn = document.getElementById('reset-import-preference-btn');
+        if (resetPreferenceBtn) {
+            resetPreferenceBtn.addEventListener('click', () => {
+                localStorage.removeItem('ris_import_duplicate_preference');
+                showToast('Duplicate handling preference has been reset to default ("Skip").', 'success');
+            });
+        }
+
         // Setup Zotero/Mendeley RIS import
         this.setupRISImport(appState);
     },
@@ -645,7 +654,7 @@ export const settingsView = {
                                             ${isDuplicate ? `
                                                 <div class="mt-3 flex items-center gap-4">
                                                     <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                        <input type="radio" name="action-${index}" value="skip" checked class="ris-action-radio w-4 h-4 text-primary focus:ring-primary"> Skip (Keep Existing)
+                                                        <input type="radio" name="action-${index}" value="skip" class="ris-action-radio w-4 h-4 text-primary focus:ring-primary"> Skip (Keep Existing)
                                                     </label>
                                                     <label class="flex items-center gap-2 text-sm cursor-pointer">
                                                         <input type="radio" name="action-${index}" value="overwrite" data-existing-id="${paper.existingId}" class="ris-action-radio w-4 h-4 text-primary focus:ring-primary"> Overwrite
@@ -742,17 +751,14 @@ export const settingsView = {
                     const itemDiv = cb.closest('.ris-paper-item');
                     itemDiv.querySelector('input[type="radio"][value="skip"]').checked = true;
                 });
+                setDuplicatePreference('skip');
+                showToast('Default for duplicates set to "Skip".', 'success');
             });
         }
 
         if (setAllOverwriteBtn) {
             setAllOverwriteBtn.addEventListener('click', () => {
-                modal.querySelectorAll('.ris-paper-item[data-status="duplicate"] .ris-item-checkbox:checked').forEach(cb => {
-                    const itemDiv = cb.closest('.ris-paper-item');
-                    itemDiv.querySelector('input[type="radio"][value="overwrite"]').checked = true;
-                });
                 const selectedDuplicates = modal.querySelectorAll('.ris-paper-item[data-status="duplicate"] .ris-item-checkbox:checked');
-
                 if (selectedDuplicates.length === 0) {
                     showToast('No selected duplicates to modify.', 'info');
                     return;
@@ -763,7 +769,8 @@ export const settingsView = {
                         const itemDiv = cb.closest('.ris-paper-item');
                         itemDiv.querySelector('input[type="radio"][value="overwrite"]').checked = true;
                     });
-                    showToast(`${selectedDuplicates.length} duplicate(s) set to be overwritten.`, 'success');
+                    setDuplicatePreference('overwrite');
+                    showToast('Default for duplicates set to "Overwrite".', 'success');
                 } else {
                     showToast('Action cancelled.', 'info');
                 }

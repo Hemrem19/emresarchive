@@ -298,6 +298,20 @@ export const views = {
                         </div>
                     </section>
                     <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
+                    <section>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Import Settings</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage preferences for importing data from other sources.</p>
+                            </div>
+                            <div class="flex items-start md:col-span-2">
+                                <button id="reset-import-preference-btn" class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">
+                                    Reset Duplicate Handling Preference
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
                     <section id="email-verification-section" class="hidden">
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
