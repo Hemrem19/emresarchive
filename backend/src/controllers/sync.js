@@ -144,9 +144,11 @@ export const incrementalSync = async (req, res, next) => {
     // Process papers
     for (const paper of changes.papers?.created || []) {
       try {
+        // Extract only valid Prisma fields, exclude localId and other client-only fields
+        const { localId, id, createdAt, updatedAt, ...validFields } = paper;
         await prisma.paper.create({
           data: {
-            ...paper,
+            ...validFields,
             userId,
             clientId,
             version: 1
@@ -156,7 +158,7 @@ export const incrementalSync = async (req, res, next) => {
       } catch (error) {
         // Log conflict if paper with same DOI exists
         if (error.code === 'P2002') {
-          appliedChanges.papers.conflicts.push({ id: paper.id, reason: 'Duplicate DOI' });
+          appliedChanges.papers.conflicts.push({ id: paper.id || paper.localId, reason: 'Duplicate DOI' });
         }
       }
     }
@@ -215,9 +217,11 @@ export const incrementalSync = async (req, res, next) => {
     // Process collections
     for (const collection of changes.collections?.created || []) {
       try {
+        // Extract only valid Prisma fields, exclude localId and other client-only fields
+        const { localId, id, createdAt, updatedAt, ...validFields } = collection;
         await prisma.collection.create({
           data: {
-            ...collection,
+            ...validFields,
             userId,
             clientId,
             version: 1
@@ -225,7 +229,7 @@ export const incrementalSync = async (req, res, next) => {
         });
         appliedChanges.collections.created++;
       } catch (error) {
-        appliedChanges.collections.conflicts.push({ id: collection.id, reason: error.message });
+        appliedChanges.collections.conflicts.push({ id: collection.id || collection.localId, reason: error.message });
       }
     }
 
