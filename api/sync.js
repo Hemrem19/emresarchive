@@ -48,7 +48,7 @@ export function setLastSyncedAt(timestamp) {
  * @param {Object} options - Fetch options.
  * @returns {Promise<Response>} The fetch response.
  */
-async function apiRequest(url, options = {}) {
+export async function apiRequest(url, options = {}) {
     let accessToken = getAccessToken();
     
     if (!accessToken) {
