@@ -388,34 +388,68 @@ async function clearAllData() {
     
     // If cloud sync is enabled, delete all data from cloud first
     if (useCloudSync) {
+        console.log('Clearing cloud data...');
+        
         try {
-            // Get all papers from cloud
-            const cloudPapers = await getAllPapersViaAdapter();
+            // Get all data from cloud
+            const [cloudPapers, cloudCollections] = await Promise.all([
+                getAllPapersViaAdapter().catch(() => []),
+                getAllCollectionsViaAdapter().catch(() => [])
+            ]);
             
-            // Delete each paper from cloud (this will also delete associated annotations)
-            for (const paper of cloudPapers) {
-                try {
-                    await deletePaperViaAdapter(paper.id);
-                } catch (error) {
-                    // Log error but continue deleting other papers
-                    console.error(`Failed to delete paper ${paper.id} from cloud:`, error);
+            console.log(`Found ${cloudPapers.length} papers and ${cloudCollections.length} collections to delete from cloud`);
+            
+            // Delete papers in smaller batches to avoid overwhelming the connection
+            const BATCH_SIZE = 5;
+            let deletedPapers = 0;
+            let failedPapers = 0;
+            
+            for (let i = 0; i < cloudPapers.length; i += BATCH_SIZE) {
+                const batch = cloudPapers.slice(i, i + BATCH_SIZE);
+                await Promise.allSettled(
+                    batch.map(async (paper) => {
+                        try {
+                            await deletePaperViaAdapter(paper.id);
+                            deletedPapers++;
+                        } catch (error) {
+                            failedPapers++;
+                            console.warn(`Failed to delete paper ${paper.id}:`, error.message);
+                        }
+                    })
+                );
+                // Small delay between batches to prevent rate limiting
+                if (i + BATCH_SIZE < cloudPapers.length) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             }
             
-            // Get all collections from cloud
-            const cloudCollections = await getAllCollectionsViaAdapter();
+            // Delete collections in batches
+            let deletedCollections = 0;
+            let failedCollections = 0;
             
-            // Delete each collection from cloud
-            for (const collection of cloudCollections) {
-                try {
-                    await deleteCollectionViaAdapter(collection.id);
-                } catch (error) {
-                    // Log error but continue deleting other collections
-                    console.error(`Failed to delete collection ${collection.id} from cloud:`, error);
+            for (let i = 0; i < cloudCollections.length; i += BATCH_SIZE) {
+                const batch = cloudCollections.slice(i, i + BATCH_SIZE);
+                await Promise.allSettled(
+                    batch.map(async (collection) => {
+                        try {
+                            await deleteCollectionViaAdapter(collection.id);
+                            deletedCollections++;
+                        } catch (error) {
+                            failedCollections++;
+                            console.warn(`Failed to delete collection ${collection.id}:`, error.message);
+                        }
+                    })
+                );
+                if (i + BATCH_SIZE < cloudCollections.length) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             }
             
-            console.log('Cloud data cleared successfully');
+            console.log(`Cloud data cleared: ${deletedPapers}/${cloudPapers.length} papers, ${deletedCollections}/${cloudCollections.length} collections`);
+            
+            if (failedPapers > 0 || failedCollections > 0) {
+                console.warn(`Some items failed to delete from cloud (${failedPapers} papers, ${failedCollections} collections). Continuing with local clear...`);
+            }
         } catch (error) {
             // Log error but continue with local clear
             console.error('Error clearing cloud data (will continue with local clear):', error);
@@ -423,6 +457,7 @@ async function clearAllData() {
     }
     
     // Clear local IndexedDB
+    console.log('Clearing local data...');
     const database = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
@@ -440,21 +475,30 @@ async function clearAllData() {
         
         clearPapersRequest.onsuccess = () => {
             papersCleared = true;
-            if (collectionsCleared && annotationsCleared) resolve();
+            if (collectionsCleared && annotationsCleared) {
+                console.log('Local data cleared successfully');
+                resolve();
+            }
         };
         
         clearCollectionsRequest.onsuccess = () => {
             collectionsCleared = true;
-            if (papersCleared && annotationsCleared) resolve();
+            if (papersCleared && annotationsCleared) {
+                console.log('Local data cleared successfully');
+                resolve();
+            }
         };
         
         clearAnnotationsRequest.onsuccess = () => {
             annotationsCleared = true;
-            if (papersCleared && collectionsCleared) resolve();
+            if (papersCleared && collectionsCleared) {
+                console.log('Local data cleared successfully');
+                resolve();
+            }
         };
         
         clearPapersRequest.onerror = clearCollectionsRequest.onerror = clearAnnotationsRequest.onerror = (event) => {
-            console.error('Error clearing data:', event.target.error);
+            console.error('Error clearing local data:', event.target.error);
             reject(event.target.error);
         };
     });
