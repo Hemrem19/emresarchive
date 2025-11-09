@@ -178,6 +178,7 @@ npm run test:coverage
 - `GET /api/user/sessions` - Get active sessions
 - `DELETE /api/user/sessions/:id` - Revoke session
 - `PUT /api/user/settings` - Update user settings
+- `DELETE /api/user/data` - Permanently clear all user data (papers, collections, annotations)
 
 ## 🚢 Deployment
 

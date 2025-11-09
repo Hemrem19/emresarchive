@@ -22,7 +22,7 @@
 - 🌙 **Dark Mode** - Easy on the eyes
 - 📱 **Mobile Friendly** - Touch gestures and responsive design
 - 💾 **Local-First** - All data stored locally (IndexedDB), cloud sync optional
-- 📤 **Export/Import** - Full data portability
+- 📤 **Export/Import** - Full data portability with one-click cloud reset for conflict-free restores
 
 ## 🚀 Quick Start
 
@@ -42,6 +42,17 @@ npx serve
 
 # Open http://localhost:8000
 ```
+
+## ♻️ Cloud Restore Workflow
+
+When cloud sync is enabled, imports are now conflict-free thanks to a hard-delete API on the backend. To restore a backup safely:
+
+1. Open **Settings → Data Management**.
+2. Click **Clear All Data** to wipe both local IndexedDB and all cloud records via `DELETE /api/user/data`.
+3. Choose **Import Data** and select your exported JSON file.
+4. Wait for the automatic sync to finish (toasts will confirm). Imported papers, collections, and annotations are pushed to the cloud with no duplicate DOI conflicts.
+
+You can also skip the clear step if you only want to import into an empty local library. The cloud reset is optional outside of restore scenarios.
 
 ## 🧪 Development
 
