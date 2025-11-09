@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json - REMOVED from .gitignore for Railway deployment
 
 # Environment variables
 .env
