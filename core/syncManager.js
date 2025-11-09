@@ -7,6 +7,7 @@ import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
 import { performSync, getSyncStatusInfo, isSyncInProgress } from '../db/sync.js';
 import { showToast } from '../ui.js';
+import { isRateLimited, getRateLimitRemainingTime } from '../api/utils.js';
 
 // Sync configuration
 const SYNC_CONFIG = {
@@ -41,6 +42,19 @@ async function performAutoSync(silent = true) {
     // Don't sync if already in progress
     if (isSyncInProgress()) {
         console.log('[Sync Manager] Sync already in progress, skipping');
+        return;
+    }
+
+    // Check if we're rate limited
+    if (isRateLimited()) {
+        const remainingTime = getRateLimitRemainingTime();
+        const remainingSeconds = Math.ceil(remainingTime / 1000);
+        console.log(`[Sync Manager] Rate limited, skipping sync. Retry in ${remainingSeconds}s`);
+        if (!silent) {
+            showToast(`Sync rate limited. Please wait ${remainingSeconds} seconds.`, 'warning', {
+                duration: 3000
+            });
+        }
         return;
     }
 
@@ -83,15 +97,29 @@ async function performAutoSync(silent = true) {
     } catch (error) {
         console.error('[Sync Manager] Auto sync error:', error);
         
-        // Only show errors, not silent failures during periodic sync
-        if (!silent) {
-            showToast(`Sync failed: ${error.message}`, 'error', {
-                duration: 5000,
-                actions: [{
-                    label: 'Retry',
-                    onClick: () => performAutoSync(false)
-                }]
-            });
+        // Check if error is rate limit related
+        const isRateLimitError = error.message && error.message.includes('Rate Limited');
+        
+        if (isRateLimitError) {
+            // Rate limit error - only show if not silent
+            if (!silent) {
+                const remainingTime = getRateLimitRemainingTime();
+                const remainingSeconds = Math.ceil(remainingTime / 1000);
+                showToast(`Rate limited. Sync will resume in ${remainingSeconds} seconds.`, 'warning', {
+                    duration: 5000
+                });
+            }
+        } else {
+            // Other errors - show with retry option if not silent
+            if (!silent) {
+                showToast(`Sync failed: ${error.message}`, 'error', {
+                    duration: 5000,
+                    actions: [{
+                        label: 'Retry',
+                        onClick: () => performAutoSync(false)
+                    }]
+                });
+            }
         }
     }
 }

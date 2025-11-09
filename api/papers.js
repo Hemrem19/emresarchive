@@ -5,6 +5,7 @@
 
 import { API_CONFIG, getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from './auth.js';
+import { parseJsonResponse, withRateLimitCheck } from './utils.js';
 
 const API_BASE = `${getApiBaseUrl()}/api/papers`;
 
@@ -59,43 +60,6 @@ async function apiRequest(url, options = {}) {
 }
 
 /**
- * Safely parse JSON response, handling non-JSON error responses
- * @param {Response} response - Fetch response object
- * @returns {Promise<Object>} Parsed JSON data
- * @throws {Error} If response is not ok or JSON parsing fails
- */
-async function parseJsonResponse(response) {
-    // Check response status BEFORE parsing JSON
-    if (!response.ok) {
-        // Try to parse error as JSON, fall back to text
-        let errorMessage = `Request failed with status ${response.status}`;
-        try {
-            const result = await response.json();
-            errorMessage = result.message || result.error?.message || errorMessage;
-        } catch (jsonError) {
-            // Response is not JSON (probably HTML error page)
-            try {
-                const text = await response.text();
-                console.error('Non-JSON error response:', text.substring(0, 200));
-                errorMessage = `Server error (${response.status}): ${response.statusText}`;
-            } catch (textError) {
-                // Can't read response body
-                errorMessage = `Server error (${response.status}): ${response.statusText}`;
-            }
-        }
-        throw new Error(errorMessage);
-    }
-
-    // Parse successful response
-    try {
-        return await response.json();
-    } catch (jsonError) {
-        console.error('Failed to parse JSON response:', jsonError);
-        throw new Error('Invalid JSON response from server');
-    }
-}
-
-/**
  * Gets all papers with optional filtering and pagination.
  * @param {Object} options - Query options.
  * @param {number} options.page - Page number (default: 1).
@@ -131,11 +95,7 @@ export async function getAllPapers(options = {}) {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to fetch papers');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data) {
             return {
@@ -167,14 +127,7 @@ export async function getPaper(id) {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Paper not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to fetch paper');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.paper) {
             return result.data.paper;
@@ -199,20 +152,7 @@ export async function createPaper(paperData) {
             body: JSON.stringify(paperData)
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            // Log validation error details for debugging
-            if (result.error?.details) {
-                console.error('API validation errors:', result.error.details);
-            }
-            const errorMsg = result.message || result.error?.message || `Failed to create paper: ${response.status}`;
-            if (result.error?.details) {
-                const details = result.error.details.map(d => `${d.field}: ${d.message}`).join(', ');
-                throw new Error(`${errorMsg} (Validation: ${details})`);
-            }
-            throw new Error(errorMsg);
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.paper) {
             return result.data.paper;
@@ -262,14 +202,7 @@ export async function deletePaper(id) {
             method: 'DELETE'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Paper not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to delete paper');
-        }
+        const result = await parseJsonResponse(response);
 
         if (!result.success) {
             throw new Error('Invalid response from server');
@@ -305,11 +238,7 @@ export async function searchPapers(query, options = {}) {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Search failed');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data) {
             return {
@@ -358,11 +287,7 @@ export async function getUploadUrl(options) {
             })
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to get upload URL');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data) {
             return {
@@ -538,14 +463,7 @@ export async function getPdfDownloadUrl(paperId) {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Paper or PDF not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to get download URL');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data) {
             // Construct full proxy URL if backend returned relative path

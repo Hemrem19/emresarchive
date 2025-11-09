@@ -5,6 +5,7 @@
 
 import { getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from './auth.js';
+import { parseJsonResponse } from './utils.js';
 
 const PAPERS_API_BASE = `${getApiBaseUrl()}/api/papers`;
 const ANNOTATIONS_API_BASE = `${getApiBaseUrl()}/api/annotations`;
@@ -63,14 +64,7 @@ export async function getAnnotations(paperId) {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Paper not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to fetch annotations');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && Array.isArray(result.data.annotations)) {
             return result.data.annotations;
@@ -94,14 +88,7 @@ export async function getAnnotation(id) {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Annotation not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to fetch annotation');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.annotation) {
             return result.data.annotation;
@@ -127,14 +114,7 @@ export async function createAnnotation(paperId, annotationData) {
             body: JSON.stringify(annotationData)
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Paper not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to create annotation');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.annotation) {
             return result.data.annotation;
@@ -160,14 +140,7 @@ export async function updateAnnotation(id, updateData) {
             body: JSON.stringify(updateData)
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Annotation not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to update annotation');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.annotation) {
             return result.data.annotation;
@@ -191,14 +164,7 @@ export async function deleteAnnotation(id) {
             method: 'DELETE'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Annotation not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to delete annotation');
-        }
+        const result = await parseJsonResponse(response);
 
         if (!result.success) {
             throw new Error('Invalid response from server');

@@ -5,6 +5,7 @@
 
 import { getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from './auth.js';
+import { parseJsonResponse } from './utils.js';
 
 const API_BASE = `${getApiBaseUrl()}/api/sync`;
 
@@ -101,11 +102,7 @@ export async function fullSync() {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to perform full sync');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data) {
             // Update last synced timestamp
@@ -147,11 +144,7 @@ export async function incrementalSync(localChanges) {
             })
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to perform incremental sync');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data) {
             // Update last synced timestamp
@@ -183,11 +176,7 @@ export async function getSyncStatus() {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to get sync status');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data) {
             return {

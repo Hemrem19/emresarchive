@@ -5,6 +5,7 @@
 
 import { apiRequest } from './sync.js';
 import { API_CONFIG } from '../config.js';
+import { parseJsonResponse } from './utils.js';
 
 const API_BASE = `${API_CONFIG.BASE_URL}/api/user`;
 
@@ -18,11 +19,7 @@ export async function clearAllUserData() {
             method: 'DELETE'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to clear user data');
-        }
+        const result = await parseJsonResponse(response);
 
         if (!result.success) {
             throw new Error(result.error?.message || 'Failed to clear user data');

@@ -5,6 +5,7 @@
 
 import { getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from './auth.js';
+import { parseJsonResponse } from './utils.js';
 
 const API_BASE = `${getApiBaseUrl()}/api/collections`;
 
@@ -61,11 +62,7 @@ export async function getAllCollections() {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to fetch collections');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && Array.isArray(result.data.collections)) {
             return result.data.collections;
@@ -89,14 +86,7 @@ export async function getCollection(id) {
             method: 'GET'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Collection not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to fetch collection');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.collection) {
             return result.data.collection;
@@ -121,11 +111,7 @@ export async function createCollection(collectionData) {
             body: JSON.stringify(collectionData)
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || result.error?.message || 'Failed to create collection');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.collection) {
             return result.data.collection;
@@ -151,14 +137,7 @@ export async function updateCollection(id, updateData) {
             body: JSON.stringify(updateData)
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Collection not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to update collection');
-        }
+        const result = await parseJsonResponse(response);
 
         if (result.success && result.data && result.data.collection) {
             return result.data.collection;
@@ -182,14 +161,7 @@ export async function deleteCollection(id) {
             method: 'DELETE'
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Collection not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to delete collection');
-        }
+        const result = await parseJsonResponse(response);
 
         if (!result.success) {
             throw new Error('Invalid response from server');
