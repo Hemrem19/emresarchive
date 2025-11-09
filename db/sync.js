@@ -504,6 +504,46 @@ export async function performSync() {
  */
 export async function getSyncStatusInfo() {
     try {
+        // Import rate limit check dynamically to avoid circular dependency
+        const { isRateLimited } = await import('../api/utils.js');
+        
+        // If rate limited, return cached local status without making API call
+        if (isRateLimited()) {
+            const pendingChanges = getPendingChanges();
+            const hasPendingChanges = 
+                (pendingChanges.papers?.created?.length || 0) +
+                (pendingChanges.papers?.updated?.length || 0) +
+                (pendingChanges.papers?.deleted?.length || 0) +
+                (pendingChanges.collections?.created?.length || 0) +
+                (pendingChanges.collections?.updated?.length || 0) +
+                (pendingChanges.collections?.deleted?.length || 0) +
+                (pendingChanges.annotations?.created?.length || 0) +
+                (pendingChanges.annotations?.updated?.length || 0) +
+                (pendingChanges.annotations?.deleted?.length || 0) > 0;
+
+            return {
+                lastSyncedAt: getLastSyncedAt(),
+                hasPendingChanges,
+                pendingChangeCounts: {
+                    papers: {
+                        created: pendingChanges.papers?.created?.length || 0,
+                        updated: pendingChanges.papers?.updated?.length || 0,
+                        deleted: pendingChanges.papers?.deleted?.length || 0
+                    },
+                    collections: {
+                        created: pendingChanges.collections?.created?.length || 0,
+                        updated: pendingChanges.collections?.updated?.length || 0,
+                        deleted: pendingChanges.collections?.deleted?.length || 0
+                    },
+                    annotations: {
+                        created: pendingChanges.annotations?.created?.length || 0,
+                        updated: pendingChanges.annotations?.updated?.length || 0,
+                        deleted: pendingChanges.annotations?.deleted?.length || 0
+                    }
+                }
+            };
+        }
+        
         const serverStatus = await getSyncStatus();
         const pendingChanges = getPendingChanges();
         const hasPendingChanges = 

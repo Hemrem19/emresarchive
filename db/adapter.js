@@ -33,12 +33,33 @@ import {
 // Import auto-sync manager
 import { triggerDebouncedSync } from '../core/syncManager.js';
 
+// Import rate limit utilities
+import { isRateLimited, getRateLimitRemainingTime } from '../api/utils.js';
+
 /**
  * Checks if cloud sync should be used.
  * @returns {boolean} True if cloud sync is enabled and user is authenticated.
  */
 function shouldUseCloudSync() {
     return isCloudSyncEnabled() && isAuthenticated();
+}
+
+/**
+ * Checks if cloud sync should be attempted (not rate limited).
+ * @returns {boolean} True if cloud sync is enabled, authenticated, and not rate limited.
+ */
+function canAttemptCloudSync() {
+    if (!shouldUseCloudSync()) {
+        return false;
+    }
+    
+    if (isRateLimited()) {
+        const remainingSeconds = Math.ceil(getRateLimitRemainingTime() / 1000);
+        console.log(`[Adapter] Skipping cloud sync - rate limited for ${remainingSeconds}s`);
+        return false;
+    }
+    
+    return true;
 }
 
 /**
@@ -165,7 +186,7 @@ export const papers = {
     },
 
     async getAllPapers() {
-        if (shouldUseCloudSync()) {
+        if (canAttemptCloudSync()) {
             try {
                 const result = await apiPapers.getAllPapers();
                 // Convert API response format to match local format
@@ -186,7 +207,7 @@ export const papers = {
     },
 
     async getPaperById(id) {
-        if (shouldUseCloudSync()) {
+        if (canAttemptCloudSync()) {
             try {
                 const paper = await apiPapers.getPaper(id);
                 // Map API format to local format
@@ -206,7 +227,7 @@ export const papers = {
     },
 
     async updatePaper(id, updateData) {
-        if (shouldUseCloudSync()) {
+        if (canAttemptCloudSync()) {
             try {
                 // Map local format to API format
                 const apiData = mapPaperDataToApi(updateData);
@@ -245,7 +266,7 @@ export const papers = {
     },
 
     async deletePaper(id) {
-        if (shouldUseCloudSync()) {
+        if (canAttemptCloudSync()) {
             try {
                 await apiPapers.deletePaper(id);
                 // Also delete from local (in case it exists there)
@@ -387,7 +408,7 @@ export const collections = {
     },
 
     async getAllCollections() {
-        if (shouldUseCloudSync()) {
+        if (canAttemptCloudSync()) {
             try {
                 return await apiCollections.getAllCollections();
             } catch (error) {
@@ -399,7 +420,7 @@ export const collections = {
     },
 
     async getCollectionById(id) {
-        if (shouldUseCloudSync()) {
+        if (canAttemptCloudSync()) {
             try {
                 return await apiCollections.getCollection(id);
             } catch (error) {

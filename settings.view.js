@@ -102,6 +102,14 @@ export const settingsView = {
         const updateSyncStatus = async () => {
             if (!syncControlsContainer || syncControlsContainer.classList.contains('hidden')) return;
             
+            // Check if rate limited before making API call
+            const { isRateLimited, getRateLimitRemainingTime } = await import('./api/utils.js');
+            if (isRateLimited()) {
+                const remainingSeconds = Math.ceil(getRateLimitRemainingTime() / 1000);
+                console.log(`[Settings] Skipping sync status update - rate limited for ${remainingSeconds}s`);
+                return;
+            }
+            
             try {
                 const status = await getSyncStatusInfo();
                 
@@ -305,10 +313,11 @@ export const settingsView = {
             });
         }
 
-        // Update sync status periodically (every 30 seconds) when cloud sync is enabled
+        // Update sync status periodically (every 60 seconds) when cloud sync is enabled
+        // Reduced frequency to minimize API calls
         let statusInterval = null;
         if (isCloudSyncEnabled() && isAuthenticated()) {
-            statusInterval = setInterval(updateSyncStatus, 30000);
+            statusInterval = setInterval(updateSyncStatus, 60000); // Changed from 30s to 60s
         }
     },
 
