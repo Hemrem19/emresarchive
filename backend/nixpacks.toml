@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = [
+  "npm run db:generate"
+]
+
+[start]
+cmd = "npm run start"
+

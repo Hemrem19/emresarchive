@@ -59,6 +59,43 @@ async function apiRequest(url, options = {}) {
 }
 
 /**
+ * Safely parse JSON response, handling non-JSON error responses
+ * @param {Response} response - Fetch response object
+ * @returns {Promise<Object>} Parsed JSON data
+ * @throws {Error} If response is not ok or JSON parsing fails
+ */
+async function parseJsonResponse(response) {
+    // Check response status BEFORE parsing JSON
+    if (!response.ok) {
+        // Try to parse error as JSON, fall back to text
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+            const result = await response.json();
+            errorMessage = result.message || result.error?.message || errorMessage;
+        } catch (jsonError) {
+            // Response is not JSON (probably HTML error page)
+            try {
+                const text = await response.text();
+                console.error('Non-JSON error response:', text.substring(0, 200));
+                errorMessage = `Server error (${response.status}): ${response.statusText}`;
+            } catch (textError) {
+                // Can't read response body
+                errorMessage = `Server error (${response.status}): ${response.statusText}`;
+            }
+        }
+        throw new Error(errorMessage);
+    }
+
+    // Parse successful response
+    try {
+        return await response.json();
+    } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        throw new Error('Invalid JSON response from server');
+    }
+}
+
+/**
  * Gets all papers with optional filtering and pagination.
  * @param {Object} options - Query options.
  * @param {number} options.page - Page number (default: 1).
@@ -201,15 +238,8 @@ export async function updatePaper(id, updateData) {
             body: JSON.stringify(updateData)
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Paper not found');
-            }
-            throw new Error(result.message || result.error?.message || 'Failed to update paper');
-        }
-
+        const result = await parseJsonResponse(response);
+        
         if (result.success && result.data && result.data.paper) {
             return result.data.paper;
         }
