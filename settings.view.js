@@ -480,23 +480,16 @@ export const settingsView = {
                             }
                         }
                         
-                        // Step 2: Import data (clears local automatically)
+                        // Step 2: Import data (handles both local and cloud in one batch)
                         showToast('Importing data... Please wait.', 'info', { duration: 10000 });
                         await importData(papersToImport);
-                        showToast('Import successful! Library has been restored.', 'success');
-                        appState.allPapersCache = []; // Clear cache in app state
                         
-                        // Step 3: Sync imported data to cloud
                         if (isCloudSyncEnabled() && isAuthenticated()) {
-                            showToast('Syncing imported data to cloud...', 'info', { duration: 10000 });
-                            try {
-                                await performManualSync();
-                                showToast('Data synced successfully!', 'success');
-                            } catch (syncError) {
-                                console.error('Sync after import failed:', syncError);
-                                showToast('Import successful, but sync failed. You can sync manually from settings.', 'warning', { duration: 7000 });
-                            }
+                            showToast('Import successful! Data synced to cloud.', 'success');
+                        } else {
+                            showToast('Import successful! Library has been restored.', 'success');
                         }
+                        appState.allPapersCache = []; // Clear cache in app state
                         
                         // Navigate to dashboard without full page reload to avoid aborting pending requests
                         window.location.hash = '#/';

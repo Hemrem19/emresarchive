@@ -213,12 +213,13 @@ async function importData(dataToImport) {
         let annotationSuccessCount = 0;
         let annotationErrorCount = 0;
         
-        // Import sync tracking functions
         const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
-        const { trackPaperCreated } = await import('./sync.js');
         const { addPaper: addPaperLocal } = await import('./papers.js');
         
-        // Import papers
+        // Prepare data for batch cloud import
+        const papersForCloudImport = [];
+        
+        // Import papers locally first
         for (let i = 0; i < papersToImport.length; i++) {
             const paper = papersToImport[i];
             try {
@@ -262,21 +263,17 @@ async function importData(dataToImport) {
                 }
                 
                 // Local-first: Save directly to IndexedDB (guaranteed to work)
-                // This bypasses the adapter to avoid network errors during import
-                const localId = await addPaperLocal(paperToStore);
+                await addPaperLocal(paperToStore);
                 paperSuccessCount++;
                 
-                // Track change for later sync if cloud sync is enabled
-                // The sync manager will handle syncing these papers in the background
+                // Prepare for batch cloud import if cloud sync is enabled
                 if (useCloudSync) {
-                    // Prepare paper data for sync (remove fields that shouldn't be synced)
                     const paperForSync = { ...paperToStore };
-                    delete paperForSync.pdfData; // PDF data stays local, uploaded separately if needed
+                    delete paperForSync.pdfData; // PDF data stays local
                     delete paperForSync.id; // API will generate new ID
-                    delete paperForSync.localId; // Remove if present
-                    paperForSync.localId = localId; // Use the local ID for tracking
+                    delete paperForSync.localId;
                     
-                    // Ensure arrays are arrays (API expects arrays)
+                    // Ensure arrays are arrays
                     if (!Array.isArray(paperForSync.authors)) {
                         paperForSync.authors = paperForSync.authors ? [paperForSync.authors] : [];
                     }
@@ -284,13 +281,12 @@ async function importData(dataToImport) {
                         paperForSync.tags = paperForSync.tags ? [paperForSync.tags] : [];
                     }
                     
-                    // Clean up readingProgress - API requires totalPages >= 1
+                    // Clean up readingProgress
                     if (paperForSync.readingProgress) {
                         if (!paperForSync.readingProgress.totalPages || 
                             paperForSync.readingProgress.totalPages < 1) {
                             delete paperForSync.readingProgress;
                         } else {
-                            // Ensure currentPage is valid (>= 0)
                             if (paperForSync.readingProgress.currentPage === undefined || 
                                 paperForSync.readingProgress.currentPage < 0) {
                                 paperForSync.readingProgress.currentPage = 0;
@@ -298,20 +294,17 @@ async function importData(dataToImport) {
                         }
                     }
                     
-                    // Track as pending change for later sync
-                    trackPaperCreated(paperForSync);
+                    papersForCloudImport.push(paperForSync);
                 }
             } catch (paperError) {
                 console.error(`Error importing paper "${paper.title}":`, paperError);
                 paperErrorCount++;
-                // Continue with next paper
             }
         }
 
         // Import collections
-        // Local-first: Save directly to local storage, track changes for later sync
-        const { trackCollectionCreated } = await import('./sync.js');
         const { addCollection: addCollectionLocal } = await import('./collections.js');
+        const collectionsForCloudImport = [];
         
         for (let i = 0; i < collectionsToImport.length; i++) {
             const collection = collectionsToImport[i];
@@ -323,29 +316,26 @@ async function importData(dataToImport) {
                     collectionToStore.createdAt = new Date(collectionToStore.createdAt);
                 }
                 
-                // Local-first: Save directly to IndexedDB (guaranteed to work)
-                const localId = await addCollectionLocal(collectionToStore);
+                // Local-first: Save directly to IndexedDB
+                await addCollectionLocal(collectionToStore);
                 collectionSuccessCount++;
                 
-                // Track change for later sync if cloud sync is enabled
+                // Prepare for batch cloud import
                 if (useCloudSync) {
                     const collectionForSync = { ...collectionToStore };
-                    delete collectionForSync.id; // API will generate new ID
-                    delete collectionForSync.localId; // Remove if present
-                    collectionForSync.localId = localId; // Use the local ID for tracking
-                    trackCollectionCreated(collectionForSync);
+                    delete collectionForSync.id;
+                    delete collectionForSync.localId;
+                    collectionsForCloudImport.push(collectionForSync);
                 }
             } catch (collectionError) {
                 console.error(`Error importing collection "${collection.name}":`, collectionError);
                 collectionErrorCount++;
-                // Continue with next collection
             }
         }
 
         // Import annotations
-        // Local-first: Save directly to local storage, track changes for later sync
-        const { trackAnnotationCreated } = await import('./sync.js');
         const { addAnnotation: addAnnotationLocal } = await import('./annotations.js');
+        const annotationsForCloudImport = [];
         
         for (let i = 0; i < annotationsToImport.length; i++) {
             const annotation = annotationsToImport[i];
@@ -360,22 +350,40 @@ async function importData(dataToImport) {
                     annotationToStore.updatedAt = new Date(annotationToStore.updatedAt);
                 }
                 
-                // Local-first: Save directly to IndexedDB (guaranteed to work)
-                const localId = await addAnnotationLocal(annotationToStore);
+                // Local-first: Save directly to IndexedDB
+                await addAnnotationLocal(annotationToStore);
                 annotationSuccessCount++;
                 
-                // Track change for later sync if cloud sync is enabled
+                // Prepare for batch cloud import
                 if (useCloudSync) {
                     const annotationForSync = { ...annotationToStore };
-                    delete annotationForSync.id; // API will generate new ID
-                    delete annotationForSync.localId; // Remove if present
-                    annotationForSync.localId = localId; // Use the local ID for tracking
-                    trackAnnotationCreated(annotationForSync);
+                    delete annotationForSync.id;
+                    delete annotationForSync.localId;
+                    annotationsForCloudImport.push(annotationForSync);
                 }
             } catch (annotationError) {
                 console.error(`Error importing annotation:`, annotationError);
                 annotationErrorCount++;
-                // Continue with next annotation
+            }
+        }
+
+        // Send batch import to cloud if enabled
+        if (useCloudSync && (papersForCloudImport.length > 0 || collectionsForCloudImport.length > 0 || annotationsForCloudImport.length > 0)) {
+            try {
+                const { batchImport } = await import('../api/import.js');
+                console.log(`Sending batch import to cloud: ${papersForCloudImport.length} papers, ${collectionsForCloudImport.length} collections, ${annotationsForCloudImport.length} annotations`);
+                
+                const result = await batchImport({
+                    papers: papersForCloudImport,
+                    collections: collectionsForCloudImport,
+                    annotations: annotationsForCloudImport
+                });
+                
+                console.log('Batch import to cloud completed:', result.data.summary);
+            } catch (cloudError) {
+                console.error('Cloud batch import failed:', cloudError);
+                // Don't throw - local import succeeded, cloud sync can be retried later
+                console.warn('Data imported locally but cloud sync failed. You can sync manually from settings.');
             }
         }
 

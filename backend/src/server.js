@@ -20,6 +20,7 @@ import collectionsRoutes from './routes/collections.js';
 import annotationsRoutes from './routes/annotations.js';
 import syncRoutes from './routes/sync.js';
 import userRoutes from './routes/user.js';
+import importRoutes from './routes/import.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -305,6 +306,7 @@ app.use('/api/collections', collectionsRoutes);
 app.use('/api/annotations', annotationsRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/import', importRoutes);
 
 // 404 handler
 app.use(notFound);
