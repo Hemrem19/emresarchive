@@ -3,7 +3,6 @@
  * Handles batch actions on selected papers: status change, tag management, delete, and export
  */
 
-import { updatePaper, deletePaper } from '../../db.js';
 import { renderSidebarTags, showToast } from '../../ui.js';
 import { generateBibliography, exportBibliographyToFile, copyBibliographyToClipboard } from '../../citation.js';
 import { views as templates } from '../../views.js';
@@ -32,18 +31,21 @@ export function createBatchStatusChangeHandler(appState, applyFiltersAndRender) 
         try {
             const selectedIds = Array.from(appState.selectedPaperIds);
             
-            const { successCount, errorCount } = await executeBatchOperation(
+            const { successCount, results } = await executeBatchOperation(
                 selectedIds,
-                async (paperId) => {
-                    await updatePaper(paperId, { readingStatus: newStatus });
-                    updatePaperInCache(appState.allPapersCache, paperId, { readingStatus: newStatus });
-                },
+                (paperId) => ({ type: 'update', id: paperId, data: { readingStatus: newStatus } }),
                 { actionName: `Update status to "${newStatus}"` }
             );
 
             e.target.value = ''; // Reset select
             
             if (successCount > 0) {
+                // Update cache for successful operations
+                results.forEach(res => {
+                    if (res.success) {
+                        updatePaperInCache(appState.allPapersCache, res.paperId, { readingStatus: newStatus });
+                    }
+                });
                 applyFiltersAndRender();
             }
         } catch (error) {
@@ -69,15 +71,15 @@ export function createBatchAddTagsHandler(appState, applyFiltersAndRender) {
         try {
             const selectedIds = Array.from(appState.selectedPaperIds);
             
-            const { successCount } = await executeBatchOperation(
+            const { successCount, results } = await executeBatchOperation(
                 selectedIds,
-                async (paperId) => {
+                (paperId) => {
                     const paper = appState.allPapersCache.find(p => p.id === paperId);
                     if (paper) {
                         const updatedTags = addTagsToPaper(paper, tagsToAdd);
-                        await updatePaper(paperId, { tags: updatedTags });
-                        updatePaperInCache(appState.allPapersCache, paperId, { tags: updatedTags });
+                        return { type: 'update', id: paperId, data: { tags: updatedTags } };
                     }
+                    return null;
                 },
                 { actionName: 'Add tags' }
             );
@@ -85,6 +87,12 @@ export function createBatchAddTagsHandler(appState, applyFiltersAndRender) {
             input.value = ''; // Clear input
             
             if (successCount > 0) {
+                // Update cache for successful operations
+                results.forEach(res => {
+                    if (res.success && res.result && res.result.data && res.result.data.tags) {
+                        updatePaperInCache(appState.allPapersCache, res.paperId, { tags: res.result.data.tags });
+                    }
+                });
                 renderSidebarTags(appState.allPapersCache); // Update sidebar tags
                 applyFiltersAndRender();
             }
@@ -111,15 +119,15 @@ export function createBatchRemoveTagsHandler(appState, applyFiltersAndRender) {
         try {
             const selectedIds = Array.from(appState.selectedPaperIds);
             
-            const { successCount } = await executeBatchOperation(
+            const { successCount, results } = await executeBatchOperation(
                 selectedIds,
-                async (paperId) => {
+                (paperId) => {
                     const paper = appState.allPapersCache.find(p => p.id === paperId);
                     if (paper) {
                         const updatedTags = removeTagsFromPaper(paper, tagsToRemove);
-                        await updatePaper(paperId, { tags: updatedTags });
-                        updatePaperInCache(appState.allPapersCache, paperId, { tags: updatedTags });
+                        return { type: 'update', id: paperId, data: { tags: updatedTags } };
                     }
+                    return null;
                 },
                 { actionName: 'Remove tags' }
             );
@@ -127,6 +135,12 @@ export function createBatchRemoveTagsHandler(appState, applyFiltersAndRender) {
             input.value = ''; // Clear input
             
             if (successCount > 0) {
+                // Update cache for successful operations
+                results.forEach(res => {
+                    if (res.success && res.result && res.result.data && res.result.data.tags) {
+                        updatePaperInCache(appState.allPapersCache, res.paperId, { tags: res.result.data.tags });
+                    }
+                });
                 renderSidebarTags(appState.allPapersCache); // Update sidebar tags
                 applyFiltersAndRender();
             }
@@ -154,16 +168,17 @@ export function createBatchDeleteHandler(appState, applyFiltersAndRender, update
 
         try {
             const selectedIds = Array.from(appState.selectedPaperIds);
-            const successfulDeletes = [];
             
-            const { successCount, errorCount, results } = await executeBatchOperation(
+            const { successCount, results } = await executeBatchOperation(
                 selectedIds,
-                async (paperId) => {
-                    await deletePaper(paperId);
-                    successfulDeletes.push(paperId);
-                },
+                (paperId) => ({ type: 'delete', id: paperId }),
                 { actionName: 'Delete papers' }
             );
+
+            // Get successfully deleted IDs
+            const successfulDeletes = results
+                .filter(r => r.success)
+                .map(r => r.paperId);
 
             // Remove successfully deleted papers from cache
             if (successfulDeletes.length > 0) {

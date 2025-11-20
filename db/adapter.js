@@ -306,6 +306,86 @@ export const papers = {
         }
     },
 
+    async batchOperations(operations) {
+        if (shouldUseCloudSync()) {
+            try {
+                // Map operations to API format
+                const apiOperations = operations.map(op => {
+                    if (op.type === 'update' && op.data) {
+                        return { ...op, data: mapPaperDataToApi(op.data) };
+                    }
+                    return op;
+                });
+
+                const apiResults = await apiPapers.batchOperations(apiOperations);
+                
+                // Apply changes to local DB based on success
+                const localResults = [];
+                for (const result of apiResults) {
+                     if (result.success) {
+                         try {
+                             if (result.type === 'delete') {
+                                 // Only delete if it exists locally
+                                 try {
+                                    await localPapers.deletePaper(result.id);
+                                 } catch (err) { /* ignore */ }
+                             } else if (result.type === 'update') {
+                                 if (result.data) {
+                                     const localPaper = mapPaperDataFromApi(result.data);
+                                     await localPapers.updatePaper(result.id, localPaper);
+                                 } else {
+                                     // Fallback
+                                     const originalOp = operations.find(o => o.id === result.id);
+                                     if (originalOp) {
+                                         await localPapers.updatePaper(originalOp.id, originalOp.data);
+                                     }
+                                 }
+                             }
+                             localResults.push(result);
+                         } catch (e) {
+                             console.warn('Local update failed after cloud success', e);
+                             localResults.push({ ...result, localError: e.message });
+                         }
+                     } else {
+                         localResults.push(result);
+                     }
+                }
+                
+                triggerDebouncedSync();
+                return localResults;
+
+            } catch (error) {
+                console.error('Cloud batch failed, falling back to local:', error);
+                return this._performLocalBatch(operations);
+            }
+        }
+        
+        return this._performLocalBatch(operations);
+    },
+
+    async _performLocalBatch(operations) {
+        const results = [];
+        for (const op of operations) {
+            try {
+                if (op.type === 'delete') {
+                    await localPapers.deletePaper(op.id);
+                    if (isCloudSyncEnabled() && isAuthenticated()) trackPaperDeleted(op.id);
+                    results.push({ id: op.id, success: true, type: 'delete' });
+                } else if (op.type === 'update') {
+                    await localPapers.updatePaper(op.id, op.data);
+                    if (isCloudSyncEnabled() && isAuthenticated()) trackPaperUpdated(op.id, op.data);
+                    results.push({ id: op.id, success: true, type: 'update' });
+                } else {
+                     results.push({ id: op.id, success: false, error: 'Unknown type' });
+                }
+            } catch (e) {
+                results.push({ id: op.id, success: false, error: e.message });
+            }
+        }
+        if (isCloudSyncEnabled() && isAuthenticated()) triggerDebouncedSync();
+        return results;
+    },
+
     // Additional API-only functions
     async searchPapers(query, options) {
         if (shouldUseCloudSync()) {

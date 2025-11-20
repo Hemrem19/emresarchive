@@ -15,7 +15,8 @@ import {
   getUploadUrl,
   getPdfDownloadUrl,
   uploadPdfDirect,
-  proxyPdfStream
+  proxyPdfStream,
+  batchOperations
 } from '../controllers/papers.js';
 import { getAnnotations, createAnnotation } from '../controllers/annotations.js';
 import { authenticate } from '../middleware/auth.js';
@@ -43,6 +44,7 @@ const upload = multer({
 router.use(authenticate);
 
 // Paper routes
+router.post('/batch', batchOperations);
 router.get('/', getAllPapers);
 router.get('/search', searchPapers);
 router.get('/:id', getPaper);

@@ -550,3 +550,28 @@ export async function getPdfViewUrl(paperId) {
     }
 }
 
+/**
+ * Performs batch operations.
+ * @param {Array} operations - Array of operations { type, id, data }.
+ * @returns {Promise<Array>} Promise resolving to results array.
+ */
+export async function batchOperations(operations) {
+    try {
+        const response = await apiRequest(`${API_BASE}/batch`, {
+            method: 'POST',
+            body: JSON.stringify({ operations })
+        });
+
+        const result = await parseJsonResponse(response);
+
+        if (result.success && result.data) {
+            return result.data.results;
+        }
+
+        throw new Error('Invalid response from server');
+    } catch (error) {
+        console.error('Batch operations error:', error);
+        throw error;
+    }
+}
+

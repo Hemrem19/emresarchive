@@ -4,6 +4,7 @@
  */
 
 import { showToast } from '../../ui.js';
+import { batchOperations } from '../../db.js';
 import { 
     parseTags as parseTagsService,
     addTagsToPaper as addTagsService,
@@ -11,16 +12,16 @@ import {
 } from '../services/tag-manager.js';
 
 /**
- * Executes a batch operation on multiple papers with consistent error handling
+ * Executes a batch operation on multiple papers using the backend batch API
  * @param {Array<number>} selectedIds - Array of paper IDs to process
- * @param {Function} operation - Async function to execute for each paper (receives paperId)
+ * @param {Function} operationGenerator - Function that takes a paperId and returns an operation object { type, data } or null
  * @param {Object} options - Configuration options
  * @param {boolean} options.showProgress - Show progress toast (default: true)
  * @param {boolean} options.showResult - Show result toast (default: true)
  * @param {string} options.actionName - Name of the action for messages (default: 'operation')
  * @returns {Promise<Object>} Object with successCount, errorCount, and results array
  */
-export async function executeBatchOperation(selectedIds, operation, options = {}) {
+export async function executeBatchOperation(selectedIds, operationGenerator, options = {}) {
     const { 
         showProgress = true, 
         showResult = true, 
@@ -31,19 +32,49 @@ export async function executeBatchOperation(selectedIds, operation, options = {}
         showToast(`Processing ${selectedIds.length} paper(s)...`, 'info', { duration: 10000 });
     }
     
+    // Generate operations
+    const operations = [];
+    
+    for (const paperId of selectedIds) {
+        try {
+            // operationGenerator can be async
+            const op = await operationGenerator(paperId);
+            if (op) {
+                // Ensure ID is present
+                if (!op.id) op.id = paperId;
+                operations.push(op);
+            }
+        } catch (error) {
+            console.error(`Error generating operation for ${paperId}:`, error);
+        }
+    }
+
     let successCount = 0;
     let errorCount = 0;
     const results = [];
     
-    for (const paperId of selectedIds) {
+    if (operations.length > 0) {
         try {
-            const result = await operation(paperId);
-            results.push({ paperId, success: true, result });
-            successCount++;
+            // Send single batch request
+            const batchResults = await batchOperations(operations);
+            
+            // Process results
+            for (const res of batchResults) {
+                if (res.success) {
+                    successCount++;
+                    results.push({ paperId: res.id, success: true, result: res });
+                } else {
+                    errorCount++;
+                    results.push({ paperId: res.id, success: false, error: res.error });
+                }
+            }
         } catch (error) {
-            console.error(`Error in ${actionName} for paper ${paperId}:`, error);
-            results.push({ paperId, success: false, error });
-            errorCount++;
+            console.error('Batch operation failed:', error);
+            // Treat all operations as failed if the batch request itself fails (e.g. network error)
+            errorCount = operations.length;
+            operations.forEach(op => {
+                results.push({ paperId: op.id, success: false, error: error.message });
+            });
         }
     }
     

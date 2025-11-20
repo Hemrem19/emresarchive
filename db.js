@@ -34,6 +34,7 @@ export const getPaperById = papersAdapter.getPaperById.bind(papersAdapter);
 export const getPaperByDoi = papersAdapter.getPaperByDoi.bind(papersAdapter);
 export const updatePaper = papersAdapter.updatePaper.bind(papersAdapter);
 export const deletePaper = papersAdapter.deletePaper.bind(papersAdapter);
+export const batchOperations = papersAdapter.batchOperations.bind(papersAdapter);
 
 // Additional paper operations (cloud-only or enhanced)
 export const searchPapers = papersAdapter.searchPapers.bind(papersAdapter);
