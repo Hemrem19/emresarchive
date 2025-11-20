@@ -223,10 +223,26 @@ describe('db/data.js - Data Management', () => {
             
             const papers = await getAllPapers();
             // Database stores as pdfData, not pdfFile
-            // Check if pdfData exists and is a Blob-like object
+            // Check if pdfData exists
             expect(papers[0].pdfData).toBeDefined();
-            expect(papers[0].pdfData).toHaveProperty('size');
+            
+            // IndexedDB may serialize Blobs differently in test environment
+            // Check for either real Blob properties or serialized format
             expect(papers[0].pdfData).toHaveProperty('type');
+            expect(papers[0].pdfData.type).toBe('application/pdf');
+            
+            // In test environment, IndexedDB may serialize Blob as {_buffer: Uint8Array, type: string}
+            // In real browser, it would be a proper Blob with size property
+            if (papers[0].pdfData._buffer) {
+                // Serialized format (test environment)
+                expect(papers[0].pdfData._buffer).toBeInstanceOf(Uint8Array);
+                expect(papers[0].pdfData._buffer.length).toBeGreaterThan(0);
+            } else {
+                // Real Blob format (browser)
+                expect(papers[0].pdfData).toHaveProperty('size');
+                expect(papers[0].pdfData.size).toBeGreaterThan(0);
+            }
+            
             expect(papers[0].hasPdf).toBe(true);
         });
 

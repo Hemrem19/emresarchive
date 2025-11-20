@@ -228,8 +228,20 @@ async function importData(dataToImport) {
                 // Note: Import format uses 'pdfFile', but database stores as 'pdfData'
                 if (paperToStore.pdfFile && typeof paperToStore.pdfFile === 'string' && paperToStore.pdfFile.startsWith('data:')) {
                     try {
-                        const fetchRes = await fetch(paperToStore.pdfFile);
-                        paperToStore.pdfData = await fetchRes.blob();
+                        // Extract the base64 data and convert to Blob
+                        const base64Data = paperToStore.pdfFile.split(',')[1];
+                        const mimeMatch = paperToStore.pdfFile.match(/data:([^;]+);/);
+                        const mimeType = mimeMatch ? mimeMatch[1] : 'application/pdf';
+                        
+                        // Convert base64 to binary
+                        const binaryString = atob(base64Data);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        
+                        // Create Blob with proper type
+                        paperToStore.pdfData = new Blob([bytes], { type: mimeType });
                         delete paperToStore.pdfFile;
                     } catch (pdfError) {
                         console.warn(`Failed to convert PDF for "${paper.title}":`, pdfError);
