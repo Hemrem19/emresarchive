@@ -13,10 +13,16 @@ import {
     removeTagsFromPaper
 } from '../../dashboard/utils/batch-operations-utils.js';
 import * as ui from '../../ui.js';
+import * as db from '../../db.js';
 
 // Mock ui.js
 vi.mock('../../ui.js', () => ({
     showToast: vi.fn()
+}));
+
+// Mock db.js
+vi.mock('../../db.js', () => ({
+    batchOperations: vi.fn()
 }));
 
 describe('Batch Operations Utilities', () => {
@@ -25,41 +31,63 @@ describe('Batch Operations Utilities', () => {
     });
 
     describe('executeBatchOperation', () => {
-        it('should execute operation for all selected IDs', async () => {
+        it('should execute batch operation for all selected IDs', async () => {
             const selectedIds = [1, 2, 3];
-            const operation = vi.fn().mockResolvedValue('success');
+            const operationGenerator = vi.fn((id) => ({ type: 'update', id, data: { status: 'read' } }));
             
-            const result = await executeBatchOperation(selectedIds, operation, {
+            // Mock batch API success
+            db.batchOperations.mockResolvedValue([
+                { id: 1, success: true },
+                { id: 2, success: true },
+                { id: 3, success: true }
+            ]);
+            
+            const result = await executeBatchOperation(selectedIds, operationGenerator, {
                 showProgress: false,
                 showResult: false
             });
             
-            expect(operation).toHaveBeenCalledTimes(3);
+            expect(operationGenerator).toHaveBeenCalledTimes(3);
+            expect(db.batchOperations).toHaveBeenCalledTimes(1);
+            expect(db.batchOperations).toHaveBeenCalledWith([
+                { type: 'update', id: 1, data: { status: 'read' } },
+                { type: 'update', id: 2, data: { status: 'read' } },
+                { type: 'update', id: 3, data: { status: 'read' } }
+            ]);
             expect(result.successCount).toBe(3);
             expect(result.errorCount).toBe(0);
         });
 
-        it('should handle errors gracefully', async () => {
+        it('should handle partial errors from batch API', async () => {
             const selectedIds = [1, 2, 3];
-            const operation = vi.fn()
-                .mockResolvedValueOnce('success')
-                .mockRejectedValueOnce(new Error('Failed'))
-                .mockResolvedValueOnce('success');
+            const operationGenerator = vi.fn((id) => ({ type: 'delete', id }));
+
+            // Mock batch API partial success
+            db.batchOperations.mockResolvedValue([
+                { id: 1, success: true },
+                { id: 2, success: false, error: 'Failed' },
+                { id: 3, success: true }
+            ]);
             
-            const result = await executeBatchOperation(selectedIds, operation, {
+            const result = await executeBatchOperation(selectedIds, operationGenerator, {
                 showProgress: false,
                 showResult: false
             });
             
             expect(result.successCount).toBe(2);
             expect(result.errorCount).toBe(1);
+            expect(result.results.find(r => r.paperId === 2).success).toBe(false);
         });
 
         it('should show progress toast when enabled', async () => {
             const selectedIds = [1, 2];
-            const operation = vi.fn().mockResolvedValue('success');
+            const operationGenerator = vi.fn((id) => ({ type: 'update', id }));
+            db.batchOperations.mockResolvedValue([
+                { id: 1, success: true },
+                { id: 2, success: true }
+            ]);
             
-            await executeBatchOperation(selectedIds, operation, {
+            await executeBatchOperation(selectedIds, operationGenerator, {
                 showProgress: true,
                 showResult: false
             });
@@ -73,9 +101,13 @@ describe('Batch Operations Utilities', () => {
 
         it('should show result toast when enabled', async () => {
             const selectedIds = [1, 2];
-            const operation = vi.fn().mockResolvedValue('success');
+            const operationGenerator = vi.fn((id) => ({ type: 'update', id }));
+            db.batchOperations.mockResolvedValue([
+                { id: 1, success: true },
+                { id: 2, success: true }
+            ]);
             
-            await executeBatchOperation(selectedIds, operation, {
+            await executeBatchOperation(selectedIds, operationGenerator, {
                 showProgress: false,
                 showResult: true,
                 actionName: 'test operation'
@@ -85,6 +117,23 @@ describe('Batch Operations Utilities', () => {
                 'test operation completed: 2 succeeded',
                 'success'
             );
+        });
+
+        it('should handle batch API total failure', async () => {
+            const selectedIds = [1, 2];
+            const operationGenerator = vi.fn((id) => ({ type: 'update', id }));
+            
+            // Mock network failure
+            db.batchOperations.mockRejectedValue(new Error('Network Error'));
+            
+            const result = await executeBatchOperation(selectedIds, operationGenerator, {
+                showProgress: false,
+                showResult: false
+            });
+            
+            expect(result.successCount).toBe(0);
+            expect(result.errorCount).toBe(2);
+            expect(result.results[0].error).toBe('Network Error');
         });
     });
 
@@ -249,6 +298,13 @@ describe('Batch Operations Utilities', () => {
             
             expect(result).toEqual([]);
         });
+
+        it('should correctly remove tag even with case differences', () => {
+            const paper = { id: 1, tags: ['Tag1'] };
+            // removal should be case-insensitive if implemented that way, 
+            // or strictly case-sensitive. Based on previous code, it converts to lowercase
+            const result = removeTagsFromPaper(paper, ['tag1']);
+            expect(result).toEqual([]);
+        });
     });
 });
-

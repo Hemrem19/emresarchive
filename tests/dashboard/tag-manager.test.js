@@ -235,6 +235,27 @@ describe('Tag Manager Service', () => {
             
             expect(result.tags).toEqual(['tag2']);
         });
+
+        it('should successfully remove a tag that exists', () => {
+             const paper = { id: 1, tags: ['machine-learning'] };
+             const result = removeTagsFromPaper(paper, 'machine-learning');
+             expect(result.tags).toEqual([]);
+             expect(result.removedCount).toBe(1);
+        });
+        
+        it('should successfully remove multiple tags', () => {
+            const paper = { id: 1, tags: ['ai', 'ml', 'data'] };
+            const result = removeTagsFromPaper(paper, ['ai', 'data']);
+            expect(result.tags).toEqual(['ml']);
+            expect(result.removedCount).toBe(2);
+        });
+
+        it('should handle messy input for removal', () => {
+            const paper = { id: 1, tags: ['machine-learning', 'ai'] };
+            const result = removeTagsFromPaper(paper, ' Machine Learning ');
+            expect(result.tags).toEqual(['ai']);
+            expect(result.removedCount).toBe(1);
+        });
     });
 
     describe('replaceTagsOnPaper', () => {
@@ -440,4 +461,3 @@ describe('Tag Manager Service', () => {
         });
     });
 });
-

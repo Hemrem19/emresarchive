@@ -51,7 +51,8 @@ vi.mock('../../api/papers.js', () => ({
     deletePaper: vi.fn(),
     searchPapers: vi.fn(() => Promise.resolve({ papers: [] })),
     getUploadUrl: vi.fn(),
-    uploadPdf: vi.fn()
+    uploadPdf: vi.fn(),
+    batchOperations: vi.fn(() => Promise.resolve([]))
 }));
 
 vi.mock('../../api/collections.js', () => ({
