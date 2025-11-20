@@ -159,15 +159,84 @@ export const createPaper = async (req, res, next) => {
       const existing = await prisma.paper.findFirst({
         where: {
           doi: paperData.doi,
-          userId,
-          deletedAt: null
+          userId
+          // Check ALL papers, including deleted ones
         }
       });
 
       if (existing) {
-        return res.status(400).json({
-          success: false,
-          error: { message: `A paper with DOI ${paperData.doi} already exists` }
+        // If it's an active paper, return error
+        if (!existing.deletedAt) {
+          return res.status(400).json({
+            success: false,
+            error: { message: `A paper with DOI ${paperData.doi} already exists` }
+          });
+        }
+
+        // If it's a soft-deleted paper, restore and overwrite it
+        // effectively treating it as a new paper but reusing the record to satisfy unique constraint
+        
+        const updateData = {
+          title: paperData.title,
+          authors: paperData.authors || [],
+          year: paperData.year || null,
+          journal: paperData.journal || null,
+          doi: paperData.doi,
+          abstract: paperData.abstract || null,
+          tags: paperData.tags || [],
+          status: paperData.status || 'To Read',
+          relatedPaperIds: paperData.relatedPaperIds || [],
+          notes: paperData.notes || null,
+          readingProgress: paperData.readingProgress || null,
+          pdfUrl: pdfUrl, // Use the calculated pdfUrl
+          pdfSizeBytes: pdfSizeBytes,
+          clientId: paperData.clientId || null,
+          
+          // Restore fields
+          deletedAt: null,
+          version: { increment: 1 },
+          createdAt: new Date(), // Reset creation time to now
+        };
+
+        const paper = await prisma.paper.update({
+          where: { id: existing.id },
+          data: updateData,
+          select: {
+            id: true,
+            title: true,
+            authors: true,
+            year: true,
+            journal: true,
+            doi: true,
+            abstract: true,
+            tags: true,
+            status: true,
+            relatedPaperIds: true,
+            pdfUrl: true,
+            pdfSizeBytes: true,
+            notes: true,
+            readingProgress: true,
+            createdAt: true,
+            updatedAt: true,
+            version: true
+          }
+        });
+
+        // Update user storage if PDF uploaded
+        if (pdfSizeBytes) {
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              storageUsedBytes: {
+                increment: BigInt(pdfSizeBytes)
+              }
+            }
+          });
+        }
+
+        return res.status(201).json({
+          success: true,
+          data: { paper }
         });
       }
     }
@@ -304,16 +373,25 @@ export const updatePaper = async (req, res, next) => {
         where: {
           doi: updates.doi,
           userId,
-          deletedAt: null,
           NOT: { id: paperId }
         }
       });
 
       if (duplicate) {
-        return res.status(400).json({
-          success: false,
-          error: { message: `A paper with DOI ${updates.doi} already exists` }
+        // If duplicate is active, return error
+        if (!duplicate.deletedAt) {
+          return res.status(400).json({
+            success: false,
+            error: { message: `A paper with DOI ${updates.doi} already exists` }
+          });
+        }
+        
+        // If duplicate is deleted, hard delete it to allow this update to proceed
+        // (We can't "merge" papers easily, so we prioritize the active one being updated)
+        await prisma.paper.delete({
+          where: { id: duplicate.id }
         });
+        // Note: No need to update storage for the deleted duplicate as it was already decremented on soft-delete
       }
     }
 
