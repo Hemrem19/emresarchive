@@ -7,7 +7,7 @@ export const errorHandler = (err, req, res, next) => {
   // Ensure CORS headers are set even on errors
   const origin = req.headers.origin;
   const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
-  
+
   // Allow origin if it's in allowed list or is Cloudflare Pages
   const allowedOrigins = [
     FRONTEND_URL,
@@ -20,17 +20,17 @@ export const errorHandler = (err, req, res, next) => {
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173'
   ];
-  
-  if (origin && (allowedOrigins.includes(origin) || origin.includes('pages.dev') || origin.includes('cloudflarepages.com'))) {
+
+  if (origin && (allowedOrigins.includes(origin) || origin.includes('pages.dev') || origin.includes('cloudflarepages.com') || origin.startsWith('chrome-extension://'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
-  
+
   // Handle Multer errors (file upload errors)
   if (err.name === 'MulterError') {
     let statusCode = 400;
     let message = 'File upload error';
-    
+
     switch (err.code) {
       case 'LIMIT_FILE_SIZE':
         message = 'File size exceeds the maximum limit (50MB)';
@@ -44,7 +44,7 @@ export const errorHandler = (err, req, res, next) => {
       default:
         message = err.message || 'File upload error';
     }
-    
+
     if (!res.headersSent) {
       return res.status(statusCode).json({
         success: false,
@@ -53,7 +53,7 @@ export const errorHandler = (err, req, res, next) => {
     }
     return;
   }
-  
+
   // Handle multer file filter errors
   if (err.message && err.message.includes('Only PDF files are allowed')) {
     if (!res.headersSent) {
@@ -64,7 +64,7 @@ export const errorHandler = (err, req, res, next) => {
     }
     return;
   }
-  
+
   // Prevent sending response twice
   if (res.headersSent) {
     return next(err);
@@ -77,11 +77,11 @@ export const errorHandler = (err, req, res, next) => {
       field: issue.path.join('.'),
       message: issue.message
     }));
-    
+
     // Create user-friendly summary message
     const fieldMessages = details.map(d => `${d.field}: ${d.message}`).join('; ');
     message = `Validation error: ${fieldMessages}`;
-    
+
     if (!res.headersSent) {
       return res.status(statusCode).json({
         success: false,
@@ -119,8 +119,8 @@ export const errorHandler = (err, req, res, next) => {
     // Check if it's the userId+doi composite constraint
     // Note: Prisma returns field names as 'user_id' and 'doi' (snake_case), not camelCase
     const targetStr = JSON.stringify(target).toLowerCase();
-    if ((target.includes('user_id') || target.includes('userid')) && 
-        (target.includes('doi') || targetStr.includes('doi'))) {
+    if ((target.includes('user_id') || target.includes('userid')) &&
+      (target.includes('doi') || targetStr.includes('doi'))) {
       message = 'You already have a paper with this DOI in your library';
     } else if (target.includes('email') || targetStr.includes('email')) {
       statusCode = 409; // Conflict
@@ -149,7 +149,7 @@ export const errorHandler = (err, req, res, next) => {
     message = 'Database connection error. Please try again later.';
     console.error('⚠️ Database connection error - server will continue running');
   }
-  
+
   // Handle JWT errors
   if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
     statusCode = 401;
@@ -159,7 +159,7 @@ export const errorHandler = (err, req, res, next) => {
       message = 'Invalid authentication token. Please log in again.';
     }
   }
-  
+
   // Handle rate limiting errors
   if (err.statusCode === 429 || err.message?.includes('rate limit')) {
     statusCode = 429;
@@ -167,7 +167,7 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   // Don't expose internal errors in production (except for specific handled errors)
-  const errorMessage = (process.env.NODE_ENV === 'production' && statusCode === 500 && err.code !== 'P2002' && err.code !== 'P2025')
+  const errorMessage = ((process.env.NODE_ENV === 'production' && !req.headers['x-debug-mode']) && statusCode === 500 && err.code !== 'P2002' && err.code !== 'P2025')
     ? 'Internal Server Error'
     : message;
 
@@ -197,7 +197,7 @@ export const errorHandler = (err, req, res, next) => {
     error: {
       message: safeMessage,
       ...(errorDetails && { details: errorDetails }),
-      ...(process.env.NODE_ENV !== 'production' && { 
+      ...(process.env.NODE_ENV !== 'production' && {
         stack: typeof err.stack === 'string' ? err.stack : undefined,
         code: err.code,
         name: err.name

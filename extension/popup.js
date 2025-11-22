@@ -24,7 +24,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Login Logic
     document.getElementById('login-btn').onclick = handleLogin;
     document.getElementById('logout-btn').onclick = handleLogout;
-    document.getElementById('open-lib-btn').onclick = () => chrome.tabs.create({ url: API_BASE_URL });
+    document.getElementById('open-lib-btn').onclick = () => {
+        const frontendUrl = API_BASE_URL.includes('localhost') ? 'http://localhost:8080' : 'https://citavers.com';
+        chrome.tabs.create({ url: frontendUrl });
+    };
 
     // Settings Logic
     document.getElementById('settings-btn').onclick = showSettingsView;
@@ -227,7 +230,8 @@ function handlePaperDetails(details) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-Debug-Mode': 'true'
                 },
                 body: JSON.stringify({
                     url: details.url,
