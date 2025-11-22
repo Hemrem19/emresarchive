@@ -51,6 +51,7 @@ model Paper {
   year            Int?
   journal         String?   @db.VarChar(255)
   doi             String?
+  url             String?   @db.VarChar(500)
   abstract        String?   @db.Text
   tags            String[]  @default([])
   status          String    @default("To Read") @db.VarChar(50)
