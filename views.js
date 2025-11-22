@@ -1091,5 +1091,5 @@ export const views = {
                 </div>
             </div>
         </div>
-    `
+    `   
 };

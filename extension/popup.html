@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { width: 300px; font-family: sans-serif; padding: 15px; }
+        h2 { margin-top: 0; font-size: 16px; color: #1f2937; }
+        #status { margin-bottom: 15px; font-size: 14px; color: #4b5563; }
+        button {
+            width: 100%;
+            padding: 8px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #93c5fd; cursor: default; }
+    </style>
+</head>
+<body>
+    <h2>citavErs Web Clipper</h2>
+    <div id="status">Checking page...</div>
+    <button id="action-btn" style="display: none;">Save</button>
+    <script src="popup.js"></script>
+</body>
+</html>
+

@@ -1,10 +1,12 @@
+import { fetchArxivMetadata } from './api/arxiv.js';
+
 /**
  * Normalizes input to extract DOI from various URL formats.
  * Supports:
  * - Direct DOI: "10.1234/example"
  * - doi.org URLs: "https://doi.org/10.1234/example"
  * - Publisher URLs: "https://publisher.com/article/doi/10.1234/example"
- * - arXiv URLs: Detects but doesn't support (returns helpful error)
+ * - arXiv URLs: "https://arxiv.org/abs/2310.00123" or IDs "2310.00123"
  * 
  * @param {string} input - DOI, URL, or identifier string.
  * @returns {Object} Object with { type: 'doi'|'arxiv'|'unsupported', value: string, original: string }
@@ -24,7 +26,13 @@ export const normalizePaperIdentifier = (input) => {
     
     // Pattern for arXiv ID (e.g., 1234.5678 or 1234.5678v1)
     const arxivPattern = /arxiv\.org\/(?:abs|pdf|html)\/(\d{4}\.\d{4,5}(?:v\d+)?)/i;
+    const arxivIdPattern = /^(\d{4}\.\d{4,5}(?:v\d+)?)$/;
     
+    // Check for plain arXiv ID first
+    if (arxivIdPattern.test(trimmed)) {
+        return { type: 'arxiv', value: trimmed, original: trimmed };
+    }
+
     // Check if it's already a plain DOI
     if (doiPattern.test(trimmed) && !trimmed.includes('http') && !trimmed.includes('arxiv')) {
         const match = trimmed.match(doiPattern);
@@ -45,14 +53,13 @@ export const normalizePaperIdentifier = (input) => {
         return { type: 'doi', value: doiInUrlMatch[1], original: trimmed };
     }
 
-    // Extract arXiv ID
+    // Extract arXiv ID from URL
     const arxivMatch = trimmed.match(arxivPattern);
     if (arxivMatch) {
         return { 
             type: 'arxiv', 
             value: arxivMatch[1], 
-            original: trimmed,
-            error: 'arXiv papers are not yet supported. Please use a DOI or add the paper manually.'
+            original: trimmed
         };
     }
 
@@ -62,7 +69,7 @@ export const normalizePaperIdentifier = (input) => {
             type: 'unsupported', 
             value: null, 
             original: trimmed,
-            error: 'Unsupported URL format. Please provide a DOI (e.g., 10.1234/example) or a doi.org URL.'
+            error: 'Unsupported URL format. Please provide a DOI (e.g., 10.1234/example), an arXiv ID, or a supported URL.'
         };
     }
 
@@ -78,34 +85,34 @@ export const normalizePaperIdentifier = (input) => {
         type: 'unsupported', 
         value: null, 
         original: trimmed,
-        error: 'Could not detect a DOI or supported identifier. Please enter a DOI (e.g., 10.1234/example) or a doi.org URL.'
+        error: 'Could not detect a DOI or supported identifier. Please enter a DOI, arXiv ID, or valid URL.'
     };
 };
 
 /**
- * Fetches metadata for a given DOI with comprehensive error handling.
- * @param {string} doi - The DOI to fetch.
+ * Fetches metadata for a given DOI or arXiv ID.
+ * @param {string} identifier - The DOI or arXiv ID to fetch.
  * @param {Object} options - Fetch options.
  * @param {number} options.timeout - Timeout in ms (default: 10000).
  * @returns {Promise<Object>} A promise that resolves with the structured paper data.
  * @throws {Error} Throws descriptive errors for various failure scenarios.
  */
-export const fetchDoiMetadata = async (doi, options = {}) => {
+export const fetchDoiMetadata = async (identifier, options = {}) => {
     const { timeout = 10000 } = options;
 
-    // Normalize input (handles URLs, plain DOI, etc.)
-    const normalized = normalizePaperIdentifier(doi);
+    // Normalize input (handles URLs, plain DOI, arXiv, etc.)
+    const normalized = normalizePaperIdentifier(identifier);
     
     if (normalized.type === 'arxiv') {
-        throw new Error(normalized.error || 'arXiv papers are not yet supported. Please use a DOI or add the paper manually.');
+        return await fetchArxivMetadata(normalized.value, options);
     }
     
     if (normalized.type === 'unsupported') {
-        throw new Error(normalized.error || 'Could not detect a valid DOI. Please provide a DOI (e.g., 10.1234/example) or a doi.org URL.');
+        throw new Error(normalized.error || 'Could not detect a valid identifier.');
     }
 
     if (normalized.type !== 'doi' || !normalized.value) {
-        throw new Error('Invalid DOI: Could not extract a valid DOI from the input.');
+        throw new Error('Invalid identifier: Could not extract a valid DOI or arXiv ID.');
     }
 
     const cleanDoi = normalized.value;

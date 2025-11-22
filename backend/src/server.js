@@ -21,6 +21,7 @@ import annotationsRoutes from './routes/annotations.js';
 import syncRoutes from './routes/sync.js';
 import userRoutes from './routes/user.js';
 import importRoutes from './routes/import.js';
+import extensionRoutes from './routes/extension.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -307,6 +308,7 @@ app.use('/api/annotations', annotationsRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/extension', extensionRoutes);
 
 // 404 handler
 app.use(notFound);
