@@ -42,6 +42,10 @@ export const getAllPapers = async (req, res, next) => {
       };
     }
 
+    if (req.query.doi) {
+      where.doi = req.query.doi;
+    }
+
     // Get total count
     const total = await prisma.paper.count({ where });
 

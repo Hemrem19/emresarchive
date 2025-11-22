@@ -1,24 +1,74 @@
-const API_BASE_URL = 'https://emresarchive-production.up.railway.app';
+let API_BASE_URL = 'https://emresarchive-production.up.railway.app';
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Load Settings
+    const storedSettings = await chrome.storage.local.get(['apiUrl']);
+    if (storedSettings.apiUrl) {
+        API_BASE_URL = storedSettings.apiUrl;
+    }
+
     // Views
     const loginView = document.getElementById('login-view');
     const mainView = document.getElementById('main-view');
-    
+    const settingsView = document.getElementById('settings-view');
+
     // Check stored token
     const token = await getStoredToken();
-    
+
     if (token) {
         showMainView();
     } else {
         showLoginView();
     }
-    
+
     // Login Logic
     document.getElementById('login-btn').onclick = handleLogin;
     document.getElementById('logout-btn').onclick = handleLogout;
     document.getElementById('open-lib-btn').onclick = () => chrome.tabs.create({ url: API_BASE_URL });
-    
+
+    // Settings Logic
+    document.getElementById('settings-btn').onclick = showSettingsView;
+    document.getElementById('back-btn').onclick = () => {
+        if (token) showMainView();
+        else showLoginView();
+    };
+
+    const urlSelect = document.getElementById('api-url-select');
+    const urlCustom = document.getElementById('api-url-custom');
+
+    // Initialize inputs
+    if (API_BASE_URL === 'https://emresarchive-production.up.railway.app' || API_BASE_URL === 'http://localhost:3000') {
+        urlSelect.value = API_BASE_URL;
+        urlCustom.style.display = 'none';
+    } else {
+        urlSelect.value = 'custom';
+        urlCustom.style.display = 'block';
+        urlCustom.value = API_BASE_URL;
+    }
+
+    urlSelect.onchange = () => {
+        if (urlSelect.value === 'custom') {
+            urlCustom.style.display = 'block';
+        } else {
+            urlCustom.style.display = 'none';
+        }
+    };
+
+    document.getElementById('save-settings-btn').onclick = async () => {
+        let newUrl = urlSelect.value;
+        if (newUrl === 'custom') {
+            newUrl = urlCustom.value.replace(/\/$/, ''); // Remove trailing slash
+        }
+
+        if (!newUrl) return;
+
+        await chrome.storage.local.set({ apiUrl: newUrl });
+        API_BASE_URL = newUrl;
+
+        // Reload
+        window.location.reload();
+    };
+
     // Enter key for login
     document.getElementById('password').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleLogin();
@@ -33,12 +83,20 @@ async function getStoredToken() {
 function showLoginView() {
     document.getElementById('login-view').classList.add('active');
     document.getElementById('main-view').classList.remove('active');
+    document.getElementById('settings-view').classList.remove('active');
 }
 
 function showMainView() {
     document.getElementById('login-view').classList.remove('active');
     document.getElementById('main-view').classList.add('active');
+    document.getElementById('settings-view').classList.remove('active');
     initializeMainView();
+}
+
+function showSettingsView() {
+    document.getElementById('login-view').classList.remove('active');
+    document.getElementById('main-view').classList.remove('active');
+    document.getElementById('settings-view').classList.add('active');
 }
 
 async function handleLogin() {
@@ -46,29 +104,29 @@ async function handleLogin() {
     const password = document.getElementById('password').value;
     const errorMsg = document.getElementById('login-error');
     const btn = document.getElementById('login-btn');
-    
+
     if (!email || !password) {
         errorMsg.textContent = 'Please fill in all fields';
         errorMsg.style.display = 'block';
         return;
     }
-    
+
     btn.disabled = true;
     btn.textContent = 'Logging in...';
     errorMsg.style.display = 'none';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             // Save token
-            await chrome.storage.local.set({ 
+            await chrome.storage.local.set({
                 accessToken: result.data.accessToken,
                 user: result.data.user
             });
@@ -94,13 +152,13 @@ async function initializeMainView() {
     const statusDiv = document.getElementById('status');
     const saveBtn = document.getElementById('save-btn');
     const paperPreview = document.getElementById('paper-preview');
-    
+
     statusDiv.textContent = 'Scanning page...';
     statusDiv.classList.add('visible');
-    
+
     // Get Tab Data
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!tab.url.startsWith('http')) {
         statusDiv.textContent = 'Cannot access this page.';
         return;
@@ -131,35 +189,38 @@ function handlePaperDetails(details) {
     const paperPreview = document.getElementById('paper-preview');
     const paperTitle = document.getElementById('paper-title');
     const paperMeta = document.getElementById('paper-meta');
-    
+
     if (!details || !details.identifier) {
         statusDiv.textContent = 'No paper detected on this page.';
         paperPreview.style.display = 'none';
         saveBtn.style.display = 'none';
         return;
     }
-    
+
     // Show preview
     statusDiv.style.display = 'none';
     paperPreview.style.display = 'block';
     paperTitle.textContent = details.title;
-    
+
     let metaText = '';
     if (details.identifier.type === 'doi') metaText = `DOI: ${details.identifier.value}`;
     if (details.identifier.type === 'arxiv') metaText = `arXiv: ${details.identifier.value}`;
     paperMeta.textContent = metaText;
-    
+
     saveBtn.style.display = 'block';
     saveBtn.textContent = 'Save to Library';
-    
+
     // Clone button to clear listeners
     const newBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newBtn, saveBtn);
-    
+
+    // Check existence
+    checkPaperExistence(details.identifier);
+
     newBtn.onclick = async () => {
         newBtn.disabled = true;
         newBtn.textContent = 'Saving...';
-        
+
         try {
             const token = await getStoredToken();
             const response = await fetch(`${API_BASE_URL}/api/extension/save`, {
@@ -172,15 +233,18 @@ function handlePaperDetails(details) {
                     url: details.url,
                     title: details.title,
                     doi: details.identifier.type === 'doi' ? details.identifier.value : null,
-                    arxivId: details.identifier.type === 'arxiv' ? details.identifier.value : null
+                    arxivId: details.identifier.type === 'arxiv' ? details.identifier.value : null,
+                    tags: document.getElementById('paper-tags').value.split(',').map(t => t.trim()).filter(t => t),
+                    notes: document.getElementById('paper-notes').value
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 newBtn.textContent = 'Saved!';
                 newBtn.style.background = '#10b981'; // Green
+                document.getElementById('paper-exists-badge').style.display = 'block';
                 setTimeout(() => {
                     window.close();
                 }, 1500);
@@ -200,4 +264,33 @@ function handlePaperDetails(details) {
             newBtn.textContent = 'Retry';
         }
     };
+}
+
+async function checkPaperExistence(identifier) {
+    if (!identifier || identifier.type !== 'doi') return;
+
+    try {
+        const token = await getStoredToken();
+        if (!token) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/papers?doi=${encodeURIComponent(identifier.value)}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const result = await response.json();
+        if (result.success && result.data.papers.length > 0) {
+            const paper = result.data.papers[0];
+            document.getElementById('paper-exists-badge').style.display = 'block';
+
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.textContent = 'Already Saved';
+            saveBtn.disabled = true;
+            saveBtn.style.background = '#10b981';
+            saveBtn.style.opacity = '0.8';
+        }
+    } catch (e) {
+        console.error('Error checking existence:', e);
+    }
 }

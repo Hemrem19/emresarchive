@@ -40,12 +40,12 @@ async function runMigrations() {
       const childProcess = await import('child_process');
       const { execSync } = childProcess;
       const path = await import('path');
-      
+
       // Determine the backend directory
       // Railway runs from project root, so we need to check if we're in backend or root
       const cwd = process.cwd();
       let backendDir = cwd;
-      
+
       // Check if we're in the backend directory
       if (!cwd.endsWith('backend')) {
         // Try to find backend directory
@@ -60,11 +60,11 @@ async function runMigrations() {
           // or Railway is running from a different structure
         }
       }
-      
+
       // Run migrations from the correct directory
       console.log(`   Working directory: ${backendDir}`);
-      execSync('npx prisma migrate deploy', { 
-        stdio: 'inherit', 
+      execSync('npx prisma migrate deploy', {
+        stdio: 'inherit',
         env: { ...process.env },
         cwd: backendDir,
         shell: true
@@ -136,33 +136,38 @@ app.use(cors({
   origin: (origin, callback) => {
     // Only log origin in development or for blocked requests
     // Removed excessive logging to avoid Railway rate limits
-    
+
     // Helper to check if origin matches allowed origins (with protocol flexibility)
     function isOriginAllowed(checkOrigin) {
       if (!checkOrigin) return false;
-      
+
       // Direct match in allowed origins
       if (uniqueOrigins.includes(checkOrigin)) {
         return true;
       }
-      
+
       // Normalize and compare domains
       const normalizedOrigin = normalizeUrl(checkOrigin);
       const normalizedFrontend = normalizeUrl(FRONTEND_URL);
-      
+
       // Match by domain (ignoring protocol)
       if (normalizedOrigin === normalizedFrontend) {
         return true;
       }
-      
+
       // Check if it's a localhost/127.0.0.1 variant
       if (normalizedOrigin.includes('localhost') || normalizedOrigin.includes('127.0.0.1')) {
         return checkOrigin.includes('localhost') || checkOrigin.includes('127.0.0.1');
       }
-      
+
+      // Allow Chrome Extensions
+      if (checkOrigin.startsWith('chrome-extension://')) {
+        return true;
+      }
+
       return false;
     }
-    
+
     // In development, be more permissive
     if (isDevelopment) {
       // Allow requests with no origin (file:// URLs, Postman, etc.)
@@ -170,19 +175,19 @@ app.use(cors({
         callback(null, true);
         return;
       }
-      
+
       // Allow any localhost origin in development
       if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('::1')) {
         callback(null, true);
         return;
       }
-      
+
       // Check if origin is allowed
       if (isOriginAllowed(origin)) {
         callback(null, true);
         return;
       }
-      
+
       // Log blocked origins in development for debugging
       console.log(`⚠️  CORS: Blocked origin: ${origin}`);
       console.log(`   Allowed origins: ${uniqueOrigins.join(', ')}`);
@@ -195,7 +200,7 @@ app.use(cors({
         callback(null, true);
         return;
       }
-      
+
       // Check if origin is allowed (with flexible matching)
       if (isOriginAllowed(origin)) {
         // Removed excessive logging - only log in development
@@ -205,7 +210,7 @@ app.use(cors({
         callback(null, true);
         return;
       }
-      
+
       // Allow Cloudflare Pages origins (pages.dev, cloudflarepages.com)
       if (origin.includes('pages.dev') || origin.includes('cloudflarepages.com')) {
         if (isDevelopment) {
@@ -214,7 +219,7 @@ app.use(cors({
         callback(null, true);
         return;
       }
-      
+
       // Log blocked origins for debugging
       console.log(`❌ CORS: Blocked origin: ${origin}`);
       console.log(`   Normalized origin: ${normalizeUrl(origin)}`);
@@ -280,7 +285,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // BigInt JSON serialization (Prisma returns BigInt for large integers)
 app.use((req, res, next) => {
   const originalJson = res.json;
-  res.json = function(data) {
+  res.json = function (data) {
     const jsonString = JSON.stringify(data, (key, value) =>
       typeof value === 'bigint' ? value.toString() : value
     );
@@ -379,22 +384,22 @@ async function startServer() {
       console.log(`🚀 citavErs Backend running on port ${PORT}`);
       console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
-      
+
       // Test database connection
       await testDatabaseConnection();
-      
+
       // Verify schema by checking if verification_token column exists
       try {
         await prisma.$queryRaw`SELECT verification_token FROM users LIMIT 1`;
         console.log('✅ Database: Schema verified (verification_token column exists)');
       } catch (schemaError) {
         // PostgreSQL error code 42703 = column does not exist
-        if (schemaError.code === '42703' || schemaError.code === 'P2022' || 
-            (schemaError.message && schemaError.message.includes('does not exist'))) {
+        if (schemaError.code === '42703' || schemaError.code === 'P2022' ||
+          (schemaError.message && schemaError.message.includes('does not exist'))) {
           console.error('⚠️ Database: Schema mismatch detected. verification_token column missing.');
           console.error('   Migrations are marked as applied, but column is missing.');
           console.error('   Applying migration SQL directly...');
-          
+
           // Apply the migration SQL directly to fix the schema mismatch
           try {
             // Check if column exists using information_schema
@@ -403,10 +408,10 @@ async function startServer() {
               FROM information_schema.columns 
               WHERE table_name = 'users' AND column_name = 'verification_token'
             `;
-            
+
             if (Array.isArray(columnCheck) && columnCheck.length === 0) {
               console.log('   Column does not exist, applying migration SQL...');
-              
+
               // Apply the migration SQL directly (using IF NOT EXISTS pattern)
               await prisma.$executeRaw`
                 DO $$ 
@@ -426,16 +431,16 @@ async function startServer() {
                     END IF;
                 END $$;
               `;
-              
+
               // Create index if it doesn't exist
               await prisma.$executeRaw`
                 CREATE UNIQUE INDEX IF NOT EXISTS "users_verification_token_key" 
                 ON "users"("verification_token") 
                 WHERE "verification_token" IS NOT NULL;
               `;
-              
+
               console.log('✅ Migration SQL applied directly');
-              
+
               // Verify again after applying SQL
               try {
                 await prisma.$queryRaw`SELECT verification_token FROM users LIMIT 1`;
@@ -457,7 +462,7 @@ async function startServer() {
           throw schemaError;
         }
       }
-      
+
       // Log deployment URL if available
       if (process.env.RAILWAY_STATIC_URL) {
         console.log(`🔗 Railway URL: ${process.env.RAILWAY_STATIC_URL}`);
@@ -465,7 +470,7 @@ async function startServer() {
       if (process.env.RENDER_EXTERNAL_URL) {
         console.log(`🔗 Render URL: ${process.env.RENDER_EXTERNAL_URL}`);
       }
-      
+
       resolve(server);
     });
   });
