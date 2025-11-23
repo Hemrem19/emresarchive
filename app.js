@@ -1,5 +1,5 @@
 import { openDB } from './db.js';
-import { views as templates } from './views.js';
+import { views as templates } from './views/index.js';
 import { highlightActiveSidebarLink } from './ui.js';
 import { getStatusOrder } from './config.js';
 import { authView } from './auth.view.js';
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     applyTheme(); // Apply theme on initial load
-    
+
     // --- Sidebar Status Links Rendering ---
     const renderSidebarStatusLinks = () => {
         const desktopList = document.getElementById('sidebar-status-list');
@@ -54,15 +54,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Authentication Initialization ---
     authView.mount().then(() => {
         console.log('Authentication view initialized');
-        
+
         // Note: Email verification is now handled by the router
         // The router will detect #/verify-email?token=... and handle it
     }).catch(console.error);
-    
+
     // --- Initialize Application State ---
     const app = document.getElementById('app');
     const appState = createAppState();
-    
+
     // --- Initialize Command Palette ---
     const commandPalette = createCommandPalette(appState);
     commandPalette.init();
@@ -92,21 +92,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (statusLink) {
             e.preventDefault();
             const status = statusLink.dataset.status;
-            
+
             // Toggle: if clicking the same status, remove it; otherwise set/change it
             if (appState.activeFilters.status === status) {
                 appState.activeFilters.status = null;
             } else {
                 appState.activeFilters.status = status;
             }
-            
+
             appState.pagination.currentPage = 1; // Reset to first page when filter changes
             updateUrlHash(appState);
             applyFiltersAndRender(appState);
         } else if (tagLink) {
             e.preventDefault();
             const tag = tagLink.dataset.tag;
-            
+
             // Toggle: if tag is already selected, remove it; otherwise add it
             const tagIndex = appState.activeFilters.tags.indexOf(tag);
             if (tagIndex > -1) {
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Tag is not selected, add it
                 appState.activeFilters.tags.push(tag);
             }
-            
+
             appState.pagination.currentPage = 1; // Reset to first page when filter changes
             updateUrlHash(appState);
             applyFiltersAndRender(appState);
@@ -143,15 +143,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const openMobileMenu = () => {
         if (mobileSidebar && mobileSidebarOverlay) {
-        mobileSidebar.classList.remove('-translate-x-full');
-        mobileSidebarOverlay.classList.remove('hidden');
+            mobileSidebar.classList.remove('-translate-x-full');
+            mobileSidebarOverlay.classList.remove('hidden');
         }
     };
 
     const closeMobileMenu = () => {
         if (mobileSidebar && mobileSidebarOverlay) {
-        mobileSidebar.classList.add('-translate-x-full');
-        mobileSidebarOverlay.classList.add('hidden');
+            mobileSidebar.classList.add('-translate-x-full');
+            mobileSidebarOverlay.classList.add('hidden');
         }
     };
 
@@ -190,12 +190,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mobileSidebar && mobileSidebar.classList.contains('-translate-x-full')) {
             const currentX = e.touches[0].clientX;
             const currentY = e.touches[0].clientY;
-            
+
             // Check if starting from left edge and moving right
             if (touchStartX <= EDGE_ZONE && currentX > touchStartX) {
                 const horizontalDiff = currentX - touchStartX;
                 const verticalDiff = Math.abs(currentY - touchStartY);
-                
+
                 // Only prevent default if horizontal movement is significant and vertical is minimal
                 if (horizontalDiff > 10 && verticalDiff < MAX_VERTICAL_DIFF) {
                     e.preventDefault();
@@ -206,8 +206,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const handleTouchEnd = (e) => {
         if (!mobileSidebar || !mobileSidebar.classList.contains('-translate-x-full')) {
-                return;
-            }
+            return;
+        }
 
         const touchEndX = e.changedTouches[0].clientX;
         const touchEndY = e.changedTouches[0].clientY;
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Touch event listener management
     let touchListenersAdded = false;
-    
+
     const addTouchListeners = () => {
         if (!touchListenersAdded && window.innerWidth < 1024) {
             document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             touchListenersAdded = true;
         }
     };
-    
+
     const removeTouchListeners = () => {
         if (touchListenersAdded) {
             document.body.removeEventListener('touchstart', handleTouchStart);
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('IndexedDB initialized.');
         router(); // Initial load
         highlightActiveSidebarLink(); // Also highlight on initial load
-        
+
         // Initialize automatic sync (if cloud sync enabled and authenticated)
         initializeAutoSync();
     }).catch(console.error);
