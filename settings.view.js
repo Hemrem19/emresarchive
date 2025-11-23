@@ -203,7 +203,8 @@ export const settingsView = {
                 statusText.className = 'text-xs text-green-600 dark:text-green-400 ml-20';
                 if (syncControlsContainer) {
                     syncControlsContainer.classList.remove('hidden');
-                    await updateSyncStatus();
+                    // Don't await this - let it load in background to prevent blocking render
+                    updateSyncStatus().catch(e => console.error('Failed to update sync status:', e));
                 }
             } else {
                 statusText.textContent = 'Cloud sync disabled. Using local storage only.';

@@ -186,37 +186,20 @@ export const papers = {
     },
 
     async getAllPapers() {
-        if (canAttemptCloudSync()) {
-            try {
-                const result = await apiPapers.getAllPapers();
-                // Convert API response format to match local format
-                const papers = (result.papers || []).map(mapPaperDataFromApi);
-                return papers;
-            } catch (error) {
-                // If error is authentication-related, fall back to local silently
-                if (error.message && (error.message.includes('authenticated') || error.message.includes('Session expired') || error.message.includes('401'))) {
-                    console.warn('Cloud sync unavailable (not authenticated), using local storage:', error.message);
-                    return localPapers.getAllPapers();
-                }
-                // For other errors, log and fall back to local
-                console.error('Cloud sync failed, falling back to local:', error);
-                return localPapers.getAllPapers();
-            }
+        // Always read from local storage first for immediate UI feedback
+        // This ensures offline-first experience even when cloud sync is enabled
+        
+        // Trigger background sync if needed to keep local data fresh
+        if (shouldUseCloudSync() && !isRateLimited()) {
+            triggerDebouncedSync();
         }
+        
         return localPapers.getAllPapers();
     },
 
     async getPaperById(id) {
-        if (canAttemptCloudSync()) {
-            try {
-                const paper = await apiPapers.getPaper(id);
-                // Map API format to local format
-                return mapPaperDataFromApi(paper);
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                return localPapers.getPaperById(id);
-            }
-        }
+        // Always read from local storage first
+        // The background sync will handle updates
         return localPapers.getPaperById(id);
     },
 
@@ -388,23 +371,7 @@ export const papers = {
 
     // Additional API-only functions
     async searchPapers(query, options) {
-        if (shouldUseCloudSync()) {
-            try {
-                const result = await apiPapers.searchPapers(query, options);
-                return result.papers || [];
-            } catch (error) {
-                console.error('Cloud search failed, falling back to local:', error);
-                // Fall back to local search if available
-                const allPapers = await localPapers.getAllPapers();
-                const lowerQuery = query.toLowerCase();
-                return allPapers.filter(paper => 
-                    paper.title?.toLowerCase().includes(lowerQuery) ||
-                    paper.authors?.some(a => a.toLowerCase().includes(lowerQuery)) ||
-                    paper.notes?.toLowerCase().includes(lowerQuery)
-                );
-            }
-        }
-        // Local search
+        // Always perform local search for instant results
         const allPapers = await localPapers.getAllPapers();
         const lowerQuery = query.toLowerCase();
         return allPapers.filter(paper => 
@@ -488,26 +455,15 @@ export const collections = {
     },
 
     async getAllCollections() {
-        if (canAttemptCloudSync()) {
-            try {
-                return await apiCollections.getAllCollections();
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                return localCollections.getAllCollections();
-            }
+        // Always read from local storage first for immediate UI feedback
+        if (shouldUseCloudSync() && !isRateLimited()) {
+            triggerDebouncedSync();
         }
         return localCollections.getAllCollections();
     },
 
     async getCollectionById(id) {
-        if (canAttemptCloudSync()) {
-            try {
-                return await apiCollections.getCollection(id);
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                return localCollections.getCollectionById(id);
-            }
-        }
+        // Always read from local storage first
         return localCollections.getCollectionById(id);
     },
 
@@ -624,26 +580,12 @@ export const annotations = {
     },
 
     async getAnnotationsByPaperId(paperId) {
-        if (shouldUseCloudSync()) {
-            try {
-                return await apiAnnotations.getAnnotations(paperId);
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                return localAnnotations.getAnnotationsByPaperId(paperId);
-            }
-        }
+        // Always read from local storage first
         return localAnnotations.getAnnotationsByPaperId(paperId);
     },
 
     async getAnnotationById(id) {
-        if (shouldUseCloudSync()) {
-            try {
-                return await apiAnnotations.getAnnotation(id);
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                return localAnnotations.getAnnotationById(id);
-            }
-        }
+        // Always read from local storage first
         return localAnnotations.getAnnotationById(id);
     },
 
