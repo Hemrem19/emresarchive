@@ -35,7 +35,7 @@ export const graphView = `
                         </select>
 
                         <!-- Generate Network Button -->
-                        <button id="generate-network-btn" class="h-10 px-4 bg-primary text-white hover:bg-primary/90 rounded-lg transition-colors">Generate Network</button>
+                        <button id="graph-generate-btn" class="h-10 px-4 bg-primary text-white hover:bg-primary/90 rounded-lg transition-colors">Generate Network</button>
                     </div>
                 </div>
                             
