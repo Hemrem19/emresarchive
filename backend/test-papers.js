@@ -108,9 +108,9 @@ async function makeRequest(method, url, data = null, token = null) {
     return { status: response.status, data: result };
   } catch (error) {
     if (error.code === 'ECONNREFUSED' || error.message.includes('fetch failed')) {
-      return { 
-        status: 0, 
-        error: `Connection refused. Is the server running at ${API_URL}? Error: ${error.message}` 
+      return {
+        status: 0,
+        error: `Connection refused. Is the server running at ${API_URL}? Error: ${error.message}`
       };
     }
     return { status: 0, error: error.message };
@@ -139,9 +139,9 @@ async function checkServer() {
 // Authentication Tests
 async function testRegister() {
   logTest('User Registration');
-  
+
   const { status, data, error } = await makeRequest('POST', `${AUTH_URL}/register`, testUser);
-  
+
   if (status === 201 && data.success) {
     logSuccess('Registration successful!');
     log(`   User ID: ${data.data.user.id}`);
@@ -160,12 +160,12 @@ async function testRegister() {
 
 async function testLogin() {
   logTest('User Login');
-  
+
   const { status, data, error } = await makeRequest('POST', `${AUTH_URL}/login`, {
     email: testUser.email,
     password: testUser.password
   });
-  
+
   if (status === 200 && data.success) {
     logSuccess('Login successful!');
     log(`   User ID: ${data.data.user.id}`);
@@ -182,14 +182,14 @@ async function testLogin() {
 // Papers Tests
 async function testCreatePaper() {
   logTest('Create Paper');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('POST', PAPERS_URL, testPaper, accessToken);
-  
+
   if (status === 201 && data.success && data.data.paper) {
     logSuccess('Paper created successfully!');
     log(`   Paper ID: ${data.data.paper.id}`);
@@ -206,14 +206,14 @@ async function testCreatePaper() {
 
 async function testGetAllPapers() {
   logTest('Get All Papers');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', PAPERS_URL, null, accessToken);
-  
+
   if (status === 200 && data.success && Array.isArray(data.data.papers)) {
     logSuccess(`Retrieved ${data.data.papers.length} paper(s)!`);
     log(`   Pagination: ${data.data.pagination.page}/${data.data.pagination.totalPages}`);
@@ -226,14 +226,14 @@ async function testGetAllPapers() {
 
 async function testGetPaper() {
   logTest('Get Single Paper');
-  
+
   if (!accessToken || !paperId) {
     logError('No access token or paper ID. Run create paper first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', `${PAPERS_URL}/${paperId}`, null, accessToken);
-  
+
   if (status === 200 && data.success && data.data.paper) {
     logSuccess('Paper retrieved successfully!');
     log(`   Title: ${data.data.paper.title}`);
@@ -248,20 +248,20 @@ async function testGetPaper() {
 
 async function testUpdatePaper() {
   logTest('Update Paper');
-  
+
   if (!accessToken || !paperId) {
     logError('No access token or paper ID. Run create paper first.');
     return false;
   }
-  
+
   const updates = {
     title: 'Updated Test Paper Title',
     status: 'Reading',
     tags: ['machine-learning', 'ai', 'test', 'updated']
   };
-  
+
   const { status, data, error } = await makeRequest('PUT', `${PAPERS_URL}/${paperId}`, updates, accessToken);
-  
+
   if (status === 200 && data.success && data.data.paper) {
     logSuccess('Paper updated successfully!');
     log(`   New Title: ${data.data.paper.title}`);
@@ -278,14 +278,14 @@ async function testUpdatePaper() {
 
 async function testSearchPapers() {
   logTest('Search Papers');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', `${PAPERS_URL}/search?q=Test`, null, accessToken);
-  
+
   if (status === 200 && data.success && Array.isArray(data.data.papers)) {
     logSuccess(`Search returned ${data.data.papers.length} result(s)!`);
     return true;
@@ -297,14 +297,14 @@ async function testSearchPapers() {
 
 async function testFilterPapers() {
   logTest('Filter Papers by Status');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', `${PAPERS_URL}?status=Reading`, null, accessToken);
-  
+
   if (status === 200 && data.success && Array.isArray(data.data.papers)) {
     logSuccess(`Filter returned ${data.data.papers.length} paper(s) with status "Reading"!`);
     return true;
@@ -316,14 +316,14 @@ async function testFilterPapers() {
 
 async function testFilterByTag() {
   logTest('Filter Papers by Tag');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', `${PAPERS_URL}?tag=machine-learning`, null, accessToken);
-  
+
   if (status === 200 && data.success && Array.isArray(data.data.papers)) {
     logSuccess(`Filter returned ${data.data.papers.length} paper(s) with tag "machine-learning"!`);
     return true;
@@ -335,14 +335,14 @@ async function testFilterByTag() {
 
 async function testDeletePaper() {
   logTest('Delete Paper (Soft Delete)');
-  
+
   if (!accessToken || !paperId) {
     logError('No access token or paper ID. Run create paper first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('DELETE', `${PAPERS_URL}/${paperId}`, null, accessToken);
-  
+
   if (status === 200 && data.success) {
     logSuccess('Paper deleted successfully!');
     paperId = null; // Clear paper ID
@@ -355,14 +355,14 @@ async function testDeletePaper() {
 
 async function testGetDeletedPaper() {
   logTest('Get Deleted Paper (Should Return 404)');
-  
+
   if (!accessToken || !paperId) {
     logWarning('No paper ID (already deleted). Skipping.');
     return true;
   }
-  
+
   const { status, data } = await makeRequest('GET', `${PAPERS_URL}/${paperId}`, null, accessToken);
-  
+
   if (status === 404 && data.error?.message?.includes('not found')) {
     logSuccess('Deleted paper correctly returns 404');
     return true;
@@ -375,14 +375,14 @@ async function testGetDeletedPaper() {
 // Collections Tests
 async function testCreateCollection() {
   logTest('Create Collection');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('POST', COLLECTIONS_URL, testCollection, accessToken);
-  
+
   if (status === 201 && data.success && data.data.collection) {
     logSuccess('Collection created successfully!');
     log(`   Collection ID: ${data.data.collection.id}`);
@@ -399,14 +399,14 @@ async function testCreateCollection() {
 
 async function testGetAllCollections() {
   logTest('Get All Collections');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', COLLECTIONS_URL, null, accessToken);
-  
+
   if (status === 200 && data.success && Array.isArray(data.data.collections)) {
     logSuccess(`Retrieved ${data.data.collections.length} collection(s)!`);
     return true;
@@ -418,14 +418,14 @@ async function testGetAllCollections() {
 
 async function testGetCollection() {
   logTest('Get Single Collection');
-  
+
   if (!accessToken || !collectionId) {
     logError('No access token or collection ID. Run create collection first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', `${COLLECTIONS_URL}/${collectionId}`, null, accessToken);
-  
+
   if (status === 200 && data.success && data.data.collection) {
     logSuccess('Collection retrieved successfully!');
     log(`   Name: ${data.data.collection.name}`);
@@ -440,12 +440,12 @@ async function testGetCollection() {
 
 async function testUpdateCollection() {
   logTest('Update Collection');
-  
+
   if (!accessToken || !collectionId) {
     logError('No access token or collection ID. Run create collection first.');
     return false;
   }
-  
+
   const updates = {
     name: 'Updated Test Collection',
     icon: 'book',
@@ -456,9 +456,9 @@ async function testUpdateCollection() {
       searchTerm: 'test'
     }
   };
-  
+
   const { status, data, error } = await makeRequest('PUT', `${COLLECTIONS_URL}/${collectionId}`, updates, accessToken);
-  
+
   if (status === 200 && data.success && data.data.collection) {
     logSuccess('Collection updated successfully!');
     log(`   New Name: ${data.data.collection.name}`);
@@ -475,18 +475,18 @@ async function testUpdateCollection() {
 
 async function testCreateCollectionValidation() {
   logTest('Create Collection Validation (Missing Name)');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data } = await makeRequest('POST', COLLECTIONS_URL, {
     icon: 'folder'
     // Missing name
   }, accessToken);
-  
-  if (status === 400 && data.error?.details) {
+
+  if (status === 422 && data.error?.details) {
     logSuccess('Validation correctly rejected missing name');
     log(`   Validation errors: ${JSON.stringify(data.error.details, null, 2)}`);
     return true;
@@ -498,14 +498,14 @@ async function testCreateCollectionValidation() {
 
 async function testDeleteCollection() {
   logTest('Delete Collection (Soft Delete)');
-  
+
   if (!accessToken || !collectionId) {
     logError('No access token or collection ID. Run create collection first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('DELETE', `${COLLECTIONS_URL}/${collectionId}`, null, accessToken);
-  
+
   if (status === 200 && data.success) {
     logSuccess('Collection deleted successfully!');
     collectionId = null; // Clear collection ID
@@ -518,14 +518,14 @@ async function testDeleteCollection() {
 
 async function testGetDeletedCollection() {
   logTest('Get Deleted Collection (Should Return 404)');
-  
+
   if (!accessToken || !collectionId) {
     logWarning('No collection ID (already deleted). Skipping.');
     return true;
   }
-  
+
   const { status, data } = await makeRequest('GET', `${COLLECTIONS_URL}/${collectionId}`, null, accessToken);
-  
+
   if (status === 404 && data.error?.message?.includes('not found')) {
     logSuccess('Deleted collection correctly returns 404');
     return true;
@@ -538,14 +538,14 @@ async function testGetDeletedCollection() {
 // Annotations Tests
 async function testCreateAnnotation() {
   logTest('Create Annotation');
-  
+
   if (!accessToken || !paperId) {
     logError('No access token or paper ID. Run create paper first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('POST', `${PAPERS_URL}/${paperId}/annotations`, testAnnotation, accessToken);
-  
+
   if (status === 201 && data.success && data.data.annotation) {
     logSuccess('Annotation created successfully!');
     log(`   Annotation ID: ${data.data.annotation.id}`);
@@ -563,14 +563,14 @@ async function testCreateAnnotation() {
 
 async function testGetAnnotations() {
   logTest('Get Annotations for Paper');
-  
+
   if (!accessToken || !paperId) {
     logError('No access token or paper ID. Run create paper first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', `${PAPERS_URL}/${paperId}/annotations`, null, accessToken);
-  
+
   if (status === 200 && data.success && Array.isArray(data.data.annotations)) {
     logSuccess(`Retrieved ${data.data.annotations.length} annotation(s)!`);
     return true;
@@ -582,14 +582,14 @@ async function testGetAnnotations() {
 
 async function testGetAnnotation() {
   logTest('Get Single Annotation');
-  
+
   if (!accessToken || !annotationId) {
     logError('No access token or annotation ID. Run create annotation first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('GET', `${ANNOTATIONS_URL}/${annotationId}`, null, accessToken);
-  
+
   if (status === 200 && data.success && data.data.annotation) {
     logSuccess('Annotation retrieved successfully!');
     log(`   Type: ${data.data.annotation.type}`);
@@ -604,19 +604,19 @@ async function testGetAnnotation() {
 
 async function testUpdateAnnotation() {
   logTest('Update Annotation');
-  
+
   if (!accessToken || !annotationId) {
     logError('No access token or annotation ID. Run create annotation first.');
     return false;
   }
-  
+
   const updates = {
     color: 'blue',
     content: 'Updated highlighted text'
   };
-  
+
   const { status, data, error } = await makeRequest('PUT', `${ANNOTATIONS_URL}/${annotationId}`, updates, accessToken);
-  
+
   if (status === 200 && data.success && data.data.annotation) {
     logSuccess('Annotation updated successfully!');
     log(`   New Color: ${data.data.annotation.color}`);
@@ -632,18 +632,18 @@ async function testUpdateAnnotation() {
 
 async function testCreateAnnotationValidation() {
   logTest('Create Annotation Validation (Missing Type)');
-  
+
   if (!accessToken || !paperId) {
     logError('No access token or paper ID. Run create paper first.');
     return false;
   }
-  
+
   const { status, data } = await makeRequest('POST', `${PAPERS_URL}/${paperId}/annotations`, {
     pageNumber: 1
     // Missing type
   }, accessToken);
-  
-  if (status === 400 && data.error?.details) {
+
+  if (status === 422 && data.error?.details) {
     logSuccess('Validation correctly rejected missing type');
     log(`   Validation errors: ${JSON.stringify(data.error.details, null, 2)}`);
     return true;
@@ -655,14 +655,14 @@ async function testCreateAnnotationValidation() {
 
 async function testDeleteAnnotation() {
   logTest('Delete Annotation (Soft Delete)');
-  
+
   if (!accessToken || !annotationId) {
     logError('No access token or annotation ID. Run create annotation first.');
     return false;
   }
-  
+
   const { status, data, error } = await makeRequest('DELETE', `${ANNOTATIONS_URL}/${annotationId}`, null, accessToken);
-  
+
   if (status === 200 && data.success) {
     logSuccess('Annotation deleted successfully!');
     annotationId = null; // Clear annotation ID
@@ -675,14 +675,14 @@ async function testDeleteAnnotation() {
 
 async function testGetDeletedAnnotation() {
   logTest('Get Deleted Annotation (Should Return 404)');
-  
+
   if (!accessToken || !annotationId) {
     logWarning('No annotation ID (already deleted). Skipping.');
     return true;
   }
-  
+
   const { status, data } = await makeRequest('GET', `${ANNOTATIONS_URL}/${annotationId}`, null, accessToken);
-  
+
   if (status === 404 && data.error?.message?.includes('not found')) {
     logSuccess('Deleted annotation correctly returns 404');
     return true;
@@ -694,18 +694,18 @@ async function testGetDeletedAnnotation() {
 
 async function testCreatePaperValidation() {
   logTest('Create Paper Validation (Missing Title)');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   const { status, data } = await makeRequest('POST', PAPERS_URL, {
     authors: ['John Doe']
     // Missing title
   }, accessToken);
-  
-  if (status === 400 && data.error?.details) {
+
+  if (status === 422 && data.error?.details) {
     logSuccess('Validation correctly rejected missing title');
     log(`   Validation errors: ${JSON.stringify(data.error.details, null, 2)}`);
     return true;
@@ -717,33 +717,33 @@ async function testCreatePaperValidation() {
 
 async function testDuplicateDoi() {
   logTest('Create Paper with Duplicate DOI');
-  
+
   if (!accessToken) {
     logError('No access token. Run login/register first.');
     return false;
   }
-  
+
   // First, create a paper
   const firstPaper = await makeRequest('POST', PAPERS_URL, {
     ...testPaper,
     doi: `10.1234/duplicate-test-${Date.now()}`
   }, accessToken);
-  
+
   if (firstPaper.status !== 201) {
     logError('Failed to create first paper for duplicate test');
     return false;
   }
-  
+
   const firstDoi = firstPaper.data.data.paper.doi;
-  
+
   // Try to create another paper with same DOI
   const { status, data } = await makeRequest('POST', PAPERS_URL, {
     ...testPaper,
     title: 'Different Title',
     doi: firstDoi
   }, accessToken);
-  
-  if (status === 400 && data.error?.message?.includes('already exists')) {
+
+  if (status === 409 && data.error?.message?.includes('already exists')) {
     logSuccess('Duplicate DOI correctly rejected');
     return true;
   } else {
@@ -756,34 +756,34 @@ async function runAllTests() {
   log('\n🚀 Starting Authentication, Papers, Collections & Annotations API Tests\n');
   log(`API URL: ${API_URL}`);
   log(`Test User: ${testUser.email}\n`);
-  
+
   // Check if server is running
   const serverRunning = await checkServer();
   if (!serverRunning) {
     process.exit(1);
   }
-  
+
   const results = [];
-  
+
   // Authentication tests
   log('\n' + '='.repeat(50));
   log('📝 AUTHENTICATION TESTS', 'blue');
   log('='.repeat(50));
-  
+
   results.push({ name: 'Register', passed: await testRegister() });
-  
+
   if (!accessToken) {
     logWarning('Registration failed, trying login...');
     results.push({ name: 'Login', passed: await testLogin() });
   } else {
     results.push({ name: 'Login', passed: true }); // Skip if already registered
   }
-  
+
   // Papers tests
   log('\n' + '='.repeat(50));
   log('📄 PAPERS TESTS', 'blue');
   log('='.repeat(50));
-  
+
   results.push({ name: 'Create Paper', passed: await testCreatePaper() });
   results.push({ name: 'Get All Papers', passed: await testGetAllPapers() });
   results.push({ name: 'Get Single Paper', passed: await testGetPaper() });
@@ -795,12 +795,12 @@ async function runAllTests() {
   results.push({ name: 'Duplicate DOI Check', passed: await testDuplicateDoi() });
   results.push({ name: 'Delete Paper', passed: await testDeletePaper() });
   results.push({ name: 'Get Deleted Paper (404)', passed: await testGetDeletedPaper() });
-  
+
   // Collections tests
   log('\n' + '='.repeat(50));
   log('📁 COLLECTIONS TESTS', 'blue');
   log('='.repeat(50));
-  
+
   results.push({ name: 'Create Collection', passed: await testCreateCollection() });
   results.push({ name: 'Get All Collections', passed: await testGetAllCollections() });
   results.push({ name: 'Get Single Collection', passed: await testGetCollection() });
@@ -808,12 +808,12 @@ async function runAllTests() {
   results.push({ name: 'Create Collection Validation', passed: await testCreateCollectionValidation() });
   results.push({ name: 'Delete Collection', passed: await testDeleteCollection() });
   results.push({ name: 'Get Deleted Collection (404)', passed: await testGetDeletedCollection() });
-  
+
   // Annotations tests
   log('\n' + '='.repeat(50));
   log('📝 ANNOTATIONS TESTS', 'blue');
   log('='.repeat(50));
-  
+
   // Create a new paper first (needed for annotation tests)
   // The previous paper was deleted, so we need a fresh one
   logTest('Create Paper for Annotations');
@@ -835,7 +835,7 @@ async function runAllTests() {
     results.push({ name: 'Delete Annotation', passed: false });
     results.push({ name: 'Get Deleted Annotation (404)', passed: true }); // Skip is OK
   }
-  
+
   if (paperId) {
     results.push({ name: 'Create Annotation', passed: await testCreateAnnotation() });
     results.push({ name: 'Get Annotations for Paper', passed: await testGetAnnotations() });
@@ -845,14 +845,14 @@ async function runAllTests() {
     results.push({ name: 'Delete Annotation', passed: await testDeleteAnnotation() });
     results.push({ name: 'Get Deleted Annotation (404)', passed: await testGetDeletedAnnotation() });
   }
-  
+
   // Summary
   log('\n' + '='.repeat(50));
   log('\n📊 Test Results Summary\n', 'blue');
-  
+
   const passed = results.filter(r => r.passed).length;
   const total = results.length;
-  
+
   results.forEach(result => {
     if (result.passed) {
       logSuccess(`${result.name}`);
@@ -860,9 +860,9 @@ async function runAllTests() {
       logError(`${result.name}`);
     }
   });
-  
+
   log(`\n${passed}/${total} tests passed`);
-  
+
   if (passed === total) {
     log('\n🎉 All tests passed!', 'green');
     process.exit(0);

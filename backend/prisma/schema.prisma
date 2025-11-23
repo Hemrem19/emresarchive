@@ -84,18 +84,6 @@ model Paper {
   // Citation relationships
   citingPapers    PaperConnection[] @relation("CitingPapers")
   citedPapers     PaperConnection[] @relation("CitedPapers")
-  
-  // Citation metadata
-  citationCount   Int?      @map("citation_count")
-  referenceCount  Int?      @map("reference_count")
-  lastCitationSync DateTime? @map("last_citation_sync")
-  
-  @@unique([userId, doi]) // DOI must be unique per user (allows NULL doi)
-  @@index([userId])
-  @@index([userId, status])
-  @@index([doi])
-  @@index([userId, updatedAt])
-  @@index([deletedAt])
   @@map("papers")
 }
 

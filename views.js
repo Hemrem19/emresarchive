@@ -556,31 +556,6 @@ export const views = {
                         <!-- Status Filter -->
                         <select id="graph-status-filter" class="h-10 pl-3 pr-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-sm">
                             <option value="">All Status</option>
-                            <option value="Reading">Reading</option>
-                            <option value="To Read">To Read</option>
-                            <option value="Finished">Finished</option>
-                        </select>
-                        
-                        <!-- Tag Filter -->
-                <div class="mt-4 flex flex-wrap items-center gap-4 text-sm text-stone-600 dark:text-stone-400">
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">article</span>
-                        <span><span id="graph-node-count" class="font-semibold text-stone-900 dark:text-white">0</span> papers</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">link</span>
-                        <span><span id="graph-edge-count" class="font-semibold text-stone-900 dark:text-white">0</span> connections</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">visibility</span>
-                        <span><span id="graph-visible-count" class="font-semibold text-stone-900 dark:text-white">0</span> visible</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Graph Container -->
-            <div class="flex-grow relative bg-stone-50 dark:bg-stone-900/50">
-                <!-- Graph Canvas -->
                 <div id="graph-network" class="w-full h-full"></div>
                 
                 <!-- Zoom Controls (Floating) -->

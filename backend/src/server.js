@@ -241,7 +241,7 @@ app.use(cors({
 // Auth routes need higher limits because users might retry login attempts
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 login/register attempts per 15 minutes per IP
+  max: isDevelopment ? 1000 : 10, // 1000 in dev/test, 10 in production
   message: 'Too many authentication attempts from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -255,7 +255,7 @@ const authLimiter = rateLimit({
 // General API rate limiter (for all other routes)
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  max: isDevelopment ? 10000 : (parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100), // 10000 in dev/test, 100 in production
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -270,6 +270,7 @@ app.use('/api/auth', authLimiter);
 
 // Apply general rate limiter to all other API routes
 app.use('/api/', limiter);
+
 
 // Cookie parser (for refresh tokens)
 app.use(cookieParser());
