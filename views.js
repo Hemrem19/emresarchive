@@ -556,8 +556,25 @@ export const views = {
                         <!-- Status Filter -->
                         <select id="graph-status-filter" class="h-10 pl-3 pr-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-sm">
                             <option value="">All Status</option>
+                            <option value="To Read">To Read</option>
+                            <option value="Reading">Reading</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+
+                        <!-- Tag Filter -->
+                        <select id="graph-tag-filter" class="h-10 pl-3 pr-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-sm">
+                            <option value="">All Tags</option>
+                        </select>
+
+                        <!-- Generate Network Button -->
+                        <button id="generate-network-btn" class="h-10 px-4 bg-primary text-white hover:bg-primary/90 rounded-lg transition-colors">Generate Network</button>
+                    </div>
+                </div>
+                            
+            <!-- Graph Container -->
+            <div class="flex-grow relative bg-stone-50 dark:bg-stone-900/50">
                 <div id="graph-network" class="w-full h-full"></div>
-                
+
                 <!-- Zoom Controls (Floating) -->
                 <div class="absolute bottom-4 right-4 flex flex-col gap-2 bg-white dark:bg-stone-800 rounded-lg shadow-lg border border-stone-200 dark:border-stone-700 p-2">
                     <button id="graph-zoom-in" class="p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded transition-colors" title="Zoom In">
