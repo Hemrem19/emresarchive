@@ -1,6 +1,6 @@
 import { parseJsonResponse, withRateLimitCheck } from './utils.js';
 import { getAccessToken } from './auth.js';
-import { API_BASE_URL } from '../config.js';
+import { API_CONFIG } from '../config.js';
 
 /**
  * Generate a new paper network automatically
@@ -11,7 +11,7 @@ export async function generateNetwork() {
         const token = getAccessToken();
         if (!token) throw new Error('Authentication required');
 
-        const response = await fetch(`${API_BASE_URL}/api/networks/auto-generate`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/networks/auto-generate`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -38,7 +38,7 @@ export async function getNetwork(id) {
         const token = getAccessToken();
         if (!token) throw new Error('Authentication required');
 
-        const response = await fetch(`${API_BASE_URL}/api/networks/${id}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/networks/${id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -62,7 +62,7 @@ export async function getUserNetworks() {
         const token = getAccessToken();
         if (!token) throw new Error('Authentication required');
 
-        const response = await fetch(`${API_BASE_URL}/api/networks`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/networks`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
