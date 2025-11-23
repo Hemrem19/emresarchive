@@ -10,9 +10,6 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 
-// Load environment variables
-dotenv.config();
-
 // Import routes
 import authRoutes from './routes/auth.js';
 import papersRoutes from './routes/papers.js';
@@ -22,6 +19,7 @@ import syncRoutes from './routes/sync.js';
 import userRoutes from './routes/user.js';
 import importRoutes from './routes/import.js';
 import extensionRoutes from './routes/extension.js';
+import networkRoutes from './routes/network.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -314,6 +312,8 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/extension', extensionRoutes);
+console.log('Registering /api/networks routes...');
+app.use('/api/networks', networkRoutes);
 
 // 404 handler
 app.use(notFound);

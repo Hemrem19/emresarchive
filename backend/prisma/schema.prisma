@@ -35,6 +35,7 @@ model User {
   annotations     Annotation[]
   sessions        Session[]
   syncLogs        SyncLog[]
+  networkGraphs   NetworkGraph[]
   
   @@index([email])
   @@map("users")
@@ -79,6 +80,15 @@ model Paper {
   // Relations
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   annotations    Annotation[]
+  
+  // Citation relationships
+  citingPapers    PaperConnection[] @relation("CitingPapers")
+  citedPapers     PaperConnection[] @relation("CitedPapers")
+  
+  // Citation metadata
+  citationCount   Int?      @map("citation_count")
+  referenceCount  Int?      @map("reference_count")
+  lastCitationSync DateTime? @map("last_citation_sync")
   
   @@unique([userId, doi]) // DOI must be unique per user (allows NULL doi)
   @@index([userId])
@@ -180,3 +190,54 @@ model SyncLog {
   @@map("sync_logs")
 }
 
+// Paper Network Models
+
+model PaperConnection {
+  id            String   @id @default(cuid())
+  fromPaperId   Int      @map("from_paper_id")
+  toPaperId     Int      @map("to_paper_id")
+  connectionType String  @map("connection_type") // "cites" | "cited_by"
+  source        String   // "auto" | "manual" | "suggested"
+  confidence    Float?   @default(1.0) // For auto-detected (0-1)
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  fromPaper     Paper    @relation("CitingPapers", fields: [fromPaperId], references: [id], onDelete: Cascade)
+  toPaper       Paper    @relation("CitedPapers", fields: [toPaperId], references: [id], onDelete: Cascade)
+  
+  @@unique([fromPaperId, toPaperId, connectionType])
+  @@index([fromPaperId])
+  @@index([toPaperId])
+  @@map("paper_connections")
+}
+
+model CitationCache {
+  id            String   @id @default(cuid())
+  doi           String   @unique
+  apiSource     String   @map("api_source") // "semantic_scholar" | "openalex"
+  citationCount Int      @default(0) @map("citation_count")
+  referenceCount Int     @default(0) @map("reference_count")
+  rawData       Json     @map("raw_data") // Store full API response
+  lastFetched   DateTime @default(now()) @map("last_fetched")
+  expiresAt     DateTime @map("expires_at") // Cache for 90 days
+  
+  @@index([expiresAt])
+  @@map("citation_cache")
+}
+
+model NetworkGraph {
+  id          String   @id @default(cuid())
+  userId      Int      @map("user_id")
+  name        String
+  description String?
+  isAuto      Boolean  @default(false) @map("is_auto") // Auto-generated vs manual
+  nodeCount   Int      @default(0) @map("node_count")
+  edgeCount   Int      @default(0) @map("edge_count")
+  layout      Json?    // Store node positions
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("network_graphs")
+}

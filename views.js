@@ -529,7 +529,7 @@ export const views = {
                 </div>
             </div>
         </div>`,
-    
+
     graph: `
         <div class="flex-grow flex flex-col h-full">
             <!-- Graph Header -->
@@ -562,20 +562,6 @@ export const views = {
                         </select>
                         
                         <!-- Tag Filter -->
-                        <select id="graph-tag-filter" class="h-10 pl-3 pr-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-sm">
-                            <option value="">All Tags</option>
-                            <!-- Tags will be populated dynamically -->
-                        </select>
-                        
-                        <!-- Reset Button -->
-                        <button id="graph-reset-btn" class="h-10 px-4 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium">
-                            <span class="material-symbols-outlined text-lg">refresh</span>
-                            <span class="hidden sm:inline">Reset View</span>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Stats Bar -->
                 <div class="mt-4 flex flex-wrap items-center gap-4 text-sm text-stone-600 dark:text-stone-400">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">article</span>
@@ -629,7 +615,7 @@ export const views = {
             </div>
         </div>
     `,
-    
+
     // Authentication Modal
     authModal: `
         <div id="auth-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
@@ -1091,5 +1077,5 @@ export const views = {
                 </div>
             </div>
         </div>
-    `   
+    `
 };

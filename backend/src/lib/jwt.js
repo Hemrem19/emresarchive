@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
  * Generate access token (short-lived)
  */
 export const generateAccessToken = (userId, email) => {
+  if (!process.env.JWT_ACCESS_SECRET) console.error('❌ JWT_ACCESS_SECRET is missing!');
   return jwt.sign(
     {
       userId,
@@ -44,6 +45,7 @@ export const generateRefreshToken = (userId, sessionId) => {
  */
 export const verifyAccessToken = (token) => {
   try {
+    if (!process.env.JWT_ACCESS_SECRET) console.error('❌ JWT_ACCESS_SECRET is missing during verify!');
     return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
