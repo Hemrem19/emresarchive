@@ -167,13 +167,22 @@ export const settingsView = `
                                     </div>
                                     <div id="pending-changes-display" class="text-xs text-gray-500 dark:text-gray-400"></div>
                                 </div>
-                                <div class="flex items-center gap-3 mt-2">
-                                    <button id="dedup-papers-btn" class="rounded-lg border border-primary bg-white px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary/5 dark:border-primary dark:bg-stone-800 dark:text-primary dark:hover:bg-primary/10 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title="Remove duplicate papers from local storage based on DOI">
-                                        <span class="material-symbols-outlined text-base">cleaning_services</span>
-                                        <span>Clean Up Duplicates</span>
-                                    </button>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">Remove duplicate papers with the same DOI from your local library.</p>
-                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
+                    <section>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Database Maintenance</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Clean up duplicate papers from your local library.</p>
+                            </div>
+                            <div class="flex flex-col gap-2 md:col-span-2">
+                                <button id="dedup-papers-btn" class="w-full md:w-auto rounded-lg border-2 border-primary bg-white px-5 py-3 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary/5 dark:border-primary dark:bg-stone-800 dark:text-primary dark:hover:bg-primary/10 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title="Remove duplicate papers with the same DOI or arXiv ID from your local library">
+                                    <span class="material-symbols-outlined text-lg">cleaning_services</span>
+                                    <span>Clean Up Duplicates</span>
+                                </button>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Scans your library and removes duplicate papers that share the same DOI or arXiv ID. Keeps the most recent version of each paper.</p>
                             </div>
                         </div>
                     </section>

@@ -15,6 +15,19 @@ export const settingsView = {
         this.setupImportExport(appState);
         this.setupCloudSync();
         this.setupDangerZone(appState);
+        
+        // Verify de-duplicate button exists after all setup
+        setTimeout(() => {
+            const dedupBtn = document.getElementById('dedup-papers-btn');
+            if (dedupBtn) {
+                console.log('✅ [Settings] De-duplicate button is present in DOM');
+                console.log('✅ [Settings] Button visibility:', window.getComputedStyle(dedupBtn).display);
+                console.log('✅ [Settings] Button position:', dedupBtn.getBoundingClientRect());
+            } else {
+                console.error('❌ [Settings] De-duplicate button NOT FOUND in DOM after mount!');
+                console.error('❌ [Settings] This means the HTML template is not being loaded correctly.');
+            }
+        }, 100);
     },
 
     unmount() {
@@ -97,7 +110,79 @@ export const settingsView = {
         const syncStatusDisplay = document.getElementById('sync-status-display');
         const pendingChangesDisplay = document.getElementById('pending-changes-display');
         
-        if (!toggle || !statusText) return;
+        if (!toggle || !statusText) {
+            console.warn('[Settings] Cloud sync toggle or status text not found');
+            return;
+        }
+        
+        // Setup de-duplicate button FIRST (before other sync setup)
+        const dedupBtn = document.getElementById('dedup-papers-btn');
+        if (dedupBtn) {
+            console.log('[Settings] De-duplicate button found, setting up event handler');
+            // Remove any existing listeners by cloning the button
+            const newDedupBtn = dedupBtn.cloneNode(true);
+            dedupBtn.parentNode.replaceChild(newDedupBtn, dedupBtn);
+            
+            newDedupBtn.addEventListener('click', async () => {
+                if (newDedupBtn.disabled) {
+                    console.log('[Settings] Button is disabled, ignoring click');
+                    return;
+                }
+                
+                console.log('[Settings] De-duplicate button clicked');
+                const originalHTML = newDedupBtn.innerHTML;
+                
+                try {
+                    newDedupBtn.disabled = true;
+                    newDedupBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">cleaning_services</span><span>Cleaning...</span>';
+                    
+                    showToast('Scanning for duplicate papers...', 'info', { duration: 3000 });
+                    console.log('[Settings] Starting de-duplication process...');
+                    
+                    const result = await deduplicateLocalPapers();
+                    console.log('[Settings] De-duplication result:', result);
+                    
+                    if (result.duplicatesRemoved > 0) {
+                        showToast(`Successfully removed ${result.duplicatesRemoved} duplicate paper(s)!`, 'success', {
+                            duration: 5000
+                        });
+                        // Refresh statistics
+                        await settingsView.setupStatistics();
+                        // Refresh dashboard if it's open
+                        const event = new CustomEvent('papersUpdated');
+                        window.dispatchEvent(event);
+                    } else {
+                        showToast('No duplicates found. Your library is clean!', 'success', {
+                            duration: 3000
+                        });
+                    }
+                } catch (error) {
+                    console.error('[Settings] De-duplication error:', error);
+                    console.error('[Settings] Error stack:', error.stack);
+                    showToast(error.message || 'Failed to clean up duplicates. Please check the console for details.', 'error', {
+                        duration: 5000
+                    });
+                } finally {
+                    newDedupBtn.disabled = false;
+                    newDedupBtn.innerHTML = originalHTML;
+                }
+            });
+        } else {
+            console.error('[Settings] De-duplicate button NOT FOUND in DOM! Check HTML template.');
+            // Try to find it after a delay (in case DOM isn't ready)
+            setTimeout(() => {
+                const retryBtn = document.getElementById('dedup-papers-btn');
+                if (retryBtn) {
+                    console.log('[Settings] Found button on retry, setting up handler');
+                    retryBtn.addEventListener('click', async () => {
+                        console.log('[Settings] De-duplicate clicked (retry handler)');
+                        // Same handler as above
+                    });
+                } else {
+                    console.error('[Settings] Button still not found after retry. Template may not be loaded correctly.');
+                }
+            }, 100);
+        }
 
         const updateSyncStatus = async () => {
             if (!syncControlsContainer || syncControlsContainer.classList.contains('hidden')) return;
@@ -314,57 +399,7 @@ export const settingsView = {
             });
         }
 
-        // Setup de-duplicate papers button
-        const dedupBtn = document.getElementById('dedup-papers-btn');
-        if (dedupBtn) {
-            console.log('[Settings] De-duplicate button found and ready');
-            dedupBtn.addEventListener('click', async () => {
-                if (dedupBtn.disabled) {
-                    console.log('[Settings] Button is disabled, ignoring click');
-                    return;
-                }
-                
-                console.log('[Settings] De-duplicate button clicked');
-                const originalHTML = dedupBtn.innerHTML;
-                
-                try {
-                    dedupBtn.disabled = true;
-                    dedupBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">cleaning_services</span><span>Cleaning...</span>';
-                    
-                    showToast('Scanning for duplicate papers...', 'info', { duration: 3000 });
-                    console.log('[Settings] Starting de-duplication process...');
-                    
-                    const result = await deduplicateLocalPapers();
-                    console.log('[Settings] De-duplication result:', result);
-                    
-                    if (result.duplicatesRemoved > 0) {
-                        showToast(`Successfully removed ${result.duplicatesRemoved} duplicate paper(s)!`, 'success', {
-                            duration: 5000
-                        });
-                        // Refresh statistics
-                        await settingsView.setupStatistics();
-                        // Refresh dashboard if it's open
-                        const event = new CustomEvent('papersUpdated');
-                        window.dispatchEvent(event);
-                    } else {
-                        showToast('No duplicates found. Your library is clean!', 'success', {
-                            duration: 3000
-                        });
-                    }
-                } catch (error) {
-                    console.error('[Settings] De-duplication error:', error);
-                    console.error('[Settings] Error stack:', error.stack);
-                    showToast(error.message || 'Failed to clean up duplicates. Please check the console for details.', 'error', {
-                        duration: 5000
-                    });
-                } finally {
-                    dedupBtn.disabled = false;
-                    dedupBtn.innerHTML = originalHTML;
-                }
-            });
-        } else {
-            console.warn('[Settings] De-duplicate button not found! Check if HTML template is correct.');
-        }
+        // De-duplicate button handler is set up at the beginning of setupCloudSync()
 
         // Update sync status periodically (every 60 seconds) when cloud sync is enabled
         // Reduced frequency to minimize API calls
