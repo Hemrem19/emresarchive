@@ -261,7 +261,6 @@ async function applyServerChanges(serverChanges) {
                         existingPaper = papersByDoi.get(normalizedDoi);
                         if (existingPaper.id !== localPaper.id) {
                             foundDuplicate = true;
-                            console.log(`[Sync De-dup] Found duplicate DOI "${localPaper.doi}". Keeping server ID ${localPaper.id}, removing local ID ${existingPaper.id}`);
                         }
                     }
                 }
@@ -275,7 +274,6 @@ async function applyServerChanges(serverChanges) {
                             existingPaper = papersByArxivId.get(normalizedArxiv);
                             if (existingPaper.id !== localPaper.id) {
                                 foundDuplicate = true;
-                                console.log(`[Sync De-dup] Found duplicate arXiv ID "${arxivId}". Keeping server ID ${localPaper.id}, removing local ID ${existingPaper.id}`);
                             }
                         }
                     }
@@ -630,7 +628,6 @@ export async function deduplicateLocalPapers() {
         
         getAllRequest.onsuccess = () => {
             const allPapers = getAllRequest.result || [];
-            console.log(`[De-dup] Scanning ${allPapers.length} papers for duplicates...`);
             
             const papersByDoi = new Map();
             const papersByArxivId = new Map();
@@ -688,7 +685,6 @@ export async function deduplicateLocalPapers() {
                     const toKeep = papers[0];
                     const toDelete = papers.slice(1);
                     
-                    console.log(`[De-dup] Found ${papers.length} papers with DOI "${normalizedDoi}". Keeping ID ${toKeep.id} ("${toKeep.title}"), removing ${toDelete.length} duplicate(s):`, toDelete.map(p => `ID ${p.id} ("${p.title}")`));
                     
                     toDelete.forEach(p => duplicatesToDelete.add(p.id));
                 }
@@ -704,7 +700,6 @@ export async function deduplicateLocalPapers() {
                     const toKeep = papers[0];
                     const toDelete = papers.slice(1);
                     
-                    console.log(`[De-dup] Found ${papers.length} papers with arXiv ID "${arxivId}". Keeping ID ${toKeep.id} ("${toKeep.title}"), removing ${toDelete.length} duplicate(s):`, toDelete.map(p => `ID ${p.id} ("${p.title}")`));
                     
                     toDelete.forEach(p => duplicatesToDelete.add(p.id));
                 }
@@ -713,18 +708,14 @@ export async function deduplicateLocalPapers() {
             const duplicatesArray = Array.from(duplicatesToDelete);
             
             if (duplicatesArray.length === 0) {
-                console.log('[De-dup] No duplicates found. Your library is clean!');
                 resolve({ duplicatesRemoved: 0 });
                 return;
             }
-            
-            console.log(`[De-dup] Found ${duplicatesArray.length} duplicate paper(s) to remove`);
             
             // Delete duplicates
             let deletedCount = 0;
             const deleteNext = () => {
                 if (deletedCount >= duplicatesArray.length) {
-                    console.log(`[De-dup] Successfully removed ${deletedCount} duplicate paper(s)`);
                     resolve({ duplicatesRemoved: deletedCount });
                     return;
                 }

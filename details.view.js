@@ -23,15 +23,6 @@ export const detailsView = {
             return;
         }
 
-        // Debug: Log paper state
-        console.log('[Details] Paper loaded:', {
-            id: paper.id,
-            hasPdf: paper.hasPdf,
-            hasS3Key: !!paper.s3Key,
-            s3Key: paper.s3Key,
-            hasPdfFile: !!paper.pdfFile,
-            hasPdfData: !!paper.pdfData
-        });
 
         // If paper has s3Key but no pdfFile, download PDF from S3/R2
         // Note: We don't download on mount to avoid blocking - download when PDF tab is clicked instead
@@ -85,7 +76,7 @@ export const detailsView = {
                                 <span>Edit</span>
                             </a>
                         </div>
-                        <p class="text-sm text-stone-600 dark:text-stone-400">${escapeHtml(paper.authors.join(', '))}</p>
+                        <p class="text-sm text-stone-600 dark:text-stone-400">${escapeHtml((paper.authors && Array.isArray(paper.authors) ? paper.authors.join(', ') : 'Unknown Author'))}</p>
                     </div>
                     <div class="space-y-3 text-sm">
                         <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Journal:</span><span class="text-stone-700 dark:text-stone-300 text-right">${escapeHtml(paper.journal || 'N/A')}</span></div>

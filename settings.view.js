@@ -16,18 +16,6 @@ export const settingsView = {
         this.setupCloudSync();
         this.setupDangerZone(appState);
         
-        // Verify de-duplicate button exists after all setup
-        setTimeout(() => {
-            const dedupBtn = document.getElementById('dedup-papers-btn');
-            if (dedupBtn) {
-                console.log('✅ [Settings] De-duplicate button is present in DOM');
-                console.log('✅ [Settings] Button visibility:', window.getComputedStyle(dedupBtn).display);
-                console.log('✅ [Settings] Button position:', dedupBtn.getBoundingClientRect());
-            } else {
-                console.error('❌ [Settings] De-duplicate button NOT FOUND in DOM after mount!');
-                console.error('❌ [Settings] This means the HTML template is not being loaded correctly.');
-            }
-        }, 100);
     },
 
     unmount() {
@@ -115,32 +103,21 @@ export const settingsView = {
             return;
         }
         
-        // Setup de-duplicate button FIRST (before other sync setup)
+        // Setup de-duplicate button
         const dedupBtn = document.getElementById('dedup-papers-btn');
         if (dedupBtn) {
-            console.log('[Settings] De-duplicate button found, setting up event handler');
-            // Remove any existing listeners by cloning the button
-            const newDedupBtn = dedupBtn.cloneNode(true);
-            dedupBtn.parentNode.replaceChild(newDedupBtn, dedupBtn);
-            
-            newDedupBtn.addEventListener('click', async () => {
-                if (newDedupBtn.disabled) {
-                    console.log('[Settings] Button is disabled, ignoring click');
-                    return;
-                }
+            dedupBtn.addEventListener('click', async () => {
+                if (dedupBtn.disabled) return;
                 
-                console.log('[Settings] De-duplicate button clicked');
-                const originalHTML = newDedupBtn.innerHTML;
+                const originalHTML = dedupBtn.innerHTML;
                 
                 try {
-                    newDedupBtn.disabled = true;
-                    newDedupBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">cleaning_services</span><span>Cleaning...</span>';
+                    dedupBtn.disabled = true;
+                    dedupBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">cleaning_services</span><span>Cleaning...</span>';
                     
                     showToast('Scanning for duplicate papers...', 'info', { duration: 3000 });
-                    console.log('[Settings] Starting de-duplication process...');
                     
                     const result = await deduplicateLocalPapers();
-                    console.log('[Settings] De-duplication result:', result);
                     
                     if (result.duplicatesRemoved > 0) {
                         showToast(`Successfully removed ${result.duplicatesRemoved} duplicate paper(s)!`, 'success', {
@@ -157,31 +134,15 @@ export const settingsView = {
                         });
                     }
                 } catch (error) {
-                    console.error('[Settings] De-duplication error:', error);
-                    console.error('[Settings] Error stack:', error.stack);
-                    showToast(error.message || 'Failed to clean up duplicates. Please check the console for details.', 'error', {
+                    console.error('De-duplication error:', error);
+                    showToast(error.message || 'Failed to clean up duplicates. Please try again.', 'error', {
                         duration: 5000
                     });
                 } finally {
-                    newDedupBtn.disabled = false;
-                    newDedupBtn.innerHTML = originalHTML;
+                    dedupBtn.disabled = false;
+                    dedupBtn.innerHTML = originalHTML;
                 }
             });
-        } else {
-            console.error('[Settings] De-duplicate button NOT FOUND in DOM! Check HTML template.');
-            // Try to find it after a delay (in case DOM isn't ready)
-            setTimeout(() => {
-                const retryBtn = document.getElementById('dedup-papers-btn');
-                if (retryBtn) {
-                    console.log('[Settings] Found button on retry, setting up handler');
-                    retryBtn.addEventListener('click', async () => {
-                        console.log('[Settings] De-duplicate clicked (retry handler)');
-                        // Same handler as above
-                    });
-                } else {
-                    console.error('[Settings] Button still not found after retry. Template may not be loaded correctly.');
-                }
-            }, 100);
         }
 
         const updateSyncStatus = async () => {
@@ -191,7 +152,6 @@ export const settingsView = {
             const { isRateLimited, getRateLimitRemainingTime } = await import('./api/utils.js');
             if (isRateLimited()) {
                 const remainingSeconds = Math.ceil(getRateLimitRemainingTime() / 1000);
-                console.log(`[Settings] Skipping sync status update - rate limited for ${remainingSeconds}s`);
                 return;
             }
             
