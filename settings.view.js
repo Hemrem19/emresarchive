@@ -317,9 +317,14 @@ export const settingsView = {
         // Setup de-duplicate papers button
         const dedupBtn = document.getElementById('dedup-papers-btn');
         if (dedupBtn) {
+            console.log('[Settings] De-duplicate button found and ready');
             dedupBtn.addEventListener('click', async () => {
-                if (dedupBtn.disabled) return;
+                if (dedupBtn.disabled) {
+                    console.log('[Settings] Button is disabled, ignoring click');
+                    return;
+                }
                 
+                console.log('[Settings] De-duplicate button clicked');
                 const originalHTML = dedupBtn.innerHTML;
                 
                 try {
@@ -327,8 +332,10 @@ export const settingsView = {
                     dedupBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">cleaning_services</span><span>Cleaning...</span>';
                     
                     showToast('Scanning for duplicate papers...', 'info', { duration: 3000 });
+                    console.log('[Settings] Starting de-duplication process...');
                     
                     const result = await deduplicateLocalPapers();
+                    console.log('[Settings] De-duplication result:', result);
                     
                     if (result.duplicatesRemoved > 0) {
                         showToast(`Successfully removed ${result.duplicatesRemoved} duplicate paper(s)!`, 'success', {
@@ -336,14 +343,18 @@ export const settingsView = {
                         });
                         // Refresh statistics
                         await settingsView.setupStatistics();
+                        // Refresh dashboard if it's open
+                        const event = new CustomEvent('papersUpdated');
+                        window.dispatchEvent(event);
                     } else {
                         showToast('No duplicates found. Your library is clean!', 'success', {
                             duration: 3000
                         });
                     }
                 } catch (error) {
-                    console.error('De-duplication error:', error);
-                    showToast(error.message || 'Failed to clean up duplicates. Please try again.', 'error', {
+                    console.error('[Settings] De-duplication error:', error);
+                    console.error('[Settings] Error stack:', error.stack);
+                    showToast(error.message || 'Failed to clean up duplicates. Please check the console for details.', 'error', {
                         duration: 5000
                     });
                 } finally {
@@ -351,6 +362,8 @@ export const settingsView = {
                     dedupBtn.innerHTML = originalHTML;
                 }
             });
+        } else {
+            console.warn('[Settings] De-duplicate button not found! Check if HTML template is correct.');
         }
 
         // Update sync status periodically (every 60 seconds) when cloud sync is enabled

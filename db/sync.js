@@ -230,56 +230,92 @@ async function applyServerChanges(serverChanges) {
         getAllRequest.onsuccess = () => {
             const existingPapers = getAllRequest.result || [];
             const papersByDoi = new Map();
+            const papersByArxivId = new Map();
             const papersById = new Map();
             
-            // Index existing papers by DOI and ID
+            // Index existing papers by DOI, arXiv ID, and ID
             for (const paper of existingPapers) {
                 papersById.set(paper.id, paper);
                 if (paper.doi) {
-                    papersByDoi.set(paper.doi, paper);
+                    const normalizedDoi = paper.doi.trim().toLowerCase();
+                    papersByDoi.set(normalizedDoi, paper);
+                }
+                // Check for arXiv ID
+                const arxivId = paper.arxivId || (paper.doi && paper.doi.includes('arXiv') ? paper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                if (arxivId) {
+                    const normalizedArxiv = arxivId.trim().toLowerCase();
+                    papersByArxivId.set(normalizedArxiv, paper);
                 }
             }
 
             // Process incoming papers
             for (const apiPaper of serverChanges.papers || []) {
                 const localPaper = mapPaperFromApi(apiPaper);
+                let foundDuplicate = false;
+                let existingPaper = null;
                 
                 // Check for DOI duplicate
-                if (localPaper.doi && papersByDoi.has(localPaper.doi)) {
-                    const existingPaper = papersByDoi.get(localPaper.doi);
-                    
-                    // If the incoming paper has a different ID, it's a duplicate
-                    if (existingPaper.id !== localPaper.id) {
-                        console.log(`[Sync De-dup] Found duplicate DOI ${localPaper.doi}. Keeping server ID ${localPaper.id}, removing local ID ${existingPaper.id}`);
-                        
-                        // Delete the old duplicate
-                        const deleteRequest = papersStore.delete(existingPaper.id);
-                        deleteRequest.onsuccess = () => {
-                            // Now add the new one
-                            const addRequest = papersStore.put(localPaper);
-                            addRequest.onsuccess = checkComplete;
-                            addRequest.onerror = () => {
-                                console.error(`Failed to apply server paper ${localPaper.id}:`, addRequest.error);
-                                checkComplete();
-                            };
-                        };
-                        deleteRequest.onerror = () => {
-                            console.error(`Failed to delete duplicate paper ${existingPaper.id}:`, deleteRequest.error);
-                            // Still try to add the new one
-                            const addRequest = papersStore.put(localPaper);
-                            addRequest.onsuccess = checkComplete;
-                            addRequest.onerror = () => {
-                                console.error(`Failed to apply server paper ${localPaper.id}:`, addRequest.error);
-                                checkComplete();
-                            };
-                        };
-                        
-                        // Update our tracking maps
-                        papersByDoi.set(localPaper.doi, localPaper);
-                        papersById.delete(existingPaper.id);
-                        papersById.set(localPaper.id, localPaper);
-                        continue;
+                if (localPaper.doi) {
+                    const normalizedDoi = localPaper.doi.trim().toLowerCase();
+                    if (papersByDoi.has(normalizedDoi)) {
+                        existingPaper = papersByDoi.get(normalizedDoi);
+                        if (existingPaper.id !== localPaper.id) {
+                            foundDuplicate = true;
+                            console.log(`[Sync De-dup] Found duplicate DOI "${localPaper.doi}". Keeping server ID ${localPaper.id}, removing local ID ${existingPaper.id}`);
+                        }
                     }
+                }
+                
+                // Check for arXiv ID duplicate if not found by DOI
+                if (!foundDuplicate) {
+                    const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                    if (arxivId) {
+                        const normalizedArxiv = arxivId.trim().toLowerCase();
+                        if (papersByArxivId.has(normalizedArxiv)) {
+                            existingPaper = papersByArxivId.get(normalizedArxiv);
+                            if (existingPaper.id !== localPaper.id) {
+                                foundDuplicate = true;
+                                console.log(`[Sync De-dup] Found duplicate arXiv ID "${arxivId}". Keeping server ID ${localPaper.id}, removing local ID ${existingPaper.id}`);
+                            }
+                        }
+                    }
+                }
+                
+                // If duplicate found, delete old and add new
+                if (foundDuplicate && existingPaper) {
+                    // Delete the old duplicate
+                    const deleteRequest = papersStore.delete(existingPaper.id);
+                    deleteRequest.onsuccess = () => {
+                        // Now add the new one
+                        const addRequest = papersStore.put(localPaper);
+                        addRequest.onsuccess = checkComplete;
+                        addRequest.onerror = () => {
+                            console.error(`Failed to apply server paper ${localPaper.id}:`, addRequest.error);
+                            checkComplete();
+                        };
+                    };
+                    deleteRequest.onerror = () => {
+                        console.error(`Failed to delete duplicate paper ${existingPaper.id}:`, deleteRequest.error);
+                        // Still try to add the new one
+                        const addRequest = papersStore.put(localPaper);
+                        addRequest.onsuccess = checkComplete;
+                        addRequest.onerror = () => {
+                            console.error(`Failed to apply server paper ${localPaper.id}:`, addRequest.error);
+                            checkComplete();
+                        };
+                    };
+                    
+                    // Update our tracking maps
+                    if (localPaper.doi) {
+                        papersByDoi.set(localPaper.doi.trim().toLowerCase(), localPaper);
+                    }
+                    const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                    if (arxivId) {
+                        papersByArxivId.set(arxivId.trim().toLowerCase(), localPaper);
+                    }
+                    papersById.delete(existingPaper.id);
+                    papersById.set(localPaper.id, localPaper);
+                    continue;
                 }
                 
                 // No duplicate detected, just add/update the paper
@@ -292,7 +328,11 @@ async function applyServerChanges(serverChanges) {
                 
                 // Update our tracking maps
                 if (localPaper.doi) {
-                    papersByDoi.set(localPaper.doi, localPaper);
+                    papersByDoi.set(localPaper.doi.trim().toLowerCase(), localPaper);
+                }
+                const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                if (arxivId) {
+                    papersByArxivId.set(arxivId.trim().toLowerCase(), localPaper);
                 }
                 papersById.set(localPaper.id, localPaper);
             }
@@ -590,23 +630,56 @@ export async function deduplicateLocalPapers() {
         
         getAllRequest.onsuccess = () => {
             const allPapers = getAllRequest.result || [];
-            const papersByDoi = new Map();
-            const duplicatesToDelete = [];
+            console.log(`[De-dup] Scanning ${allPapers.length} papers for duplicates...`);
             
-            // Group papers by DOI
+            const papersByDoi = new Map();
+            const papersByArxivId = new Map();
+            const duplicatesToDelete = new Set(); // Use Set to avoid duplicate IDs
+            
+            // Helper function to normalize DOI (remove URL prefixes, lowercase, trim)
+            const normalizeDoi = (doi) => {
+                if (!doi) return null;
+                return doi
+                    .replace(/^https?:\/\/(dx\.)?doi\.org\//i, '') // Remove doi.org URL prefix
+                    .replace(/^doi:/i, '') // Remove "doi:" prefix
+                    .trim()
+                    .toLowerCase();
+            };
+            
+            // Helper function to extract arXiv ID
+            const extractArxivId = (paper) => {
+                if (paper.arxivId) {
+                    return paper.arxivId.trim().toLowerCase();
+                }
+                if (paper.doi) {
+                    const match = paper.doi.match(/arxiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i);
+                    if (match) return match[1].trim().toLowerCase();
+                }
+                return null;
+            };
+            
+            // Group papers by DOI and arXiv ID
             for (const paper of allPapers) {
-                if (!paper.doi) {
-                    continue; // Skip papers without DOI
+                const normalizedDoi = normalizeDoi(paper.doi);
+                if (normalizedDoi) {
+                    if (!papersByDoi.has(normalizedDoi)) {
+                        papersByDoi.set(normalizedDoi, []);
+                    }
+                    papersByDoi.get(normalizedDoi).push(paper);
                 }
                 
-                if (!papersByDoi.has(paper.doi)) {
-                    papersByDoi.set(paper.doi, []);
+                // Also check for arXiv ID
+                const arxivId = extractArxivId(paper);
+                if (arxivId) {
+                    if (!papersByArxivId.has(arxivId)) {
+                        papersByArxivId.set(arxivId, []);
+                    }
+                    papersByArxivId.get(arxivId).push(paper);
                 }
-                papersByDoi.get(paper.doi).push(paper);
             }
             
-            // Find duplicates (DOI with more than one paper)
-            for (const [doi, papers] of papersByDoi.entries()) {
+            // Find duplicates by DOI
+            for (const [normalizedDoi, papers] of papersByDoi.entries()) {
                 if (papers.length > 1) {
                     // Sort by ID (highest first - most recent)
                     papers.sort((a, b) => b.id - a.id);
@@ -615,28 +688,48 @@ export async function deduplicateLocalPapers() {
                     const toKeep = papers[0];
                     const toDelete = papers.slice(1);
                     
-                    console.log(`[De-dup] Found ${papers.length} papers with DOI ${doi}. Keeping ID ${toKeep.id}, removing ${toDelete.length} duplicate(s)`);
+                    console.log(`[De-dup] Found ${papers.length} papers with DOI "${normalizedDoi}". Keeping ID ${toKeep.id} ("${toKeep.title}"), removing ${toDelete.length} duplicate(s):`, toDelete.map(p => `ID ${p.id} ("${p.title}")`));
                     
-                    duplicatesToDelete.push(...toDelete.map(p => p.id));
+                    toDelete.forEach(p => duplicatesToDelete.add(p.id));
                 }
             }
             
-            if (duplicatesToDelete.length === 0) {
-                console.log('[De-dup] No duplicates found');
+            // Find duplicates by arXiv ID
+            for (const [arxivId, papers] of papersByArxivId.entries()) {
+                if (papers.length > 1) {
+                    // Sort by ID (highest first - most recent)
+                    papers.sort((a, b) => b.id - a.id);
+                    
+                    // Keep the first (highest ID), mark the rest for deletion
+                    const toKeep = papers[0];
+                    const toDelete = papers.slice(1);
+                    
+                    console.log(`[De-dup] Found ${papers.length} papers with arXiv ID "${arxivId}". Keeping ID ${toKeep.id} ("${toKeep.title}"), removing ${toDelete.length} duplicate(s):`, toDelete.map(p => `ID ${p.id} ("${p.title}")`));
+                    
+                    toDelete.forEach(p => duplicatesToDelete.add(p.id));
+                }
+            }
+            
+            const duplicatesArray = Array.from(duplicatesToDelete);
+            
+            if (duplicatesArray.length === 0) {
+                console.log('[De-dup] No duplicates found. Your library is clean!');
                 resolve({ duplicatesRemoved: 0 });
                 return;
             }
             
+            console.log(`[De-dup] Found ${duplicatesArray.length} duplicate paper(s) to remove`);
+            
             // Delete duplicates
             let deletedCount = 0;
             const deleteNext = () => {
-                if (deletedCount >= duplicatesToDelete.length) {
+                if (deletedCount >= duplicatesArray.length) {
                     console.log(`[De-dup] Successfully removed ${deletedCount} duplicate paper(s)`);
                     resolve({ duplicatesRemoved: deletedCount });
                     return;
                 }
                 
-                const idToDelete = duplicatesToDelete[deletedCount];
+                const idToDelete = duplicatesArray[deletedCount];
                 const deleteRequest = papersStore.delete(idToDelete);
                 
                 deleteRequest.onsuccess = () => {

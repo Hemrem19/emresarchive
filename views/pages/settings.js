@@ -163,13 +163,16 @@ export const settingsView = `
                                             <span class="material-symbols-outlined text-base">sync</span>
                                             <span>Sync Now</span>
                                         </button>
-                                        <button id="dedup-papers-btn" class="rounded-lg border border-primary bg-white px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary/5 dark:border-primary dark:bg-stone-800 dark:text-primary dark:hover:bg-primary/10 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title="Remove duplicate papers from local storage">
-                                            <span class="material-symbols-outlined text-base">cleaning_services</span>
-                                            <span>Clean Up Duplicates</span>
-                                        </button>
                                         <div id="sync-status-display" class="text-xs text-gray-600 dark:text-gray-400"></div>
                                     </div>
                                     <div id="pending-changes-display" class="text-xs text-gray-500 dark:text-gray-400"></div>
+                                </div>
+                                <div class="flex items-center gap-3 mt-2">
+                                    <button id="dedup-papers-btn" class="rounded-lg border border-primary bg-white px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary/5 dark:border-primary dark:bg-stone-800 dark:text-primary dark:hover:bg-primary/10 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title="Remove duplicate papers from local storage based on DOI">
+                                        <span class="material-symbols-outlined text-base">cleaning_services</span>
+                                        <span>Clean Up Duplicates</span>
+                                    </button>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Remove duplicate papers with the same DOI from your local library.</p>
                                 </div>
                             </div>
                         </div>
