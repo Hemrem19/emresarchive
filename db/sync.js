@@ -224,16 +224,92 @@ async function applyServerChanges(serverChanges) {
             }
         };
 
-        // Apply paper changes
-        for (const apiPaper of serverChanges.papers || []) {
-            const localPaper = mapPaperFromApi(apiPaper);
-            const request = papersStore.put(localPaper);
-            request.onsuccess = checkComplete;
-            request.onerror = () => {
-                console.error(`Failed to apply server paper ${localPaper.id}:`, request.error);
-                checkComplete(); // Continue with other operations
-            };
-        }
+        // Apply paper changes with de-duplication
+        // First, collect all existing papers to check for DOI duplicates
+        const getAllRequest = papersStore.getAll();
+        getAllRequest.onsuccess = () => {
+            const existingPapers = getAllRequest.result || [];
+            const papersByDoi = new Map();
+            const papersById = new Map();
+            
+            // Index existing papers by DOI and ID
+            for (const paper of existingPapers) {
+                papersById.set(paper.id, paper);
+                if (paper.doi) {
+                    papersByDoi.set(paper.doi, paper);
+                }
+            }
+
+            // Process incoming papers
+            for (const apiPaper of serverChanges.papers || []) {
+                const localPaper = mapPaperFromApi(apiPaper);
+                
+                // Check for DOI duplicate
+                if (localPaper.doi && papersByDoi.has(localPaper.doi)) {
+                    const existingPaper = papersByDoi.get(localPaper.doi);
+                    
+                    // If the incoming paper has a different ID, it's a duplicate
+                    if (existingPaper.id !== localPaper.id) {
+                        console.log(`[Sync De-dup] Found duplicate DOI ${localPaper.doi}. Keeping server ID ${localPaper.id}, removing local ID ${existingPaper.id}`);
+                        
+                        // Delete the old duplicate
+                        const deleteRequest = papersStore.delete(existingPaper.id);
+                        deleteRequest.onsuccess = () => {
+                            // Now add the new one
+                            const addRequest = papersStore.put(localPaper);
+                            addRequest.onsuccess = checkComplete;
+                            addRequest.onerror = () => {
+                                console.error(`Failed to apply server paper ${localPaper.id}:`, addRequest.error);
+                                checkComplete();
+                            };
+                        };
+                        deleteRequest.onerror = () => {
+                            console.error(`Failed to delete duplicate paper ${existingPaper.id}:`, deleteRequest.error);
+                            // Still try to add the new one
+                            const addRequest = papersStore.put(localPaper);
+                            addRequest.onsuccess = checkComplete;
+                            addRequest.onerror = () => {
+                                console.error(`Failed to apply server paper ${localPaper.id}:`, addRequest.error);
+                                checkComplete();
+                            };
+                        };
+                        
+                        // Update our tracking maps
+                        papersByDoi.set(localPaper.doi, localPaper);
+                        papersById.delete(existingPaper.id);
+                        papersById.set(localPaper.id, localPaper);
+                        continue;
+                    }
+                }
+                
+                // No duplicate detected, just add/update the paper
+                const request = papersStore.put(localPaper);
+                request.onsuccess = checkComplete;
+                request.onerror = () => {
+                    console.error(`Failed to apply server paper ${localPaper.id}:`, request.error);
+                    checkComplete(); // Continue with other operations
+                };
+                
+                // Update our tracking maps
+                if (localPaper.doi) {
+                    papersByDoi.set(localPaper.doi, localPaper);
+                }
+                papersById.set(localPaper.id, localPaper);
+            }
+        };
+        getAllRequest.onerror = () => {
+            console.error('Failed to get existing papers for de-duplication:', getAllRequest.error);
+            // Fallback to simple put without de-dup
+            for (const apiPaper of serverChanges.papers || []) {
+                const localPaper = mapPaperFromApi(apiPaper);
+                const request = papersStore.put(localPaper);
+                request.onsuccess = checkComplete;
+                request.onerror = () => {
+                    console.error(`Failed to apply server paper ${localPaper.id}:`, request.error);
+                    checkComplete();
+                };
+            }
+        };
 
         // Apply collection changes
         for (const apiCollection of serverChanges.collections || []) {
@@ -496,6 +572,97 @@ export async function performSync() {
         // Clean up sync start time
         localStorage.removeItem('citavers_sync_start_time');
     }
+}
+
+/**
+ * Cleans up duplicate papers in local IndexedDB based on DOI.
+ * Keeps the paper with the highest ID (most recent) and removes older duplicates.
+ * @returns {Promise<Object>} Cleanup result with counts of duplicates removed.
+ */
+export async function deduplicateLocalPapers() {
+    const database = await openDB();
+    
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
+        const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
+        
+        const getAllRequest = papersStore.getAll();
+        
+        getAllRequest.onsuccess = () => {
+            const allPapers = getAllRequest.result || [];
+            const papersByDoi = new Map();
+            const duplicatesToDelete = [];
+            
+            // Group papers by DOI
+            for (const paper of allPapers) {
+                if (!paper.doi) {
+                    continue; // Skip papers without DOI
+                }
+                
+                if (!papersByDoi.has(paper.doi)) {
+                    papersByDoi.set(paper.doi, []);
+                }
+                papersByDoi.get(paper.doi).push(paper);
+            }
+            
+            // Find duplicates (DOI with more than one paper)
+            for (const [doi, papers] of papersByDoi.entries()) {
+                if (papers.length > 1) {
+                    // Sort by ID (highest first - most recent)
+                    papers.sort((a, b) => b.id - a.id);
+                    
+                    // Keep the first (highest ID), mark the rest for deletion
+                    const toKeep = papers[0];
+                    const toDelete = papers.slice(1);
+                    
+                    console.log(`[De-dup] Found ${papers.length} papers with DOI ${doi}. Keeping ID ${toKeep.id}, removing ${toDelete.length} duplicate(s)`);
+                    
+                    duplicatesToDelete.push(...toDelete.map(p => p.id));
+                }
+            }
+            
+            if (duplicatesToDelete.length === 0) {
+                console.log('[De-dup] No duplicates found');
+                resolve({ duplicatesRemoved: 0 });
+                return;
+            }
+            
+            // Delete duplicates
+            let deletedCount = 0;
+            const deleteNext = () => {
+                if (deletedCount >= duplicatesToDelete.length) {
+                    console.log(`[De-dup] Successfully removed ${deletedCount} duplicate paper(s)`);
+                    resolve({ duplicatesRemoved: deletedCount });
+                    return;
+                }
+                
+                const idToDelete = duplicatesToDelete[deletedCount];
+                const deleteRequest = papersStore.delete(idToDelete);
+                
+                deleteRequest.onsuccess = () => {
+                    deletedCount++;
+                    deleteNext();
+                };
+                
+                deleteRequest.onerror = () => {
+                    console.error(`[De-dup] Failed to delete paper ${idToDelete}:`, deleteRequest.error);
+                    deletedCount++; // Continue despite error
+                    deleteNext();
+                };
+            };
+            
+            deleteNext();
+        };
+        
+        getAllRequest.onerror = () => {
+            console.error('[De-dup] Failed to get papers:', getAllRequest.error);
+            reject(new Error('Failed to retrieve papers for de-duplication'));
+        };
+        
+        transaction.onerror = (event) => {
+            reject(new Error(`De-duplication transaction error: ${event.target.error}`));
+        };
+    });
 }
 
 /**

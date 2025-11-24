@@ -79,7 +79,8 @@ export {
     trackCollectionDeleted,
     trackAnnotationCreated,
     trackAnnotationUpdated,
-    trackAnnotationDeleted
+    trackAnnotationDeleted,
+    deduplicateLocalPapers
 } from './db/sync.js';
 
 // Cloud sync utility

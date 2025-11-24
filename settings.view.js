@@ -1,4 +1,4 @@
-import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi, performSync, performFullSync, performIncrementalSync, getSyncStatusInfo } from './db.js';
+import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi, performSync, performFullSync, performIncrementalSync, getSyncStatusInfo, deduplicateLocalPapers } from './db.js';
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
@@ -310,6 +310,45 @@ export const settingsView = {
                 } finally {
                     syncNowBtn.disabled = false;
                     await updateSyncStatus();
+                }
+            });
+        }
+
+        // Setup de-duplicate papers button
+        const dedupBtn = document.getElementById('dedup-papers-btn');
+        if (dedupBtn) {
+            dedupBtn.addEventListener('click', async () => {
+                if (dedupBtn.disabled) return;
+                
+                const originalHTML = dedupBtn.innerHTML;
+                
+                try {
+                    dedupBtn.disabled = true;
+                    dedupBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">cleaning_services</span><span>Cleaning...</span>';
+                    
+                    showToast('Scanning for duplicate papers...', 'info', { duration: 3000 });
+                    
+                    const result = await deduplicateLocalPapers();
+                    
+                    if (result.duplicatesRemoved > 0) {
+                        showToast(`Successfully removed ${result.duplicatesRemoved} duplicate paper(s)!`, 'success', {
+                            duration: 5000
+                        });
+                        // Refresh statistics
+                        await settingsView.setupStatistics();
+                    } else {
+                        showToast('No duplicates found. Your library is clean!', 'success', {
+                            duration: 3000
+                        });
+                    }
+                } catch (error) {
+                    console.error('De-duplication error:', error);
+                    showToast(error.message || 'Failed to clean up duplicates. Please try again.', 'error', {
+                        duration: 5000
+                    });
+                } finally {
+                    dedupBtn.disabled = false;
+                    dedupBtn.innerHTML = originalHTML;
                 }
             });
         }
