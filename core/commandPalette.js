@@ -1,7 +1,7 @@
 // core/commandPalette.js
 // Command Palette for Quick Navigation and Search
 
-import { views as templates } from '../views.js';
+import { views as templates } from '../views/index.js';
 import { getStatusOrder } from '../config.js';
 
 /**

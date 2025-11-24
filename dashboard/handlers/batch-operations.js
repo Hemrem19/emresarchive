@@ -5,7 +5,7 @@
 
 import { renderSidebarTags, showToast } from '../../ui.js';
 import { generateBibliography, exportBibliographyToFile, copyBibliographyToClipboard } from '../../citation.js';
-import { views as templates } from '../../views.js';
+import { views as templates } from '../../views/index.js';
 import { 
     executeBatchOperation, 
     updatePaperInCache, 
