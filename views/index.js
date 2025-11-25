@@ -7,6 +7,7 @@
 // Import page views
 import { homeView } from './pages/home.js';
 import { addView } from './pages/add.js';
+import { detailsView } from './pages/details.js';
 import { settingsView } from './pages/settings.js';
 import { graphView } from './pages/graph.js';
 
@@ -25,6 +26,7 @@ export const views = {
     // Pages
     home: homeView,
     add: addView,
+    details: detailsView,
     settings: settingsView,
     graph: graphView,
 
