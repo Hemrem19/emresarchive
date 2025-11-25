@@ -119,10 +119,15 @@ async function getPaperById(id) {
         request.onsuccess = (event) => {
             const paper = event.target.result;
             if (paper) {
-                // Add hasPdf flag
+                // Map pdfUrl to s3Key if s3Key doesn't exist (for compatibility)
+                if (paper.pdfUrl && !paper.s3Key) {
+                    paper.s3Key = paper.pdfUrl;
+                }
+                
+                // Add hasPdf flag based on all PDF sources (pdfData, s3Key, pdfUrl)
                 resolve({
                     ...paper,
-                    hasPdf: Boolean(paper.pdfData)
+                    hasPdf: !!(paper.pdfData || paper.s3Key || paper.pdfUrl)
                 });
             } else {
                 resolve(undefined);

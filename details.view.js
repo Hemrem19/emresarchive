@@ -607,8 +607,23 @@ export const detailsView = {
                             isAuth: isAuthenticated()
                         });
 
+                        // Ensure s3Key is set from pdfUrl if it exists (for compatibility)
+                        if (paper.pdfUrl && !paper.s3Key) {
+                            paper.s3Key = paper.pdfUrl;
+                        }
+                        
                         // Recalculate hasPdf based on actual data (fix for papers with hasPdf=true but no actual PDF)
                         const actuallyHasPdf = !!(paper.pdfFile || paper.s3Key || paper.pdfUrl);
+                        
+                        console.log('[Details] PDF availability check:', {
+                            hasPdfFile: !!paper.pdfFile,
+                            hasS3Key: !!paper.s3Key,
+                            hasPdfUrl: !!paper.pdfUrl,
+                            s3Key: paper.s3Key,
+                            pdfUrl: paper.pdfUrl,
+                            storedHasPdf: paper.hasPdf,
+                            actuallyHasPdf
+                        });
                         
                         if (paper.pdfFile) {
                             // Local PDF: load from Blob
