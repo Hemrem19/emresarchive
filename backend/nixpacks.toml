@@ -6,7 +6,8 @@ cmds = ["npm ci"]
 
 [phases.build]
 cmds = [
-  "npm run db:generate"
+  "npm run db:generate",
+  "npx prisma migrate deploy"
 ]
 
 [start]
