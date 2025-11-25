@@ -52,13 +52,13 @@ function canAttemptCloudSync() {
     if (!shouldUseCloudSync()) {
         return false;
     }
-    
+
     if (isRateLimited()) {
         const remainingSeconds = Math.ceil(getRateLimitRemainingTime() / 1000);
         console.log(`[Adapter] Skipping cloud sync - rate limited for ${remainingSeconds}s`);
         return false;
     }
-    
+
     return true;
 }
 
@@ -70,26 +70,26 @@ function canAttemptCloudSync() {
  */
 function mapPaperDataToApi(paperData) {
     const apiData = { ...paperData };
-    
+
     // Map readingStatus to status (API expects 'status')
     if (apiData.readingStatus) {
         apiData.status = apiData.readingStatus;
         delete apiData.readingStatus;
     }
-    
+
     // Map s3Key to pdfUrl (backend uses pdfUrl field)
     if (apiData.s3Key) {
         apiData.pdfUrl = apiData.s3Key;
         delete apiData.s3Key;
     }
-    
+
     // Remove fields that API doesn't expect
     delete apiData.pdfData; // PDFs are uploaded separately via S3
     delete apiData.hasPdf; // Backend determines this from pdfUrl existence
     delete apiData.pdfFile; // PDF files are not sent to API
     delete apiData.createdAt; // API sets this automatically
     delete apiData.id; // API generates IDs
-    
+
     return apiData;
 }
 
@@ -98,23 +98,23 @@ function mapPaperDataToApi(paperData) {
  */
 function mapPaperDataFromApi(apiPaper) {
     const localPaper = { ...apiPaper };
-    
+
     // Map status to readingStatus (local uses 'readingStatus')
     if (localPaper.status) {
         localPaper.readingStatus = localPaper.status;
         // Keep status too for compatibility
     }
-    
+
     // Map pdfUrl to s3Key (local uses s3Key field)
     if (localPaper.pdfUrl) {
         localPaper.s3Key = localPaper.pdfUrl;
         // Keep pdfUrl too for compatibility, but prefer s3Key
     }
-    
+
     // Set hasPdf based on pdfUrl/s3Key existence (derive from actual data, not stored field)
     // This ensures hasPdf is accurate even if backend doesn't have pdfUrl
     localPaper.hasPdf = !!(localPaper.s3Key || localPaper.pdfUrl || localPaper.pdfFile);
-    
+
     return localPaper;
 }
 
@@ -146,7 +146,7 @@ export const papers = {
                         processedData.hasPdf = false;
                     }
                 }
-                
+
                 // Map local format to API format
                 const apiData = mapPaperDataToApi(processedData);
                 const paper = await apiPapers.createPaper(apiData);
@@ -187,12 +187,12 @@ export const papers = {
     async getAllPapers() {
         // Always read from local storage first for immediate UI feedback
         // This ensures offline-first experience even when cloud sync is enabled
-        
+
         // Trigger background sync if needed to keep local data fresh
         if (shouldUseCloudSync() && !isRateLimited()) {
             triggerDebouncedSync();
         }
-        
+
         return localPapers.getAllPapers();
     },
 
@@ -209,81 +209,25 @@ export const papers = {
     },
 
     async updatePaper(id, updateData) {
-        if (canAttemptCloudSync()) {
-            try {
-                // Map local format to API format
-                const apiData = mapPaperDataToApi(updateData);
-                const paper = await apiPapers.updatePaper(id, apiData);
-                // Also update local
-                try {
-                    const localPaper = mapPaperDataFromApi(paper);
-                    await localPapers.updatePaper(id, localPaper);
-                } catch (localError) {
-                    // Ignore local update errors
-                }
-                // Trigger debounced sync after successful cloud operation
-                triggerDebouncedSync();
-                return paper.id;
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                const result = await localPapers.updatePaper(id, updateData);
-                // Track change for later sync
-                if (shouldUseCloudSync()) {
-                    const paper = await localPapers.getPaperById(id);
-                    trackPaperUpdated(id, updateData);
-                    // Trigger debounced sync after local fallback
-                    triggerDebouncedSync();
-                }
-                return result;
-            }
-        }
-        // Local-only mode: update and track for potential future sync
+        // Optimistic UI: Always update local storage first for immediate feedback
         const result = await localPapers.updatePaper(id, updateData);
-        if (isCloudSyncEnabled() && isAuthenticated()) {
+
+        // If cloud sync is enabled, track the change and trigger sync
+        if (shouldUseCloudSync()) {
             trackPaperUpdated(id, updateData);
-            // Trigger debounced sync for local-only changes
             triggerDebouncedSync();
         }
+
         return result;
     },
 
     async deletePaper(id) {
-        if (canAttemptCloudSync()) {
-            try {
-                await apiPapers.deletePaper(id);
-                // Also delete from local (in case it exists there)
-                try {
-                    await localPapers.deletePaper(id);
-                } catch (localError) {
-                    // Ignore local delete errors (paper might not exist locally)
-                }
-                // Trigger debounced sync after successful cloud operation
-                triggerDebouncedSync();
-                return;
-            } catch (error) {
-                // If paper not found on cloud (404), it might only exist locally
-                // Delete from local and don't treat it as an error
-                if (error.message && (error.message.includes('not found') || error.message.includes('404'))) {
-                    console.log(`Paper ${id} not found on cloud, deleting from local only`);
-                    await localPapers.deletePaper(id);
-                    return;
-                }
-                console.error('Cloud sync failed, falling back to local:', error);
-                await localPapers.deletePaper(id);
-                // Track deletion for later sync
-                if (shouldUseCloudSync()) {
-                    trackPaperDeleted(id);
-                    // Trigger debounced sync after local fallback
-                    triggerDebouncedSync();
-                }
-                return;
-            }
-        }
-        // Local-only mode: delete and track for potential future sync
+        // Optimistic UI: Always delete from local storage first
         await localPapers.deletePaper(id);
-        if (isCloudSyncEnabled() && isAuthenticated()) {
+
+        // If cloud sync is enabled, track the change and trigger sync
+        if (shouldUseCloudSync()) {
             trackPaperDeleted(id);
-            // Trigger debounced sync for local-only changes
             triggerDebouncedSync();
         }
     },
@@ -300,39 +244,39 @@ export const papers = {
                 });
 
                 const apiResults = await apiPapers.batchOperations(apiOperations);
-                
+
                 // Apply changes to local DB based on success
                 const localResults = [];
                 for (const result of apiResults) {
-                     if (result.success) {
-                         try {
-                             if (result.type === 'delete') {
-                                 // Only delete if it exists locally
-                                 try {
+                    if (result.success) {
+                        try {
+                            if (result.type === 'delete') {
+                                // Only delete if it exists locally
+                                try {
                                     await localPapers.deletePaper(result.id);
-                                 } catch (err) { /* ignore */ }
-                             } else if (result.type === 'update') {
-                                 if (result.data) {
-                                     const localPaper = mapPaperDataFromApi(result.data);
-                                     await localPapers.updatePaper(result.id, localPaper);
-                                 } else {
-                                     // Fallback
-                                     const originalOp = operations.find(o => o.id === result.id);
-                                     if (originalOp) {
-                                         await localPapers.updatePaper(originalOp.id, originalOp.data);
-                                     }
-                                 }
-                             }
-                             localResults.push(result);
-                         } catch (e) {
-                             console.warn('Local update failed after cloud success', e);
-                             localResults.push({ ...result, localError: e.message });
-                         }
-                     } else {
-                         localResults.push(result);
-                     }
+                                } catch (err) { /* ignore */ }
+                            } else if (result.type === 'update') {
+                                if (result.data) {
+                                    const localPaper = mapPaperDataFromApi(result.data);
+                                    await localPapers.updatePaper(result.id, localPaper);
+                                } else {
+                                    // Fallback
+                                    const originalOp = operations.find(o => o.id === result.id);
+                                    if (originalOp) {
+                                        await localPapers.updatePaper(originalOp.id, originalOp.data);
+                                    }
+                                }
+                            }
+                            localResults.push(result);
+                        } catch (e) {
+                            console.warn('Local update failed after cloud success', e);
+                            localResults.push({ ...result, localError: e.message });
+                        }
+                    } else {
+                        localResults.push(result);
+                    }
                 }
-                
+
                 triggerDebouncedSync();
                 return localResults;
 
@@ -341,7 +285,7 @@ export const papers = {
                 return this._performLocalBatch(operations);
             }
         }
-        
+
         return this._performLocalBatch(operations);
     },
 
@@ -358,7 +302,7 @@ export const papers = {
                     if (isCloudSyncEnabled() && isAuthenticated()) trackPaperUpdated(op.id, op.data);
                     results.push({ id: op.id, success: true, type: 'update' });
                 } else {
-                     results.push({ id: op.id, success: false, error: 'Unknown type' });
+                    results.push({ id: op.id, success: false, error: 'Unknown type' });
                 }
             } catch (e) {
                 results.push({ id: op.id, success: false, error: e.message });
@@ -373,7 +317,7 @@ export const papers = {
         // Always perform local search for instant results
         const allPapers = await localPapers.getAllPapers();
         const lowerQuery = query.toLowerCase();
-        return allPapers.filter(paper => 
+        return allPapers.filter(paper =>
             paper.title?.toLowerCase().includes(lowerQuery) ||
             paper.authors?.some(a => a.toLowerCase().includes(lowerQuery)) ||
             paper.notes?.toLowerCase().includes(lowerQuery)

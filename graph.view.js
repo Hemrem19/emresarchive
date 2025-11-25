@@ -274,9 +274,9 @@ export const graphView = {
                 enabled: true,
                 stabilization: { enabled: true, iterations: 200, updateInterval: 25 },
                 barnesHut: {
-                    gravitationalConstant: -2000,
-                    centralGravity: 0.3,
-                    springLength: 150,
+                    gravitationalConstant: -4000,
+                    centralGravity: 0.1,
+                    springLength: 250,
                     springConstant: 0.04,
                     damping: 0.09,
                     avoidOverlap: 0.5
@@ -339,7 +339,8 @@ export const graphView = {
             ? paper.tags.map(tag => `<span style="background-color: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 99px; font-size: 10px;">#${tag}</span>`).join(' ')
             : 'No tags';
 
-        return `
+        const container = document.createElement('div');
+        container.innerHTML = `
             <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: normal;">${paper.title || 'Untitled'}</div>
             <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; white-space: normal;">${displayAuthors}</div>
             <div style="font-size: 12px; margin-bottom: 8px;">
@@ -350,6 +351,7 @@ export const graphView = {
                 <strong>Tags:</strong> ${tags}
             </div>
         `;
+        return container;
     },
 
     populateTagFilter() {
