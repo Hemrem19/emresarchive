@@ -1,7 +1,7 @@
 export const graphView = `
-        <div class="flex-grow flex flex-col h-full">
+        <div class="flex-grow flex flex-col w-full min-h-0 relative">
             <!-- Graph Header -->
-            <div class="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-4 sm:px-6 lg:px-8 py-4">
+            <div class="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-4 sm:px-6 lg:px-8 py-4 z-10 relative">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-bold text-stone-900 dark:text-white">Paper Network</h1>
@@ -38,13 +38,14 @@ export const graphView = `
                         <button id="graph-generate-btn" class="h-10 px-4 bg-primary text-white hover:bg-primary/90 rounded-lg transition-colors">Generate Network</button>
                     </div>
                 </div>
+            </div>
                             
             <!-- Graph Container -->
-            <div class="flex-grow relative bg-stone-50 dark:bg-stone-900/50">
-                <div id="graph-network" class="w-full h-full"></div>
+            <div class="flex-grow relative bg-stone-50 dark:bg-stone-900/50 w-full min-h-0">
+                <div id="graph-network" class="absolute inset-0 w-full h-full"></div>
 
                 <!-- Zoom Controls (Floating) -->
-                <div class="absolute bottom-4 right-4 flex flex-col gap-2 bg-white dark:bg-stone-800 rounded-lg shadow-lg border border-stone-200 dark:border-stone-700 p-2">
+                <div class="absolute bottom-4 right-4 flex flex-col gap-2 bg-white dark:bg-stone-800 rounded-lg shadow-lg border border-stone-200 dark:border-stone-700 p-2 z-20">
                     <button id="graph-zoom-in" class="p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded transition-colors" title="Zoom In">
                         <span class="material-symbols-outlined">zoom_in</span>
                     </button>
@@ -59,13 +60,13 @@ export const graphView = `
                 </div>
                 
                 <!-- Empty State -->
-                <div id="graph-empty-state" class="hidden absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
+                <div id="graph-empty-state" class="hidden absolute inset-0 flex flex-col items-center justify-center p-8 text-center z-10 pointer-events-none">
                     <span class="material-symbols-outlined text-6xl text-stone-300 dark:text-stone-700 mb-4">device_hub</span>
                     <h3 class="text-lg font-semibold text-stone-900 dark:text-white mb-2">No Connected Papers</h3>
                     <p class="text-sm text-stone-600 dark:text-stone-400 max-w-md mb-4">
                         Papers will appear here once you link them together using the "Related Papers" feature in paper details.
                     </p>
-                    <a href="#/" class="text-primary hover:underline text-sm font-medium">Browse Papers</a>
+                    <a href="#/" class="text-primary hover:underline text-sm font-medium pointer-events-auto">Browse Papers</a>
                 </div>
                 
                 <!-- Tooltip (for hover) -->
