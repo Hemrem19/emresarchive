@@ -19,13 +19,13 @@ export function isRateLimited() {
     if (!rateLimitState.isRateLimited) {
         return false;
     }
-    
+
     // Check if rate limit period has expired
     if (rateLimitState.rateLimitUntil && Date.now() > rateLimitState.rateLimitUntil) {
         clearRateLimit();
         return false;
     }
-    
+
     return true;
 }
 
@@ -36,17 +36,17 @@ export function isRateLimited() {
 export function setRateLimit(retryAfterSeconds = null) {
     rateLimitState.isRateLimited = true;
     rateLimitState.consecutiveFailures++;
-    
+
     // Calculate backoff delay (exponential with jitter)
     const baseDelay = Math.min(30000, rateLimitState.backoffDelay * Math.pow(2, rateLimitState.consecutiveFailures - 1));
     const jitter = Math.random() * 1000; // 0-1 second jitter
     const delay = baseDelay + jitter;
-    
+
     // Use retry-after if provided, otherwise use calculated backoff
     const waitTime = retryAfterSeconds ? retryAfterSeconds * 1000 : delay;
-    
+
     rateLimitState.rateLimitUntil = Date.now() + waitTime;
-    
+
     console.warn(`[Rate Limit] Rate limited for ${Math.round(waitTime / 1000)}s (attempt ${rateLimitState.consecutiveFailures})`);
 }
 
@@ -84,10 +84,10 @@ export async function parseJsonResponse(response) {
         // Try to get retry-after header
         const retryAfter = response.headers.get('retry-after');
         const retryAfterSeconds = retryAfter ? parseInt(retryAfter, 10) : null;
-        
+
         // Set rate limit state
         setRateLimit(retryAfterSeconds);
-        
+
         // Try to parse error message
         let errorMessage = 'Too many requests. Please try again later.';
         try {
@@ -98,10 +98,23 @@ export async function parseJsonResponse(response) {
         } catch (e) {
             // Ignore text parsing errors
         }
-        
+
+        throw new Error(`Rate Limited: ${errorMessage}`);
         throw new Error(`Rate Limited: ${errorMessage}`);
     }
-    
+
+    // Handle session expiration (401)
+    if (response.status === 401) {
+        console.warn('Session expired (401), clearing token and redirecting...');
+        localStorage.removeItem('accessToken');
+        // Optional: Dispatch a custom event if the app needs to react without reloading
+        window.dispatchEvent(new Event('auth:logout'));
+
+        // Redirect to login or reload to trigger auth check
+        // We'll throw an error first so the caller stops processing
+        throw new Error('Session expired. Please log in again.');
+    }
+
     // Check response status BEFORE parsing JSON
     if (!response.ok) {
         // Try to parse error as JSON, fall back to text
@@ -150,7 +163,7 @@ export async function withRateLimitCheck(apiFunc) {
         const remainingSeconds = Math.ceil(remainingTime / 1000);
         throw new Error(`Rate limited. Please wait ${remainingSeconds} seconds before retrying.`);
     }
-    
+
     try {
         const result = await apiFunc();
         // Clear rate limit on success

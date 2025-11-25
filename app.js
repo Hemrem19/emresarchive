@@ -59,6 +59,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // The router will detect #/verify-email?token=... and handle it
     }).catch(console.error);
 
+    // --- Global Logout Handler ---
+    window.addEventListener('auth:logout', () => {
+        console.warn('Global logout event received. Showing login modal.');
+        authView.render();
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.classList.remove('hidden');
+    });
+
     // --- Initialize Application State ---
     const app = document.getElementById('app');
     const appState = createAppState();
