@@ -11,8 +11,8 @@ body {
 
 /* Toast animation */
 .toast {
-    animation: toast-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both, 
-               toast-out 0.5s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.5s both;
+    animation: toast-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both,
+        toast-out 0.5s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.5s both;
 }
 
 @keyframes toast-in {
@@ -20,6 +20,7 @@ body {
         transform: translateX(100%);
         opacity: 0;
     }
+
     100% {
         transform: translateX(0);
         opacity: 1;
@@ -31,6 +32,7 @@ body {
         transform: translateX(0);
         opacity: 1;
     }
+
     100% {
         transform: translateX(100%);
         opacity: 0;
@@ -50,6 +52,7 @@ body {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -60,6 +63,7 @@ body {
         opacity: 0;
         transform: translateY(-20px) scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -83,16 +87,19 @@ body {
 
 /* PDF Viewer Fullscreen Styles */
 #pdf-panel:fullscreen {
-    background-color: #f6f7f8; /* Light mode background */
+    background-color: #f6f7f8;
+    /* Light mode background */
 }
 
 .dark #pdf-panel:fullscreen {
-    background-color: #101922; /* Dark mode background */
+    background-color: #101922;
+    /* Dark mode background */
 }
 
 /* Ensure canvas container takes full height in fullscreen */
 #pdf-panel:fullscreen #pdf-canvas-container {
-    max-height: calc(100vh - 60px); /* Subtract toolbar height */
+    max-height: calc(100vh - 60px);
+    /* Subtract toolbar height */
 }
 
 /* PDF Text Layer for Text Selection */
@@ -109,8 +116,8 @@ body {
     /* Use PDF.js default text layer class */
 }
 
-#pdf-text-layer > span,
-#pdf-text-layer > br {
+#pdf-text-layer>span,
+#pdf-text-layer>br {
     color: transparent;
     position: absolute;
     white-space: pre;
@@ -150,16 +157,20 @@ body {
 
 /* PDF Annotations Layer */
 #pdf-annotations-layer {
-    z-index: 3; /* Above text layer */
+    z-index: 3;
+    /* Above text layer */
 }
 
 /* ==================== MOBILE & TOUCH OPTIMIZATIONS ==================== */
 
 /* Touch manipulation for better mobile performance */
 .touch-manipulation {
-    touch-action: manipulation; /* Prevents 300ms tap delay */
-    -webkit-tap-highlight-color: transparent; /* Removes iOS tap highlight */
-    user-select: none; /* Prevents text selection on buttons */
+    touch-action: manipulation;
+    /* Prevents 300ms tap delay */
+    -webkit-tap-highlight-color: transparent;
+    /* Removes iOS tap highlight */
+    user-select: none;
+    /* Prevents text selection on buttons */
 }
 
 /* Ensure all inputs and interactive elements are at least 44x44px (Apple HIG) */
@@ -172,12 +183,15 @@ button {
 
 /* PDF Canvas Container - Touch Scrolling */
 #pdf-canvas-container {
-    -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
-    overscroll-behavior: contain; /* Prevents page bounce on iOS */
+    -webkit-overflow-scrolling: touch;
+    /* Smooth momentum scrolling on iOS */
+    overscroll-behavior: contain;
+    /* Prevents page bounce on iOS */
 }
 
 /* Prevent zoom on input focus (iOS Safari) */
 @media screen and (max-width: 640px) {
+
     input[type="number"],
     input[type="text"],
     input[type="email"],
@@ -186,7 +200,8 @@ button {
     input[type="tel"],
     textarea,
     select {
-        font-size: 16px !important; /* Prevents iOS zoom when < 16px */
+        font-size: 16px !important;
+        /* Prevents iOS zoom when < 16px */
     }
 }
 
@@ -197,20 +212,20 @@ button {
         padding: 0.5rem 0.75rem;
         font-size: 14px;
     }
-    
+
     /* Larger tap targets for file upload */
     #file-upload-dropzone {
         padding: 2rem 1rem;
         min-height: 120px;
     }
-    
+
     /* Stack batch operation controls vertically on small screens */
-    #batch-action-toolbar .flex-col.sm\\:flex-row {
+    #batch-action-toolbar .flex-col.sm\:flex-row {
         flex-direction: column;
         align-items: stretch;
     }
-    
-    #batch-action-toolbar .flex-col.sm\\:flex-row > div {
+
+    #batch-action-toolbar .flex-col.sm\:flex-row>div {
         width: 100%;
     }
 }
@@ -221,17 +236,18 @@ button {
         max-width: calc(100% - 1rem);
         margin: 0.5rem;
     }
-    
+
     #command-palette-input {
-        font-size: 16px !important; /* Prevent iOS zoom */
+        font-size: 16px !important;
+        /* Prevent iOS zoom */
         min-height: 44px;
     }
-    
+
     .command-palette-item {
         padding: 1rem !important;
         min-height: 60px;
     }
-    
+
     .command-palette-item .text-sm {
         font-size: 14px !important;
     }
@@ -289,9 +305,36 @@ main {
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    
+
     #search-input {
         max-width: 100%;
         min-width: 0;
     }
+}
+
+/* Graph View Side Panel Animations */
+#graph-side-panel {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#graph-side-panel.open {
+    transform: translateX(0);
+}
+
+/* Custom Scrollbar for Graph Panel */
+#panel-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+#panel-content::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.5);
+}
+
+#panel-content::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.8);
+    border-radius: 3px;
+}
+
+#panel-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 1);
 }

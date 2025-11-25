@@ -53,7 +53,8 @@ async function addPaper() {
             doi: '10.48550/arXiv.1706.03762', // Using arXiv DOI format
             url: 'https://arxiv.org/abs/1706.03762',
             authors: ['Vaswani et al.'],
-            year: 2017
+            year: 2017,
+            tags: ['NLP', 'Transformer']
         })
     });
     const data = await response.json();
@@ -82,7 +83,21 @@ async function getNetwork(id) {
         }
     });
     const data = await response.json();
-    console.log('Get network result:', data.success ? `Success (${data.data.nodes.length} nodes, ${data.data.edges.length} edges)` : data.error);
+    if (data.success) {
+        console.log(`Get network result: Success (${data.data.nodes.length} nodes, ${data.data.edges.length} edges)`);
+
+        // Verify node data structure
+        if (data.data.nodes.length > 0) {
+            const firstNode = data.data.nodes[0];
+            if (firstNode.data && firstNode.data.status && Array.isArray(firstNode.data.tags)) {
+                console.log('✅ Node data structure verified (status, tags present)');
+            } else {
+                console.error('❌ Node data structure missing required fields:', firstNode);
+            }
+        }
+    } else {
+        console.log('Get network result:', data.error);
+    }
 }
 
 async function main() {

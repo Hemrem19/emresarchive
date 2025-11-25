@@ -11,18 +11,19 @@ export const graphView = {
     searchHandler: null,
     statusFilterHandler: null,
     tagFilterHandler: null,
-    resetHandler: null,
+    generateHandler: null,
     zoomInHandler: null,
     zoomOutHandler: null,
     fitHandler: null,
-    generateHandler: null,
+    panelCloseHandler: null,
+    panelOpenHandler: null,
+    selectedPaperId: null,
 
     async mount(appState) {
         try {
             // Check authentication
             const token = getAccessToken();
             if (!token) {
-                // Fallback to local view if not logged in
                 console.log('Graph View: Not logged in, using local data');
                 this.mountLocal();
                 return;
@@ -35,31 +36,23 @@ export const graphView = {
             const networks = await getUserNetworks();
 
             if (networks && networks.length > 0) {
-                // Load the most recent network
-                const latestNetwork = networks[0]; // Assumes sorted by desc
+                const latestNetwork = networks[0];
                 await this.loadNetwork(latestNetwork.id);
             } else {
-                // No network found, show empty state with generate button
                 console.log('Graph View: No network found');
                 document.getElementById('graph-empty-state').classList.remove('hidden');
-
-                // Update stats to 0
-                this.updateStats(0, 0, 0);
             }
 
-            // Setup event listeners
             this.setupEventListeners();
 
         } catch (error) {
             console.error('Error mounting graph view:', error);
             showToast('Failed to load paper network', 'error');
-            // Fallback to local
             this.mountLocal();
         }
     },
 
     async mountLocal() {
-        // Original local logic
         this.allPapers = await getAllPapers();
         this.populateTagFilter();
         const graphData = this.prepareLocalGraphData(this.allPapers);
@@ -69,7 +62,6 @@ export const graphView = {
         } else {
             document.getElementById('graph-empty-state').classList.add('hidden');
             this.renderGraph(graphData);
-            this.updateStats(graphData.nodes.length, graphData.edges.length, graphData.nodes.length);
         }
         this.setupEventListeners();
     },
@@ -78,37 +70,31 @@ export const graphView = {
         try {
             document.getElementById('graph-empty-state').classList.add('hidden');
 
-            // Show loading indicator?
-
             const data = await getNetwork(networkId);
             this.currentGraphId = networkId;
 
             // Map backend data to vis-network format
             const nodes = data.nodes.map(n => ({
-                id: parseInt(n.id), // Ensure ID is number if vis expects it, or string
-                label: this.truncateTitle(n.label, 30),
-                title: this.createTooltipHTML(n.data),
+                id: parseInt(n.id),
+                label: this.truncateTitle(n.label, 20),
                 fullTitle: n.label,
                 status: n.data.status,
-                tags: n.data.tags || [], // Backend might not return tags in data yet, check schema
+                tags: n.data.tags || [],
                 shape: 'dot',
-                size: 20, // Default size, maybe calculate based on connections
-                color: this.getNodeColor(n.data.status)
+                size: 25,
+                color: this.getNodeColor(n.data.status),
+                font: { color: '#ffffff', strokeWidth: 0, size: 14, face: 'Manrope' },
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10, x: 0, y: 0 }
             }));
 
             const edges = data.edges.map(e => ({
                 id: e.id,
                 from: parseInt(e.source),
                 to: parseInt(e.target),
-                width: 2,
-                color: {
-                    color: '#d6d3d1',
-                    highlight: '#137fec',
-                    hover: '#137fec'
-                }
+                width: 1,
+                color: { color: 'rgba(255,255,255,0.15)', highlight: '#3b82f6', hover: '#3b82f6' },
+                smooth: { type: 'curvedCW', roundness: 0.2 }
             }));
-
-            const graphData = { nodes, edges };
 
             // Calculate node sizes based on degree
             const degreeMap = new Map();
@@ -119,11 +105,11 @@ export const graphView = {
 
             nodes.forEach(n => {
                 const degree = degreeMap.get(n.id) || 0;
-                n.size = Math.max(15, Math.min(40, 15 + degree * 5));
+                n.size = Math.max(20, Math.min(50, 20 + degree * 3));
+                n.value = degree; // For physics
             });
 
-            this.renderGraph(graphData);
-            this.updateStats(nodes.length, edges.length, nodes.length);
+            this.renderGraph({ nodes, edges });
             this.populateTagFilterFromNodes(nodes);
 
         } catch (error) {
@@ -134,16 +120,15 @@ export const graphView = {
 
     async handleGenerate() {
         const btn = document.getElementById('graph-generate-btn');
-        const originalText = btn.innerHTML;
+        const originalHTML = btn.innerHTML;
 
         try {
             btn.disabled = true;
-            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Generating...';
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">refresh</span> <span class="hidden sm:inline">Generating...</span>';
 
             const result = await generateNetwork();
-            showToast(`Network generated with ${result.stats.nodeCount} papers and ${result.stats.edgeCount} connections`, 'success');
+            showToast(`Network generated with ${result.stats.nodeCount} papers`, 'success');
 
-            // Reload
             await this.loadNetwork(result.graph.id);
 
         } catch (error) {
@@ -152,7 +137,7 @@ export const graphView = {
         } finally {
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = originalText;
+                btn.innerHTML = originalHTML;
             }
         }
     },
@@ -167,27 +152,28 @@ export const graphView = {
         const searchInput = document.getElementById('graph-search-input');
         const statusFilter = document.getElementById('graph-status-filter');
         const tagFilter = document.getElementById('graph-tag-filter');
-        const resetBtn = document.getElementById('graph-reset-btn');
         const generateBtn = document.getElementById('graph-generate-btn');
         const zoomInBtn = document.getElementById('graph-zoom-in');
         const zoomOutBtn = document.getElementById('graph-zoom-out');
         const fitBtn = document.getElementById('graph-fit');
+        const panelCloseBtn = document.getElementById('panel-close-btn');
+        const panelOpenBtn = document.getElementById('panel-open-btn');
 
         if (searchInput && this.searchHandler) searchInput.removeEventListener('input', this.searchHandler);
         if (statusFilter && this.statusFilterHandler) statusFilter.removeEventListener('change', this.statusFilterHandler);
         if (tagFilter && this.tagFilterHandler) tagFilter.removeEventListener('change', this.tagFilterHandler);
-        if (resetBtn && this.resetHandler) resetBtn.removeEventListener('click', this.resetHandler);
         if (generateBtn && this.generateHandler) generateBtn.removeEventListener('click', this.generateHandler);
         if (zoomInBtn && this.zoomInHandler) zoomInBtn.removeEventListener('click', this.zoomInHandler);
         if (zoomOutBtn && this.zoomOutHandler) zoomOutBtn.removeEventListener('click', this.zoomOutHandler);
         if (fitBtn && this.fitHandler) fitBtn.removeEventListener('click', this.fitHandler);
+        if (panelCloseBtn && this.panelCloseHandler) panelCloseBtn.removeEventListener('click', this.panelCloseHandler);
+        if (panelOpenBtn && this.panelOpenHandler) panelOpenBtn.removeEventListener('click', this.panelOpenHandler);
 
         this.allPapers = [];
         this.filteredPapers = [];
     },
 
     prepareLocalGraphData(papers) {
-        // ... (Keep original logic for fallback)
         const nodes = [];
         const edges = [];
         const paperIdSet = new Set(papers.map(p => p.id));
@@ -197,14 +183,15 @@ export const graphView = {
             const connectionCount = (paper.relatedPaperIds || []).filter(id => paperIdSet.has(id)).length;
             nodes.push({
                 id: paper.id,
-                label: this.truncateTitle(paper.title, 30),
-                title: this.createTooltipHTML(paper),
+                label: this.truncateTitle(paper.title, 20),
                 fullTitle: paper.title,
                 status: paper.readingStatus,
                 tags: paper.tags || [],
                 shape: 'dot',
-                size: Math.max(15, Math.min(40, 15 + connectionCount * 5)),
-                color: this.getNodeColor(paper.readingStatus)
+                size: Math.max(20, Math.min(50, 20 + connectionCount * 3)),
+                color: this.getNodeColor(paper.readingStatus),
+                font: { color: '#ffffff', strokeWidth: 0, size: 14, face: 'Manrope' },
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10, x: 0, y: 0 }
             });
 
             if (paper.relatedPaperIds) {
@@ -216,8 +203,9 @@ export const graphView = {
                             edges.push({
                                 from: paper.id,
                                 to: relatedId,
-                                width: 2,
-                                color: { color: '#d6d3d1', highlight: '#137fec', hover: '#137fec' }
+                                width: 1,
+                                color: { color: 'rgba(255,255,255,0.15)', highlight: '#3b82f6', hover: '#3b82f6' },
+                                smooth: { type: 'curvedCW', roundness: 0.2 }
                             });
                         }
                     }
@@ -231,8 +219,6 @@ export const graphView = {
         const container = document.getElementById('graph-network');
         if (!container || !window.vis) return;
 
-        const isDarkMode = document.documentElement.classList.contains('dark');
-
         const data = {
             nodes: new vis.DataSet(graphData.nodes),
             edges: new vis.DataSet(graphData.edges)
@@ -240,83 +226,191 @@ export const graphView = {
 
         const options = {
             nodes: {
-                borderWidth: 2,
-                borderWidthSelected: 3,
+                borderWidth: 0,
+                borderWidthSelected: 2,
                 color: {
-                    border: isDarkMode ? '#44403c' : '#78716c',
-                    highlight: { border: '#137fec', background: '#137fec' },
-                    hover: { border: '#137fec', background: '#60a5fa' }
+                    border: '#ffffff',
+                    highlight: { border: '#ffffff', background: '#3b82f6' },
+                    hover: { border: '#ffffff', background: '#3b82f6' }
                 },
                 font: {
-                    color: isDarkMode ? '#f5f5f4' : '#1c1917',
+                    color: '#ffffff',
                     size: 14,
-                    face: 'Manrope'
+                    face: 'Manrope',
+                    strokeWidth: 0,
+                    multi: 'html'
                 },
                 shadow: {
                     enabled: true,
-                    color: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)',
-                    size: 8,
-                    x: 0, y: 2
+                    color: 'rgba(0,0,0,0.5)',
+                    size: 10,
+                    x: 0, y: 0
                 }
             },
             edges: {
-                width: 2,
-                selectionWidth: 3,
+                width: 1,
+                selectionWidth: 2,
                 color: {
-                    color: isDarkMode ? '#78716c' : '#44403c',
-                    highlight: '#137fec',
-                    hover: '#60a5fa',
+                    color: 'rgba(255,255,255,0.15)',
+                    highlight: '#3b82f6',
+                    hover: '#3b82f6',
                     inherit: false
                 },
-                smooth: { enabled: true, type: 'continuous', roundness: 0.5 }
+                smooth: {
+                    enabled: true,
+                    type: 'curvedCW',
+                    roundness: 0.2
+                }
             },
             physics: {
                 enabled: true,
-                stabilization: { enabled: true, iterations: 200, updateInterval: 25 },
-                barnesHut: {
-                    gravitationalConstant: -4000,
-                    centralGravity: 0.1,
-                    springLength: 250,
-                    springConstant: 0.04,
-                    damping: 0.09,
-                    avoidOverlap: 0.5
-                }
+                forceAtlas2Based: {
+                    gravitationalConstant: -50,
+                    centralGravity: 0.01,
+                    springConstant: 0.08,
+                    springLength: 100,
+                    damping: 0.4,
+                    avoidOverlap: 0
+                },
+                maxVelocity: 50,
+                minVelocity: 0.1,
+                solver: 'forceAtlas2Based',
+                stabilization: {
+                    enabled: true,
+                    iterations: 1000,
+                    updateInterval: 100,
+                    onlyDynamicEdges: false,
+                    fit: true
+                },
+                timestep: 0.5,
+                adaptiveTimestep: true
             },
             interaction: {
                 hover: true,
                 tooltipDelay: 200,
-                hideEdgesOnDrag: true,
-                hideEdgesOnZoom: true,
+                hideEdgesOnDrag: false,
+                hideEdgesOnZoom: false,
                 navigationButtons: false,
-                keyboard: { enabled: true, bindToWindow: false, speed: { x: 10, y: 10, zoom: 0.04 } },
+                keyboard: true,
                 multiselect: false,
                 zoomView: true,
                 dragView: true,
-                zoomSpeed: 0.3
-            },
-            layout: { improvedLayout: true, randomSeed: 42 }
+                zoomSpeed: 0.5
+            }
         };
 
         this.network = new vis.Network(container, data, options);
 
+        // Events
         this.network.on('click', (params) => {
             if (params.nodes.length > 0) {
-                const paperId = params.nodes[0];
-                window.location.hash = `#/details/${paperId}`;
+                this.handleNodeClick(params.nodes[0]);
+            } else {
+                this.closeSidePanel();
             }
         });
 
-        this.network.on('hoverNode', () => document.body.style.cursor = 'pointer');
-        this.network.on('blurNode', () => document.body.style.cursor = 'default');
-        this.network.on('stabilizationIterationsDone', () => this.network.setOptions({ physics: false }));
+        this.network.on('doubleClick', (params) => {
+            if (params.nodes.length > 0) {
+                window.location.hash = `#/details/${params.nodes[0]}`;
+            }
+        });
+
+        this.network.on('hoverNode', (params) => {
+            document.body.style.cursor = 'pointer';
+            this.highlightConnected(params.node);
+        });
+
+        this.network.on('blurNode', () => {
+            document.body.style.cursor = 'default';
+            this.resetHighlight();
+        });
+    },
+
+    handleNodeClick(nodeId) {
+        this.selectedPaperId = nodeId;
+        const paper = this.allPapers.find(p => p.id == nodeId);
+        if (!paper) return;
+
+        this.updateSidePanel(paper);
+        this.openSidePanel();
+    },
+
+    updateSidePanel(paper) {
+        const panelContent = document.getElementById('panel-content');
+        if (!panelContent) return;
+
+        const authors = paper.authors && paper.authors.length > 0
+            ? (Array.isArray(paper.authors) ? paper.authors.join(', ') : paper.authors)
+            : 'Unknown Authors';
+
+        const tags = paper.tags && paper.tags.length > 0
+            ? paper.tags.map(tag => `<span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-full">#${tag}</span>`).join('')
+            : '';
+
+        const abstract = paper.abstract
+            ? (paper.abstract.length > 300 ? paper.abstract.substring(0, 300) + '...' : paper.abstract)
+            : 'No abstract available.';
+
+        panelContent.innerHTML = `
+            <div class="space-y-4 animate-fade-in">
+                <div>
+                    <h3 class="text-xl font-bold text-white leading-tight mb-2">${paper.title}</h3>
+                    <p class="text-sm text-slate-400">${authors}</p>
+                    <p class="text-xs text-slate-500 mt-1">${paper.year || 'Unknown Year'} • ${paper.publication || 'Unknown Publication'}</p>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium ${this.getStatusBadgeClass(paper.readingStatus)}">
+                        ${paper.readingStatus || 'To Read'}
+                    </span>
+                    ${tags}
+                </div>
+
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Abstract</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">${abstract}</p>
+                </div>
+            </div>
+        `;
+    },
+
+    getStatusBadgeClass(status) {
+        switch (status) {
+            case 'Reading': return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
+            case 'Completed': return 'bg-green-500/20 text-green-400 border border-green-500/30';
+            case 'To Read': return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
+            default: return 'bg-slate-700 text-slate-300';
+        }
+    },
+
+    openSidePanel() {
+        const panel = document.getElementById('graph-side-panel');
+        if (panel) panel.classList.add('open');
+    },
+
+    closeSidePanel() {
+        const panel = document.getElementById('graph-side-panel');
+        if (panel) panel.classList.remove('open');
+        this.selectedPaperId = null;
+    },
+
+    highlightConnected(nodeId) {
+        // Simple highlight logic: dim all non-connected nodes/edges
+        // Vis-network doesn't support easy "dimming" without updating dataset
+        // For now, we'll rely on hover styling defined in options
+    },
+
+    resetHighlight() {
+        // Reset logic
     },
 
     getNodeColor(status) {
         const colors = {
-            'Reading': '#3b82f6',
-            'To Read': '#eab308',
-            'Finished': '#22c55e',
-            'default': '#78716c'
+            'Reading': { background: '#3b82f6', border: '#60a5fa' }, // Blue
+            'To Read': { background: '#eab308', border: '#facc15' }, // Yellow
+            'Completed': { background: '#22c55e', border: '#4ade80' }, // Green
+            'default': { background: '#64748b', border: '#94a3b8' }  // Slate
         };
         return colors[status] || colors.default;
     },
@@ -327,35 +421,7 @@ export const graphView = {
         return title.substring(0, maxLength - 3) + '...';
     },
 
-    createTooltipHTML(paper) {
-        const authors = paper.authors && paper.authors.length > 0
-            ? (Array.isArray(paper.authors) ? paper.authors.join(', ') : paper.authors)
-            : 'No authors';
-
-        // Truncate authors if too long
-        const displayAuthors = authors.length > 50 ? authors.substring(0, 50) + '...' : authors;
-
-        const tags = paper.tags && paper.tags.length > 0
-            ? paper.tags.map(tag => `<span style="background-color: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 99px; font-size: 10px;">#${tag}</span>`).join(' ')
-            : 'No tags';
-
-        const container = document.createElement('div');
-        container.innerHTML = `
-            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: normal;">${paper.title || 'Untitled'}</div>
-            <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; white-space: normal;">${displayAuthors}</div>
-            <div style="font-size: 12px; margin-bottom: 8px;">
-                <strong>Status:</strong> 
-                <span style="color: ${this.getNodeColor(paper.readingStatus || paper.status)}; font-weight: 500;">${paper.readingStatus || paper.status || 'Unknown'}</span>
-            </div>
-            <div style="font-size: 12px;">
-                <strong>Tags:</strong> ${tags}
-            </div>
-        `;
-        return container;
-    },
-
     populateTagFilter() {
-        // Local population
         const tagFilter = document.getElementById('graph-tag-filter');
         if (!tagFilter) return;
 
@@ -365,7 +431,6 @@ export const graphView = {
                 paper.tags.forEach(tag => allTags.add(tag));
             }
         });
-
         this.updateTagFilterOptions(tagFilter, allTags);
     },
 
@@ -379,7 +444,6 @@ export const graphView = {
                 node.tags.forEach(tag => allTags.add(tag));
             }
         });
-
         this.updateTagFilterOptions(tagFilter, allTags);
     },
 
@@ -399,11 +463,12 @@ export const graphView = {
         const searchInput = document.getElementById('graph-search-input');
         const statusFilter = document.getElementById('graph-status-filter');
         const tagFilter = document.getElementById('graph-tag-filter');
-        const resetBtn = document.getElementById('graph-reset-btn');
         const generateBtn = document.getElementById('graph-generate-btn');
         const zoomInBtn = document.getElementById('graph-zoom-in');
         const zoomOutBtn = document.getElementById('graph-zoom-out');
         const fitBtn = document.getElementById('graph-fit');
+        const panelCloseBtn = document.getElementById('panel-close-btn');
+        const panelOpenBtn = document.getElementById('panel-open-btn');
 
         this.searchHandler = () => this.applyFilters();
         if (searchInput) searchInput.addEventListener('input', this.searchHandler);
@@ -413,15 +478,6 @@ export const graphView = {
 
         this.tagFilterHandler = () => this.applyFilters();
         if (tagFilter) tagFilter.addEventListener('change', this.tagFilterHandler);
-
-        this.resetHandler = () => {
-            if (searchInput) searchInput.value = '';
-            if (statusFilter) statusFilter.value = '';
-            if (tagFilter) tagFilter.value = '';
-            this.applyFilters();
-            if (this.network) this.network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
-        };
-        if (resetBtn) resetBtn.addEventListener('click', this.resetHandler);
 
         this.generateHandler = () => this.handleGenerate();
         if (generateBtn) generateBtn.addEventListener('click', this.generateHandler);
@@ -446,6 +502,16 @@ export const graphView = {
             if (this.network) this.network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
         };
         if (fitBtn) fitBtn.addEventListener('click', this.fitHandler);
+
+        this.panelCloseHandler = () => this.closeSidePanel();
+        if (panelCloseBtn) panelCloseBtn.addEventListener('click', this.panelCloseHandler);
+
+        this.panelOpenHandler = () => {
+            if (this.selectedPaperId) {
+                window.location.hash = `#/details/${this.selectedPaperId}`;
+            }
+        };
+        if (panelOpenBtn) panelOpenBtn.addEventListener('click', this.panelOpenHandler);
     },
 
     applyFilters() {
@@ -456,27 +522,21 @@ export const graphView = {
         const tagFilter = document.getElementById('graph-tag-filter')?.value || '';
 
         const nodes = this.network.body.data.nodes;
-        const edges = this.network.body.data.edges;
-
         const allNodes = nodes.get();
         const visibleNodeIds = new Set();
 
         allNodes.forEach(node => {
             let visible = true;
 
-            // Search
             if (searchQuery) {
                 const titleMatch = node.fullTitle?.toLowerCase().includes(searchQuery);
-                // Check authors if available in title/tooltip
                 if (!titleMatch) visible = false;
             }
 
-            // Status
             if (visible && statusFilter) {
                 if (node.status !== statusFilter) visible = false;
             }
 
-            // Tag
             if (visible && tagFilter) {
                 if (!node.tags || !node.tags.includes(tagFilter)) visible = false;
             }
@@ -484,26 +544,8 @@ export const graphView = {
             if (visible) visibleNodeIds.add(node.id);
         });
 
-        // Update visibility
         nodes.forEach(node => {
             nodes.update({ id: node.id, hidden: !visibleNodeIds.has(node.id) });
         });
-
-        // Edges are hidden automatically if nodes are hidden? No, vis-network hides edges if connected nodes are hidden.
-        // But we might want to hide edges if one end is hidden.
-        // Vis-network usually handles this.
-
-        // Update stats
-        this.updateStats(allNodes.length, edges.length, visibleNodeIds.size);
-    },
-
-    updateStats(totalNodes, totalEdges, visibleNodes) {
-        const nodeCount = document.getElementById('graph-node-count');
-        const edgeCount = document.getElementById('graph-edge-count');
-        const visibleCount = document.getElementById('graph-visible-count');
-
-        if (nodeCount) nodeCount.textContent = totalNodes;
-        if (edgeCount) edgeCount.textContent = totalEdges;
-        if (visibleCount) visibleCount.textContent = visibleNodes;
     }
 };

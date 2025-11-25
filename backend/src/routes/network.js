@@ -63,7 +63,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
         // Fetch all papers (nodes)
         const papers = await prisma.paper.findMany({
             where: { userId, deletedAt: null },
-            select: { id: true, title: true, doi: true, status: true, year: true, authors: true }
+            select: { id: true, title: true, doi: true, status: true, year: true, authors: true, tags: true }
         });
 
         // Fetch all connections (edges)

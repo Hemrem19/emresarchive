@@ -6,8 +6,7 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "storage",
-    "cookies"
+    "storage"
   ],
   "host_permissions": [
     "https://emresarchive-production.up.railway.app/*",
@@ -27,4 +26,3 @@
     "128": "icons/icon128.png"
   }
 }
-

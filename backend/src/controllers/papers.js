@@ -171,7 +171,7 @@ export const createPaper = async (req, res, next) => {
       if (existing) {
         // If it's an active paper, return error
         if (!existing.deletedAt) {
-          return res.status(400).json({
+          return res.status(409).json({
             success: false,
             error: { message: `A paper with DOI ${paperData.doi} already exists` }
           });
@@ -179,7 +179,7 @@ export const createPaper = async (req, res, next) => {
 
         // If it's a soft-deleted paper, restore and overwrite it
         // effectively treating it as a new paper but reusing the record to satisfy unique constraint
-        
+
         const updateData = {
           title: paperData.title,
           authors: paperData.authors || [],
@@ -195,7 +195,7 @@ export const createPaper = async (req, res, next) => {
           pdfUrl: pdfUrl, // Use the calculated pdfUrl
           pdfSizeBytes: pdfSizeBytes,
           clientId: paperData.clientId || null,
-          
+
           // Restore fields
           deletedAt: null,
           version: { increment: 1 },
@@ -322,8 +322,8 @@ export const createPaper = async (req, res, next) => {
         // Check if it's the userId+doi composite constraint
         // Note: Prisma returns field names as 'user_id' and 'doi' (snake_case) in meta.target
         const targetStr = JSON.stringify(target).toLowerCase();
-        if ((target.includes('user_id') || target.includes('userid') || targetStr.includes('user_id')) && 
-            (target.includes('doi') || targetStr.includes('doi')) && paperData.doi) {
+        if ((target.includes('user_id') || target.includes('userid') || targetStr.includes('user_id')) &&
+          (target.includes('doi') || targetStr.includes('doi')) && paperData.doi) {
           return res.status(400).json({
             success: false,
             error: { message: `You already have a paper with DOI ${paperData.doi} in your library` }
@@ -384,12 +384,12 @@ export const updatePaper = async (req, res, next) => {
       if (duplicate) {
         // If duplicate is active, return error
         if (!duplicate.deletedAt) {
-          return res.status(400).json({
+          return res.status(409).json({
             success: false,
             error: { message: `A paper with DOI ${updates.doi} already exists` }
           });
         }
-        
+
         // If duplicate is deleted, hard delete it to allow this update to proceed
         // (We can't "merge" papers easily, so we prioritize the active one being updated)
         await prisma.paper.delete({
@@ -416,7 +416,7 @@ export const updatePaper = async (req, res, next) => {
     // Handle PDF update
     if (updates.pdfUrl !== undefined) {
       updateData.pdfUrl = updates.pdfUrl;
-      
+
       // Update storage if PDF size changed
       if (updates.pdfSizeBytes !== undefined) {
         const oldSize = existing.pdfSizeBytes || BigInt(0);
@@ -572,7 +572,7 @@ export const searchPapers = async (req, res, next) => {
         // Authors array search - Prisma doesn't support case-insensitive array search
         // We'll search exact matches (users typically type author names correctly)
       ];
-      
+
       // Also search in authors array (exact match)
       // This is a limitation - full-text search in arrays would need a different approach
       // For now, we search exact matches in authors
@@ -898,22 +898,22 @@ export const proxyPdfStream = async (req, res, next) => {
       try {
         const s3Key = extractS3Key(paper.pdfUrl);
         const response = await getS3ObjectStream(s3Key);
-        
+
         // Set headers for PDF streaming
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="paper-${paperId}.pdf"`);
         res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-        
+
         // Read stream into buffer (AWS SDK v3 returns a stream)
         const chunks = [];
         for await (const chunk of response) {
           chunks.push(chunk);
         }
         const buffer = Buffer.concat(chunks);
-        
+
         // Send PDF buffer to client
         res.send(buffer);
-        
+
         return; // Stream is handled asynchronously
       } catch (s3Error) {
         console.error('Error fetching PDF from S3:', s3Error);
@@ -931,10 +931,10 @@ export const proxyPdfStream = async (req, res, next) => {
       if (!response.ok) {
         throw new Error(`Failed to fetch PDF: ${response.status}`);
       }
-      
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="paper-${paperId}.pdf"`);
-      
+
       const buffer = await response.arrayBuffer();
       res.send(Buffer.from(buffer));
     } catch (fetchError) {
@@ -1000,7 +1000,7 @@ export const batchOperations = async (req, res, next) => {
                 where: { id: paperId },
                 data: { deletedAt: new Date(), version: { increment: 1 } }
               });
-              
+
               if (paper.pdfSizeBytes) {
                 await tx.user.update({
                   where: { id: userId },
@@ -1026,33 +1026,33 @@ export const batchOperations = async (req, res, next) => {
             // Build update data
             const updateData = {};
             const allowedFields = [
-              'title', 'authors', 'year', 'journal', 'doi', 'abstract', 
+              'title', 'authors', 'year', 'journal', 'doi', 'abstract',
               'tags', 'status', 'notes', 'readingProgress', 'relatedPaperIds'
             ];
 
             allowedFields.forEach(field => {
               if (data && data[field] !== undefined) updateData[field] = data[field];
             });
-            
+
             // Special handling for DOI uniqueness if changed
             if (updateData.doi && updateData.doi !== existing.doi) {
-                const duplicate = await tx.paper.findFirst({
-                    where: {
-                        doi: updateData.doi,
-                        userId,
-                        deletedAt: null,
-                        NOT: { id: paperId }
-                    }
-                });
-                if (duplicate) {
-                    responseData.push({ id: paperId, success: false, error: `DOI ${updateData.doi} already exists` });
-                    continue;
+              const duplicate = await tx.paper.findFirst({
+                where: {
+                  doi: updateData.doi,
+                  userId,
+                  deletedAt: null,
+                  NOT: { id: paperId }
                 }
+              });
+              if (duplicate) {
+                responseData.push({ id: paperId, success: false, error: `DOI ${updateData.doi} already exists` });
+                continue;
+              }
             }
 
             if (Object.keys(updateData).length > 0) {
               updateData.version = { increment: 1 };
-              
+
               const updated = await tx.paper.update({
                 where: { id: paperId },
                 data: updateData,

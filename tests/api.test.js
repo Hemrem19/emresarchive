@@ -37,11 +37,11 @@ describe('api.js - URL Normalization', () => {
             expect(result.value).toBe('10.1234/example');
         });
 
-        it('should detect arXiv URLs but return unsupported type', () => {
+        it('should detect arXiv URLs', () => {
             const result = normalizePaperIdentifier('https://arxiv.org/abs/1234.5678');
             expect(result.type).toBe('arxiv');
             expect(result.value).toBe('1234.5678');
-            expect(result.error).toContain('arXiv');
+            expect(result.error).toBeUndefined();
         });
 
         it('should handle arXiv URLs with version numbers', () => {

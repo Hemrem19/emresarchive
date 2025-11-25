@@ -245,7 +245,7 @@ async function testGetMeUnauthenticated() {
 async function testRefreshToken() {
   logTest('Refresh Token');
   await delay(1000);
-  const { status, data, error } = await makeRequest('POST', '/refresh-token', { refreshToken });
+  const { status, data, error } = await makeRequest('POST', '/refresh', { refreshToken });
 
   if (status === 200 && data.success) {
     logSuccess('Token refresh successful');
@@ -261,7 +261,7 @@ async function testRefreshToken() {
 async function testLogout() {
   logTest('Logout');
   await delay(1000);
-  const { status, data, error } = await makeRequest('POST', '/logout', { refreshToken });
+  const { status, data, error } = await makeRequest('POST', '/logout', { refreshToken }, accessToken);
 
   if (status === 200 && data.success) {
     logSuccess('Logout successful');
@@ -276,7 +276,7 @@ async function testLogout() {
 async function testRefreshAfterLogout() {
   logTest('Refresh Token After Logout');
   await delay(1000);
-  const { status } = await makeRequest('POST', '/refresh-token', { refreshToken });
+  const { status } = await makeRequest('POST', '/refresh', { refreshToken });
 
   if (status === 401 || status === 403) {
     logSuccess('Refresh token correctly rejected after logout');
