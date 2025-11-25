@@ -256,8 +256,11 @@ function mapPaperFromApi(apiPaper) {
     // Map pdfUrl to s3Key
     if (localPaper.pdfUrl) {
         localPaper.s3Key = localPaper.pdfUrl;
-        localPaper.hasPdf = true;
     }
+    
+    // Set hasPdf based on actual PDF data existence (derive from data, not stored field)
+    // This ensures hasPdf is accurate even if backend doesn't have pdfUrl
+    localPaper.hasPdf = !!(localPaper.s3Key || localPaper.pdfUrl || localPaper.pdfFile);
     
     return localPaper;
 }

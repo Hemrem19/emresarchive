@@ -78,10 +78,11 @@ async function getAllPapers() {
             request.onsuccess = (event) => {
                 try {
                     const papers = event.target.result || [];
-                    // Add hasPdf flag to each paper
+                    // Add hasPdf flag to each paper based on actual PDF data
+                    // Check for pdfData (local), s3Key (cloud), or pdfUrl (cloud)
                     const papersWithFlags = papers.map(paper => ({
                         ...paper,
-                        hasPdf: Boolean(paper.pdfData)
+                        hasPdf: !!(paper.pdfData || paper.s3Key || paper.pdfUrl)
                     }));
                     // Sort by creation date, newest first
                     resolve(papersWithFlags.sort((a, b) => b.createdAt - a.createdAt));

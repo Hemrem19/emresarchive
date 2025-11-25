@@ -607,11 +607,14 @@ export const detailsView = {
                             isAuth: isAuthenticated()
                         });
 
+                        // Recalculate hasPdf based on actual data (fix for papers with hasPdf=true but no actual PDF)
+                        const actuallyHasPdf = !!(paper.pdfFile || paper.s3Key || paper.pdfUrl);
+                        
                         if (paper.pdfFile) {
                             // Local PDF: load from Blob
                             console.log('[Details] Loading local PDF from Blob');
                             loadPdfDocument(paper.pdfFile);
-                        } else if (paper.s3Key && paper.hasPdf) {
+                        } else if (paper.s3Key || paper.pdfUrl) {
                             // Cloud PDF: get URL and load
                             const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
                             if (useCloudSync) {
@@ -654,7 +657,25 @@ export const detailsView = {
                                 showToast('Cloud sync is required for cloud-stored PDFs', 'error');
                             }
                         } else {
-                            console.warn('[Details] No PDF file or S3 key available');
+                            console.warn('[Details] No PDF file or S3 key available', {
+                                hasPdfFile: !!paper.pdfFile,
+                                hasS3Key: !!paper.s3Key,
+                                hasPdfUrl: !!paper.pdfUrl,
+                                storedHasPdf: paper.hasPdf,
+                                actuallyHasPdf
+                            });
+                            // Update paper in IndexedDB to fix hasPdf flag if it's incorrect
+                            if (paper.hasPdf && !actuallyHasPdf) {
+                                console.log('[Details] Fixing incorrect hasPdf flag in paper');
+                                const { updatePaper } = await import('../db.js');
+                                try {
+                                    await updatePaper(paperId, { hasPdf: false });
+                                    // Update local paper object
+                                    paper.hasPdf = false;
+                                } catch (updateError) {
+                                    console.error('[Details] Failed to update paper hasPdf flag:', updateError);
+                                }
+                            }
                             showToast('PDF not available', 'error');
                         }
                     }
