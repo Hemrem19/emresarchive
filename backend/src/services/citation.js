@@ -120,69 +120,104 @@ export class CitationService {
         });
     }
 
+    normalizeDoi(doi) {
+        if (!doi) return null;
+        return doi.toLowerCase().trim().replace(/^https?:\/\/doi\.org\//, '').replace(/^doi:/, '');
+    }
+
     /**
      * Generate network for a user
      */
     async generateNetwork(userId) {
-        // Get all user papers with DOIs
+        // Get all user papers with metadata
         const papers = await prisma.paper.findMany({
             where: {
                 userId,
-                doi: { not: null },
                 deletedAt: null
             },
-            select: { id: true, doi: true, title: true }
+            select: { id: true, doi: true, title: true, authors: true, tags: true }
         });
 
         console.log(`Generating network for user ${userId} with ${papers.length} papers`);
 
         const connections = [];
-        let processed = 0;
+        const existingConnections = new Set(); // To prevent duplicates
 
-        // Batch process
+        const addConnection = (fromId, toId, type, source = 'auto') => {
+            const key = [Math.min(fromId, toId), Math.max(fromId, toId), type].join('-');
+            if (!existingConnections.has(key)) {
+                existingConnections.add(key);
+                connections.push({
+                    fromPaperId: fromId,
+                    toPaperId: toId,
+                    connectionType: type,
+                    source
+                });
+            }
+        };
+
+        // 1. Internal Matching (Tags & Authors) - O(N^2) but fine for typical library size
+        for (let i = 0; i < papers.length; i++) {
+            for (let j = i + 1; j < papers.length; j++) {
+                const p1 = papers[i];
+                const p2 = papers[j];
+
+                // Check common tags
+                const commonTags = p1.tags.filter(tag => p2.tags.includes(tag));
+                if (commonTags.length > 0) {
+                    addConnection(p1.id, p2.id, 'common_tag', 'auto');
+                }
+
+                // Check common authors
+                const commonAuthors = p1.authors.filter(author => p2.authors.includes(author));
+                if (commonAuthors.length > 0) {
+                    addConnection(p1.id, p2.id, 'common_author', 'auto');
+                }
+            }
+        }
+
+        // 2. External Citation Matching (Only for papers with DOIs)
+        const papersWithDoi = papers.filter(p => p.doi);
         const BATCH_SIZE = 5;
 
-        for (let i = 0; i < papers.length; i += BATCH_SIZE) {
-            const batch = papers.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < papersWithDoi.length; i += BATCH_SIZE) {
+            const batch = papersWithDoi.slice(i, i + BATCH_SIZE);
 
             await Promise.all(batch.map(async (paper) => {
                 try {
-                    const data = await this.fetchCitations(paper.doi);
+                    const normalizedPaperDoi = this.normalizeDoi(paper.doi);
+                    const data = await this.fetchCitations(normalizedPaperDoi);
                     if (!data) return;
 
                     // Check references
                     if (data.source === 'semantic_scholar') {
                         for (const ref of data.references) {
-                            const citedPaper = papers.find(p => p.doi === ref.doi);
-                            if (citedPaper) {
-                                connections.push({
-                                    fromPaperId: paper.id,
-                                    toPaperId: citedPaper.id,
-                                    connectionType: 'cites',
-                                    source: 'auto'
-                                });
+                            if (!ref.doi) continue;
+                            const normalizedRefDoi = this.normalizeDoi(ref.doi);
+
+                            // Find in our library
+                            const citedPaper = papersWithDoi.find(p => this.normalizeDoi(p.doi) === normalizedRefDoi);
+
+                            if (citedPaper && citedPaper.id !== paper.id) {
+                                addConnection(paper.id, citedPaper.id, 'cites', 'auto');
                             }
                         }
-                    } else if (data.source === 'openalex') {
-                        // OpenAlex returns URLs like https://openalex.org/W123
-                        // We need to resolve these to DOIs or match differently.
-                        // For simplicity in V1, we rely heavily on Semantic Scholar for direct DOI refs
-                        // Or we'd need to fetch each referenced work to get its DOI, which is expensive.
-                        // So OpenAlex is good for metadata/counts, but Semantic Scholar is better for graph building.
-                        // We'll stick to Semantic Scholar logic for connections for now.
                     }
-
                 } catch (e) {
                     console.error(`Error processing paper ${paper.id}:`, e);
                 }
             }));
 
-            processed += batch.length;
             // Small delay to be polite
             await new Promise(r => setTimeout(r, 1000));
         }
 
-        // Save connections
+        // 3. Save connections
+        // First, clear existing auto connections for this user to avoid stale data?
+        // Or just skipDuplicates. Let's delete old auto connections to be clean.
+        // Actually, deleting might be expensive if we have manual ones.
+        // Let's just createMany with skipDuplicates for now.
+
         if (connections.length > 0) {
             await prisma.paperConnection.createMany({
                 data: connections,
@@ -191,24 +226,31 @@ export class CitationService {
         }
 
         // Update or create NetworkGraph record
-        const graph = await prisma.networkGraph.upsert({
-            where: {
-                // We need a unique constraint or ID. For now, let's assume one auto graph per user
-                // But schema doesn't enforce it. Let's find existing auto graph.
-                id: 'placeholder' // This won't work with upsert without unique
-            },
-            update: {},
-            create: {
-                userId,
-                name: 'Auto-Generated Network',
-                isAuto: true,
-                nodeCount: papers.length,
-                edgeCount: connections.length
-            }
+        // We need to find the existing one first
+        let graph = await prisma.networkGraph.findFirst({
+            where: { userId, isAuto: true }
         });
 
-        // Since we can't easily upsert without unique, let's do findFirst -> update/create
-        // We'll fix this in the controller.
+        if (graph) {
+            graph = await prisma.networkGraph.update({
+                where: { id: graph.id },
+                data: {
+                    nodeCount: papers.length,
+                    edgeCount: connections.length,
+                    updatedAt: new Date()
+                }
+            });
+        } else {
+            graph = await prisma.networkGraph.create({
+                data: {
+                    userId,
+                    name: 'Auto-Generated Network',
+                    isAuto: true,
+                    nodeCount: papers.length,
+                    edgeCount: connections.length
+                }
+            });
+        }
 
         return {
             nodeCount: papers.length,

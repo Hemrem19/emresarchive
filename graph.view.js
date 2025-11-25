@@ -376,12 +376,11 @@ export const graphView = {
     },
 
     getStatusBadgeClass(status) {
-        switch (status) {
-            case 'Reading': return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
-            case 'Completed': return 'bg-green-500/20 text-green-400 border border-green-500/30';
-            case 'To Read': return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
-            default: return 'bg-slate-700 text-slate-300';
-        }
+        const s = (status || '').toLowerCase().trim();
+        if (s === 'reading') return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
+        if (s === 'finished' || s === 'completed') return 'bg-green-500/20 text-green-400 border border-green-500/30';
+        if (s === 'to read') return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
+        return 'bg-slate-700 text-slate-300';
     },
 
     openSidePanel() {
@@ -406,13 +405,15 @@ export const graphView = {
     },
 
     getNodeColor(status) {
+        const s = (status || '').toLowerCase().trim();
         const colors = {
-            'Reading': { background: '#3b82f6', border: '#60a5fa' }, // Blue
-            'To Read': { background: '#eab308', border: '#facc15' }, // Yellow
-            'Completed': { background: '#22c55e', border: '#4ade80' }, // Green
+            'reading': { background: '#3b82f6', border: '#60a5fa' }, // Blue
+            'to read': { background: '#eab308', border: '#facc15' }, // Yellow
+            'finished': { background: '#22c55e', border: '#4ade80' }, // Green
+            'completed': { background: '#22c55e', border: '#4ade80' }, // Green (Legacy support)
             'default': { background: '#64748b', border: '#94a3b8' }  // Slate
         };
-        return colors[status] || colors.default;
+        return colors[s] || colors.default;
     },
 
     truncateTitle(title, maxLength) {

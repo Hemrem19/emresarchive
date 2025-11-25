@@ -28,7 +28,7 @@ export const graphView = `
                         <option value="">All Status</option>
                         <option value="To Read">To Read</option>
                         <option value="Reading">Reading</option>
-                        <option value="Completed">Completed</option>
+                        <option value="Finished">Finished</option>
                     </select>
 
                     <select id="graph-tag-filter" class="h-9 pl-2 pr-8 bg-slate-900/50 border border-slate-700 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary text-xs text-white max-w-[100px]">
@@ -82,7 +82,7 @@ export const graphView = `
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span>
-                        <span class="text-xs text-slate-300">Completed</span>
+                        <span class="text-xs text-slate-300">Finished</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-slate-500"></span>
