@@ -628,10 +628,10 @@ export const detailsView = {
 
                                         // Safety check: Ensure URL is absolute (not relative)
                                         // If it's relative, construct full backend URL
+                                        const { getApiBaseUrl } = await import('./config.js');
+                                        const baseUrl = getApiBaseUrl();
                                         if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
                                             console.warn('[Details] PDF URL is relative, constructing full URL');
-                                            const { getApiBaseUrl } = await import('./config.js');
-                                            const baseUrl = getApiBaseUrl();
                                             // If it starts with /, append to base URL, otherwise construct full path
                                             if (pdfUrl.startsWith('/')) {
                                                 pdfUrl = `${baseUrl}${pdfUrl}`;
@@ -644,7 +644,7 @@ export const detailsView = {
                                         console.log('[Details] PDF URL type check:', {
                                             isAbsolute: pdfUrl.startsWith('http'),
                                             url: pdfUrl,
-                                            baseUrl: (await import('./config.js')).getApiBaseUrl()
+                                            baseUrl: baseUrl
                                         });
                                         await loadPdfFromUrl(pdfUrl);
                                     } catch (error) {
@@ -667,14 +667,16 @@ export const detailsView = {
                             // Update paper in IndexedDB to fix hasPdf flag if it's incorrect
                             if (paper.hasPdf && !actuallyHasPdf) {
                                 console.log('[Details] Fixing incorrect hasPdf flag in paper');
-                                const { updatePaper } = await import('../db.js');
-                                try {
-                                    await updatePaper(paperId, { hasPdf: false });
-                                    // Update local paper object
-                                    paper.hasPdf = false;
-                                } catch (updateError) {
-                                    console.error('[Details] Failed to update paper hasPdf flag:', updateError);
-                                }
+                                (async () => {
+                                    try {
+                                        const { updatePaper } = await import('../db.js');
+                                        await updatePaper(paperId, { hasPdf: false });
+                                        // Update local paper object
+                                        paper.hasPdf = false;
+                                    } catch (updateError) {
+                                        console.error('[Details] Failed to update paper hasPdf flag:', updateError);
+                                    }
+                                })();
                             }
                             showToast('PDF not available', 'error');
                         }
