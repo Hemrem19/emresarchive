@@ -73,9 +73,7 @@ authView.mount().then(() => {
 // --- Global Logout Handler ---
 window.addEventListener('auth:logout', () => {
     console.warn('Global logout event received. Showing login modal.');
-    authView.render();
-    const modal = document.getElementById('auth-modal');
-    if (modal) modal.classList.remove('hidden');
+    authView.open('login');
 });
 
 // --- Initialize Application State ---

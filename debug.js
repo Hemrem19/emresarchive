@@ -116,4 +116,7 @@ const initDebugConsole = () => {
     console.log('Debug console initialized');
 };
 
-initDebugConsole();
+// Only initialize on native mobile platforms
+if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+    initDebugConsole();
+}
