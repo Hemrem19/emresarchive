@@ -172,10 +172,31 @@ export function trackAnnotationDeleted(id) {
 
 /**
  * Checks if sync is in progress.
+ * Automatically clears stale locks (> 5 minutes).
  * @returns {boolean} True if sync is in progress.
  */
 export function isSyncInProgress() {
-    return localStorage.getItem(SYNC_IN_PROGRESS_KEY) === 'true';
+    const inProgress = localStorage.getItem(SYNC_IN_PROGRESS_KEY) === 'true';
+
+    if (inProgress) {
+        // Check for stale lock
+        const syncStartTime = localStorage.getItem('citavers_sync_start_time');
+        if (syncStartTime) {
+            const elapsed = Date.now() - parseInt(syncStartTime, 10);
+            if (elapsed > 5 * 60 * 1000) { // 5 minutes
+                console.warn('[Sync] Clearing stale sync lock (stuck for >5 minutes)');
+                setSyncInProgress(false);
+                return false;
+            }
+        } else {
+            // If in progress but no start time, assume it's very old or broken
+            console.warn('[Sync] Found lock without start time, clearing');
+            setSyncInProgress(false);
+            return false;
+        }
+    }
+
+    return inProgress;
 }
 
 /**
@@ -185,8 +206,10 @@ export function isSyncInProgress() {
 function setSyncInProgress(inProgress) {
     if (inProgress) {
         localStorage.setItem(SYNC_IN_PROGRESS_KEY, 'true');
+        localStorage.setItem('citavers_sync_start_time', Date.now().toString());
     } else {
         localStorage.removeItem(SYNC_IN_PROGRESS_KEY);
+        localStorage.removeItem('citavers_sync_start_time');
     }
 }
 
@@ -196,7 +219,7 @@ function setSyncInProgress(inProgress) {
  */
 async function applyServerChanges(serverChanges) {
     const database = await openDB();
-    
+
     return new Promise((resolve, reject) => {
         const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
         const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
@@ -204,7 +227,7 @@ async function applyServerChanges(serverChanges) {
         const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
 
         let operationsCompleted = 0;
-        const totalOperations = 
+        const totalOperations =
             (serverChanges.papers?.length || 0) +
             (serverChanges.collections?.length || 0) +
             (serverChanges.annotations?.length || 0) +
@@ -232,7 +255,7 @@ async function applyServerChanges(serverChanges) {
             const papersByDoi = new Map();
             const papersByArxivId = new Map();
             const papersById = new Map();
-            
+
             // Index existing papers by DOI, arXiv ID, and ID
             for (const paper of existingPapers) {
                 papersById.set(paper.id, paper);
@@ -253,7 +276,7 @@ async function applyServerChanges(serverChanges) {
                 const localPaper = mapPaperFromApi(apiPaper);
                 let foundDuplicate = false;
                 let existingPaper = null;
-                
+
                 // Check for DOI duplicate
                 if (localPaper.doi) {
                     const normalizedDoi = localPaper.doi.trim().toLowerCase();
@@ -264,7 +287,7 @@ async function applyServerChanges(serverChanges) {
                         }
                     }
                 }
-                
+
                 // Check for arXiv ID duplicate if not found by DOI
                 if (!foundDuplicate) {
                     const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
@@ -278,7 +301,7 @@ async function applyServerChanges(serverChanges) {
                         }
                     }
                 }
-                
+
                 // If duplicate found, delete old and add new
                 if (foundDuplicate && existingPaper) {
                     // Delete the old duplicate
@@ -302,7 +325,7 @@ async function applyServerChanges(serverChanges) {
                             checkComplete();
                         };
                     };
-                    
+
                     // Update our tracking maps
                     if (localPaper.doi) {
                         papersByDoi.set(localPaper.doi.trim().toLowerCase(), localPaper);
@@ -315,7 +338,7 @@ async function applyServerChanges(serverChanges) {
                     papersById.set(localPaper.id, localPaper);
                     continue;
                 }
-                
+
                 // No duplicate detected, just add/update the paper
                 const request = papersStore.put(localPaper);
                 request.onsuccess = checkComplete;
@@ -323,7 +346,7 @@ async function applyServerChanges(serverChanges) {
                     console.error(`Failed to apply server paper ${localPaper.id}:`, request.error);
                     checkComplete(); // Continue with other operations
                 };
-                
+
                 // Update our tracking maps
                 if (localPaper.doi) {
                     papersByDoi.set(localPaper.doi.trim().toLowerCase(), localPaper);
@@ -524,9 +547,9 @@ export async function performIncrementalSync() {
 
         // Get pending local changes
         const localChanges = getPendingChanges();
-        
+
         // Check if there are any changes to send
-        const hasLocalChanges = 
+        const hasLocalChanges =
             (localChanges.papers?.created?.length || 0) +
             (localChanges.papers?.updated?.length || 0) +
             (localChanges.papers?.deleted?.length || 0) +
@@ -578,37 +601,22 @@ export async function performIncrementalSync() {
  * @returns {Promise<Object>} Sync result.
  */
 export async function performSync() {
-    // Safety check: if sync has been in progress for more than 5 minutes, clear the lock
-    const syncStartTime = localStorage.getItem('citavers_sync_start_time');
-    if (syncStartTime) {
-        const elapsed = Date.now() - parseInt(syncStartTime, 10);
-        if (elapsed > 5 * 60 * 1000) { // 5 minutes
-            console.warn('[Sync] Clearing stale sync lock (stuck for >5 minutes)');
-            setSyncInProgress(false);
-            localStorage.removeItem('citavers_sync_start_time');
-        }
-    }
-    
     if (isSyncInProgress()) {
         throw new Error('Sync already in progress');
     }
-    
+
     try {
-        // Set sync start time for stale lock detection
-        localStorage.setItem('citavers_sync_start_time', Date.now().toString());
-        
         const lastSyncedAt = localStorage.getItem('citavers_last_synced_at');
-        
+
         // If never synced, perform full sync
         if (!lastSyncedAt) {
             return await performFullSync();
         }
-        
+
         // Otherwise, perform incremental sync
         return await performIncrementalSync();
     } finally {
-        // Clean up sync start time
-        localStorage.removeItem('citavers_sync_start_time');
+        // Lock is cleared by performFullSync/performIncrementalSync finally blocks
     }
 }
 
@@ -619,20 +627,20 @@ export async function performSync() {
  */
 export async function deduplicateLocalPapers() {
     const database = await openDB();
-    
+
     return new Promise((resolve, reject) => {
         const transaction = database.transaction([STORE_NAME_PAPERS], 'readwrite');
         const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
-        
+
         const getAllRequest = papersStore.getAll();
-        
+
         getAllRequest.onsuccess = () => {
             const allPapers = getAllRequest.result || [];
-            
+
             const papersByDoi = new Map();
             const papersByArxivId = new Map();
             const duplicatesToDelete = new Set(); // Use Set to avoid duplicate IDs
-            
+
             // Helper function to normalize DOI (remove URL prefixes, lowercase, trim)
             const normalizeDoi = (doi) => {
                 if (!doi) return null;
@@ -642,7 +650,7 @@ export async function deduplicateLocalPapers() {
                     .trim()
                     .toLowerCase();
             };
-            
+
             // Helper function to extract arXiv ID
             const extractArxivId = (paper) => {
                 if (paper.arxivId) {
@@ -654,7 +662,7 @@ export async function deduplicateLocalPapers() {
                 }
                 return null;
             };
-            
+
             // Group papers by DOI and arXiv ID
             for (const paper of allPapers) {
                 const normalizedDoi = normalizeDoi(paper.doi);
@@ -664,7 +672,7 @@ export async function deduplicateLocalPapers() {
                     }
                     papersByDoi.get(normalizedDoi).push(paper);
                 }
-                
+
                 // Also check for arXiv ID
                 const arxivId = extractArxivId(paper);
                 if (arxivId) {
@@ -674,44 +682,44 @@ export async function deduplicateLocalPapers() {
                     papersByArxivId.get(arxivId).push(paper);
                 }
             }
-            
+
             // Find duplicates by DOI
             for (const [normalizedDoi, papers] of papersByDoi.entries()) {
                 if (papers.length > 1) {
                     // Sort by ID (highest first - most recent)
                     papers.sort((a, b) => b.id - a.id);
-                    
+
                     // Keep the first (highest ID), mark the rest for deletion
                     const toKeep = papers[0];
                     const toDelete = papers.slice(1);
-                    
-                    
+
+
                     toDelete.forEach(p => duplicatesToDelete.add(p.id));
                 }
             }
-            
+
             // Find duplicates by arXiv ID
             for (const [arxivId, papers] of papersByArxivId.entries()) {
                 if (papers.length > 1) {
                     // Sort by ID (highest first - most recent)
                     papers.sort((a, b) => b.id - a.id);
-                    
+
                     // Keep the first (highest ID), mark the rest for deletion
                     const toKeep = papers[0];
                     const toDelete = papers.slice(1);
-                    
-                    
+
+
                     toDelete.forEach(p => duplicatesToDelete.add(p.id));
                 }
             }
-            
+
             const duplicatesArray = Array.from(duplicatesToDelete);
-            
+
             if (duplicatesArray.length === 0) {
                 resolve({ duplicatesRemoved: 0 });
                 return;
             }
-            
+
             // Delete duplicates
             let deletedCount = 0;
             const deleteNext = () => {
@@ -719,30 +727,30 @@ export async function deduplicateLocalPapers() {
                     resolve({ duplicatesRemoved: deletedCount });
                     return;
                 }
-                
+
                 const idToDelete = duplicatesArray[deletedCount];
                 const deleteRequest = papersStore.delete(idToDelete);
-                
+
                 deleteRequest.onsuccess = () => {
                     deletedCount++;
                     deleteNext();
                 };
-                
+
                 deleteRequest.onerror = () => {
                     console.error(`[De-dup] Failed to delete paper ${idToDelete}:`, deleteRequest.error);
                     deletedCount++; // Continue despite error
                     deleteNext();
                 };
             };
-            
+
             deleteNext();
         };
-        
+
         getAllRequest.onerror = () => {
             console.error('[De-dup] Failed to get papers:', getAllRequest.error);
             reject(new Error('Failed to retrieve papers for de-duplication'));
         };
-        
+
         transaction.onerror = (event) => {
             reject(new Error(`De-duplication transaction error: ${event.target.error}`));
         };
@@ -757,11 +765,11 @@ export async function getSyncStatusInfo() {
     try {
         // Import rate limit check dynamically to avoid circular dependency
         const { isRateLimited } = await import('../api/utils.js');
-        
+
         // If rate limited, return cached local status without making API call
         if (isRateLimited()) {
             const pendingChanges = getPendingChanges();
-            const hasPendingChanges = 
+            const hasPendingChanges =
                 (pendingChanges.papers?.created?.length || 0) +
                 (pendingChanges.papers?.updated?.length || 0) +
                 (pendingChanges.papers?.deleted?.length || 0) +
@@ -794,10 +802,10 @@ export async function getSyncStatusInfo() {
                 }
             };
         }
-        
+
         const serverStatus = await getSyncStatus();
         const pendingChanges = getPendingChanges();
-        const hasPendingChanges = 
+        const hasPendingChanges =
             (pendingChanges.papers?.created?.length || 0) +
             (pendingChanges.papers?.updated?.length || 0) +
             (pendingChanges.papers?.deleted?.length || 0) +
