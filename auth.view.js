@@ -9,7 +9,7 @@ import { setCloudSyncEnabled } from './config.js';
 
 export const authView = {
     isOpen: false,
-    
+
     /**
      * Initializes the authentication modal and mounts it to the DOM.
      */
@@ -21,12 +21,12 @@ export const authView = {
         }
 
         // Inject modal HTML
-        const { views } = await import('./views.js');
+        const { views } = await import('./views/index.js');
         container.innerHTML = views.authModal;
 
         // Setup event listeners
         this.setupEventListeners();
-        
+
         // Check if user is already authenticated
         if (isAuthenticated()) {
             const user = getUser();
@@ -67,11 +67,11 @@ export const authView = {
         // Form submissions
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-            
+
             // Real-time validation feedback
             const loginEmailInput = document.getElementById('auth-login-email');
             const loginPasswordInput = document.getElementById('auth-login-password');
-            
+
             if (loginEmailInput) {
                 loginEmailInput.addEventListener('blur', () => {
                     const email = loginEmailInput.value.trim();
@@ -90,7 +90,7 @@ export const authView = {
                     }
                 });
             }
-            
+
             if (loginPasswordInput) {
                 loginPasswordInput.addEventListener('blur', () => {
                     if (!loginPasswordInput.value) {
@@ -108,12 +108,12 @@ export const authView = {
         }
         if (registerForm) {
             registerForm.addEventListener('submit', (e) => this.handleRegister(e));
-            
+
             // Real-time validation feedback
             const registerNameInput = document.getElementById('auth-register-name');
             const registerEmailInput = document.getElementById('auth-register-email');
             const registerPasswordInput = document.getElementById('auth-register-password');
-            
+
             if (registerNameInput) {
                 registerNameInput.addEventListener('blur', () => {
                     const name = registerNameInput.value.trim();
@@ -134,7 +134,7 @@ export const authView = {
                     }
                 });
             }
-            
+
             if (registerEmailInput) {
                 registerEmailInput.addEventListener('blur', () => {
                     const email = registerEmailInput.value.trim();
@@ -155,7 +155,7 @@ export const authView = {
                     }
                 });
             }
-            
+
             if (registerPasswordInput) {
                 registerPasswordInput.addEventListener('blur', () => {
                     const password = registerPasswordInput.value;
@@ -202,8 +202,8 @@ export const authView = {
 
         // Focus first input
         setTimeout(() => {
-            const emailInput = document.getElementById('auth-login-email') || 
-                              document.getElementById('auth-register-email');
+            const emailInput = document.getElementById('auth-login-email') ||
+                document.getElementById('auth-register-email');
             if (emailInput) emailInput.focus();
         }, 100);
     },
@@ -283,13 +283,13 @@ export const authView = {
         if (field) {
             field.classList.add('border-red-500', 'focus:ring-red-500', 'focus:border-red-500');
             field.classList.remove('border-stone-300', 'dark:border-stone-700');
-            
+
             // Remove existing error message
             const existingError = field.parentElement.querySelector('.field-error');
             if (existingError) {
                 existingError.remove();
             }
-            
+
             // Add error message
             const errorEl = document.createElement('p');
             errorEl.className = 'field-error mt-1 text-xs text-red-600 dark:text-red-400';
@@ -329,7 +329,7 @@ export const authView = {
      */
     async handleLogin(e) {
         e.preventDefault();
-        
+
         const emailInput = document.getElementById('auth-login-email');
         const passwordInput = document.getElementById('auth-login-password');
         const loading = document.getElementById('auth-login-loading');
@@ -346,7 +346,7 @@ export const authView = {
 
         // Client-side validation
         let hasErrors = false;
-        
+
         if (!email) {
             this.showFieldError('auth-login-email', 'Email is required');
             hasErrors = true;
@@ -354,12 +354,12 @@ export const authView = {
             this.showFieldError('auth-login-email', 'Please enter a valid email address');
             hasErrors = true;
         }
-        
+
         if (!password) {
             this.showFieldError('auth-login-password', 'Password is required');
             hasErrors = true;
         }
-        
+
         if (hasErrors) {
             return;
         }
@@ -370,14 +370,14 @@ export const authView = {
 
         try {
             const result = await login({ email, password });
-            
+
             // Success
             this.showSuccess('Login successful!');
             setCloudSyncEnabled(true);
-            
+
             // Update UI
             this.updateUIForAuthenticated(result.user);
-            
+
             // Close modal after short delay
             setTimeout(() => {
                 this.close();
@@ -396,14 +396,14 @@ export const authView = {
                     }
                 });
             }
-            
+
             // Show general error message
             const errorMessage = error.message || 'Login failed. Please check your credentials and try again.';
             this.showError(errorMessage);
-            
+
             // Focus on first error field
-            const firstErrorField = emailInput.classList.contains('border-red-500') ? emailInput : 
-                                   passwordInput.classList.contains('border-red-500') ? passwordInput : emailInput;
+            const firstErrorField = emailInput.classList.contains('border-red-500') ? emailInput :
+                passwordInput.classList.contains('border-red-500') ? passwordInput : emailInput;
             firstErrorField.focus();
         } finally {
             // Hide loading state
@@ -418,7 +418,7 @@ export const authView = {
      */
     async handleRegister(e) {
         e.preventDefault();
-        
+
         const nameInput = document.getElementById('auth-register-name');
         const emailInput = document.getElementById('auth-register-email');
         const passwordInput = document.getElementById('auth-register-password');
@@ -437,7 +437,7 @@ export const authView = {
 
         // Client-side validation
         let hasErrors = false;
-        
+
         if (!name) {
             this.showFieldError('auth-register-name', 'Name is required');
             hasErrors = true;
@@ -445,7 +445,7 @@ export const authView = {
             this.showFieldError('auth-register-name', 'Name must be at least 2 characters');
             hasErrors = true;
         }
-        
+
         if (!email) {
             this.showFieldError('auth-register-email', 'Email is required');
             hasErrors = true;
@@ -453,7 +453,7 @@ export const authView = {
             this.showFieldError('auth-register-email', 'Please enter a valid email address');
             hasErrors = true;
         }
-        
+
         if (!password) {
             this.showFieldError('auth-register-password', 'Password is required');
             hasErrors = true;
@@ -461,7 +461,7 @@ export const authView = {
             this.showFieldError('auth-register-password', 'Password must be at least 8 characters');
             hasErrors = true;
         }
-        
+
         if (hasErrors) {
             return;
         }
@@ -472,15 +472,15 @@ export const authView = {
 
         try {
             const result = await register({ name, email, password });
-            
+
             // Success - show verification message
             const verificationMessage = `Registration successful! Please check your email (${email}) to verify your account.`;
             this.showSuccess(verificationMessage);
             setCloudSyncEnabled(true);
-            
+
             // Update UI
             this.updateUIForAuthenticated(result.user);
-            
+
             // Close modal after showing message
             setTimeout(() => {
                 this.close();
@@ -501,10 +501,10 @@ export const authView = {
                     }
                 });
             }
-            
+
             // Show general error message
             let errorMessage = error.message || 'Registration failed. Please check your information and try again.';
-            
+
             // Handle specific error cases
             if (error.message && error.message.toLowerCase().includes('already exists')) {
                 errorMessage = 'An account with this email already exists. Please log in instead.';
@@ -514,13 +514,13 @@ export const authView = {
             } else if (error.status === 503 || error.message.includes('server error')) {
                 errorMessage = 'Server is temporarily unavailable. Please try again in a few moments.';
             }
-            
+
             this.showError(errorMessage);
-            
+
             // Focus on first error field
             const firstErrorField = nameInput.classList.contains('border-red-500') ? nameInput :
-                                   emailInput.classList.contains('border-red-500') ? emailInput :
-                                   passwordInput.classList.contains('border-red-500') ? passwordInput : emailInput;
+                emailInput.classList.contains('border-red-500') ? emailInput :
+                    passwordInput.classList.contains('border-red-500') ? passwordInput : emailInput;
             firstErrorField.focus();
         } finally {
             // Hide loading state
@@ -553,7 +553,7 @@ export const authView = {
     showError(message) {
         const errorDiv = document.getElementById('auth-error');
         const errorMessage = document.getElementById('auth-error-message');
-        
+
         if (errorDiv && errorMessage) {
             errorMessage.textContent = message;
             errorDiv.classList.remove('hidden');
@@ -567,7 +567,7 @@ export const authView = {
     showSuccess(message) {
         const successDiv = document.getElementById('auth-success');
         const successMessage = document.getElementById('auth-success-message');
-        
+
         if (successDiv && successMessage) {
             successMessage.textContent = message;
             successDiv.classList.remove('hidden');
@@ -580,7 +580,7 @@ export const authView = {
     hideMessages() {
         const errorDiv = document.getElementById('auth-error');
         const successDiv = document.getElementById('auth-success');
-        
+
         if (errorDiv) errorDiv.classList.add('hidden');
         if (successDiv) successDiv.classList.add('hidden');
     },
@@ -591,10 +591,10 @@ export const authView = {
     clearForms() {
         const loginForm = document.getElementById('auth-login-form');
         const registerForm = document.getElementById('auth-register-form');
-        
+
         // Clear field errors
         this.clearFieldError();
-        
+
         if (loginForm) loginForm.reset();
         if (registerForm) registerForm.reset();
     },
@@ -654,13 +654,13 @@ export const authView = {
                     </button>
                 </div>
             `;
-            
+
             const logoutBtn = document.getElementById('logout-button');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', () => this.handleLogout());
             }
         }
-        
+
         // Show email verification notice if needed
         this.showEmailVerificationNotice(user);
     },
@@ -678,7 +678,7 @@ export const authView = {
                     <span>Login</span>
                 </button>
             `;
-            
+
             const loginBtn = document.getElementById('login-button');
             if (loginBtn) {
                 loginBtn.addEventListener('click', () => this.open('login'));
