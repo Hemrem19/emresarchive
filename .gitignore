@@ -55,3 +55,9 @@ PROJECT_SUMMARY.md
 ENHANCEMENT_PLAN.md
 CLOUDFLARE_DEPLOY_FIX.md
 DEPLOYMENT_PLAN.md
+
+# Build artifacts
+dist/
+
+# Build artifacts
+dist/

@@ -4,6 +4,9 @@
   "description": "Local-first research paper management application",
   "type": "module",
   "scripts": {
+    "build": "node build.js",
+    "cap:sync": "npx cap sync",
+    "cap:open": "npx cap open",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -19,6 +22,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/ios": "^7.4.4",
     "@vitest/coverage-v8": "^1.6.0",
     "@vitest/ui": "^1.0.4",
     "adm-zip": "^0.5.16",

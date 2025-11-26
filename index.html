@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
     <title>citavErs</title>
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#137fec">
@@ -56,6 +56,32 @@
             },
         }
     </script>
+    <style>
+        /* Safe Area Support */
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
+        /* Ensure fixed headers and sidebars respect safe area */
+        #mobile-sidebar {
+            padding-top: max(1rem, env(safe-area-inset-top));
+            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            padding-left: max(1rem, env(safe-area-inset-left));
+        }
+
+        #desktop-sidebar {
+            padding-top: max(1rem, env(safe-area-inset-top));
+            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            padding-left: max(1rem, env(safe-area-inset-left));
+        }
+
+        /* Adjust debug console position */
+        #debug-console {
+            bottom: max(10px, env(safe-area-inset-bottom)) !important;
+        }
+    </style>
 </head>
 
 <body class="bg-background-light dark:bg-background-dark font-display text-stone-900 dark:text-stone-100 antialiased">
@@ -264,6 +290,31 @@
     <!-- Authentication Modal (Global) -->
     <div id="auth-modal-container"></div>
 
+    <!-- Error Handler & Debugger -->
+    <script>
+        window.addEventListener('error', function (e) {
+            var msg = 'Global Error: ' + e.message;
+            if (e.target && (e.target.src || e.target.href)) {
+                msg += ' (Resource: ' + (e.target.src || e.target.href) + ')';
+            }
+            if (e.filename) {
+                msg += ' at ' + e.filename + ':' + e.lineno;
+            }
+            // alert(msg); // Disable alert to avoid spamming
+            document.body.innerHTML += '<div style="color:red; background:black; padding:10px; z-index:99999; position:fixed; top:env(safe-area-inset-top); left:0; width:100%; border-bottom:1px solid white;">' +
+                'CRITICAL ERROR: ' + msg + '</div>';
+            console.error(msg);
+        }, true); // Capture phase to catch resource load errors
+
+        window.addEventListener('unhandledrejection', function (e) {
+            var msg = 'Unhandled Rejection: ' + e.reason;
+            // alert(msg); // Disable alert to avoid spamming
+            document.body.innerHTML += '<div style="color:red; background:black; padding:10px; z-index:99999; position:fixed; top:calc(50px + env(safe-area-inset-top)); left:0; width:100%; border-bottom:1px solid white;">' +
+                msg + '</div>';
+            console.error(msg);
+        });
+    </script>
+    <script src="debug.js"></script>
     <script type="module" src="app.js"></script>
 </body>
 
