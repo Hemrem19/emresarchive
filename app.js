@@ -1,6 +1,16 @@
 import { openDB } from './db.js';
 import { views as templates } from './views/index.js';
 import { highlightActiveSidebarLink } from './ui.js';
+import { getStatusOrder } from './config.js';
+import { authView } from './auth.view.js';
+
+// Import refactored core modules
+import { createAppState } from './core/state.js';
+import { updateUrlHash, applyFiltersAndRender } from './core/filters.js';
+import { createRouter, renderView, handleBeforeUnload, initializeRouter } from './core/router.js';
+import { createCommandPalette } from './core/commandPalette.js';
+import { createKeyboardShortcuts } from './core/keyboardShortcuts.js';
+import { initializeAutoSync } from './core/syncManager.js';
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
