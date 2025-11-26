@@ -41,8 +41,16 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, then network (Stale-While-Revalidate)
 self.addEventListener('fetch', (event) => {
-    // Skip cross-origin requests that aren't in our cache list (like some API calls might be)
-    // But for this simple PWA, we try to cache everything we can.
+    // Skip cross-origin requests and API requests
+    // We want API requests to go straight to the network to avoid CORS issues with the SW proxy
+    if (!event.request.url.startsWith(self.location.origin) || event.request.url.includes('/api/')) {
+        return;
+    }
+
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') {
+        return;
+    }
 
     event.respondWith(
         caches.match(event.request)
