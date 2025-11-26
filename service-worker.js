@@ -24,6 +24,10 @@ self.addEventListener('install', (event) => {
             .then((cache) => {
                 return cache.addAll(ASSETS_TO_CACHE);
             })
+            .catch((error) => {
+                console.error('Service Worker installation failed:', error);
+                throw error;
+            })
     );
 });
 
