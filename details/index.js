@@ -6,9 +6,10 @@ import { getPdfDownloadUrl, getPdfViewUrl } from '../api/papers.js';
 import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
 import { getApiBaseUrl } from '../config.js';
-import { relatedManager } from './related.manager.js';
-import { notesManager } from './notes.manager.js';
 
+
+import { notesManager } from './notes.manager.js';
+import { relatedManager } from './related.manager.js';
 
 export const detailsView = {
     paperId: null,
@@ -168,6 +169,15 @@ export const detailsView = {
         // Initialize Notes Manager
         const notesEditor = document.getElementById('notes-editor');
         notesManager.initialize(paperId, notesEditor, paper.notes);
+
+        // Initialize Related Papers Manager
+        const relatedPapersList = document.getElementById('related-papers-list');
+        const addLinkBtn = document.getElementById('add-link-btn');
+        await relatedManager.initialize(paperId, {
+            list: relatedPapersList,
+            addBtn: addLinkBtn
+        });
+
         // Read Paper
         const readPaperBtn = document.getElementById('read-paper-btn');
         if (readPaperBtn && (paper.pdfFile || paper.s3Key || paper.pdfUrl)) {
@@ -332,14 +342,6 @@ export const detailsView = {
                         navigator.clipboard.writeText(textToCopy).then(() => showToast('Citation copied to clipboard!'));
                     }
                 });
-            });
-        }
-
-        // Related Papers - Add Link
-        const addLinkBtn = document.getElementById('add-link-btn');
-        if (addLinkBtn) {
-            addLinkBtn.addEventListener('click', () => {
-                relatedManager.openAddLinkModal(paperId);
             });
         }
     },
