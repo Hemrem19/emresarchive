@@ -21,35 +21,16 @@ export const graphView = {
 
     async mount(appState) {
         try {
-            // Load all papers first (needed for both cloud and local)
+            // Always load local papers and use local graph data
             this.allPapers = await getAllPapers();
+            this.populateTagFilter();
+            const graphData = this.prepareLocalGraphData(this.allPapers);
 
-            // Check authentication
-            const token = getAccessToken();
-            if (!token) {
-                console.log('Graph View: Not logged in, using local data');
-                this.mountLocal();
-                return;
-            }
-
-            // Fetch user's networks
-            const networks = await getUserNetworks();
-
-            if (networks && networks.length > 0) {
-                const latestNetwork = networks[0];
-                await this.loadNetwork(latestNetwork.id);
+            if (graphData.edges.length === 0) {
+                document.getElementById('graph-empty-state').classList.remove('hidden');
             } else {
-                // No cloud network exists, use local data instead
-                console.log('Graph View: No cloud network found, using local data');
-                this.populateTagFilter();
-                const graphData = this.prepareLocalGraphData(this.allPapers);
-
-                if (graphData.edges.length === 0) {
-                    document.getElementById('graph-empty-state').classList.remove('hidden');
-                } else {
-                    document.getElementById('graph-empty-state').classList.add('hidden');
-                    this.renderGraph(graphData);
-                }
+                document.getElementById('graph-empty-state').classList.add('hidden');
+                this.renderGraph(graphData);
             }
 
             this.setupEventListeners();
@@ -57,7 +38,6 @@ export const graphView = {
         } catch (error) {
             console.error('Error mounting graph view:', error);
             showToast('Failed to load paper network', 'error');
-            this.mountLocal();
         }
     },
 
