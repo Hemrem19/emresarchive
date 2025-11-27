@@ -21,6 +21,9 @@ export const graphView = {
 
     async mount(appState) {
         try {
+            // Load all papers first (needed for both cloud and local)
+            this.allPapers = await getAllPapers();
+
             // Check authentication
             const token = getAccessToken();
             if (!token) {
@@ -29,9 +32,6 @@ export const graphView = {
                 return;
             }
 
-            // Load all papers (for details lookup)
-            this.allPapers = await getAllPapers();
-
             // Fetch user's networks
             const networks = await getUserNetworks();
 
@@ -39,8 +39,17 @@ export const graphView = {
                 const latestNetwork = networks[0];
                 await this.loadNetwork(latestNetwork.id);
             } else {
-                console.log('Graph View: No network found');
-                document.getElementById('graph-empty-state').classList.remove('hidden');
+                // No cloud network exists, use local data instead
+                console.log('Graph View: No cloud network found, using local data');
+                this.populateTagFilter();
+                const graphData = this.prepareLocalGraphData(this.allPapers);
+
+                if (graphData.edges.length === 0) {
+                    document.getElementById('graph-empty-state').classList.remove('hidden');
+                } else {
+                    document.getElementById('graph-empty-state').classList.add('hidden');
+                    this.renderGraph(graphData);
+                }
             }
 
             this.setupEventListeners();

@@ -1,6 +1,8 @@
 import { getPaperById, updatePaper, getAllPapers } from '../db.js';
 import { escapeHtml, showToast } from '../ui.js';
 import { views as templates } from '../views/index.js';
+import { performIncrementalSync } from '../db/sync.js';
+import { isCloudSyncEnabled } from '../config.js';
 
 export const relatedManager = {
     paperId: null,
@@ -88,12 +90,28 @@ export const relatedManager = {
         const linkHandler = async (e) => {
             if (e.target.classList.contains('link-paper-btn')) {
                 const linkId = parseInt(e.target.dataset.linkId, 10);
+
+                // Update both papers bidirectionally
                 const freshPaper = await getPaperById(paperId);
+                const linkedPaper = await getPaperById(linkId);
+
+                // Add bidirectional links
                 const newRelatedIds = [...(freshPaper.relatedPaperIds || []), linkId];
+                const linkedPaperRelatedIds = [...(linkedPaper.relatedPaperIds || []), paperId];
+
                 await updatePaper(paperId, { relatedPaperIds: newRelatedIds });
+                await updatePaper(linkId, { relatedPaperIds: linkedPaperRelatedIds });
+
+                // Trigger background cloud sync if enabled
+                if (isCloudSyncEnabled()) {
+                    performIncrementalSync().catch(err =>
+                        console.warn('Background sync failed after linking papers:', err)
+                    );
+                }
+
                 await this.renderRelatedPapers();
                 closeModal();
-                showToast('Paper linked successfully!');
+                showToast('Papers linked successfully!');
             }
         };
         modalList.addEventListener('click', linkHandler);
@@ -125,9 +143,25 @@ export const relatedManager = {
                 if (removeBtn) {
                     e.preventDefault();
                     const idToRemove = parseInt(removeBtn.dataset.removeId, 10);
+
+                    // Update both papers bidirectionally
                     const currentPaper = await getPaperById(this.paperId);
+                    const linkedPaper = await getPaperById(idToRemove);
+
+                    // Remove bidirectional links
                     const updatedRelatedIds = (currentPaper.relatedPaperIds || []).filter(id => id !== idToRemove);
+                    const linkedPaperRelatedIds = (linkedPaper.relatedPaperIds || []).filter(id => id !== this.paperId);
+
                     await updatePaper(this.paperId, { relatedPaperIds: updatedRelatedIds });
+                    await updatePaper(idToRemove, { relatedPaperIds: linkedPaperRelatedIds });
+
+                    // Trigger background cloud sync if enabled
+                    if (isCloudSyncEnabled()) {
+                        performIncrementalSync().catch(err =>
+                            console.warn('Background sync failed after unlinking papers:', err)
+                        );
+                    }
+
                     await this.renderRelatedPapers();
                     showToast('Paper link removed.');
                 }
