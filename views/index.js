@@ -10,6 +10,7 @@ import { addView } from './pages/add.js';
 import { detailsView } from './pages/details.js';
 import { settingsView } from './pages/settings.js';
 import { graphView } from './pages/graph.js';
+import { docsView } from './pages/docs.js';
 
 // Import modal views
 import { authModalView } from './modals/auth.js';
@@ -29,6 +30,7 @@ export const views = {
     details: detailsView,
     settings: settingsView,
     graph: graphView,
+    docs: docsView,
 
     // Modals
     authModal: authModalView,

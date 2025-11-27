@@ -19,13 +19,13 @@ const FILES_TO_COPY = [
     'debug.js',
     'auth.view.js',
     'dashboard.view.js',
-    'details.view.js',
     'form.view.js',
     'settings.view.js',
     'graph.view.js',
     'docs.view.js',
     'citation.js',
-    'api.js'
+    'api.js',
+    'tailwind.js'
 ];
 
 // Directories to copy recursively
@@ -36,7 +36,8 @@ const DIRS_TO_COPY = [
     'db', // db folder (contains sync.js etc)
     'views',
     'dashboard',
-    'import'
+    'import',
+    'details'
 ];
 
 console.log('Building for production...');

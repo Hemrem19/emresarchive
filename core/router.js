@@ -2,7 +2,7 @@
 // Client-side Routing and Navigation
 
 import { dashboardView } from '../dashboard.view.js';
-import { detailsView } from '../details.view.js';
+import { detailsView } from '../details/index.js';
 import { formView } from '../form.view.js';
 import { settingsView } from '../settings.view.js';
 import { graphView } from '../graph.view.js';
@@ -39,7 +39,7 @@ export const handleBeforeUnload = (event, appState) => {
     if (appState.hasUnsavedChanges && (appState.currentPath.startsWith('/add') || appState.currentPath.startsWith('/edit/'))) {
         event.preventDefault();
         // Chrome requires returnValue to be set
-        event.returnValue = ''; 
+        event.returnValue = '';
         return 'You have unsaved changes. Are you sure you want to leave?';
     }
     return undefined; // Allow navigation
@@ -78,7 +78,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
 
         // CRITICAL FIX: Update the current path *before* rendering the new view.
         appState.currentPath = requestedPath;
-        
+
         // Simple routing logic
         if (requestedPath === '/add') {
             appState.currentView = formView;
@@ -108,7 +108,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
             const hashQueryString = requestedPath.split('?')[1] || '';
             const hashParams = new URLSearchParams(hashQueryString);
             const token = hashParams.get('token');
-            
+
             if (token) {
                 // Show verification loading state
                 renderView(app, `
@@ -120,16 +120,16 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                         </div>
                     </div>
                 `);
-                
+
                 // Handle email verification
                 try {
                     const { verifyEmail } = await import('../api/auth.js');
                     const { showToast } = await import('../ui.js');
                     const { getUser, setAuth, getAccessToken } = await import('../api/auth.js');
-                    
+
                     // Verify email
                     await verifyEmail(token);
-                    
+
                     // Update user data if logged in
                     if (getAccessToken()) {
                         const user = getUser();
@@ -141,7 +141,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                             authView.updateUIForAuthenticated(user);
                         }
                     }
-                    
+
                     // Show success message and redirect
                     showToast('Email verified successfully!', 'success');
                     setTimeout(() => {
@@ -151,7 +151,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                 } catch (error) {
                     const { showToast } = await import('../ui.js');
                     showToast(error.message || 'Email verification failed', 'error');
-                    
+
                     // Show error state
                     renderView(app, `
                         <div class="flex items-center justify-center min-h-screen">
@@ -167,7 +167,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                             </div>
                         </div>
                     `);
-                    
+
                     setTimeout(() => {
                         window.location.hash = '#/';
                         window.location.search = '';
@@ -193,7 +193,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
         } else if (requestedPath === '/' || requestedPath.startsWith('/tag/') || requestedPath.startsWith('/status/') || requestedPath.startsWith('/filter/')) {
             // Parse URL hash to update filters
             parseUrlHash(appState);
-            
+
             appState.currentView = dashboardView; // Set the new current view
             // All dashboard-like views
             renderView(app, templates.home, async () => {
