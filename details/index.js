@@ -6,10 +6,9 @@ import { getPdfDownloadUrl, getPdfViewUrl } from '../api/papers.js';
 import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
 import { getApiBaseUrl } from '../config.js';
-
-
-import { notesManager } from './notes.manager.js';
 import { relatedManager } from './related.manager.js';
+import { notesManager } from './notes.manager.js';
+
 
 export const detailsView = {
     paperId: null,
