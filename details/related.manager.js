@@ -118,6 +118,7 @@ export const relatedManager = {
     },
 
     setupEventListeners() {
+        // Handle remove link button clicks
         if (this.elements.list) {
             this.elements.list.addEventListener('click', async (e) => {
                 const removeBtn = e.target.closest('.remove-link-btn');
@@ -130,6 +131,13 @@ export const relatedManager = {
                     await this.renderRelatedPapers();
                     showToast('Paper link removed.');
                 }
+            });
+        }
+
+        // Handle Add Link button click
+        if (this.elements.addBtn) {
+            this.elements.addBtn.addEventListener('click', () => {
+                this.openAddLinkModal(this.paperId);
             });
         }
     }
