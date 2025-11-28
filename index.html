@@ -293,6 +293,11 @@
     <!-- Error Handler & Debugger -->
     <script>
         window.addEventListener('error', function (e) {
+            // Filter out Cloudflare beacon errors
+            var resourceUrl = (e.target && (e.target.src || e.target.href)) || '';
+            if (resourceUrl.includes('cloudflareinsights.com') || resourceUrl.includes('beacon.min.js')) {
+                return; // Don't display banner for Cloudflare errors
+            }
             var msg = 'Global Error: ' + e.message;
             if (e.target && (e.target.src || e.target.href)) {
                 msg += ' (Resource: ' + (e.target.src || e.target.href) + ')';
