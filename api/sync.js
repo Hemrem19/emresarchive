@@ -51,7 +51,7 @@ export function setLastSyncedAt(timestamp) {
  */
 export async function apiRequest(url, options = {}) {
     let accessToken = getAccessToken();
-    
+
     if (!accessToken) {
         throw new Error('Not authenticated. Please log in.');
     }
@@ -109,7 +109,7 @@ export async function fullSync() {
             if (result.data.syncedAt) {
                 setLastSyncedAt(result.data.syncedAt);
             }
-            
+
             return {
                 papers: result.data.papers || [],
                 collections: result.data.collections || [],
@@ -151,7 +151,7 @@ export async function incrementalSync(localChanges) {
             if (result.data.syncedAt) {
                 setLastSyncedAt(result.data.syncedAt);
             }
-            
+
             return {
                 appliedChanges: result.data.appliedChanges || {},
                 serverChanges: result.data.serverChanges || {},
@@ -201,19 +201,19 @@ export async function getSyncStatus() {
  */
 function mapPaperToApi(localPaper) {
     const apiPaper = { ...localPaper };
-    
+
     // Map readingStatus to status
     if (apiPaper.readingStatus) {
         apiPaper.status = apiPaper.readingStatus;
         delete apiPaper.readingStatus;
     }
-    
+
     // Map s3Key to pdfUrl
     if (apiPaper.s3Key) {
         apiPaper.pdfUrl = apiPaper.s3Key;
         delete apiPaper.s3Key;
     }
-    
+
     // Remove fields API doesn't expect
     delete apiPaper.pdfData;
     delete apiPaper.pdfFile;
@@ -221,7 +221,7 @@ function mapPaperToApi(localPaper) {
     delete apiPaper.id; // API will assign ID
     delete apiPaper.createdAt; // API sets this
     delete apiPaper.updatedAt; // API sets this
-    
+
     // Ensure arrays
     if (!Array.isArray(apiPaper.authors)) {
         apiPaper.authors = apiPaper.authors ? [apiPaper.authors] : [];
@@ -229,14 +229,17 @@ function mapPaperToApi(localPaper) {
     if (!Array.isArray(apiPaper.tags)) {
         apiPaper.tags = apiPaper.tags ? [apiPaper.tags] : [];
     }
-    
+    if (!Array.isArray(apiPaper.relatedPaperIds)) {
+        apiPaper.relatedPaperIds = apiPaper.relatedPaperIds ? [apiPaper.relatedPaperIds] : [];
+    }
+
     // Ensure readingProgress is valid
     if (apiPaper.readingProgress) {
         if (!apiPaper.readingProgress.totalPages || apiPaper.readingProgress.totalPages < 1) {
             delete apiPaper.readingProgress;
         }
     }
-    
+
     return apiPaper;
 }
 
@@ -247,21 +250,21 @@ function mapPaperToApi(localPaper) {
  */
 function mapPaperFromApi(apiPaper) {
     const localPaper = { ...apiPaper };
-    
+
     // Map status to readingStatus
     if (localPaper.status) {
         localPaper.readingStatus = localPaper.status;
     }
-    
+
     // Map pdfUrl to s3Key
     if (localPaper.pdfUrl) {
         localPaper.s3Key = localPaper.pdfUrl;
     }
-    
+
     // Set hasPdf based on actual PDF data existence (derive from data, not stored field)
     // This ensures hasPdf is accurate even if backend doesn't have pdfUrl
     localPaper.hasPdf = !!(localPaper.s3Key || localPaper.pdfUrl || localPaper.pdfFile);
-    
+
     return localPaper;
 }
 
@@ -272,12 +275,12 @@ function mapPaperFromApi(apiPaper) {
  */
 function mapCollectionToApi(localCollection) {
     const apiCollection = { ...localCollection };
-    
+
     // Remove fields API doesn't expect
     delete apiCollection.id;
     delete apiCollection.createdAt;
     delete apiCollection.updatedAt;
-    
+
     return apiCollection;
 }
 
@@ -298,12 +301,12 @@ function mapCollectionFromApi(apiCollection) {
  */
 function mapAnnotationToApi(localAnnotation) {
     const apiAnnotation = { ...localAnnotation };
-    
+
     // Remove fields API doesn't expect
     delete apiAnnotation.id;
     delete apiAnnotation.createdAt;
     delete apiAnnotation.updatedAt;
-    
+
     return apiAnnotation;
 }
 
