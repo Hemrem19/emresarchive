@@ -64,6 +64,8 @@ model Paper {
   
   // Notes (rich text HTML)
   notes           String?   @db.Text
+  summary         String?   @db.Text
+  rating          Int?      // 1-10 scale, nullable
   
   // Reading progress (JSONB)
   readingProgress Json?     @map("reading_progress")

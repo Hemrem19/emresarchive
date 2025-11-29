@@ -62,6 +62,8 @@ export const homeView = `
                         <option value="year_desc">Sort by Publication Year</option>
                         <option value="status_asc">Sort by Status</option>
                         <option value="progress_desc">Sort by Reading Progress</option>
+                        <option value="rating_desc">Sort by Rating (Highest First)</option>
+                        <option value="rating_asc">Sort by Rating (Lowest First)</option>
                     </select>
                 </div>
                 <div class="space-y-4" id="paper-list">

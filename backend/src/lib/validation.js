@@ -57,6 +57,8 @@ export const paperSchema = z.object({
   status: z.string().optional().default('To Read'),
   relatedPaperIds: z.array(z.number().int()).optional().default([]),
   notes: z.string().optional().nullable(),
+  summary: z.string().optional().nullable(),
+  rating: z.number().int().min(1).max(10).optional().nullable(),
   readingProgress: z.object({
     currentPage: z.number().int().min(0).optional(),
     totalPages: z.number().int().min(1).optional()

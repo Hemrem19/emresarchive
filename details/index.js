@@ -6,9 +6,10 @@ import { getPdfDownloadUrl, getPdfViewUrl } from '../api/papers.js';
 import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
 import { getApiBaseUrl } from '../config.js';
-
+import { createRatingInput } from '../components/rating-input.js';
 
 import { notesManager } from './notes.manager.js';
+import { summaryManager } from './summary.manager.js';
 import { relatedManager } from './related.manager.js';
 
 export const detailsView = {
@@ -32,7 +33,9 @@ export const detailsView = {
 
     unmount() {
         const notesEditor = document.getElementById('notes-editor');
+        const summaryEditor = document.getElementById('summary-editor');
         notesManager.cleanup(notesEditor);
+        summaryManager.cleanup(summaryEditor);
         relatedManager.cleanup();
 
         // Clean up citation modal if open
@@ -67,6 +70,10 @@ export const detailsView = {
                         <div class="flex justify-between items-start"><span class="font-medium text-stone-500 dark:text-stone-400">DOI/URL:</span><a class="text-primary hover:underline truncate text-right" href="${paper.doi ? `https://doi.org/${paper.doi}` : '#'}" target="_blank" rel="noopener noreferrer">${escapeHtml(paper.doi || 'N/A')}</a></div>
                         <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Status:</span><span class="text-stone-700 dark:text-stone-300">${escapeHtml(paper.readingStatus || 'N/A')}</span></div>
                         ${paper.updatedAt ? `<div class="flex justify-between items-center pt-2 border-t border-stone-200 dark:border-stone-700"><span class="font-medium text-stone-500 dark:text-stone-400">Last updated:</span><span class="text-stone-600 dark:text-stone-400 text-sm">${formatRelativeTime(paper.updatedAt)}</span></div>` : ''}
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">Rating</h3>
+                        <div id="rating-container"></div>
                     </div>
                     ${paper.readingStatus === 'Reading' ? `
                         <div>
@@ -131,8 +138,45 @@ export const detailsView = {
                     <!-- Tab Navigation -->
                     <div class="border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
                         <nav class="-mb-px flex gap-x-6 px-4" id="details-tabs">
+                            <button data-tab="abstract" class="tab-btn shrink-0 border-b-2 border-transparent px-1 py-3 text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:border-stone-300 dark:hover:border-stone-600 transition-colors">Abstract</button>
+                            <button data-tab="summary" class="tab-btn shrink-0 border-b-2 border-transparent px-1 py-3 text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:border-stone-300 dark:hover:border-stone-600 transition-colors">Summary</button>
                             <button data-tab="notes" class="tab-btn shrink-0 border-b-2 border-primary px-1 py-3 text-sm font-medium text-primary">Notes</button>
                         </nav>
+                    </div>
+
+                    <!-- Abstract Panel -->
+                    <div id="abstract-panel" class="tab-panel hidden flex-grow flex flex-col">
+                        <div class="p-6 overflow-y-auto">
+                            ${paper.abstract ? `
+                                <div class="prose prose-stone dark:prose-invert max-w-none">
+                                    <p class="text-stone-700 dark:text-stone-300 whitespace-pre-wrap leading-relaxed">${escapeHtml(paper.abstract)}</p>
+                                </div>
+                            ` : `
+                                <div class="flex flex-col items-center justify-center h-full text-center py-12">
+                                    <span class="material-symbols-outlined text-4xl text-stone-300 dark:text-stone-700 mb-4">description</span>
+                                    <p class="text-stone-500 dark:text-stone-400">No abstract available for this paper.</p>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Summary Panel -->
+                    <div id="summary-panel" class="tab-panel hidden flex-grow flex flex-col">
+                        <div class="border-b border-stone-200 dark:border-stone-800 p-2 flex items-center gap-1 flex-shrink-0" id="summary-toolbar">
+                            <button data-command="bold" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                                <span class="material-symbols-outlined">format_bold</span>
+                            </button>
+                            <button data-command="italic" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                                <span class="material-symbols-outlined">format_italic</span>
+                            </button>
+                            <button data-command="insertUnorderedList" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                                <span class="material-symbols-outlined">format_list_bulleted</span>
+                            </button>
+                            <button data-command="insertOrderedList" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                                <span class="material-symbols-outlined">format_list_numbered</span>
+                            </button>
+                        </div>
+                        <div id="summary-editor" contenteditable="true" class="w-full flex-grow p-4 bg-transparent focus:outline-none resize-y overflow-auto" placeholder="Write a summary of this paper..."></div>
                     </div>
 
                     <!-- Notes Panel -->
@@ -170,6 +214,10 @@ export const detailsView = {
         const notesEditor = document.getElementById('notes-editor');
         notesManager.initialize(paperId, notesEditor, paper.notes);
 
+        // Initialize Summary Manager
+        const summaryEditor = document.getElementById('summary-editor');
+        summaryManager.initialize(paperId, summaryEditor, paper.summary || null);
+
         // Initialize Related Papers Manager
         const relatedPapersList = document.getElementById('related-papers-list');
         const addLinkBtn = document.getElementById('add-link-btn');
@@ -177,6 +225,28 @@ export const detailsView = {
             list: relatedPapersList,
             addBtn: addLinkBtn
         });
+
+        // Initialize Rating Component
+        const ratingContainer = document.getElementById('rating-container');
+        if (ratingContainer) {
+            const ratingComponent = createRatingInput({
+                value: paper.rating || null,
+                onChange: async (newRating) => {
+                    try {
+                        await updatePaper(paperId, { rating: newRating });
+                        paper.rating = newRating;
+                        showToast(newRating ? `Rating set to ${newRating}/10` : 'Rating cleared', 'success');
+                    } catch (error) {
+                        console.error('Error updating rating:', error);
+                        showToast('Failed to update rating', 'error');
+                    }
+                },
+                readOnly: false,
+                size: 'md',
+                displayMode: 'slider'
+            });
+            ratingContainer.appendChild(ratingComponent);
+        }
 
         // Read Paper
         const readPaperBtn = document.getElementById('read-paper-btn');
@@ -298,6 +368,33 @@ export const detailsView = {
                 }
             });
         }
+
+        // Tab Switching
+        const tabButtons = document.querySelectorAll('#details-tabs .tab-btn');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.dataset.tab;
+                
+                // Update button states
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('border-primary', 'text-primary');
+                    btn.classList.add('border-transparent', 'text-stone-500', 'dark:text-stone-400');
+                });
+                button.classList.remove('border-transparent', 'text-stone-500', 'dark:text-stone-400');
+                button.classList.add('border-primary', 'text-primary');
+                
+                // Show/hide panels
+                tabPanels.forEach(panel => {
+                    panel.classList.add('hidden');
+                });
+                const targetPanel = document.getElementById(`${targetTab}-panel`);
+                if (targetPanel) {
+                    targetPanel.classList.remove('hidden');
+                }
+            });
+        });
 
         // Citation Generation
         const generateCitationBtn = document.getElementById('generate-citation-btn');

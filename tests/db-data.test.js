@@ -125,6 +125,74 @@ describe('db/data.js - Data Management', () => {
             expect(data.papers[0].updatedAt).toBe('2024-01-20T00:00:00.000Z');
         });
 
+        it('should export papers with rating field', async () => {
+            const paper = createMockPaper({ 
+                title: 'Paper with Rating',
+                rating: 8
+            });
+            
+            await addPaper(paper);
+            
+            const data = await exportAllData();
+            
+            expect(data.papers[0].rating).toBe(8);
+        });
+
+        it('should export papers with null rating', async () => {
+            const paper = createMockPaper({ 
+                title: 'Paper without Rating',
+                rating: null
+            });
+            
+            await addPaper(paper);
+            
+            const data = await exportAllData();
+            
+            expect(data.papers[0].rating).toBeNull();
+        });
+
+        it('should export papers with summary field', async () => {
+            const paper = createMockPaper({ 
+                title: 'Paper with Summary',
+                summary: 'This is a test summary.'
+            });
+            
+            await addPaper(paper);
+            
+            const data = await exportAllData();
+            
+            expect(data.papers[0].summary).toBe('This is a test summary.');
+        });
+
+        it('should export papers with HTML summary', async () => {
+            const htmlSummary = '<p>Summary with <strong>formatting</strong>.</p>';
+            const paper = createMockPaper({ 
+                title: 'Paper with HTML Summary',
+                summary: htmlSummary
+            });
+            
+            await addPaper(paper);
+            
+            const data = await exportAllData();
+            
+            expect(data.papers[0].summary).toBe(htmlSummary);
+        });
+
+        it('should export papers with both rating and summary', async () => {
+            const paper = createMockPaper({ 
+                title: 'Complete Paper',
+                rating: 9,
+                summary: 'Excellent paper with high rating.'
+            });
+            
+            await addPaper(paper);
+            
+            const data = await exportAllData();
+            
+            expect(data.papers[0].rating).toBe(9);
+            expect(data.papers[0].summary).toBe('Excellent paper with high rating.');
+        });
+
         it('should export papers, collections, and annotations together', async () => {
             // Add papers
             const paper1 = createMockPaper({ title: 'Paper 1' });
@@ -204,6 +272,113 @@ describe('db/data.js - Data Management', () => {
             expect(papers[0].createdAt).toBeInstanceOf(Date);
             expect(papers[0].updatedAt).toBeInstanceOf(Date);
             expect(papers[0].createdAt.toISOString()).toBe('2024-01-15T00:00:00.000Z');
+        });
+
+        it('should import papers with rating field', async () => {
+            const dataToImport = {
+                papers: [{
+                    ...createMockPaper({ title: 'Paper with Rating' }),
+                    rating: 7
+                }],
+                collections: [],
+                annotations: []
+            };
+            
+            await importData(dataToImport);
+            
+            const papers = await getAllPapers();
+            expect(papers[0].rating).toBe(7);
+        });
+
+        it('should import papers with null rating', async () => {
+            const dataToImport = {
+                papers: [{
+                    ...createMockPaper({ title: 'Paper without Rating' }),
+                    rating: null
+                }],
+                collections: [],
+                annotations: []
+            };
+            
+            await importData(dataToImport);
+            
+            const papers = await getAllPapers();
+            expect(papers[0].rating).toBeNull();
+        });
+
+        it('should import papers with summary field', async () => {
+            const dataToImport = {
+                papers: [{
+                    ...createMockPaper({ title: 'Paper with Summary' }),
+                    summary: 'Imported summary text.'
+                }],
+                collections: [],
+                annotations: []
+            };
+            
+            await importData(dataToImport);
+            
+            const papers = await getAllPapers();
+            expect(papers[0].summary).toBe('Imported summary text.');
+        });
+
+        it('should import papers with HTML summary', async () => {
+            const htmlSummary = '<p>Imported <em>HTML</em> summary.</p>';
+            const dataToImport = {
+                papers: [{
+                    ...createMockPaper({ title: 'Paper with HTML Summary' }),
+                    summary: htmlSummary
+                }],
+                collections: [],
+                annotations: []
+            };
+            
+            await importData(dataToImport);
+            
+            const papers = await getAllPapers();
+            expect(papers[0].summary).toBe(htmlSummary);
+        });
+
+        it('should import papers with both rating and summary', async () => {
+            const dataToImport = {
+                papers: [{
+                    ...createMockPaper({ title: 'Complete Paper' }),
+                    rating: 6,
+                    summary: 'Imported with both fields.'
+                }],
+                collections: [],
+                annotations: []
+            };
+            
+            await importData(dataToImport);
+            
+            const papers = await getAllPapers();
+            expect(papers[0].rating).toBe(6);
+            expect(papers[0].summary).toBe('Imported with both fields.');
+        });
+
+        it('should preserve rating and summary during export-import cycle', async () => {
+            const originalPaper = createMockPaper({ 
+                title: 'Round Trip Paper',
+                rating: 8,
+                summary: 'Original summary content.'
+            });
+            
+            await addPaper(originalPaper);
+            
+            // Export
+            const exported = await exportAllData();
+            expect(exported.papers[0].rating).toBe(8);
+            expect(exported.papers[0].summary).toBe('Original summary content.');
+            
+            // Clear and re-import
+            await clearAllData();
+            await importData(exported);
+            
+            // Verify
+            const papers = await getAllPapers();
+            expect(papers[0].rating).toBe(8);
+            expect(papers[0].summary).toBe('Original summary content.');
         });
 
         it('should convert base64 back to Blob for PDFs', async () => {

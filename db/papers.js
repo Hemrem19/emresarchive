@@ -25,7 +25,9 @@ async function addPaper(paperData) {
     const paper = {
         ...paperData,
         createdAt: paperData.createdAt || new Date(),
-        readingProgress: paperData.readingProgress || { currentPage: 0, totalPages: 0 }
+        readingProgress: paperData.readingProgress || { currentPage: 0, totalPages: 0 },
+        rating: paperData.rating !== undefined ? paperData.rating : null,
+        summary: paperData.summary !== undefined ? paperData.summary : null
     };
 
     try {

@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'CitaversDB';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const STORE_NAME_PAPERS = 'papers';
 const STORE_NAME_COLLECTIONS = 'collections';
 const STORE_NAME_ANNOTATIONS = 'annotations';
@@ -104,6 +104,35 @@ async function openDB() {
                     annotationStore.createIndex('type', 'type', { unique: false }); // To filter by highlight/note
                     annotationStore.createIndex('pageNumber', 'pageNumber', { unique: false }); // To filter by page
                     annotationStore.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+                
+                // Migration for version 6: Add rating and summary fields to existing papers
+                if (oldVersion < 6) {
+                    // Add rating index for sorting
+                    if (!paperStore.indexNames.contains('rating')) {
+                        paperStore.createIndex('rating', 'rating', { unique: false });
+                    }
+                    
+                    // Migrate existing papers to add rating and summary fields (both nullable)
+                    const getAllRequest = paperStore.getAll();
+                    getAllRequest.onsuccess = () => {
+                        const papers = getAllRequest.result;
+                        papers.forEach(paper => {
+                            // Add rating field (null if not exists)
+                            if (paper.rating === undefined) {
+                                paper.rating = null;
+                            }
+                            // Add summary field (null if not exists)
+                            if (paper.summary === undefined) {
+                                paper.summary = null;
+                            }
+                            paperStore.put(paper);
+                        });
+                    };
+                    getAllRequest.onerror = (err) => {
+                        console.error('Migration error (v6):', err);
+                        // Don't fail the upgrade, just log the error
+                    };
                 }
             } catch (error) {
                 console.error('Error during database upgrade:', error);

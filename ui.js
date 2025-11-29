@@ -187,6 +187,22 @@ export const sortPapers = (papers, sortBy) => {
                 return bProgress - aProgress; // Highest progress first
             });
             break;
+        case 'rating_desc':
+            sortedPapers.sort((a, b) => {
+                // Papers with rating come first, then unrated papers
+                const aRating = (a.rating !== null && a.rating !== undefined) ? a.rating : -1;
+                const bRating = (b.rating !== null && b.rating !== undefined) ? b.rating : -1;
+                return bRating - aRating; // Highest rating first, unrated at end
+            });
+            break;
+        case 'rating_asc':
+            sortedPapers.sort((a, b) => {
+                // Papers with rating come first, then unrated papers
+                const aRating = (a.rating !== null && a.rating !== undefined) ? a.rating : 11; // Unrated goes to end
+                const bRating = (b.rating !== null && b.rating !== undefined) ? b.rating : 11;
+                return aRating - bRating; // Lowest rating first, unrated at end
+            });
+            break;
         case 'date_added':
         default:
             sortedPapers.sort((a, b) => b.createdAt - a.createdAt);
@@ -315,6 +331,12 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                             <button class="expand-notes-btn ml-2 p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-primary dark:hover:text-primary transition-colors" data-paper-id="${paper.id}" title="Show notes">
                                 <span class="material-symbols-outlined text-sm expand-icon">expand_more</span>
                             </button>
+                        ` : ''}
+                        ${paper.rating !== null && paper.rating !== undefined ? `
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-semibold ml-auto" title="Rating: ${paper.rating}/10">
+                                <span class="material-symbols-outlined text-sm">star</span>
+                                <span>${paper.rating}</span>
+                            </span>
                         ` : ''}
                     </div>
                     <p class="text-sm text-stone-500 dark:text-stone-400 mb-2">${highlightText(paper.authors.join(', '), searchTerm)} - ${paper.year || 'N/A'}</p>

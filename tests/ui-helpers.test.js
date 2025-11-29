@@ -228,6 +228,52 @@ describe('ui.js - Helper Functions', () => {
       // Papers without progress should be at the end
     });
 
+    it('should sort by rating descending (highest first)', () => {
+      const papers = [
+        createMockPaper({ id: 1, rating: 5, createdAt: new Date('2024-01-01') }),
+        createMockPaper({ id: 2, rating: 8, createdAt: new Date('2024-01-02') }),
+        createMockPaper({ id: 3, rating: 3, createdAt: new Date('2024-01-03') }),
+        createMockPaper({ id: 4, rating: null, createdAt: new Date('2024-01-04') })
+      ];
+
+      const sorted = sortPapers(papers, 'rating_desc');
+
+      expect(sorted[0].id).toBe(2); // Rating 8
+      expect(sorted[1].id).toBe(1); // Rating 5
+      expect(sorted[2].id).toBe(3); // Rating 3
+      expect(sorted[3].id).toBe(4); // Rating null (unrated at end)
+    });
+
+    it('should sort by rating ascending (lowest first)', () => {
+      const papers = [
+        createMockPaper({ id: 1, rating: 5, createdAt: new Date('2024-01-01') }),
+        createMockPaper({ id: 2, rating: 8, createdAt: new Date('2024-01-02') }),
+        createMockPaper({ id: 3, rating: 3, createdAt: new Date('2024-01-03') }),
+        createMockPaper({ id: 4, rating: null, createdAt: new Date('2024-01-04') })
+      ];
+
+      const sorted = sortPapers(papers, 'rating_asc');
+
+      expect(sorted[0].id).toBe(3); // Rating 3
+      expect(sorted[1].id).toBe(1); // Rating 5
+      expect(sorted[2].id).toBe(2); // Rating 8
+      expect(sorted[3].id).toBe(4); // Rating null (unrated at end)
+    });
+
+    it('should handle unrated papers in rating sort', () => {
+      const papers = [
+        createMockPaper({ id: 1, rating: 7 }),
+        createMockPaper({ id: 2, rating: null }),
+        createMockPaper({ id: 3, rating: 5 })
+      ];
+
+      const sorted = sortPapers(papers, 'rating_desc');
+
+      expect(sorted[0].id).toBe(1); // Rating 7
+      expect(sorted[1].id).toBe(3); // Rating 5
+      expect(sorted[2].id).toBe(2); // Rating null
+    });
+
     it('should use date_added for unknown sort keys', () => {
       const sorted = sortPapers(mockPapers, 'unknown_sort');
 

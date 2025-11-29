@@ -71,6 +71,8 @@ export const getAllPapers = async (req, res, next) => {
         pdfUrl: true,
         pdfSizeBytes: true,
         notes: true,
+        summary: true,
+        rating: true,
         readingProgress: true,
         createdAt: true,
         updatedAt: true,
@@ -125,6 +127,8 @@ export const getPaper = async (req, res, next) => {
         pdfUrl: true,
         pdfSizeBytes: true,
         notes: true,
+        summary: true,
+        rating: true,
         readingProgress: true,
         createdAt: true,
         updatedAt: true,
@@ -191,6 +195,8 @@ export const createPaper = async (req, res, next) => {
           status: paperData.status || 'To Read',
           relatedPaperIds: paperData.relatedPaperIds || [],
           notes: paperData.notes || null,
+          summary: paperData.summary || null,
+          rating: paperData.rating || null,
           readingProgress: paperData.readingProgress || null,
           pdfUrl: pdfUrl, // Use the calculated pdfUrl
           pdfSizeBytes: pdfSizeBytes,
@@ -219,6 +225,8 @@ export const createPaper = async (req, res, next) => {
             pdfUrl: true,
             pdfSizeBytes: true,
             notes: true,
+            summary: true,
+            rating: true,
             readingProgress: true,
             createdAt: true,
             updatedAt: true,
@@ -271,6 +279,8 @@ export const createPaper = async (req, res, next) => {
           status: paperData.status || 'To Read',
           relatedPaperIds: paperData.relatedPaperIds || [],
           notes: paperData.notes || null,
+          summary: paperData.summary || null,
+          rating: paperData.rating || null,
           readingProgress: paperData.readingProgress || null,
           pdfUrl,
           pdfSizeBytes,
@@ -291,6 +301,8 @@ export const createPaper = async (req, res, next) => {
           pdfUrl: true,
           pdfSizeBytes: true,
           notes: true,
+          summary: true,
+          rating: true,
           readingProgress: true,
           createdAt: true,
           updatedAt: true,
@@ -411,6 +423,8 @@ export const updatePaper = async (req, res, next) => {
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.relatedPaperIds !== undefined) updateData.relatedPaperIds = updates.relatedPaperIds;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.summary !== undefined) updateData.summary = updates.summary;
+    if (updates.rating !== undefined) updateData.rating = updates.rating;
     if (updates.readingProgress !== undefined) updateData.readingProgress = updates.readingProgress;
 
     // Handle PDF update
@@ -460,6 +474,8 @@ export const updatePaper = async (req, res, next) => {
         pdfUrl: true,
         pdfSizeBytes: true,
         notes: true,
+        summary: true,
+        rating: true,
         readingProgress: true,
         createdAt: true,
         updatedAt: true,
@@ -608,6 +624,8 @@ export const searchPapers = async (req, res, next) => {
         status: true,
         pdfUrl: true,
         notes: true,
+        summary: true,
+        rating: true,
         readingProgress: true,
         createdAt: true,
         updatedAt: true

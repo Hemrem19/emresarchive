@@ -241,10 +241,11 @@ export const formView = {
 
             try {
                 if (this.isEditMode) {
-                    // If no new PDF uploaded, preserve existing PDF
-                    if (!pdfFile) {
-                        const existingPaper = await getPaperById(this.paperId);
-                        if (existingPaper) {
+                    // Preserve existing fields that aren't in the form
+                    const existingPaper = await getPaperById(this.paperId);
+                    if (existingPaper) {
+                        // Preserve PDF data
+                        if (!pdfFile) {
                             if (existingPaper.pdfData) {
                                 paperData.pdfData = existingPaper.pdfData;
                                 paperData.hasPdf = true;
@@ -253,6 +254,25 @@ export const formView = {
                                 paperData.s3Key = existingPaper.s3Key;
                                 paperData.hasPdf = true;
                             }
+                        }
+                        // Preserve rating and summary (not in form, managed in details view)
+                        if (existingPaper.rating !== undefined) {
+                            paperData.rating = existingPaper.rating;
+                        }
+                        if (existingPaper.summary !== undefined) {
+                            paperData.summary = existingPaper.summary;
+                        }
+                        // Preserve notes (not in form, managed in details view)
+                        if (existingPaper.notes !== undefined) {
+                            paperData.notes = existingPaper.notes;
+                        }
+                        // Preserve reading progress
+                        if (existingPaper.readingProgress !== undefined) {
+                            paperData.readingProgress = existingPaper.readingProgress;
+                        }
+                        // Preserve related papers
+                        if (existingPaper.relatedPaperIds !== undefined) {
+                            paperData.relatedPaperIds = existingPaper.relatedPaperIds;
                         }
                     }
                     await updatePaper(this.paperId, paperData);
