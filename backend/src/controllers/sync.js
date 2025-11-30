@@ -132,39 +132,9 @@ export const incrementalSync = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { lastSyncedAt, changes, clientId } = req.body;
-    
-    console.log('[Sync] Incremental sync request received:', {
-      userId,
-      clientId,
-      lastSyncedAt,
-      changes: {
-        papers: {
-          created: changes?.papers?.created?.length || 0,
-          updated: changes?.papers?.updated?.length || 0,
-          deleted: changes?.papers?.deleted?.length || 0
-        },
-        collections: {
-          created: changes?.collections?.created?.length || 0,
-          updated: changes?.collections?.updated?.length || 0,
-          deleted: changes?.collections?.deleted?.length || 0
-        },
-        annotations: {
-          created: changes?.annotations?.created?.length || 0,
-          updated: changes?.annotations?.updated?.length || 0,
-          deleted: changes?.annotations?.deleted?.length || 0
-        }
-      }
-    });
 
     const syncStartTime = new Date();
     const lastSyncDate = lastSyncedAt ? new Date(lastSyncedAt) : null;
-    
-    console.log('[Sync] Sync timing:', {
-      syncStartTime: syncStartTime.toISOString(),
-      lastSyncedAt: lastSyncedAt,
-      lastSyncDate: lastSyncDate?.toISOString(),
-      timeSinceLastSync: lastSyncDate ? (syncStartTime.getTime() - lastSyncDate.getTime()) + 'ms' : 'never synced'
-    });
 
     // Process client changes (apply to server)
     const appliedChanges = {
@@ -248,38 +218,24 @@ export const incrementalSync = async (req, res, next) => {
 
     for (const paperUpdate of changes.papers?.updated || []) {
       try {
-        console.log('[Sync] Processing paper update:', {
-          id: paperUpdate.id,
-          updateFields: Object.keys(paperUpdate).filter(k => !['id', 'version'].includes(k)),
-          clientVersion: paperUpdate.version
-        });
-        
         const existing = await prisma.paper.findFirst({
           where: { id: paperUpdate.id, userId }
         });
 
         if (!existing) {
-          console.warn('[Sync] Paper not found for update:', paperUpdate.id);
           appliedChanges.papers.conflicts.push({ id: paperUpdate.id, reason: 'Not found' });
           continue;
         }
-
-        console.log('[Sync] Paper found, existing version:', existing.version);
 
         // Conflict resolution: last-write-wins
         // If client version is >= server version, apply update
         const clientVersion = paperUpdate.version || 1;
         if (clientVersion >= existing.version) {
           const { id, version, ...updateData } = paperUpdate;
-          console.log('[Sync] Applying paper update:', {
-            id,
-            updateFields: Object.keys(updateData),
-            newVersion: existing.version + 1
-          });
           
           // Don't explicitly set updatedAt - let Prisma's @updatedAt handle it
           // This ensures updatedAt is set correctly by the database
-          const updateResult = await prisma.paper.update({
+          await prisma.paper.update({
             where: { id },
             data: {
               ...updateData,
@@ -289,15 +245,6 @@ export const incrementalSync = async (req, res, next) => {
             }
           });
           appliedChanges.papers.updated++;
-          console.log('[Sync] Paper update applied successfully:', {
-            id,
-            updatedAt: updateResult.updatedAt?.toISOString(),
-            syncStartTime: syncStartTime.toISOString(),
-            lastSyncDate: lastSyncDate?.toISOString(),
-            isAfterSyncStart: updateResult.updatedAt > syncStartTime,
-            isAfterLastSync: lastSyncDate ? updateResult.updatedAt > lastSyncDate : true,
-            willBeIncluded: lastSyncDate ? updateResult.updatedAt >= lastSyncDate : true
-          });
         } else {
           console.warn('[Sync] Version conflict:', {
             paperId: paperUpdate.id,
@@ -537,33 +484,6 @@ export const incrementalSync = async (req, res, next) => {
         }
       : { userId, deletedAt: null };
 
-    console.log('[Sync] Querying server changes:', {
-      lastSyncDate: lastSyncDate?.toISOString(),
-      syncStartTime: syncStartTime.toISOString(),
-      clientId,
-      whereCondition: {
-        userId,
-        updatedAt: lastSyncDate ? `>= ${lastSyncDate.toISOString()}` : 'all',
-        deletedAt: null
-      }
-    });
-
-    // Debug: Check all papers for this user to see their updatedAt values
-    const allUserPapers = await prisma.paper.findMany({
-      where: { userId, deletedAt: null },
-      select: { id: true, title: true, updatedAt: true, clientId: true }
-    });
-    console.log('[Sync] Debug - All user papers:', {
-      totalCount: allUserPapers.length,
-      papers: allUserPapers.map(p => ({
-        id: p.id,
-        title: p.title?.substring(0, 50),
-        updatedAt: p.updatedAt?.toISOString(),
-        clientId: p.clientId,
-        isAfterLastSync: lastSyncDate ? p.updatedAt >= lastSyncDate : true
-      }))
-    });
-
     const serverPapers = await prisma.paper.findMany({
       where: whereCondition,
       select: {
@@ -587,12 +507,6 @@ export const incrementalSync = async (req, res, next) => {
         updatedAt: true,
         version: true
       }
-    });
-
-    console.log('[Sync] Server papers found:', {
-      count: serverPapers.length,
-      paperIds: serverPapers.map(p => ({ id: p.id, updatedAt: p.updatedAt?.toISOString() })),
-      queryCondition: lastSyncDate ? `updatedAt >= ${lastSyncDate.toISOString()}` : 'all papers'
     });
 
     const serverCollections = await prisma.collection.findMany({

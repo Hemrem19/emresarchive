@@ -28,36 +28,6 @@ export function getPendingChanges() {
         collections: { created: [], updated: [], deleted: [] },
         annotations: { created: [], updated: [], deleted: [] }
     };
-    // Log pending changes for debugging (only if there are changes to avoid spam)
-    const hasChanges = 
-        (changes.papers?.created?.length || 0) +
-        (changes.papers?.updated?.length || 0) +
-        (changes.papers?.deleted?.length || 0) +
-        (changes.collections?.created?.length || 0) +
-        (changes.collections?.updated?.length || 0) +
-        (changes.collections?.deleted?.length || 0) +
-        (changes.annotations?.created?.length || 0) +
-        (changes.annotations?.updated?.length || 0) +
-        (changes.annotations?.deleted?.length || 0) > 0;
-    if (hasChanges) {
-        console.log('[Sync] getPendingChanges - Found pending changes:', {
-            papers: {
-                created: changes.papers?.created?.length || 0,
-                updated: changes.papers?.updated?.length || 0,
-                deleted: changes.papers?.deleted?.length || 0
-            },
-            collections: {
-                created: changes.collections?.created?.length || 0,
-                updated: changes.collections?.updated?.length || 0,
-                deleted: changes.collections?.deleted?.length || 0
-            },
-            annotations: {
-                created: changes.annotations?.created?.length || 0,
-                updated: changes.annotations?.updated?.length || 0,
-                deleted: changes.annotations?.deleted?.length || 0
-            }
-        });
-    }
     return changes;
 }
 
@@ -92,55 +62,26 @@ export function trackPaperCreated(paper) {
  * @param {Object} paper - Paper update data.
  */
 export function trackPaperUpdated(id, paper) {
-    console.log('[Sync] trackPaperUpdated called:', { id, updateFields: Object.keys(paper), paperData: paper });
     const changes = getPendingChanges();
     // Check if already in created list (local-only paper)
     const createdIndex = changes.papers.created.findIndex(p => p.localId === id || (p.id && p.id === id));
     if (createdIndex !== -1) {
         // Update in created list
-        console.log('[Sync] Paper found in created list, updating:', createdIndex);
         changes.papers.created[createdIndex] = { ...changes.papers.created[createdIndex], ...paper };
     } else {
         // Check if already in updated list - merge updates instead of duplicating
         const updatedIndex = changes.papers.updated.findIndex(p => p.id === id);
         if (updatedIndex !== -1) {
             // Merge with existing update - preserve ALL fields from both updates
-            console.log('[Sync] Paper already in updated list, merging updates:', {
-                index: updatedIndex,
-                existingFields: Object.keys(changes.papers.updated[updatedIndex]),
-                newFields: Object.keys(paper),
-                existingHasNotes: 'notes' in changes.papers.updated[updatedIndex],
-                existingHasTags: 'tags' in changes.papers.updated[updatedIndex],
-                existingHasSummary: 'summary' in changes.papers.updated[updatedIndex],
-                existingHasRating: 'rating' in changes.papers.updated[updatedIndex],
-                newHasNotes: 'notes' in paper,
-                newHasTags: 'tags' in paper,
-                newHasSummary: 'summary' in paper,
-                newHasRating: 'rating' in paper
-            });
             // Merge: spread existing first, then new data (new data overwrites existing)
             // This ensures all fields from both updates are preserved
             changes.papers.updated[updatedIndex] = { ...changes.papers.updated[updatedIndex], ...paper };
-            console.log('[Sync] After merge:', {
-                mergedFields: Object.keys(changes.papers.updated[updatedIndex]),
-                hasNotes: 'notes' in changes.papers.updated[updatedIndex],
-                hasTags: 'tags' in changes.papers.updated[updatedIndex],
-                hasSummary: 'summary' in changes.papers.updated[updatedIndex],
-                hasRating: 'rating' in changes.papers.updated[updatedIndex]
-            });
         } else {
             // Add to updated list
-            console.log('[Sync] Adding paper to updated list:', { id, fields: Object.keys(paper) });
             changes.papers.updated.push({ id, ...paper });
         }
     }
     savePendingChanges(changes);
-    console.log('[Sync] Pending changes after tracking:', {
-        created: changes.papers.created.length,
-        updated: changes.papers.updated.length,
-        deleted: changes.papers.deleted.length,
-        updatedPapers: changes.papers.updated.map(p => ({ id: p.id, fields: Object.keys(p).filter(k => k !== 'id') }))
-    });
 }
 
 /**
@@ -436,21 +377,10 @@ async function applyServerChanges(serverChanges) {
                 }
 
                 // No duplicate detected, just add/update the paper
-                console.log('[Sync] applyServerChanges - Adding/updating paper:', {
-                    id: localPaper.id,
-                    exists: papersById.has(localPaper.id),
-                    hasNotes: !!localPaper.notes,
-                    hasTags: !!localPaper.tags,
-                    hasSummary: !!localPaper.summary,
-                    hasRating: localPaper.rating !== undefined && localPaper.rating !== null
-                });
                 const request = papersStore.put(localPaper);
-                request.onsuccess = () => {
-                    console.log('[Sync] applyServerChanges - Paper saved successfully:', localPaper.id);
-                    checkComplete();
-                };
+                request.onsuccess = checkComplete;
                 request.onerror = () => {
-                    console.error(`[Sync] applyServerChanges - Failed to apply server paper ${localPaper.id}:`, request.error);
+                    console.error(`Failed to apply server paper ${localPaper.id}:`, request.error);
                     checkComplete(); // Continue with other operations
                 };
 
@@ -541,35 +471,12 @@ async function applyServerChanges(serverChanges) {
  * @returns {Object} Changes in API format.
  */
 function prepareChangesForSync(changes) {
-    console.log('[Sync] prepareChangesForSync input:', {
-        papers: {
-            created: changes.papers?.created?.length || 0,
-            updated: changes.papers?.updated?.length || 0,
-            deleted: changes.papers?.deleted?.length || 0
-        }
-    });
-    
-    // Log actual update objects
-    if (changes.papers?.updated?.length > 0) {
-        console.log('[Sync] Raw paper updates before mapping:', changes.papers.updated);
-    }
-    
     const result = {
         papers: {
             created: (changes.papers?.created || []).map(mapPaperToApi),
             updated: (changes.papers?.updated || []).map(p => {
                 const { id, version, ...rest } = p;
                 const mapped = mapPaperToApi(rest);
-                console.log('[Sync] Preparing paper update for API:', {
-                    id,
-                    version: p.version,
-                    originalFields: Object.keys(rest),
-                    mappedFields: Object.keys(mapped),
-                    hasNotes: 'notes' in mapped,
-                    hasTags: 'tags' in mapped,
-                    hasSummary: 'summary' in mapped,
-                    hasRating: 'rating' in mapped
-                });
                 return { id, version: p.version || 1, ...mapped };
             }),
             deleted: changes.papers?.deleted || []
@@ -591,14 +498,6 @@ function prepareChangesForSync(changes) {
             deleted: changes.annotations?.deleted || []
         }
     };
-    
-    console.log('[Sync] prepareChangesForSync output:', {
-        papers: {
-            created: result.papers.created.length,
-            updated: result.papers.updated.length,
-            deleted: result.papers.deleted.length
-        }
-    });
     
     return result;
 }
@@ -675,8 +574,6 @@ export async function performFullSync() {
  * @returns {Promise<Object>} Sync result with applied changes and conflicts.
  */
 export async function performIncrementalSync() {
-    console.log('[Sync] Starting incremental sync...');
-    
     if (!isCloudSyncEnabled()) {
         console.error('[Sync] Cloud sync is not enabled');
         throw new Error('Cloud sync is not enabled or user is not authenticated');
@@ -694,27 +591,8 @@ export async function performIncrementalSync() {
 
     try {
         setSyncInProgress(true);
-        console.log('[Sync] Sync lock acquired');
-
         // Get pending local changes
         const localChanges = getPendingChanges();
-        console.log('[Sync] Pending changes:', {
-            papers: {
-                created: localChanges.papers?.created?.length || 0,
-                updated: localChanges.papers?.updated?.length || 0,
-                deleted: localChanges.papers?.deleted?.length || 0
-            },
-            collections: {
-                created: localChanges.collections?.created?.length || 0,
-                updated: localChanges.collections?.updated?.length || 0,
-                deleted: localChanges.collections?.deleted?.length || 0
-            },
-            annotations: {
-                created: localChanges.annotations?.created?.length || 0,
-                updated: localChanges.annotations?.updated?.length || 0,
-                deleted: localChanges.annotations?.deleted?.length || 0
-            }
-        });
 
         // Check if there are any changes to send
         const hasLocalChanges =
@@ -729,63 +607,16 @@ export async function performIncrementalSync() {
             (localChanges.annotations?.deleted?.length || 0) > 0;
 
         // Prepare changes for API
-        console.log('[Sync] Local changes before preparation:', JSON.stringify(localChanges, null, 2));
         const apiChanges = prepareChangesForSync(localChanges);
-        console.log('[Sync] Prepared changes for API:', {
-            papers: {
-                created: apiChanges.papers?.created?.length || 0,
-                updated: apiChanges.papers?.updated?.length || 0,
-                deleted: apiChanges.papers?.deleted?.length || 0
-            },
-            collections: {
-                created: apiChanges.collections?.created?.length || 0,
-                updated: apiChanges.collections?.updated?.length || 0,
-                deleted: apiChanges.collections?.deleted?.length || 0
-            },
-            annotations: {
-                created: apiChanges.annotations?.created?.length || 0,
-                updated: apiChanges.annotations?.updated?.length || 0,
-                deleted: apiChanges.annotations?.deleted?.length || 0
-            }
-        });
-        
-        // Log actual update data if present
-        if (apiChanges.papers?.updated?.length > 0) {
-            console.log('[Sync] Paper updates being sent:', apiChanges.papers.updated.map(u => ({
-                id: u.id,
-                version: u.version,
-                fields: Object.keys(u).filter(k => !['id', 'version'].includes(k))
-            })));
-        }
 
         // Perform incremental sync
-        console.log('[Sync] Sending sync request to backend...');
         const result = await incrementalSync(apiChanges);
-        console.log('[Sync] Backend response received:', {
-            appliedChanges: result.appliedChanges,
-            serverChanges: {
-                papers: result.serverChanges?.papers?.length || 0,
-                collections: result.serverChanges?.collections?.length || 0,
-                annotations: result.serverChanges?.annotations?.length || 0
-            }
-        });
 
         // Apply server changes to local IndexedDB
-        console.log('[Sync] Applying server changes to local database...');
         await applyServerChanges(result.serverChanges);
-        console.log('[Sync] Server changes applied successfully');
 
         // Clear pending changes if sync was successful
-        const changesBeforeClear = getPendingChanges();
-        console.log('[Sync] Clearing pending changes. Before clear:', {
-            papers: {
-                created: changesBeforeClear.papers?.created?.length || 0,
-                updated: changesBeforeClear.papers?.updated?.length || 0,
-                deleted: changesBeforeClear.papers?.deleted?.length || 0
-            }
-        });
         clearPendingChanges();
-        console.log('[Sync] Pending changes cleared');
 
         return {
             success: true,

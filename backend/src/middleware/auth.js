@@ -8,17 +8,10 @@ import { prisma } from '../lib/prisma.js';
 
 export const authenticate = async (req, res, next) => {
   try {
-    console.log('[Auth] Request received:', {
-      method: req.method,
-      path: req.path,
-      hasAuthHeader: !!req.headers.authorization
-    });
-    
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.warn('[Auth] Missing or invalid authorization header');
       return res.status(401).json({
         success: false,
         error: { message: 'Authentication required' }
@@ -51,7 +44,6 @@ export const authenticate = async (req, res, next) => {
 
     // Attach user to request
     req.user = user;
-    console.log('[Auth] Authentication successful for user:', user.id);
     next();
 
   } catch (error) {
