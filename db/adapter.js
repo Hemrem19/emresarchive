@@ -224,14 +224,25 @@ export const papers = {
         if (shouldSync) {
             console.log('[Adapter] Cloud sync enabled, tracking update');
             // Get the updated paper to include version for conflict resolution
+            // IMPORTANT: We get the FULL updated paper from IndexedDB to ensure we have all current fields
+            // This prevents losing fields when multiple updates happen before sync
             try {
                 const updatedPaper = await localPapers.getPaperById(id);
                 console.log('[Adapter] Retrieved updated paper:', { id, hasVersion: updatedPaper?.version !== undefined, version: updatedPaper?.version });
                 if (updatedPaper && updatedPaper.version !== undefined) {
-                    // Include version in the update data for conflict resolution
-                    console.log('[Adapter] Including version in update:', updatedPaper.version);
-                    const updatePayload = { ...updateData, version: updatedPaper.version };
-                    console.log('[Adapter] Calling trackPaperUpdated with:', { id, payload: updatePayload });
+                    // Merge updateData with the full paper to ensure all fields are included
+                    // This way, if multiple fields were updated separately, they're all preserved
+                    const mergedUpdate = { ...updatedPaper, ...updateData, version: updatedPaper.version };
+                    // Remove fields that shouldn't be sent to backend
+                    const { pdfData, pdfFile, hasPdf, createdAt, updatedAt, localId, ...updatePayload } = mergedUpdate;
+                    console.log('[Adapter] Merged update payload (includes all current fields):', {
+                        id,
+                        fields: Object.keys(updatePayload),
+                        hasNotes: 'notes' in updatePayload,
+                        hasTags: 'tags' in updatePayload,
+                        hasSummary: 'summary' in updatePayload,
+                        hasRating: 'rating' in updatePayload
+                    });
                     trackPaperUpdated(id, updatePayload);
                 } else {
                     // Fallback: track without version (will default to 1 on backend)
