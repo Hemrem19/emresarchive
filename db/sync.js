@@ -473,7 +473,20 @@ async function applyServerChanges(serverChanges) {
  * @returns {Object} Changes in API format.
  */
 function prepareChangesForSync(changes) {
-    return {
+    console.log('[Sync] prepareChangesForSync input:', {
+        papers: {
+            created: changes.papers?.created?.length || 0,
+            updated: changes.papers?.updated?.length || 0,
+            deleted: changes.papers?.deleted?.length || 0
+        }
+    });
+    
+    // Log actual update objects
+    if (changes.papers?.updated?.length > 0) {
+        console.log('[Sync] Raw paper updates before mapping:', changes.papers.updated);
+    }
+    
+    const result = {
         papers: {
             created: (changes.papers?.created || []).map(mapPaperToApi),
             updated: (changes.papers?.updated || []).map(p => {
@@ -481,11 +494,15 @@ function prepareChangesForSync(changes) {
                 const mapped = mapPaperToApi(rest);
                 console.log('[Sync] Preparing paper update for API:', {
                     id,
+                    version: p.version,
                     originalFields: Object.keys(rest),
                     mappedFields: Object.keys(mapped),
-                    version: p.version
+                    hasNotes: 'notes' in mapped,
+                    hasTags: 'tags' in mapped,
+                    hasSummary: 'summary' in mapped,
+                    hasRating: 'rating' in mapped
                 });
-                return { id, version: p.version, ...mapped };
+                return { id, version: p.version || 1, ...mapped };
             }),
             deleted: changes.papers?.deleted || []
         },
