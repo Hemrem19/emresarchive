@@ -277,16 +277,25 @@ export const incrementalSync = async (req, res, next) => {
             newVersion: existing.version + 1
           });
           
-          await prisma.paper.update({
+          // Explicitly set updatedAt to ensure it's after syncStartTime
+          // This ensures other devices will receive the update
+          const updateTimestamp = new Date();
+          const updateResult = await prisma.paper.update({
             where: { id },
             data: {
               ...updateData,
               version: existing.version + 1,
-              clientId
+              clientId,
+              updatedAt: updateTimestamp
             }
           });
           appliedChanges.papers.updated++;
-          console.log('[Sync] Paper update applied successfully');
+          console.log('[Sync] Paper update applied successfully:', {
+            id,
+            updatedAt: updateResult.updatedAt?.toISOString(),
+            syncStartTime: syncStartTime.toISOString(),
+            isAfterSyncStart: updateResult.updatedAt > syncStartTime
+          });
         } else {
           console.warn('[Sync] Version conflict:', {
             paperId: paperUpdate.id,
@@ -517,19 +526,12 @@ export const incrementalSync = async (req, res, next) => {
 
     // Get server changes since lastSyncAt
     // Use gte (>=) instead of gt (>) to include papers updated at the exact same timestamp
-    // Also exclude papers updated by the same client in this sync to avoid sending back what was just applied
+    // This ensures updates are not missed due to timing precision issues
     const whereCondition = lastSyncDate 
       ? { 
           userId, 
           updatedAt: { gte: lastSyncDate }, 
-          deletedAt: null,
-          // Exclude papers that were just updated by this client in this sync
-          NOT: {
-            AND: [
-              { clientId: clientId },
-              { updatedAt: { gte: syncStartTime } }
-            ]
-          }
+          deletedAt: null
         }
       : { userId, deletedAt: null };
 
