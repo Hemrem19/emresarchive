@@ -23,11 +23,42 @@ const SYNC_IN_PROGRESS_KEY = 'citavers_sync_in_progress';
  */
 export function getPendingChanges() {
     const changesStr = localStorage.getItem(CHANGES_KEY);
-    return changesStr ? JSON.parse(changesStr) : {
+    const changes = changesStr ? JSON.parse(changesStr) : {
         papers: { created: [], updated: [], deleted: [] },
         collections: { created: [], updated: [], deleted: [] },
         annotations: { created: [], updated: [], deleted: [] }
     };
+    // Log pending changes for debugging (only if there are changes to avoid spam)
+    const hasChanges = 
+        (changes.papers?.created?.length || 0) +
+        (changes.papers?.updated?.length || 0) +
+        (changes.papers?.deleted?.length || 0) +
+        (changes.collections?.created?.length || 0) +
+        (changes.collections?.updated?.length || 0) +
+        (changes.collections?.deleted?.length || 0) +
+        (changes.annotations?.created?.length || 0) +
+        (changes.annotations?.updated?.length || 0) +
+        (changes.annotations?.deleted?.length || 0) > 0;
+    if (hasChanges) {
+        console.log('[Sync] getPendingChanges - Found pending changes:', {
+            papers: {
+                created: changes.papers?.created?.length || 0,
+                updated: changes.papers?.updated?.length || 0,
+                deleted: changes.papers?.deleted?.length || 0
+            },
+            collections: {
+                created: changes.collections?.created?.length || 0,
+                updated: changes.collections?.updated?.length || 0,
+                deleted: changes.collections?.deleted?.length || 0
+            },
+            annotations: {
+                created: changes.annotations?.created?.length || 0,
+                updated: changes.annotations?.updated?.length || 0,
+                deleted: changes.annotations?.deleted?.length || 0
+            }
+        });
+    }
+    return changes;
 }
 
 /**
@@ -61,17 +92,25 @@ export function trackPaperCreated(paper) {
  * @param {Object} paper - Paper update data.
  */
 export function trackPaperUpdated(id, paper) {
+    console.log('[Sync] trackPaperUpdated called:', { id, updateFields: Object.keys(paper) });
     const changes = getPendingChanges();
     // Check if already in created list (local-only paper)
     const createdIndex = changes.papers.created.findIndex(p => p.localId === id || (p.id && p.id === id));
     if (createdIndex !== -1) {
         // Update in created list
+        console.log('[Sync] Paper found in created list, updating:', createdIndex);
         changes.papers.created[createdIndex] = { ...changes.papers.created[createdIndex], ...paper };
     } else {
         // Add to updated list
+        console.log('[Sync] Adding paper to updated list:', { id, fields: Object.keys(paper) });
         changes.papers.updated.push({ id, ...paper });
     }
     savePendingChanges(changes);
+    console.log('[Sync] Pending changes after tracking:', {
+        created: changes.papers.created.length,
+        updated: changes.papers.updated.length,
+        deleted: changes.papers.deleted.length
+    });
 }
 
 /**
@@ -615,6 +654,14 @@ export async function performIncrementalSync() {
         console.log('[Sync] Server changes applied successfully');
 
         // Clear pending changes if sync was successful
+        const changesBeforeClear = getPendingChanges();
+        console.log('[Sync] Clearing pending changes. Before clear:', {
+            papers: {
+                created: changesBeforeClear.papers?.created?.length || 0,
+                updated: changesBeforeClear.papers?.updated?.length || 0,
+                deleted: changesBeforeClear.papers?.deleted?.length || 0
+            }
+        });
         clearPendingChanges();
         console.log('[Sync] Pending changes cleared');
 

@@ -209,13 +209,17 @@ export const papers = {
     },
 
     async updatePaper(id, updateData) {
+        console.log('[Adapter] updatePaper called:', { id, updateFields: Object.keys(updateData) });
         // Optimistic UI: Always update local storage first for immediate feedback
         const result = await localPapers.updatePaper(id, updateData);
 
         // If cloud sync is enabled, track the change and trigger sync
         if (shouldUseCloudSync()) {
+            console.log('[Adapter] Cloud sync enabled, tracking update');
             trackPaperUpdated(id, updateData);
             triggerDebouncedSync();
+        } else {
+            console.log('[Adapter] Cloud sync not enabled or not authenticated');
         }
 
         return result;
