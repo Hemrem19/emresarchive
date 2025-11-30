@@ -92,7 +92,7 @@ export function trackPaperCreated(paper) {
  * @param {Object} paper - Paper update data.
  */
 export function trackPaperUpdated(id, paper) {
-    console.log('[Sync] trackPaperUpdated called:', { id, updateFields: Object.keys(paper) });
+    console.log('[Sync] trackPaperUpdated called:', { id, updateFields: Object.keys(paper), paperData: paper });
     const changes = getPendingChanges();
     // Check if already in created list (local-only paper)
     const createdIndex = changes.papers.created.findIndex(p => p.localId === id || (p.id && p.id === id));
@@ -101,15 +101,24 @@ export function trackPaperUpdated(id, paper) {
         console.log('[Sync] Paper found in created list, updating:', createdIndex);
         changes.papers.created[createdIndex] = { ...changes.papers.created[createdIndex], ...paper };
     } else {
-        // Add to updated list
-        console.log('[Sync] Adding paper to updated list:', { id, fields: Object.keys(paper) });
-        changes.papers.updated.push({ id, ...paper });
+        // Check if already in updated list - merge updates instead of duplicating
+        const updatedIndex = changes.papers.updated.findIndex(p => p.id === id);
+        if (updatedIndex !== -1) {
+            // Merge with existing update
+            console.log('[Sync] Paper already in updated list, merging updates:', updatedIndex);
+            changes.papers.updated[updatedIndex] = { ...changes.papers.updated[updatedIndex], ...paper };
+        } else {
+            // Add to updated list
+            console.log('[Sync] Adding paper to updated list:', { id, fields: Object.keys(paper) });
+            changes.papers.updated.push({ id, ...paper });
+        }
     }
     savePendingChanges(changes);
     console.log('[Sync] Pending changes after tracking:', {
         created: changes.papers.created.length,
         updated: changes.papers.updated.length,
-        deleted: changes.papers.deleted.length
+        deleted: changes.papers.deleted.length,
+        updatedPapers: changes.papers.updated.map(p => ({ id: p.id, fields: Object.keys(p).filter(k => k !== 'id') }))
     });
 }
 
