@@ -12,17 +12,52 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       exclude: [
+        // Standard exclusions
         'node_modules/**',
         'tests/**',
         '**/*.config.js',
         '**/dist/**',
         '**/*.backup',
         'draft_features.md',
-        '*.md'
+        '*.md',
+
+        // Mobile/Platform specific (not unit testable in Vitest)
+        '**/android/**',
+        '**/ios/**',
+        '**/App/App/**',
+        '**/mobileApp/**',
+
+        // Browser extension (platform-specific)
+        '**/extension/**',
+
+        // Build and utility scripts
+        '**/build.js',
+        '**/resize-icons.js',
+        'service-worker.js',
+
+        // Views/UI layer (better tested with E2E)
+        'views/**',
+
+        // Import utilities (low priority)
+        'import/**',
+
+        // Documentation
+        'docs/**',
+        '.agent/**',
+        '.cursor/**',
+      ],
+      include: [
+        'api/**/*.js',
+        'core/**/*.js',
+        'db/**/*.js',
+        'dashboard/**/*.js',
+        'details/**/*.js',
+        'ui.js',
+        'config.js',
+        'debug.js',
       ]
     },
     include: ['tests/**/*.test.js'],
     exclude: ['node_modules', 'dist']
   }
 });
-
