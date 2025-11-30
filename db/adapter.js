@@ -216,7 +216,23 @@ export const papers = {
         // If cloud sync is enabled, track the change and trigger sync
         if (shouldUseCloudSync()) {
             console.log('[Adapter] Cloud sync enabled, tracking update');
-            trackPaperUpdated(id, updateData);
+            // Get the updated paper to include version for conflict resolution
+            try {
+                const updatedPaper = await localPapers.getPaperById(id);
+                if (updatedPaper && updatedPaper.version !== undefined) {
+                    // Include version in the update data for conflict resolution
+                    console.log('[Adapter] Including version in update:', updatedPaper.version);
+                    trackPaperUpdated(id, { ...updateData, version: updatedPaper.version });
+                } else {
+                    // Fallback: track without version (will default to 1 on backend)
+                    console.log('[Adapter] Paper version not found, tracking without version');
+                    trackPaperUpdated(id, updateData);
+                }
+            } catch (error) {
+                console.error('[Adapter] Error getting paper for version:', error);
+                // Fallback: track without version
+                trackPaperUpdated(id, updateData);
+            }
             triggerDebouncedSync();
         } else {
             console.log('[Adapter] Cloud sync not enabled or not authenticated');

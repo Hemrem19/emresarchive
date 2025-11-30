@@ -241,20 +241,35 @@ export const incrementalSync = async (req, res, next) => {
 
     for (const paperUpdate of changes.papers?.updated || []) {
       try {
+        console.log('[Sync] Processing paper update:', {
+          id: paperUpdate.id,
+          updateFields: Object.keys(paperUpdate).filter(k => !['id', 'version'].includes(k)),
+          clientVersion: paperUpdate.version
+        });
+        
         const existing = await prisma.paper.findFirst({
           where: { id: paperUpdate.id, userId }
         });
 
         if (!existing) {
+          console.warn('[Sync] Paper not found for update:', paperUpdate.id);
           appliedChanges.papers.conflicts.push({ id: paperUpdate.id, reason: 'Not found' });
           continue;
         }
+
+        console.log('[Sync] Paper found, existing version:', existing.version);
 
         // Conflict resolution: last-write-wins
         // If client version is >= server version, apply update
         const clientVersion = paperUpdate.version || 1;
         if (clientVersion >= existing.version) {
           const { id, version, ...updateData } = paperUpdate;
+          console.log('[Sync] Applying paper update:', {
+            id,
+            updateFields: Object.keys(updateData),
+            newVersion: existing.version + 1
+          });
+          
           await prisma.paper.update({
             where: { id },
             data: {
@@ -264,13 +279,24 @@ export const incrementalSync = async (req, res, next) => {
             }
           });
           appliedChanges.papers.updated++;
+          console.log('[Sync] Paper update applied successfully');
         } else {
+          console.warn('[Sync] Version conflict:', {
+            paperId: paperUpdate.id,
+            clientVersion,
+            serverVersion: existing.version
+          });
           appliedChanges.papers.conflicts.push({ 
             id: paperUpdate.id, 
             reason: 'Version conflict (server has newer version)' 
           });
         }
       } catch (error) {
+        console.error('[Sync] Error processing paper update:', {
+          id: paperUpdate.id,
+          error: error.message,
+          stack: error.stack
+        });
         appliedChanges.papers.conflicts.push({ id: paperUpdate.id, reason: error.message });
       }
     }
@@ -606,7 +632,26 @@ export const incrementalSync = async (req, res, next) => {
     
     console.log('[Sync] Incremental sync completed:', {
       userId,
-      appliedChanges,
+      appliedChanges: {
+        papers: {
+          created: appliedChanges.papers.created,
+          updated: appliedChanges.papers.updated,
+          deleted: appliedChanges.papers.deleted,
+          conflicts: appliedChanges.papers.conflicts
+        },
+        collections: {
+          created: appliedChanges.collections.created,
+          updated: appliedChanges.collections.updated,
+          deleted: appliedChanges.collections.deleted,
+          conflicts: appliedChanges.collections.conflicts
+        },
+        annotations: {
+          created: appliedChanges.annotations.created,
+          updated: appliedChanges.annotations.updated,
+          deleted: appliedChanges.annotations.deleted,
+          conflicts: appliedChanges.annotations.conflicts
+        }
+      },
       serverChangesCount: {
         papers: serverPapers.length,
         collections: serverCollections.length,
