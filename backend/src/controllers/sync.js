@@ -513,6 +513,12 @@ export const incrementalSync = async (req, res, next) => {
       ? { userId, updatedAt: { gt: lastSyncDate }, deletedAt: null }
       : { userId, deletedAt: null };
 
+    console.log('[Sync] Querying server changes:', {
+      lastSyncDate: lastSyncDate?.toISOString(),
+      whereCondition: JSON.stringify(whereCondition),
+      syncStartTime: syncStartTime.toISOString()
+    });
+
     const serverPapers = await prisma.paper.findMany({
       where: whereCondition,
       select: {
@@ -536,6 +542,11 @@ export const incrementalSync = async (req, res, next) => {
         updatedAt: true,
         version: true
       }
+    });
+
+    console.log('[Sync] Server papers found:', {
+      count: serverPapers.length,
+      paperIds: serverPapers.map(p => ({ id: p.id, updatedAt: p.updatedAt?.toISOString() }))
     });
 
     const serverCollections = await prisma.collection.findMany({
