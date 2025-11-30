@@ -70,7 +70,8 @@ export const paperSchema = z.object({
 
 // Paper Update Schema (all fields optional)
 export const paperUpdateSchema = paperSchema.partial().extend({
-  title: z.string().min(1).optional()
+  title: z.string().min(1).optional(),
+  version: z.number().int().min(1).optional() // Version for conflict resolution
 });
 
 // Collection Schema

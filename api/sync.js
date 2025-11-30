@@ -218,9 +218,12 @@ function mapPaperToApi(localPaper) {
     delete apiPaper.pdfData;
     delete apiPaper.pdfFile;
     delete apiPaper.hasPdf;
-    delete apiPaper.id; // API will assign ID
+    delete apiPaper.id; // API will assign ID (for creates) or keep it (for updates)
     delete apiPaper.createdAt; // API sets this
     delete apiPaper.updatedAt; // API sets this
+    delete apiPaper.version; // Version is handled separately in sync
+    delete apiPaper.localId; // Client-only field
+    delete apiPaper.clientId; // ClientId is set by backend, not sent from client
 
     // Ensure arrays
     if (!Array.isArray(apiPaper.authors)) {
@@ -237,6 +240,21 @@ function mapPaperToApi(localPaper) {
     if (apiPaper.readingProgress) {
         if (!apiPaper.readingProgress.totalPages || apiPaper.readingProgress.totalPages < 1) {
             delete apiPaper.readingProgress;
+        }
+    }
+
+    // Convert pdfSizeBytes from BigInt to number if needed (for JSON serialization)
+    if (apiPaper.pdfSizeBytes !== undefined && apiPaper.pdfSizeBytes !== null) {
+        if (typeof apiPaper.pdfSizeBytes === 'bigint') {
+            apiPaper.pdfSizeBytes = Number(apiPaper.pdfSizeBytes);
+        } else if (typeof apiPaper.pdfSizeBytes === 'string') {
+            // If it's a string, try to parse it
+            const parsed = parseInt(apiPaper.pdfSizeBytes, 10);
+            apiPaper.pdfSizeBytes = isNaN(parsed) ? null : parsed;
+        }
+        // Ensure it's a valid number
+        if (typeof apiPaper.pdfSizeBytes !== 'number' || apiPaper.pdfSizeBytes < 0) {
+            apiPaper.pdfSizeBytes = null;
         }
     }
 
