@@ -516,14 +516,33 @@ export const incrementalSync = async (req, res, next) => {
     }
 
     // Get server changes since lastSyncAt
+    // Use gte (>=) instead of gt (>) to include papers updated at the exact same timestamp
+    // Also exclude papers updated by the same client in this sync to avoid sending back what was just applied
     const whereCondition = lastSyncDate 
-      ? { userId, updatedAt: { gt: lastSyncDate }, deletedAt: null }
+      ? { 
+          userId, 
+          updatedAt: { gte: lastSyncDate }, 
+          deletedAt: null,
+          // Exclude papers that were just updated by this client in this sync
+          NOT: {
+            AND: [
+              { clientId: clientId },
+              { updatedAt: { gte: syncStartTime } }
+            ]
+          }
+        }
       : { userId, deletedAt: null };
 
     console.log('[Sync] Querying server changes:', {
       lastSyncDate: lastSyncDate?.toISOString(),
-      whereCondition: JSON.stringify(whereCondition),
-      syncStartTime: syncStartTime.toISOString()
+      syncStartTime: syncStartTime.toISOString(),
+      clientId,
+      whereCondition: {
+        userId,
+        updatedAt: lastSyncDate ? `>= ${lastSyncDate.toISOString()}` : 'all',
+        deletedAt: null,
+        excludeSameClient: clientId ? `papers updated by ${clientId} after ${syncStartTime.toISOString()}` : 'none'
+      }
     });
 
     const serverPapers = await prisma.paper.findMany({
