@@ -48,6 +48,7 @@ export default defineConfig({
       ],
       include: [
         'api/**/*.js',
+        'backend/**/*.js',  // Backend server code
         'core/**/*.js',
         'db/**/*.js',
         'dashboard/**/*.js',
