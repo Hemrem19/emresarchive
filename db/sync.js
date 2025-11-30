@@ -415,10 +415,21 @@ async function applyServerChanges(serverChanges) {
                 }
 
                 // No duplicate detected, just add/update the paper
+                console.log('[Sync] applyServerChanges - Adding/updating paper:', {
+                    id: localPaper.id,
+                    exists: papersById.has(localPaper.id),
+                    hasNotes: !!localPaper.notes,
+                    hasTags: !!localPaper.tags,
+                    hasSummary: !!localPaper.summary,
+                    hasRating: localPaper.rating !== undefined && localPaper.rating !== null
+                });
                 const request = papersStore.put(localPaper);
-                request.onsuccess = checkComplete;
+                request.onsuccess = () => {
+                    console.log('[Sync] applyServerChanges - Paper saved successfully:', localPaper.id);
+                    checkComplete();
+                };
                 request.onerror = () => {
-                    console.error(`Failed to apply server paper ${localPaper.id}:`, request.error);
+                    console.error(`[Sync] applyServerChanges - Failed to apply server paper ${localPaper.id}:`, request.error);
                     checkComplete(); // Continue with other operations
                 };
 
