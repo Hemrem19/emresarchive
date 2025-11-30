@@ -158,6 +158,13 @@ export const incrementalSync = async (req, res, next) => {
 
     const syncStartTime = new Date();
     const lastSyncDate = lastSyncedAt ? new Date(lastSyncedAt) : null;
+    
+    console.log('[Sync] Sync timing:', {
+      syncStartTime: syncStartTime.toISOString(),
+      lastSyncedAt: lastSyncedAt,
+      lastSyncDate: lastSyncDate?.toISOString(),
+      timeSinceLastSync: lastSyncDate ? (syncStartTime.getTime() - lastSyncDate.getTime()) + 'ms' : 'never synced'
+    });
 
     // Process client changes (apply to server)
     const appliedChanges = {
