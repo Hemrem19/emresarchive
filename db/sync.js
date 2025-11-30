@@ -477,8 +477,15 @@ function prepareChangesForSync(changes) {
         papers: {
             created: (changes.papers?.created || []).map(mapPaperToApi),
             updated: (changes.papers?.updated || []).map(p => {
-                const { id, ...rest } = p;
-                return { id, ...mapPaperToApi(rest) };
+                const { id, version, ...rest } = p;
+                const mapped = mapPaperToApi(rest);
+                console.log('[Sync] Preparing paper update for API:', {
+                    id,
+                    originalFields: Object.keys(rest),
+                    mappedFields: Object.keys(mapped),
+                    version: p.version
+                });
+                return { id, version: p.version, ...mapped };
             }),
             deleted: changes.papers?.deleted || []
         },
@@ -499,6 +506,16 @@ function prepareChangesForSync(changes) {
             deleted: changes.annotations?.deleted || []
         }
     };
+    
+    console.log('[Sync] prepareChangesForSync output:', {
+        papers: {
+            created: result.papers.created.length,
+            updated: result.papers.updated.length,
+            deleted: result.papers.deleted.length
+        }
+    });
+    
+    return result;
 }
 
 /**
@@ -627,14 +644,34 @@ export async function performIncrementalSync() {
             (localChanges.annotations?.deleted?.length || 0) > 0;
 
         // Prepare changes for API
+        console.log('[Sync] Local changes before preparation:', JSON.stringify(localChanges, null, 2));
         const apiChanges = prepareChangesForSync(localChanges);
         console.log('[Sync] Prepared changes for API:', {
             papers: {
                 created: apiChanges.papers?.created?.length || 0,
                 updated: apiChanges.papers?.updated?.length || 0,
                 deleted: apiChanges.papers?.deleted?.length || 0
+            },
+            collections: {
+                created: apiChanges.collections?.created?.length || 0,
+                updated: apiChanges.collections?.updated?.length || 0,
+                deleted: apiChanges.collections?.deleted?.length || 0
+            },
+            annotations: {
+                created: apiChanges.annotations?.created?.length || 0,
+                updated: apiChanges.annotations?.updated?.length || 0,
+                deleted: apiChanges.annotations?.deleted?.length || 0
             }
         });
+        
+        // Log actual update data if present
+        if (apiChanges.papers?.updated?.length > 0) {
+            console.log('[Sync] Paper updates being sent:', apiChanges.papers.updated.map(u => ({
+                id: u.id,
+                version: u.version,
+                fields: Object.keys(u).filter(k => !['id', 'version'].includes(k))
+            })));
+        }
 
         // Perform incremental sync
         console.log('[Sync] Sending sync request to backend...');
