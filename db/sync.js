@@ -534,19 +534,46 @@ export async function performFullSync() {
  * @returns {Promise<Object>} Sync result with applied changes and conflicts.
  */
 export async function performIncrementalSync() {
-    if (!isCloudSyncEnabled() || !isAuthenticated()) {
+    console.log('[Sync] Starting incremental sync...');
+    
+    if (!isCloudSyncEnabled()) {
+        console.error('[Sync] Cloud sync is not enabled');
+        throw new Error('Cloud sync is not enabled or user is not authenticated');
+    }
+    
+    if (!isAuthenticated()) {
+        console.error('[Sync] User is not authenticated');
         throw new Error('Cloud sync is not enabled or user is not authenticated');
     }
 
     if (isSyncInProgress()) {
+        console.warn('[Sync] Sync already in progress, skipping');
         throw new Error('Sync already in progress');
     }
 
     try {
         setSyncInProgress(true);
+        console.log('[Sync] Sync lock acquired');
 
         // Get pending local changes
         const localChanges = getPendingChanges();
+        console.log('[Sync] Pending changes:', {
+            papers: {
+                created: localChanges.papers?.created?.length || 0,
+                updated: localChanges.papers?.updated?.length || 0,
+                deleted: localChanges.papers?.deleted?.length || 0
+            },
+            collections: {
+                created: localChanges.collections?.created?.length || 0,
+                updated: localChanges.collections?.updated?.length || 0,
+                deleted: localChanges.collections?.deleted?.length || 0
+            },
+            annotations: {
+                created: localChanges.annotations?.created?.length || 0,
+                updated: localChanges.annotations?.updated?.length || 0,
+                deleted: localChanges.annotations?.deleted?.length || 0
+            }
+        });
 
         // Check if there are any changes to send
         const hasLocalChanges =
@@ -562,15 +589,34 @@ export async function performIncrementalSync() {
 
         // Prepare changes for API
         const apiChanges = prepareChangesForSync(localChanges);
+        console.log('[Sync] Prepared changes for API:', {
+            papers: {
+                created: apiChanges.papers?.created?.length || 0,
+                updated: apiChanges.papers?.updated?.length || 0,
+                deleted: apiChanges.papers?.deleted?.length || 0
+            }
+        });
 
         // Perform incremental sync
+        console.log('[Sync] Sending sync request to backend...');
         const result = await incrementalSync(apiChanges);
+        console.log('[Sync] Backend response received:', {
+            appliedChanges: result.appliedChanges,
+            serverChanges: {
+                papers: result.serverChanges?.papers?.length || 0,
+                collections: result.serverChanges?.collections?.length || 0,
+                annotations: result.serverChanges?.annotations?.length || 0
+            }
+        });
 
         // Apply server changes to local IndexedDB
+        console.log('[Sync] Applying server changes to local database...');
         await applyServerChanges(result.serverChanges);
+        console.log('[Sync] Server changes applied successfully');
 
         // Clear pending changes if sync was successful
         clearPendingChanges();
+        console.log('[Sync] Pending changes cleared');
 
         return {
             success: true,

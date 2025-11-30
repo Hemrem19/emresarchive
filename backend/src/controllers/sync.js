@@ -132,6 +132,29 @@ export const incrementalSync = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { lastSyncedAt, changes, clientId } = req.body;
+    
+    console.log('[Sync] Incremental sync request received:', {
+      userId,
+      clientId,
+      lastSyncedAt,
+      changes: {
+        papers: {
+          created: changes?.papers?.created?.length || 0,
+          updated: changes?.papers?.updated?.length || 0,
+          deleted: changes?.papers?.deleted?.length || 0
+        },
+        collections: {
+          created: changes?.collections?.created?.length || 0,
+          updated: changes?.collections?.updated?.length || 0,
+          deleted: changes?.collections?.deleted?.length || 0
+        },
+        annotations: {
+          created: changes?.annotations?.created?.length || 0,
+          updated: changes?.annotations?.updated?.length || 0,
+          deleted: changes?.annotations?.deleted?.length || 0
+        }
+      }
+    });
 
     const syncStartTime = new Date();
     const lastSyncDate = lastSyncedAt ? new Date(lastSyncedAt) : null;
@@ -563,7 +586,7 @@ export const incrementalSync = async (req, res, next) => {
       }
     });
 
-    res.json({
+    const response = {
       success: true,
       data: {
         appliedChanges,
@@ -579,7 +602,19 @@ export const incrementalSync = async (req, res, next) => {
         },
         syncedAt: syncStartTime.toISOString()
       }
+    };
+    
+    console.log('[Sync] Incremental sync completed:', {
+      userId,
+      appliedChanges,
+      serverChangesCount: {
+        papers: serverPapers.length,
+        collections: serverCollections.length,
+        annotations: serverAnnotations.length
+      }
     });
+    
+    res.json(response);
 
   } catch (error) {
     next(error);

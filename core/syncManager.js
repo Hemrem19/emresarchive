@@ -35,7 +35,12 @@ function shouldAutoSync() {
  * @returns {Promise<void>}
  */
 async function performAutoSync(silent = true) {
+    console.log('[Sync Manager] performAutoSync called, silent:', silent);
+    
     if (!shouldAutoSync()) {
+        const cloudSyncEnabled = isCloudSyncEnabled();
+        const authenticated = isAuthenticated();
+        console.warn('[Sync Manager] Sync skipped - cloudSyncEnabled:', cloudSyncEnabled, 'authenticated:', authenticated);
         return;
     }
 
@@ -59,7 +64,14 @@ async function performAutoSync(silent = true) {
     }
 
     try {
+        console.log('[Sync Manager] Calling performSync...');
         const result = await performSync();
+        console.log('[Sync Manager] Sync completed:', {
+            success: result.success,
+            hasLocalChanges: result.hasLocalChanges,
+            serverChangeCount: result.serverChangeCount,
+            conflicts: result.conflicts
+        });
 
         // Only show notification if there are server changes or conflicts
         if (!silent || result.serverChangeCount || result.conflicts) {
