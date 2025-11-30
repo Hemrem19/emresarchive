@@ -57,8 +57,8 @@ export const docsView = `
                                 <div class="mt-4 p-3 bg-amber-100/50 dark:bg-amber-900/30 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
                                     <p class="text-xs font-medium text-amber-900 dark:text-amber-200">
                                         💡 Pro Tip: Works with full DOI URLs too!
-                                    </p>
-                                </div>
+                        </p>
+                    </div>
                             </div>
                         </div>
 
@@ -276,14 +276,14 @@ export const docsView = `
                     <span class="material-symbols-outlined text-primary text-xl">keyboard</span>
                 </div>
                 <h2 class="text-3xl font-bold text-stone-900 dark:text-white">Keyboard Shortcuts</h2>
-            </div>
+                        </div>
             
             <div class="bg-white/80 dark:bg-stone-900/80 backdrop-blur-sm rounded-2xl border border-stone-200/50 dark:border-stone-800/50 shadow-xl shadow-stone-200/50 dark:shadow-stone-900/50 p-8">
                 <p class="text-stone-700 dark:text-stone-300 mb-6 text-center">
                     Speed up your workflow. Press <kbd class="px-2 py-1 bg-stone-200 dark:bg-stone-700 rounded text-sm font-mono">?</kbd> anytime to see this list!
                 </p>
                 <div class="grid md:grid-cols-2 gap-6">
-                    <div>
+                        <div>
                         <h3 class="text-lg font-bold text-stone-900 dark:text-white mb-4 flex items-center gap-2">
                             <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
                             Global Shortcuts
@@ -310,8 +310,8 @@ export const docsView = `
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                         <h3 class="text-lg font-bold text-stone-900 dark:text-white mb-4 flex items-center gap-2">
                             <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
                             Dashboard Shortcuts
@@ -396,7 +396,7 @@ export const docsView = `
                             <span class="text-stone-700 dark:text-stone-300"><strong>Fullscreen:</strong> Distraction-free reading</span>
                         </div>
                     </div>
-                </div>
+                        </div>
             </div>
         </section>
 

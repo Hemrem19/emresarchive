@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+analyze COMPREHENSIVE_DOCUMENTATION and DOCUMENTATION_UPDATE_COMMANDS files and apply relevant changes to the documentation files. Always make sure docs are up-to-date.
