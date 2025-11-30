@@ -601,35 +601,6 @@ export const incrementalSync = async (req, res, next) => {
       }
     };
     
-    console.log('[Sync] Incremental sync completed:', {
-      userId,
-      appliedChanges: {
-        papers: {
-          created: appliedChanges.papers.created,
-          updated: appliedChanges.papers.updated,
-          deleted: appliedChanges.papers.deleted,
-          conflicts: appliedChanges.papers.conflicts
-        },
-        collections: {
-          created: appliedChanges.collections.created,
-          updated: appliedChanges.collections.updated,
-          deleted: appliedChanges.collections.deleted,
-          conflicts: appliedChanges.collections.conflicts
-        },
-        annotations: {
-          created: appliedChanges.annotations.created,
-          updated: appliedChanges.annotations.updated,
-          deleted: appliedChanges.annotations.deleted,
-          conflicts: appliedChanges.annotations.conflicts
-        }
-      },
-      serverChangesCount: {
-        papers: serverPapers.length,
-        collections: serverCollections.length,
-        annotations: serverAnnotations.length
-      }
-    });
-    
     res.json(response);
 
   } catch (error) {

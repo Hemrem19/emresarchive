@@ -282,35 +282,8 @@ async function applyServerChanges(serverChanges) {
             }
 
             // Process incoming papers
-            console.log('[Sync] applyServerChanges - Processing papers:', {
-                count: serverChanges.papers?.length || 0,
-                paperIds: serverChanges.papers?.map(p => p.id) || []
-            });
             for (const apiPaper of serverChanges.papers || []) {
-                console.log('[Sync] applyServerChanges - Processing paper:', {
-                    id: apiPaper.id,
-                    title: apiPaper.title?.substring(0, 50),
-                    hasNotes: !!apiPaper.notes,
-                    hasTags: !!apiPaper.tags,
-                    hasSummary: !!apiPaper.summary,
-                    hasRating: apiPaper.rating !== undefined && apiPaper.rating !== null,
-                    notesLength: apiPaper.notes?.length || 0,
-                    tagsCount: apiPaper.tags?.length || 0,
-                    summaryLength: apiPaper.summary?.length || 0,
-                    rating: apiPaper.rating
-                });
                 const localPaper = mapPaperFromApi(apiPaper);
-                console.log('[Sync] applyServerChanges - Mapped paper:', {
-                    id: localPaper.id,
-                    hasNotes: !!localPaper.notes,
-                    hasTags: !!localPaper.tags,
-                    hasSummary: !!localPaper.summary,
-                    hasRating: localPaper.rating !== undefined && localPaper.rating !== null,
-                    notesLength: localPaper.notes?.length || 0,
-                    tagsCount: localPaper.tags?.length || 0,
-                    summaryLength: localPaper.summary?.length || 0,
-                    rating: localPaper.rating
-                });
                 let foundDuplicate = false;
                 let existingPaper = null;
 
