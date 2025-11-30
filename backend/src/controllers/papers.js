@@ -1045,7 +1045,7 @@ export const batchOperations = async (req, res, next) => {
             const updateData = {};
             const allowedFields = [
               'title', 'authors', 'year', 'journal', 'doi', 'abstract',
-              'tags', 'status', 'notes', 'readingProgress', 'relatedPaperIds'
+              'tags', 'status', 'notes', 'summary', 'rating', 'readingProgress', 'relatedPaperIds'
             ];
 
             allowedFields.forEach(field => {
