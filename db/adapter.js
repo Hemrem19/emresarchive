@@ -209,33 +209,46 @@ export const papers = {
     },
 
     async updatePaper(id, updateData) {
-        console.log('[Adapter] updatePaper called:', { id, updateFields: Object.keys(updateData) });
+        console.log('[Adapter] updatePaper called:', { id, updateFields: Object.keys(updateData), updateData });
         // Optimistic UI: Always update local storage first for immediate feedback
         const result = await localPapers.updatePaper(id, updateData);
+        console.log('[Adapter] Local update completed, result:', result);
+
+        // Check cloud sync status
+        const cloudSyncEnabled = isCloudSyncEnabled();
+        const authenticated = isAuthenticated();
+        const shouldSync = shouldUseCloudSync();
+        console.log('[Adapter] Cloud sync check:', { cloudSyncEnabled, authenticated, shouldSync });
 
         // If cloud sync is enabled, track the change and trigger sync
-        if (shouldUseCloudSync()) {
+        if (shouldSync) {
             console.log('[Adapter] Cloud sync enabled, tracking update');
             // Get the updated paper to include version for conflict resolution
             try {
                 const updatedPaper = await localPapers.getPaperById(id);
+                console.log('[Adapter] Retrieved updated paper:', { id, hasVersion: updatedPaper?.version !== undefined, version: updatedPaper?.version });
                 if (updatedPaper && updatedPaper.version !== undefined) {
                     // Include version in the update data for conflict resolution
                     console.log('[Adapter] Including version in update:', updatedPaper.version);
-                    trackPaperUpdated(id, { ...updateData, version: updatedPaper.version });
+                    const updatePayload = { ...updateData, version: updatedPaper.version };
+                    console.log('[Adapter] Calling trackPaperUpdated with:', { id, payload: updatePayload });
+                    trackPaperUpdated(id, updatePayload);
                 } else {
                     // Fallback: track without version (will default to 1 on backend)
                     console.log('[Adapter] Paper version not found, tracking without version');
+                    console.log('[Adapter] Calling trackPaperUpdated with:', { id, payload: updateData });
                     trackPaperUpdated(id, updateData);
                 }
             } catch (error) {
                 console.error('[Adapter] Error getting paper for version:', error);
                 // Fallback: track without version
+                console.log('[Adapter] Calling trackPaperUpdated (fallback) with:', { id, payload: updateData });
                 trackPaperUpdated(id, updateData);
             }
+            console.log('[Adapter] Triggering debounced sync');
             triggerDebouncedSync();
         } else {
-            console.log('[Adapter] Cloud sync not enabled or not authenticated');
+            console.warn('[Adapter] Cloud sync not enabled or not authenticated - update will NOT be synced!', { cloudSyncEnabled, authenticated });
         }
 
         return result;
