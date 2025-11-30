@@ -104,9 +104,30 @@ export function trackPaperUpdated(id, paper) {
         // Check if already in updated list - merge updates instead of duplicating
         const updatedIndex = changes.papers.updated.findIndex(p => p.id === id);
         if (updatedIndex !== -1) {
-            // Merge with existing update
-            console.log('[Sync] Paper already in updated list, merging updates:', updatedIndex);
+            // Merge with existing update - preserve ALL fields from both updates
+            console.log('[Sync] Paper already in updated list, merging updates:', {
+                index: updatedIndex,
+                existingFields: Object.keys(changes.papers.updated[updatedIndex]),
+                newFields: Object.keys(paper),
+                existingHasNotes: 'notes' in changes.papers.updated[updatedIndex],
+                existingHasTags: 'tags' in changes.papers.updated[updatedIndex],
+                existingHasSummary: 'summary' in changes.papers.updated[updatedIndex],
+                existingHasRating: 'rating' in changes.papers.updated[updatedIndex],
+                newHasNotes: 'notes' in paper,
+                newHasTags: 'tags' in paper,
+                newHasSummary: 'summary' in paper,
+                newHasRating: 'rating' in paper
+            });
+            // Merge: spread existing first, then new data (new data overwrites existing)
+            // This ensures all fields from both updates are preserved
             changes.papers.updated[updatedIndex] = { ...changes.papers.updated[updatedIndex], ...paper };
+            console.log('[Sync] After merge:', {
+                mergedFields: Object.keys(changes.papers.updated[updatedIndex]),
+                hasNotes: 'notes' in changes.papers.updated[updatedIndex],
+                hasTags: 'tags' in changes.papers.updated[updatedIndex],
+                hasSummary: 'summary' in changes.papers.updated[updatedIndex],
+                hasRating: 'rating' in changes.papers.updated[updatedIndex]
+            });
         } else {
             // Add to updated list
             console.log('[Sync] Adding paper to updated list:', { id, fields: Object.keys(paper) });
