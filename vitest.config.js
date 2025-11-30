@@ -18,6 +18,7 @@ export default defineConfig({
         '**/*.config.js',
         '**/dist/**',
         '**/*.backup',
+        '*.backup',  // Root-level backup files
         'draft_features.md',
         '*.md',
 
@@ -34,17 +35,32 @@ export default defineConfig({
         '**/build.js',
         '**/resize-icons.js',
         'service-worker.js',
+        'check_imports.cjs',  // Import checker utility
+        'test_*.js',          // Test helper scripts
 
         // Views/UI layer (better tested with E2E)
         'views/**',
+        '**/*.view.js',       // Root-level view files
+
+        // Generated/Vendor files
+        'tailwind.js',        // Generated Tailwind CSS
 
         // Import utilities (low priority)
         'import/**',
 
-        // Documentation
+        // Marketing & Planning
+        'marketing/**',
+        'plans/**',
+
+        // Documentation & Tooling
         'docs/**',
         '.agent/**',
         '.cursor/**',
+        '.github/**',         // GitHub workflows
+
+        // Deprecated/Old files
+        '**/*.deprecated.js',
+        '**/*.old.js',
       ],
       include: [
         'api/**/*.js',
