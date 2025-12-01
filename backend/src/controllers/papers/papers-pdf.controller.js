@@ -32,7 +32,7 @@ export const getUploadUrl = async (req, res, next) => {
     }
 
     // Import S3 functions
-    const { getPresignedUploadUrl, generatePdfKey, isS3Configured } = await import('../lib/s3.js');
+    const { getPresignedUploadUrl, generatePdfKey, isS3Configured } = await import('../../lib/s3.js');
 
     // Check if S3 is configured
     if (!isS3Configured()) {
@@ -109,7 +109,7 @@ export const uploadPdfDirect = async (req, res, next) => {
     }
 
     // Import S3 functions
-    const { uploadFileToS3, generatePdfKey, isS3Configured } = await import('../lib/s3.js');
+    const { uploadFileToS3, generatePdfKey, isS3Configured } = await import('../../lib/s3.js');
 
     // Check if S3 is configured
     if (!isS3Configured()) {
@@ -189,7 +189,7 @@ export const getPdfDownloadUrl = async (req, res, next) => {
     }
 
     // Import S3 functions
-    const { getPresignedDownloadUrl, extractS3Key, isS3Configured } = await import('../lib/s3.js');
+    const { getPresignedDownloadUrl, extractS3Key, isS3Configured } = await import('../../lib/s3.js');
 
     // Check if pdfUrl is an S3 key/URL
     // If S3 is configured and pdfUrl looks like an S3 key, generate presigned URL
@@ -264,7 +264,7 @@ export const proxyPdfStream = async (req, res, next) => {
     }
 
     // Import S3 functions
-    const { getS3ObjectStream, extractS3Key, isS3Configured } = await import('../lib/s3.js');
+    const { getS3ObjectStream, extractS3Key, isS3Configured } = await import('../../lib/s3.js');
 
     // If S3 is configured, fetch PDF from S3 and stream it
     if (isS3Configured() && (paper.pdfUrl.startsWith('papers/') || paper.pdfUrl.includes('/r2.'))) {
@@ -322,5 +322,3 @@ export const proxyPdfStream = async (req, res, next) => {
     next(error);
   }
 };
-
-

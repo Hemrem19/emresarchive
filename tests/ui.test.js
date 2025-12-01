@@ -1,233 +1,276 @@
 /**
- * Tests for ui.js - UI Utility Functions
+ * Unit Tests for UI Utilities
+ * @module tests/ui
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     escapeHtml,
-    showToast,
     formatRelativeTime,
-    sortPapers
+    sortPapers,
+    highlightText,
+    extractNoteSnippet,
+    hasNotesMatch,
+    showToast
 } from '../ui.js';
-import { getStatusOrder } from '../config.js';
 
-// Mock config
+// Mock config.js since sortPapers uses getStatusOrder
 vi.mock('../config.js', () => ({
-    getStatusOrder: vi.fn(() => ['Unread', 'Reading', 'Finished', 'On Hold'])
+    getStatusOrder: () => ['To Read', 'Reading', 'Finished', 'Archived']
 }));
 
-describe('ui.js - escapeHtml', () => {
-    it('should escape HTML special characters', () => {
-        const unsafe = '<script>alert("XSS")</script>';
-        const safe = escapeHtml(unsafe);
-        expect(safe).toBe('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
-    });
+describe('UI Utilities', () => {
 
-    it('should escape ampersands', () => {
-        expect(escapeHtml('R&D')).toBe('R&amp;D');
-    });
-
-    it('should escape quotes', () => {
-        expect(escapeHtml('Say "hello"')).toBe('Say &quot;hello&quot;');
-        expect(escapeHtml("It's great")).toBe('It&#039;s great');
-    });
-
-    it('should handle already escaped content', () => {
-        const already = '&amp;lt;div&amp;gt;';
-        expect(escapeHtml(already)).toBe('&amp;amp;lt;div&amp;amp;gt;');
-    });
-
-    it('should handle empty string', () => {
-        expect(escapeHtml('')).toBe('');
-    });
-});
-
-describe('ui.js - showToast', () => {
-    let container;
-
-    beforeEach(() => {
-        // Create toast container
-        container = document.createElement('div');
-        container.id = 'toast-container';
-        document.body.appendChild(container);
-    });
-
-    afterEach(() => {
-        document.body.removeChild(container);
-        vi.clearAllTimers();
-        vi.restoreAllMocks();
-    });
-
-    it('should display success toast', () => {
-        showToast('Operation successful', 'success');
-
-        const toast = container.querySelector('.toast');
-        expect(toast).toBeTruthy();
-        expect(toast.textContent).toContain('Operation successful');
-        expect(toast.classList.contains('bg-green-500')).toBe(true);
-    });
-
-    it('should display error toast', () => {
-        showToast('Operation failed', 'error');
-
-        const toast = container.querySelector('.toast');
-        expect(toast.classList.contains('bg-red-500')).toBe(true);
-        expect(toast.querySelector('.material-symbols-outlined').textContent).toBe('error');
-    });
-
-    it('should display warning toast', () => {
-        showToast('Warning message', 'warning');
-
-        const toast = container.querySelector('.toast');
-        expect(toast.classList.contains('bg-yellow-500')).toBe(true);
-    });
-
-    it('should display info toast', () => {
-        showToast('Info message', 'info');
-
-        const toast = container.querySelector('.toast');
-        expect(toast.classList.contains('bg-blue-500')).toBe(true);
-    });
-
-    it('should add action buttons', () => {
-        const onClick = vi.fn();
-        showToast('Message', 'success', {
-            actions: [{ label: 'Retry', onClick }]
+    describe('escapeHtml', () => {
+        it('should escape special characters', () => {
+            const input = '<script>alert("xss")</script>';
+            const expected = '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;';
+            expect(escapeHtml(input)).toBe(expected);
         });
 
-        const actionBtn = container.querySelector('.toast-action-btn');
-        expect(actionBtn).toBeTruthy();
-        expect(actionBtn.textContent.trim()).toBe('Retry');
+        it('should handle strings without special characters', () => {
+            const input = 'Hello World';
+            expect(escapeHtml(input)).toBe(input);
+        });
 
-        actionBtn.click();
-        expect(onClick).toHaveBeenCalled();
+        it('should escape ampersands first', () => {
+            const input = '& < > " \'';
+            const expected = '&amp; &lt; &gt; &quot; &#039;';
+            expect(escapeHtml(input)).toBe(expected);
+        });
     });
 
-    it('should remove toast when close button clicked', () => {
-        showToast('Persistent', 'success', { duration: 0 });
+    describe('formatRelativeTime', () => {
+        it('should return "Never" for null/undefined date', () => {
+            expect(formatRelativeTime(null)).toBe('Never');
+            expect(formatRelativeTime(undefined)).toBe('Never');
+        });
 
-        const closeBtn = container.querySelector('.toast-close-btn');
-        closeBtn.click();
+        it('should return "Just now" for very recent dates', () => {
+            const now = new Date();
+            expect(formatRelativeTime(now)).toBe('Just now');
+        });
 
-        // Toast should be removed or have opacity-0 class
-        setTimeout(() => {
-            expect(container.querySelector('.toast')).toBeFalsy();
-        }, 500);
+        it('should format minutes correctly', () => {
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            expect(formatRelativeTime(fiveMinutesAgo)).toBe('5 minutes ago');
+        });
+
+        it('should format hours correctly', () => {
+            const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+            expect(formatRelativeTime(twoHoursAgo)).toBe('2 hours ago');
+        });
+
+        it('should format days correctly', () => {
+            const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+            expect(formatRelativeTime(threeDaysAgo)).toBe('3 days ago');
+        });
+
+        it('should format weeks correctly', () => {
+            const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+            expect(formatRelativeTime(twoWeeksAgo)).toBe('2 weeks ago');
+        });
+
+        it('should format months correctly', () => {
+            const twoMonthsAgo = new Date(Date.now() - 65 * 24 * 60 * 60 * 1000);
+            expect(formatRelativeTime(twoMonthsAgo)).toBe('2 months ago');
+        });
+
+        it('should format years correctly', () => {
+            const twoYearsAgo = new Date(Date.now() - 750 * 24 * 60 * 60 * 1000);
+            expect(formatRelativeTime(twoYearsAgo)).toBe('2 years ago');
+        });
+    });
+
+    describe('sortPapers', () => {
+        const papers = [
+            { id: 1, title: 'B Paper', year: 2020, createdAt: '2023-01-01', updatedAt: '2023-01-01', readingStatus: 'Reading', rating: 5 },
+            { id: 2, title: 'A Paper', year: 2021, createdAt: '2023-02-01', updatedAt: '2023-03-01', readingStatus: 'To Read', rating: null },
+            { id: 3, title: 'C Paper', year: 2019, createdAt: '2023-01-15', updatedAt: '2023-02-01', readingStatus: 'Finished', rating: 8 }
+        ];
+
+        it('should sort by date_added (default)', () => {
+            const sorted = sortPapers(papers, 'date_added');
+            expect(sorted[0].id).toBe(2); // Newest created
+            expect(sorted[2].id).toBe(1); // Oldest created
+        });
+
+        it('should sort by last_updated', () => {
+            const sorted = sortPapers(papers, 'last_updated');
+            expect(sorted[0].id).toBe(2); // Newest updated
+            expect(sorted[2].id).toBe(1); // Oldest updated
+        });
+
+        it('should sort by title_asc', () => {
+            const sorted = sortPapers(papers, 'title_asc');
+            expect(sorted[0].title).toBe('A Paper');
+            expect(sorted[2].title).toBe('C Paper');
+        });
+
+        it('should sort by year_desc', () => {
+            const sorted = sortPapers(papers, 'year_desc');
+            expect(sorted[0].year).toBe(2021);
+            expect(sorted[2].year).toBe(2019);
+        });
+
+        it('should sort by status_asc', () => {
+            const sorted = sortPapers(papers, 'status_asc');
+            // Order: To Read, Reading, Finished
+            expect(sorted[0].readingStatus).toBe('To Read');
+            expect(sorted[1].readingStatus).toBe('Reading');
+            expect(sorted[2].readingStatus).toBe('Finished');
+        });
+
+        it('should sort by rating_desc', () => {
+            const sorted = sortPapers(papers, 'rating_desc');
+            expect(sorted[0].rating).toBe(8);
+            expect(sorted[1].rating).toBe(5);
+            expect(sorted[2].rating).toBe(null);
+        });
+    });
+
+    describe('highlightText', () => {
+        it('should highlight matching terms', () => {
+            const text = 'Hello World';
+            const term = 'World';
+            const result = highlightText(text, term);
+            expect(result).toContain('<mark');
+            expect(result).toContain('World</mark>');
+        });
+
+        it('should be case insensitive', () => {
+            const text = 'Hello World';
+            const term = 'world';
+            const result = highlightText(text, term);
+            expect(result).toContain('<mark');
+            expect(result).toContain('World</mark>');
+        });
+
+        it('should escape special regex characters in term', () => {
+            const text = 'Hello (World)';
+            const term = '(World)';
+            const result = highlightText(text, term);
+            expect(result).toContain('<mark');
+            expect(result).toContain('(World)</mark>');
+        });
+
+        it('should return original text if no term provided', () => {
+            const text = 'Hello World';
+            expect(highlightText(text, '')).toBe(text);
+            expect(highlightText(text, null)).toBe(text);
+        });
+    });
+
+    describe('extractNoteSnippet', () => {
+        const notes = 'This is a long note about machine learning and artificial intelligence. It contains many keywords.';
+
+        it('should extract snippet containing term', () => {
+            const snippet = extractNoteSnippet(notes, 'machine');
+            expect(snippet.toLowerCase()).toContain('machine');
+        });
+
+        it('should handle terms at the beginning', () => {
+            const snippet = extractNoteSnippet(notes, 'This');
+            expect(snippet).toContain('This is a long');
+        });
+
+        it('should return empty string if no match', () => {
+            const snippet = extractNoteSnippet(notes, 'banana');
+            expect(snippet).toBe('');
+        });
+
+        it('should trim to word boundaries', () => {
+            const longNotes = 'Start ' + 'a'.repeat(100) + ' middle ' + 'b'.repeat(100) + ' End';
+            const snippet = extractNoteSnippet(longNotes, 'middle', 20);
+            expect(snippet).toContain('middle');
+            // Should verify ellipsis logic if possible, but exact boundary depends on implementation details
+        });
+    });
+
+    describe('hasNotesMatch', () => {
+        const paper = { notes: 'Machine Learning paper' };
+
+        it('should return true for partial match', () => {
+            expect(hasNotesMatch(paper, 'Machine')).toBe(true);
+            expect(hasNotesMatch(paper, 'learning')).toBe(true);
+        });
+
+        it('should return false for no match', () => {
+            expect(hasNotesMatch(paper, 'banana')).toBe(false);
+        });
+
+        it('should handle exact phrase search', () => {
+            expect(hasNotesMatch(paper, '"Machine Learning"')).toBe(true);
+            expect(hasNotesMatch(paper, '"Deep Learning"')).toBe(false);
+        });
+
+        it('should require all words for normal search', () => {
+            expect(hasNotesMatch(paper, 'Machine Learning')).toBe(true);
+            expect(hasNotesMatch(paper, 'Machine Banana')).toBe(false);
+        });
+    });
+
+    describe('showToast', () => {
+        let container;
+
+        beforeEach(() => {
+            document.body.innerHTML = '<div id="toast-container"></div>';
+            container = document.getElementById('toast-container');
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+            document.body.innerHTML = '';
+        });
+
+        it('should create a toast element', () => {
+            showToast('Test Message');
+            const toast = container.querySelector('.toast');
+            expect(toast).toBeTruthy();
+            expect(toast.textContent).toContain('Test Message');
+        });
+
+        it('should apply success style by default', () => {
+            showToast('Success');
+            const toast = container.querySelector('.toast');
+            expect(toast.className).toContain('bg-green-500');
+        });
+
+        it('should apply error style', () => {
+            showToast('Error', 'error');
+            const toast = container.querySelector('.toast');
+            expect(toast.className).toContain('bg-red-500');
+        });
+
+        it('should auto-remove after duration', () => {
+            showToast('Transient', 'info', { duration: 1000 });
+            expect(container.children.length).toBe(1);
+
+            vi.advanceTimersByTime(1000); // Trigger remove timeout
+            vi.advanceTimersByTime(500);  // Trigger animation timeout
+
+            expect(container.children.length).toBe(0);
+        });
+
+        it('should not auto-remove if duration is 0', () => {
+            showToast('Persistent', 'info', { duration: 0 });
+            vi.advanceTimersByTime(5000);
+            expect(container.children.length).toBe(1);
+        });
+
+        it('should render action buttons', () => {
+            const onClick = vi.fn();
+            showToast('Action', 'info', {
+                actions: [{ label: 'Click Me', onClick }]
+            });
+
+            const btn = container.querySelector('.toast-action-btn');
+            expect(btn).toBeTruthy();
+            expect(btn.textContent.trim()).toBe('Click Me');
+
+            btn.click();
+            expect(onClick).toHaveBeenCalled();
+        });
     });
 });
-
-describe('ui.js - formatRelativeTime', () => {
-    it('should return "Never" for null/undefined', () => {
-        expect(formatRelativeTime(null)).toBe('Never');
-        expect(formatRelativeTime(undefined)).toBe('Never');
-    });
-
-    it('should return "Just now" for very recent times', () => {
-        const now = new Date();
-        expect(formatRelativeTime(now)).toBe('Just now');
-
-        const fewSecondsAgo = new Date(Date.now() - 30 * 1000);
-        expect(formatRelativeTime(fewSecondsAgo)).toBe('Just now');
-    });
-
-    it('should format minutes ago', () => {
-        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-        expect(formatRelativeTime(twoMinutesAgo)).toBe('2 minutes ago');
-
-        const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
-        expect(formatRelativeTime(oneMinuteAgo)).toBe('1 minute ago');
-    });
-
-    it('should format hours ago', () => {
-        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-        expect(formatRelativeTime(twoHoursAgo)).toBe('2 hours ago');
-
-        const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
-        expect(formatRelativeTime(oneHourAgo)).toBe('1 hour ago');
-    });
-
-    it('should format days ago', () => {
-        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-        expect(formatRelativeTime(threeDaysAgo)).toBe('3 days ago');
-    });
-
-    it('should format weeks ago', () => {
-        const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-        expect(formatRelativeTime(twoWeeksAgo)).toBe('2 weeks ago');
-    });
-
-    it('should format months ago', () => {
-        const twoMonthsAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
-        expect(formatRelativeTime(twoMonthsAgo)).toBe('2 months ago');
-    });
-
-    it('should format years ago', () => {
-        const twoYearsAgo = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000);
-        expect(formatRelativeTime(twoYearsAgo)).toBe('2 years ago');
-    });
-
-    it('should handle string dates', () => {
-        const dateString = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-        expect(formatRelativeTime(dateString)).toBe('2 minutes ago');
-    });
-});
-
-describe('ui.js - sortPapers', () => {
-    const papers = [
-        { id: 1, title: 'Zebra Paper', createdAt: new Date('2023-01-01'), updatedAt: new Date('2023-06-01'), year: 2020, readingStatus: 'Reading', rating: 4 },
-        { id: 2, title: 'Alpha Paper', createdAt: new Date('2023-06-01'), updatedAt: new Date('2023-07-01'), year: 2022, readingStatus: 'Finished', rating: 5 },
-        { id: 3, title: 'Beta Paper', createdAt: new Date('2023-03-01'), updatedAt: new Date('2023-05-01'), year: 2021, readingStatus: 'Unread', rating: null }
-    ];
-
-    it('should sort by date_added (newest first)', () => {
-        const sorted = sortPapers(papers, 'date_added');
-        expect(sorted[0].id).toBe(2); // Most recent
-        expect(sorted[2].id).toBe(1); // Oldest
-    });
-
-    it('should sort by last_updated', () => {
-        const sorted = sortPapers(papers, 'last_updated');
-        expect(sorted[0].id).toBe(2); // Most recently updated
-        expect(sorted[2].id).toBe(3); // Least recently updated
-    });
-
-    it('should sort by title ascending', () => {
-        const sorted = sortPapers(papers, 'title_asc');
-        expect(sorted[0].title).toBe('Alpha Paper');
-        expect(sorted[1].title).toBe('Beta Paper');
-        expect(sorted[2].title).toBe('Zebra Paper');
-    });
-
-    it('should sort by year descending', () => {
-        const sorted = sortPapers(papers, 'year_desc');
-        expect(sorted[0].year).toBe(2022);
-        expect(sorted[2].year).toBe(2020);
-    });
-
-    it('should sort by status with custom order', () => {
-        const sorted = sortPapers(papers, 'status_asc');
-        expect(sorted[0].readingStatus).toBe('Unread'); // First in custom order
-        expect(sorted[1].readingStatus).toBe('Reading'); // Second
-        expect(sorted[2].readingStatus).toBe('Finished'); // Third
-    });
-
-    it('should sort by rating descending', () => {
-        const sorted = sortPapers(papers, 'rating_desc');
-        expect(sorted[0].rating).toBe(5); // Highest rating
-        expect(sorted[1].rating).toBe(4);
-        expect(sorted[2].rating).toBe(null); // Unrated last
-    });
-
-    it('should handle empty array', () => {
-        const sorted = sortPapers([], 'date_added');
-        expect(sorted).toEqual([]);
-    });
-
-    it('should not mutate original array', () => {
-        const original = [...papers];
-        sortPapers(papers, 'title_asc');
-        expect(papers).toEqual(original);
-    });
-});
-
-

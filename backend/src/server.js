@@ -477,11 +477,15 @@ async function startServer() {
   });
 }
 
-// Start the server
-startServer().catch((error) => {
-  console.error('❌ Failed to start server:', error);
-  process.exit(1);
-});
+// Start the server only if run directly
+import { fileURLToPath } from 'url';
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer().catch((error) => {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  });
+}
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

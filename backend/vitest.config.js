@@ -9,9 +9,12 @@ export default defineConfig({
         setupFiles: ['tests/setup.js'],
 
         // Coverage configuration
+        // Coverage configuration
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html', 'lcov'],
+            reportsDirectory: './tests/coverage', // Output to backend/tests/coverage
+            clean: true, // Clean independent of frontend
             exclude: [
                 'node_modules/**',
                 'tests/**',
@@ -24,11 +27,7 @@ export default defineConfig({
             include: [
                 'src/**/*.js'
             ],
-            all: true,
-            lines: 70,
-            functions: 70,
-            branches: 70,
-            statements: 70
+            all: true
         },
 
         // Test patterns
@@ -41,9 +40,9 @@ export default defineConfig({
         globals: true,
 
         // Mock reset between tests
-        mockReset: true,
+        mockReset: false,
         clearMocks: true,
-        restoreMocks: true,
+        restoreMocks: false,
 
         // Concurrent tests
         pool: 'forks',

@@ -1,7 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-import fetch from 'node-fetch';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
 
 // Cache TTL: 90 days
 const CACHE_TTL = 90 * 24 * 60 * 60 * 1000;
@@ -213,11 +210,6 @@ export class CitationService {
         }
 
         // 3. Save connections
-        // First, clear existing auto connections for this user to avoid stale data?
-        // Or just skipDuplicates. Let's delete old auto connections to be clean.
-        // Actually, deleting might be expensive if we have manual ones.
-        // Let's just createMany with skipDuplicates for now.
-
         if (connections.length > 0) {
             await prisma.paperConnection.createMany({
                 data: connections,
@@ -226,7 +218,6 @@ export class CitationService {
         }
 
         // Update or create NetworkGraph record
-        // We need to find the existing one first
         let graph = await prisma.networkGraph.findFirst({
             where: { userId, isAuto: true }
         });

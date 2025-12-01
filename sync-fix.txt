@@ -1,0 +1,15 @@
+        it('should release lock in finally block', () => {
+            let lockHeld = true;
+            
+            try {
+                try {
+                    throw new Error('Operation failed');
+                } finally {
+                    lockHeld = false;
+                }
+            } catch (error) {
+                // Error is expected and properly caught
+            }
+            
+            expect(lockHeld).toBe(false);
+        });

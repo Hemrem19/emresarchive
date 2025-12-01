@@ -114,7 +114,7 @@ export const showToast = (message, type = 'success', options = {}) => {
  */
 const removeToast = (toast) => {
     if (!toast || !toast.parentElement) return;
-    
+
     toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
     setTimeout(() => {
         toast.remove();
@@ -128,7 +128,7 @@ const removeToast = (toast) => {
  */
 export const formatRelativeTime = (date) => {
     if (!date) return 'Never';
-    
+
     const now = new Date();
     const then = date instanceof Date ? date : new Date(date);
     const diffMs = now - then;
@@ -178,11 +178,11 @@ export const sortPapers = (papers, sortBy) => {
         case 'progress_desc':
             sortedPapers.sort((a, b) => {
                 // Calculate percentage for each paper
-                const aProgress = a.readingProgress?.totalPages > 0 
-                    ? ((a.readingProgress?.currentPage || 0) / a.readingProgress.totalPages) * 100 
+                const aProgress = a.readingProgress?.totalPages > 0
+                    ? ((a.readingProgress?.currentPage || 0) / a.readingProgress.totalPages) * 100
                     : -1; // Papers without progress go to the end
-                const bProgress = b.readingProgress?.totalPages > 0 
-                    ? ((b.readingProgress?.currentPage || 0) / b.readingProgress.totalPages) * 100 
+                const bProgress = b.readingProgress?.totalPages > 0
+                    ? ((b.readingProgress?.currentPage || 0) / b.readingProgress.totalPages) * 100
                     : -1;
                 return bProgress - aProgress; // Highest progress first
             });
@@ -205,7 +205,7 @@ export const sortPapers = (papers, sortBy) => {
             break;
         case 'date_added':
         default:
-            sortedPapers.sort((a, b) => b.createdAt - a.createdAt);
+            sortedPapers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             break;
     }
     return sortedPapers;
@@ -217,7 +217,7 @@ export const sortPapers = (papers, sortBy) => {
  * @param {string} term - The search term to highlight.
  * @returns {string} The text with matching terms wrapped in <mark> tags.
  */
-const highlightText = (text, term) => {
+export const highlightText = (text, term) => {
     if (!term || !text) return escapeHtml(text || '');
     // Escape special regex characters from the search term
     const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -233,25 +233,25 @@ const highlightText = (text, term) => {
  * @param {number} maxLength - Maximum length of the snippet.
  * @returns {string} The extracted snippet or empty string if no match.
  */
-const extractNoteSnippet = (notes, searchTerm, maxLength = 150) => {
+export const extractNoteSnippet = (notes, searchTerm, maxLength = 150) => {
     if (!notes || !searchTerm) return '';
-    
+
     const notesLower = notes.toLowerCase();
     const termLower = searchTerm.toLowerCase().trim();
-    
+
     // Handle exact phrase search
     const isExactMatch = termLower.startsWith('"') && termLower.endsWith('"');
     const searchPhrase = isExactMatch ? termLower.substring(1, termLower.length - 1) : termLower;
-    
+
     // Find the first occurrence of the search term
     const index = notesLower.indexOf(searchPhrase.split(' ')[0]);
     if (index === -1) return '';
-    
+
     // Extract snippet around the match
     const start = Math.max(0, index - 50);
     const end = Math.min(notes.length, index + maxLength);
     let snippet = notes.substring(start, end);
-    
+
     // Trim to word boundaries
     if (start > 0) {
         const firstSpace = snippet.indexOf(' ');
@@ -261,7 +261,7 @@ const extractNoteSnippet = (notes, searchTerm, maxLength = 150) => {
         const lastSpace = snippet.lastIndexOf(' ');
         if (lastSpace > 0) snippet = snippet.substring(0, lastSpace) + '...';
     }
-    
+
     return snippet;
 };
 
@@ -271,14 +271,14 @@ const extractNoteSnippet = (notes, searchTerm, maxLength = 150) => {
  * @param {string} searchTerm - The search term.
  * @returns {boolean} True if notes contain the search term.
  */
-const hasNotesMatch = (paper, searchTerm) => {
+export const hasNotesMatch = (paper, searchTerm) => {
     if (!searchTerm || !paper.notes) return false;
-    
+
     const notesLower = paper.notes.toLowerCase();
     const termLower = searchTerm.toLowerCase().trim();
-    
+
     const isExactMatch = termLower.startsWith('"') && termLower.endsWith('"');
-    
+
     if (isExactMatch) {
         const phrase = termLower.substring(1, termLower.length - 1);
         return notesLower.includes(phrase);
@@ -291,7 +291,7 @@ const hasNotesMatch = (paper, searchTerm) => {
 export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()) => {
     const paperListContainer = document.getElementById('paper-list');
     if (!paperListContainer) return;
-    
+
     if (papers.length === 0) {
         paperListContainer.innerHTML = `<p class="text-stone-500 dark:text-stone-400">No papers found for the current filter.</p>`;
         return;
@@ -310,9 +310,9 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
         const isSelected = selectedIds.has(paper.id);
         const showNoteSnippet = searchTerm && hasNotesMatch(paper, searchTerm);
         const noteSnippet = showNoteSnippet ? extractNoteSnippet(paper.notes, searchTerm) : '';
-        
+
         const hasNotes = paper.notes && typeof paper.notes === 'string' && paper.notes.trim().length > 0;
-        
+
         return `
         <div class="paper-card bg-white dark:bg-stone-900 border-2 ${isSelected ? 'border-primary/50 bg-primary/5 dark:bg-primary/10' : 'border-stone-200 dark:border-stone-800'} rounded-lg p-4 transition-all duration-200" data-paper-id="${paper.id}">
             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -480,7 +480,7 @@ export const renderSidebarCollections = (collections) => {
 
 export const highlightActiveSidebarLink = () => {
     const path = window.location.hash;
-    
+
     // Reset all links to inactive state
     document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .sidebar-docs-link, .collection-item').forEach(el => {
         el.classList.remove('text-primary', 'bg-primary/10', 'dark:bg-primary/20');

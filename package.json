@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "node -e \"fs.rmSync('tests/coverage', {recursive: true, force: true})\" && vitest run --coverage"
   },
   "keywords": [
     "research",
