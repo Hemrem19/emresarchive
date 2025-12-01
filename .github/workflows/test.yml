@@ -29,8 +29,13 @@ jobs:
         npm ci
         cd backend && npm ci
     
-    - name: Run tests
-      run: npm test
+    - name: Run frontend tests
+      run: npx vitest run --project vitest.config.js
+    
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm test
     
     - name: Generate coverage report
       run: npm run test:coverage
