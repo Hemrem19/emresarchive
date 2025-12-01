@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    // Explicitly disable workspace mode to prevent searching parent directories
+    workspace: false,
     test: {
         // Test environment
         environment: 'node',
