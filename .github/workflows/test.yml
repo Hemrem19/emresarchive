@@ -25,20 +25,23 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
+      env:
+        NODE_ENV: development
       run: |
         npm ci
         cd backend && npm ci
+        ls -la backend/node_modules/supertest || echo "Supertest not found in backend"
+    
+    - name: Remove workspace config
+      run: rm vitest.workspace.js
     
     - name: Run frontend tests
-      run: |
-        mv vitest.workspace.js vitest.workspace.js.bak
-        npx vitest run
-        mv vitest.workspace.js.bak vitest.workspace.js
+      run: npx vitest run --project vitest.config.js
     
     - name: Run backend tests
       run: |
         cd backend
-        npm test
+        npx vitest run --config vitest.config.js
     
     - name: Generate coverage report
       run: npm run test:coverage
