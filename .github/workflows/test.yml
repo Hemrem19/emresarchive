@@ -30,7 +30,10 @@ jobs:
         cd backend && npm ci
     
     - name: Run frontend tests
-      run: npx vitest run --project vitest.config.js
+      run: |
+        mv vitest.workspace.js vitest.workspace.js.bak
+        npx vitest run
+        mv vitest.workspace.js.bak vitest.workspace.js
     
     - name: Run backend tests
       run: |
