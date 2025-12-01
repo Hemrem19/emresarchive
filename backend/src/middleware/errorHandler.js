@@ -70,6 +70,10 @@ export const errorHandler = (err, req, res, next) => {
     return next(err);
   }
 
+  // Initialize error variables
+  let statusCode = err.statusCode || err.status || 500;
+  let message = err.message || 'Internal Server Error';
+
   // Handle Zod validation errors (from validation middleware)
   if (err.name === 'ZodError' && err.issues) {
     statusCode = 422; // Unprocessable Entity
@@ -95,8 +99,6 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   // Handle Prisma errors
-  let statusCode = err.statusCode || err.status || 500;
-  let message = err.message || 'Internal Server Error';
 
   // Prisma column does not exist (P2022) - schema mismatch
   if (err.code === 'P2022') {
