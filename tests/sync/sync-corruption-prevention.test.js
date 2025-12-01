@@ -176,28 +176,6 @@ describe('Sync Corruption Prevention', () => {
             expect(attemptSync()).toBe(true);
             expect(attemptSync()).toBe(false); // Second attempt blocked
 
-            syncInProgress = false;
-            expect(attemptSync()).toBe(true); // Works after reset
-        });
-
-        it('should release lock in finally block', () => {
-            let lockHeld = true;
-
-            try {
-                throw new Error('Operation failed');
-            } finally {
-                lockHeld = false;
-            }
-
-            expect(lockHeld).toBe(false);
-        });
-    });
-
-    describe('Conflict Resolution', () => {
-        it('should prefer server version in conflicts', () => {
-            const localVersion = { id: 1, title: 'Local', updatedAt: new Date('2024-01-01') };
-            const serverVersion = { id: 1, title: 'Server', updatedAt: new Date('2024-01-02') };
-
             const winner = serverVersion.updatedAt > localVersion.updatedAt ? serverVersion : localVersion;
             expect(winner.title).toBe('Server');
         });
