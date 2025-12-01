@@ -24,13 +24,14 @@ import networkRoutes from './routes/network.js';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
+import { bigIntJson } from './middleware/bigIntJson.js';
 import { prisma } from './lib/prisma.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Run database migrations on startup (for production)
-async function runMigrations() {
+export async function runMigrations() {
   if (process.env.NODE_ENV === 'production') {
     try {
       console.log('🔄 Running database migrations...');
@@ -282,17 +283,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // BigInt JSON serialization (Prisma returns BigInt for large integers)
-app.use((req, res, next) => {
-  const originalJson = res.json;
-  res.json = function (data) {
-    const jsonString = JSON.stringify(data, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    );
-    res.setHeader('Content-Type', 'application/json');
-    res.send(jsonString);
-  };
-  next();
-});
+app.use(bigIntJson);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -347,7 +338,7 @@ if (DATABASE_URL && !DATABASE_URL.startsWith('postgresql://') && !DATABASE_URL.s
 }
 
 // Test database connection on startup
-async function testDatabaseConnection() {
+export async function testDatabaseConnection() {
   try {
     const { prisma } = await import('./lib/prisma.js');
     await prisma.$connect();
@@ -374,7 +365,7 @@ process.on('uncaughtException', (error) => {
 });
 
 // Start server
-async function startServer() {
+export async function startServer() {
   // Run migrations in production before starting server
   if (process.env.NODE_ENV === 'production') {
     await runMigrations();
@@ -513,4 +504,3 @@ process.on('SIGINT', async () => {
 });
 
 export default app;
-

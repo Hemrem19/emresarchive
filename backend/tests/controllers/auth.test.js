@@ -110,6 +110,45 @@ describe('Auth Controller', () => {
             }));
         });
 
+        it('should fallback to simple creation if verification fields cause P2022', async () => {
+            req.body = { email: 'test@example.com', password: 'password123' };
+            prisma.user.findUnique.mockResolvedValue(null);
+            passwordLib.hashPassword.mockResolvedValue('hashed');
+
+            // First create fails with P2022
+            const p2022Error = new Error('Column not found');
+            p2022Error.code = 'P2022';
+            prisma.user.create.mockRejectedValueOnce(p2022Error);
+
+            // Second create (fallback) succeeds
+            prisma.user.create.mockResolvedValueOnce({ id: 1, email: 'test@example.com' });
+
+            // Mock session
+            jwtLib.generateAccessToken.mockReturnValue('access_token');
+            jwtLib.generateRefreshToken.mockReturnValue('refresh_token');
+            prisma.session.create.mockResolvedValue({ id: 1 });
+            prisma.session.update.mockResolvedValue({ id: 1 });
+
+            await register(req, res, next);
+
+            expect(prisma.user.create).toHaveBeenCalledTimes(2);
+            expect(res.status).toHaveBeenCalledWith(201);
+        });
+
+        it('should return 503 if fallback creation also fails', async () => {
+            req.body = { email: 'test@example.com', password: 'password123' };
+            prisma.user.findUnique.mockResolvedValue(null);
+
+            const p2022Error = new Error('Column not found');
+            p2022Error.code = 'P2022';
+            prisma.user.create.mockRejectedValue(p2022Error); // Both fail
+
+            await register(req, res, next);
+
+            expect(prisma.user.create).toHaveBeenCalledTimes(2);
+            expect(res.status).toHaveBeenCalledWith(503);
+        });
+
         it('should succeed even if email sending fails', async () => {
             req.body = { email: 'test@example.com', password: 'password123' };
 
@@ -140,6 +179,18 @@ describe('Auth Controller', () => {
     });
 
     describe('login', () => {
+        it('should return 400 if email is missing', async () => {
+            req.body = { password: 'password123' };
+            await login(req, res, next);
+            expect(res.status).toHaveBeenCalledWith(400);
+        });
+
+        it('should return 400 if password is missing', async () => {
+            req.body = { email: 'test@example.com' };
+            await login(req, res, next);
+            expect(res.status).toHaveBeenCalledWith(400);
+        });
+
         it('should login successfully with correct credentials', async () => {
             req.body = { email: 'test@example.com', password: 'password123' };
             const user = { id: 1, email: 'test@example.com', passwordHash: 'hashed' };
@@ -261,6 +312,32 @@ describe('Auth Controller', () => {
                 error: expect.objectContaining({ message: expect.stringContaining('Session not found') })
             }));
         });
+
+        it('should handle invalid refresh token error', async () => {
+            req.cookies.refreshToken = 'invalid_token';
+            jwtLib.verifyRefreshToken.mockImplementation(() => { throw new Error('Invalid signature'); });
+
+            await refresh(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(401);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                error: expect.objectContaining({ message: expect.stringContaining('Invalid refresh token') })
+            }));
+        });
+
+        it('should handle expired refresh token error', async () => {
+            req.cookies.refreshToken = 'expired_token';
+            const error = new Error('jwt expired');
+            error.name = 'TokenExpiredError';
+            jwtLib.verifyRefreshToken.mockImplementation(() => { throw error; });
+
+            await refresh(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(401);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                error: expect.objectContaining({ message: expect.stringContaining('Session expired') })
+            }));
+        });
     });
 
     describe('getMe', () => {
@@ -337,6 +414,12 @@ describe('Auth Controller', () => {
             req.user = { emailVerified: true };
             await import('../../src/controllers/auth.js').then(module => module.resendVerificationEmail(req, res, next));
             expect(res.status).toHaveBeenCalledWith(400);
+        });
+
+        it('should return 401 if user is not authenticated', async () => {
+            req.user = undefined;
+            await import('../../src/controllers/auth.js').then(module => module.resendVerificationEmail(req, res, next));
+            expect(res.status).toHaveBeenCalledWith(401);
         });
     });
 
