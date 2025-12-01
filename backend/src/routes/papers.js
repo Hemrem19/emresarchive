@@ -17,7 +17,7 @@ import {
   uploadPdfDirect,
   proxyPdfStream,
   batchOperations
-} from '../controllers/papers.js';
+} from '../controllers/papers/index.js';
 import { getAnnotations, createAnnotation } from '../controllers/annotations.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate, paperSchema, paperUpdateSchema, annotationSchema } from '../lib/validation.js';
