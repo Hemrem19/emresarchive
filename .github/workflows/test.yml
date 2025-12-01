@@ -50,6 +50,9 @@ jobs:
         cd backend
         npm ci
     
+    - name: Remove root workspace config
+      run: rm vitest.workspace.js
+    
     - name: Run backend tests
       run: |
         cd backend
