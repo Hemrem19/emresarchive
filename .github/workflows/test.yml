@@ -7,13 +7,12 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+jobs:
+  frontend-tests:
     runs-on: ubuntu-latest
-    
     strategy:
       matrix:
         node-version: [18.x, 20.x]
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -25,58 +24,49 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      env:
-        NODE_ENV: development
-      run: |
-        npm ci
-        cd backend && npm ci
-        ls -la backend/node_modules/supertest || echo "Supertest not found in backend"
-    
-    - name: Remove workspace config
-      run: rm vitest.workspace.js
+      run: npm ci
     
     - name: Run frontend tests
       run: npx vitest run --project vitest.config.js
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+    
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm ci
     
     - name: Run backend tests
       run: |
         cd backend
-        npx vitest run --config vitest.config.js
+        npm test
     
     - name: Generate coverage report
-      run: npm run test:coverage
+      run: |
+        cd backend
+        npm run test:coverage
       
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        file: ./coverage/coverage-final.json
-        flags: unittests
-        name: codecov-umbrella
+        file: ./backend/tests/coverage/coverage-final.json
+        flags: backend
+        name: codecov-backend
         fail_ci_if_error: false
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-    
-    - name: Comment test results on PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          const coverage = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json', 'utf8'));
-          const total = coverage.total;
-          
-          const comment = `## Test Results ✅
-          
-          - **Tests:** All passing
-          - **Coverage:** ${total.lines.pct}% lines, ${total.statements.pct}% statements
-          - **Branches:** ${total.branches.pct}%
-          - **Functions:** ${total.functions.pct}%
-          `;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
 
