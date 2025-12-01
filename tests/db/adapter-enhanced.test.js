@@ -9,7 +9,8 @@ import { resetAllMocks } from '../helpers.js';
 
 // Mock all dependencies
 vi.mock('../../config.js', () => ({
-    isCloudSyncEnabled: vi.fn(() => false)
+    isCloudSyncEnabled: vi.fn(() => false),
+    getApiBaseUrl: vi.fn(() => 'https://api.example.com')
 }));
 
 vi.mock('../../api/auth.js', () => ({

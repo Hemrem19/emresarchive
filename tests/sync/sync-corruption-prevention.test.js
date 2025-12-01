@@ -176,8 +176,8 @@ describe('Sync Corruption Prevention', () => {
             expect(attemptSync()).toBe(true);
             expect(attemptSync()).toBe(false); // Second attempt blocked
 
-            const winner = serverVersion.updatedAt > localVersion.updatedAt ? serverVersion : localVersion;
-            expect(winner.title).toBe('Server');
+            syncInProgress = false;
+            expect(attemptSync()).toBe(true); // Works after reset
         });
 
         it('should handle missing timestamps gracefully', () => {
