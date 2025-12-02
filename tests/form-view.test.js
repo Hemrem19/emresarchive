@@ -144,7 +144,7 @@ describe('form.view.js - Paper Form View', () => {
             const originalHash = window.location.hash;
             await formView.mount(1, appState);
 
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
 
         it('should open advanced details if journal/year/doi present', async () => {
@@ -469,7 +469,7 @@ describe('form.view.js - Paper Form View', () => {
             });
 
             expect(showToast).toHaveBeenCalledWith('Paper added successfully!', 'success');
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
 
         it('should update existing paper in edit mode', async () => {

@@ -165,13 +165,21 @@ export const createKeyboardShortcuts = (commandPalette, appState) => {
             if (currentHash.startsWith('#/details/') || 
                 currentHash.startsWith('#/edit/') || 
                 currentHash === '#/add') {
-                window.location.hash = '#/';
+                window.location.hash = '#/app';
             }
         },
 
         isOnDashboard() {
-            const hash = window.location.hash || '#/';
-            return hash === '#/' || hash.startsWith('#/filter/') || hash.startsWith('#/status/') || hash.startsWith('#/tag/');
+            const hash = window.location.hash || '#/app';
+            return hash === '#/app' || 
+                   hash.startsWith('#/app/filter/') || 
+                   hash.startsWith('#/app/status/') || 
+                   hash.startsWith('#/app/tag/') ||
+                   // Legacy support for old routes
+                   hash === '#/' || 
+                   hash.startsWith('#/filter/') || 
+                   hash.startsWith('#/status/') || 
+                   hash.startsWith('#/tag/');
         },
 
         clearSelection() {

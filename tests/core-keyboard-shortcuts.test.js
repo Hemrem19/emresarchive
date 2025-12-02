@@ -97,7 +97,7 @@ describe('core/keyboardShortcuts.js', () => {
         });
 
         it('should clear selection on dashboard when pressing Escape', () => {
-            window.location.hash = '#/';
+            window.location.hash = '#/app';
             appState.selectedPaperIds.add(1);
             appState.selectedPaperIds.add(2);
 
@@ -114,7 +114,7 @@ describe('core/keyboardShortcuts.js', () => {
             const event = new KeyboardEvent('keydown', { key: 'Escape' });
             document.dispatchEvent(event);
 
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
 
         it('should navigate to dashboard from add page', () => {
@@ -123,7 +123,7 @@ describe('core/keyboardShortcuts.js', () => {
             const event = new KeyboardEvent('keydown', { key: 'Escape' });
             document.dispatchEvent(event);
 
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
 
         it('should navigate to dashboard from edit page', () => {
@@ -132,7 +132,7 @@ describe('core/keyboardShortcuts.js', () => {
             const event = new KeyboardEvent('keydown', { key: 'Escape' });
             document.dispatchEvent(event);
 
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
     });
 
@@ -187,7 +187,7 @@ describe('core/keyboardShortcuts.js', () => {
             document.dispatchEvent(event);
 
             // Hash should not change
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
 
         it('should not trigger shortcuts when typing in textarea', () => {
@@ -198,7 +198,7 @@ describe('core/keyboardShortcuts.js', () => {
             const event = new KeyboardEvent('keydown', { key: 'n' });
             document.dispatchEvent(event);
 
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
     });
 
@@ -225,7 +225,7 @@ describe('core/keyboardShortcuts.js', () => {
             const hEvent = new KeyboardEvent('keydown', { key: 'h' });
             document.dispatchEvent(hEvent);
 
-            expect(window.location.hash).toBe('#/');
+            expect(window.location.hash).toBe('#/app');
         });
 
         it('should navigate to settings with g+s', () => {
@@ -268,7 +268,7 @@ describe('core/keyboardShortcuts.js', () => {
 
     describe('Dashboard-specific shortcuts', () => {
         beforeEach(() => {
-            window.location.hash = '#/';
+            window.location.hash = '#/app';
             keyboardShortcuts.init();
         });
 
@@ -375,23 +375,23 @@ describe('core/keyboardShortcuts.js', () => {
             keyboardShortcuts.init();
         });
 
-        it('should return true for root hash', () => {
-            window.location.hash = '#/';
+        it('should return true for app hash', () => {
+            window.location.hash = '#/app';
             expect(keyboardShortcuts.isOnDashboard()).toBe(true);
         });
 
         it('should return true for filter pages', () => {
-            window.location.hash = '#/filter/reading';
+            window.location.hash = '#/app/filter/reading';
             expect(keyboardShortcuts.isOnDashboard()).toBe(true);
         });
 
         it('should return true for status pages', () => {
-            window.location.hash = '#/status/Reading';
+            window.location.hash = '#/app/status/Reading';
             expect(keyboardShortcuts.isOnDashboard()).toBe(true);
         });
 
         it('should return true for tag pages', () => {
-            window.location.hash = '#/tag/machine-learning';
+            window.location.hash = '#/app/tag/machine-learning';
             expect(keyboardShortcuts.isOnDashboard()).toBe(true);
         });
 

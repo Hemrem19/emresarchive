@@ -38,25 +38,28 @@ export const landingView = {
         });
 
         // Intersection Observer for fade-in animations on scroll
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
+        // Guard against test environments where IntersectionObserver may not be available
+        if (typeof IntersectionObserver !== 'undefined') {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
 
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('animate-fade-in');
-                    observer.unobserve(entry.target);
-                }
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('animate-fade-in');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            // Observe all sections for fade-in animation
+            const sections = document.querySelectorAll('.landing-section');
+            sections.forEach(section => {
+                observer.observe(section);
             });
-        }, observerOptions);
-
-        // Observe all sections for fade-in animation
-        const sections = document.querySelectorAll('.landing-section');
-        sections.forEach(section => {
-            observer.observe(section);
-        });
+        }
     },
 
     /**

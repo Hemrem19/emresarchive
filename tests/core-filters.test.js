@@ -198,7 +198,7 @@ describe('core/filters.js', () => {
       };
       updateUrlHash(appState);
 
-      expect(window.location.hash).toBe('#/');
+      expect(window.location.hash).toBe('#/app');
     });
 
     it('should include status filter in hash', () => {
@@ -207,7 +207,7 @@ describe('core/filters.js', () => {
       };
       updateUrlHash(appState);
 
-      expect(window.location.hash).toBe('#/filter/status:Reading');
+      expect(window.location.hash).toBe('#/app/filter/status:Reading');
     });
 
     it('should include single tag filter in hash', () => {
@@ -216,7 +216,7 @@ describe('core/filters.js', () => {
       };
       updateUrlHash(appState);
 
-      expect(window.location.hash).toBe('#/filter/tag:machine-learning');
+      expect(window.location.hash).toBe('#/app/filter/tag:machine-learning');
     });
 
     it('should include multiple tag filters in hash', () => {

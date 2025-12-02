@@ -13,6 +13,13 @@ vi.mock('../dashboard.view.js', () => ({
     }
 }));
 
+vi.mock('../landing.view.js', () => ({
+    landingView: {
+        mount: vi.fn(),
+        unmount: vi.fn()
+    }
+}));
+
 vi.mock('../details/index.js', () => ({
     detailsView: {
         mount: vi.fn(),
@@ -49,7 +56,8 @@ vi.mock('../docs.view.js', () => ({
 
 vi.mock('../views/index.js', () => ({
     views: {
-        home: '<div>Dashboard</div>',
+        home: '<div>All Papers</div>',
+        landing: '<div>Your Research, Fully Under Your Control</div>',
         details: '<div>Details</div>',
         add: '<div>Add Paper</div>',
         settings: '<div>Settings</div>',
@@ -239,7 +247,7 @@ describe('core/router.js - Router Functions', () => {
             router = createRouter(appElement, appState, renderSidebarStatusLinks);
         });
 
-        it('should route to dashboard for root path', async () => {
+        it('should route to landing page for root path', async () => {
             window.location.hash = '#/';
 
             await router();
@@ -247,8 +255,20 @@ describe('core/router.js - Router Functions', () => {
             vi.advanceTimersByTime(1);
 
             expect(appState.currentPath).toBe('/');
+            // Router should render landing page
+            expect(appElement.innerHTML).toContain('Your Research, Fully Under Your Control');
+        });
+
+        it('should route to dashboard for /app path', async () => {
+            window.location.hash = '#/app';
+
+            await router();
+            // Advance fake timers to trigger mount callback
+            vi.advanceTimersByTime(1);
+
+            expect(appState.currentPath).toBe('/app');
             // Router should render home view (dashboard)
-            expect(appElement.innerHTML).toContain('Dashboard');
+            expect(appElement.innerHTML).toContain('All Papers');
         });
 
         it('should route to add form', async () => {
@@ -312,7 +332,7 @@ describe('core/router.js - Router Functions', () => {
             appState.currentView = formView;
             appState.hasUnsavedChanges = true;
             appState.currentPath = '/add';
-            window.location.hash = '#/';
+            window.location.hash = '#/app';
             global.confirm.mockReturnValueOnce(true);
 
             await router();
@@ -320,7 +340,7 @@ describe('core/router.js - Router Functions', () => {
             vi.advanceTimersByTime(1);
 
             expect(appState.hasUnsavedChanges).toBe(false);
-            expect(appState.currentPath).toBe('/');
+            expect(appState.currentPath).toBe('/app');
             expect(formView.unmount).toHaveBeenCalled();
             expect(dashboardView.mount).toHaveBeenCalled();
         });
@@ -342,14 +362,14 @@ describe('core/router.js - Router Functions', () => {
 
         it('should not unmount if current view has no unmount method', async () => {
             appState.currentView = { mount: vi.fn() }; // No unmount method
-            window.location.hash = '#/';
+            window.location.hash = '#/app';
 
             await router();
             // Advance fake timers to trigger mount callback
             vi.advanceTimersByTime(1);
 
             // Should not throw - router should handle gracefully
-            expect(appElement.innerHTML).toContain('Dashboard');
+            expect(appElement.innerHTML).toContain('All Papers');
         });
 
         it('should handle filter routes with tag', async () => {
