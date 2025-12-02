@@ -107,6 +107,27 @@ describe('Related Papers Manager', () => {
             expect(listContainer.innerHTML).toContain('Related Paper B');
             expect(listContainer.querySelectorAll('.remove-link-btn').length).toBe(2);
         });
+        it('should handle null relatedPaperIds', async () => {
+            const paper = { id: 1, relatedPaperIds: null };
+            db.getPaperById.mockResolvedValue(paper);
+
+            await relatedManager.initialize(1, { list: listContainer });
+            await relatedManager.renderRelatedPapers();
+
+            expect(listContainer.innerHTML).toContain('No related papers linked');
+        });
+
+        it('should handle missing list element', async () => {
+            const paper = { id: 1, relatedPaperIds: [2] };
+            db.getPaperById.mockResolvedValue(paper);
+
+            // Initialize without list element
+            await relatedManager.initialize(1, {});
+            await relatedManager.renderRelatedPapers();
+
+            // Should not throw error
+            expect(true).toBe(true);
+        });
     });
 
     describe('openAddLinkModal', () => {
@@ -137,6 +158,37 @@ describe('Related Papers Manager', () => {
             const modalList = document.getElementById('link-modal-list');
             expect(modalList.innerHTML).toContain('Linkable Paper');
             expect(modalList.innerHTML).not.toContain('Already Linked');
+        });
+        it('should handle empty linkable papers list', async () => {
+            const currentPaper = { id: 1, relatedPaperIds: [] };
+            db.getPaperById.mockResolvedValue(currentPaper);
+            db.getAllPapers.mockResolvedValue([currentPaper]); // Only current paper exists
+
+            await relatedManager.openAddLinkModal(1);
+
+            const modalList = document.getElementById('link-modal-list');
+            expect(modalList.innerHTML).toContain('No other papers available to link');
+        });
+
+        it('should filter papers by search term', async () => {
+            const currentPaper = { id: 1, relatedPaperIds: [] };
+            const paperA = { id: 2, title: 'Alpha Paper' };
+            const paperB = { id: 3, title: 'Beta Paper' };
+
+            db.getPaperById.mockResolvedValue(currentPaper);
+            db.getAllPapers.mockResolvedValue([currentPaper, paperA, paperB]);
+
+            await relatedManager.openAddLinkModal(1);
+
+            const searchInput = document.getElementById('link-search-input');
+            const modalList = document.getElementById('link-modal-list');
+
+            // Simulate search input
+            searchInput.value = 'beta';
+            searchInput.dispatchEvent(new Event('input'));
+
+            expect(modalList.innerHTML).toContain('Beta Paper');
+            expect(modalList.innerHTML).not.toContain('Alpha Paper');
         });
     });
 
@@ -169,6 +221,37 @@ describe('Related Papers Manager', () => {
             expect(db.updatePaper).toHaveBeenCalledWith(1, { relatedPaperIds: [2] });
             expect(db.updatePaper).toHaveBeenCalledWith(2, { relatedPaperIds: [1] });
             expect(ui.showToast).toHaveBeenCalledWith('Papers linked successfully!');
+        });
+
+        it('should handle sync errors gracefully', async () => {
+            const paper1 = { id: 1, relatedPaperIds: [] };
+            const paper2 = { id: 2, relatedPaperIds: [] };
+
+            db.getPaperById.mockImplementation((id) => {
+                if (id === 1) return Promise.resolve(paper1);
+                if (id === 2) return Promise.resolve(paper2);
+            });
+            db.getAllPapers.mockResolvedValue([paper1, paper2]);
+            db.updatePaper.mockResolvedValue(true);
+
+            config.isCloudSyncEnabled.mockReturnValue(true);
+            sync.performIncrementalSync.mockRejectedValue(new Error('Sync failed'));
+
+            // Spy on console.warn to verify error logging
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+
+            await relatedManager.openAddLinkModal(1);
+
+            const modalList = document.getElementById('link-modal-list');
+            const linkBtn = modalList.querySelector('.link-paper-btn');
+            linkBtn.click();
+
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(sync.performIncrementalSync).toHaveBeenCalled();
+            expect(consoleSpy).toHaveBeenCalledWith('Background sync failed after linking papers:', expect.any(Error));
+
+            consoleSpy.mockRestore();
         });
     });
 

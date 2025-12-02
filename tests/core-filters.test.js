@@ -1,14 +1,33 @@
 // Tests for core/filters.js
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { 
-    getFilteredPapers, 
-    updateUrlHash, 
-    parseUrlHash, 
-    calculatePagination, 
-    getPaginatedPapers,
-    renderFilterChips,
-    renderPaginationControls,
-    applyFiltersAndRender
+
+// Hoist mocks to ensure they are available for vi.mock
+const uiMocks = vi.hoisted(() => ({
+  sortPapers: vi.fn((p) => p),
+  renderPaperList: vi.fn(),
+  highlightActiveSidebarLink: vi.fn(),
+  renderFilterChips: vi.fn(),
+  showToast: vi.fn()
+}));
+
+// Mock ui.js globally for this test file
+vi.mock('../ui.js', () => ({
+  sortPapers: uiMocks.sortPapers,
+  renderPaperList: uiMocks.renderPaperList,
+  highlightActiveSidebarLink: uiMocks.highlightActiveSidebarLink,
+  renderFilterChips: uiMocks.renderFilterChips,
+  showToast: uiMocks.showToast
+}));
+
+import {
+  getFilteredPapers,
+  updateUrlHash,
+  parseUrlHash,
+  calculatePagination,
+  getPaginatedPapers,
+  renderFilterChips,
+  renderPaginationControls,
+  applyFiltersAndRender
 } from '../core/filters.js';
 import { createMockPapers, createMockPaper } from './helpers.js';
 
@@ -16,6 +35,7 @@ describe('core/filters.js', () => {
   let mockPapers;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     mockPapers = [
       createMockPaper({
         id: 1,
@@ -409,9 +429,9 @@ describe('core/filters.js', () => {
         currentSearchTerm: '',
         pagination: { currentPage: 1 }
       };
-      
+
       renderFilterChips(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(true);
       expect(container.innerHTML).toBe('');
     });
@@ -422,9 +442,9 @@ describe('core/filters.js', () => {
         currentSearchTerm: 'machine learning',
         pagination: { currentPage: 1 }
       };
-      
+
       renderFilterChips(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(false);
       expect(container.innerHTML).toContain('machine learning');
       expect(container.innerHTML).toContain('remove-filter-btn');
@@ -436,9 +456,9 @@ describe('core/filters.js', () => {
         currentSearchTerm: '',
         pagination: { currentPage: 1 }
       };
-      
+
       renderFilterChips(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(false);
       expect(container.innerHTML).toContain('Status: Reading');
     });
@@ -449,9 +469,9 @@ describe('core/filters.js', () => {
         currentSearchTerm: '',
         pagination: { currentPage: 1 }
       };
-      
+
       renderFilterChips(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(false);
       expect(container.innerHTML).toContain('machine-learning');
       expect(container.innerHTML).toContain('ai');
@@ -463,9 +483,9 @@ describe('core/filters.js', () => {
         currentSearchTerm: 'test',
         pagination: { currentPage: 1 }
       };
-      
+
       renderFilterChips(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(false);
       expect(container.innerHTML).toContain('test');
       expect(container.innerHTML).toContain('Reading');
@@ -477,21 +497,21 @@ describe('core/filters.js', () => {
       const searchInput = document.createElement('input');
       searchInput.id = 'search-input';
       document.body.appendChild(searchInput);
-      
+
       const appState = {
         activeFilters: { status: null, tags: [] },
         currentSearchTerm: 'test',
         pagination: { currentPage: 1 }
       };
-      
+
       renderFilterChips(appState, mockApplyFiltersAndRender);
-      
+
       const removeBtn = container.querySelector('.remove-filter-btn[data-filter-type="search"]');
       removeBtn.click();
-      
+
       expect(appState.currentSearchTerm).toBe('');
       expect(mockApplyFiltersAndRender).toHaveBeenCalled();
-      
+
       document.body.removeChild(searchInput);
     });
 
@@ -501,14 +521,42 @@ describe('core/filters.js', () => {
         currentSearchTerm: '',
         pagination: { currentPage: 1 }
       };
-      
+
       renderFilterChips(appState, mockApplyFiltersAndRender);
-      
+
       const removeBtn = container.querySelector('.remove-tag-btn[data-tag="ml"]');
       removeBtn.click();
-      
+
       expect(appState.activeFilters.tags).toEqual(['ai']);
       expect(mockApplyFiltersAndRender).toHaveBeenCalled();
+    });
+
+    it('should call applyFiltersAndRender when clear all button clicked', () => {
+      const appState = {
+        activeFilters: { status: 'Reading', tags: ['ml'] },
+        currentSearchTerm: 'test',
+        pagination: { currentPage: 2 }
+      };
+
+      // Mock search input
+      const searchInput = document.createElement('input');
+      searchInput.id = 'search-input';
+      searchInput.value = 'test';
+      document.body.appendChild(searchInput);
+
+      renderFilterChips(appState, mockApplyFiltersAndRender);
+
+      const clearBtn = container.querySelector('#clear-all-filters-btn');
+      clearBtn.click();
+
+      expect(appState.activeFilters.status).toBeNull();
+      expect(appState.activeFilters.tags).toEqual([]);
+      expect(appState.currentSearchTerm).toBe('');
+      expect(appState.pagination.currentPage).toBe(1);
+      expect(searchInput.value).toBe('');
+      expect(mockApplyFiltersAndRender).toHaveBeenCalled();
+
+      document.body.removeChild(searchInput);
     });
   });
 
@@ -523,16 +571,18 @@ describe('core/filters.js', () => {
       infoSpan.id = 'pagination-info';
       navElement = document.createElement('nav');
       navElement.id = 'pagination-nav';
-      
+
       container.appendChild(infoSpan);
       container.appendChild(navElement);
       document.body.appendChild(container);
-      
+
       mockApplyFiltersAndRender = vi.fn();
     });
 
     afterEach(() => {
-      document.body.removeChild(container);
+      if (container && container.parentNode) {
+        document.body.removeChild(container);
+      }
       container = null;
     });
 
@@ -540,9 +590,9 @@ describe('core/filters.js', () => {
       const appState = {
         pagination: { currentPage: 1, itemsPerPage: 25, totalItems: 0, totalPages: 0 }
       };
-      
+
       renderPaginationControls(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(true);
     });
 
@@ -550,9 +600,9 @@ describe('core/filters.js', () => {
       const appState = {
         pagination: { currentPage: 1, itemsPerPage: 25, totalItems: 10, totalPages: 1 }
       };
-      
+
       renderPaginationControls(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(true);
     });
 
@@ -560,9 +610,9 @@ describe('core/filters.js', () => {
       const appState = {
         pagination: { currentPage: 1, itemsPerPage: 25, totalItems: 100, totalPages: 4 }
       };
-      
+
       renderPaginationControls(appState, mockApplyFiltersAndRender);
-      
+
       expect(container.classList.contains('hidden')).toBe(false);
       expect(infoSpan.innerHTML).toContain('1-25');
       expect(infoSpan.innerHTML).toContain('100');
@@ -574,10 +624,11 @@ describe('core/filters.js', () => {
       const appState = {
         pagination: { currentPage: 1, itemsPerPage: 25, totalItems: 100, totalPages: 4 }
       };
-      
+
       renderPaginationControls(appState, mockApplyFiltersAndRender);
-      
-      const prevBtn = navElement.querySelector('button[data-page="0"]');
+
+      // Previous button is the first button
+      const prevBtn = navElement.querySelector('button');
       expect(prevBtn).toBeDefined();
       expect(prevBtn.disabled).toBe(true);
     });
@@ -586,10 +637,12 @@ describe('core/filters.js', () => {
       const appState = {
         pagination: { currentPage: 4, itemsPerPage: 25, totalItems: 100, totalPages: 4 }
       };
-      
+
       renderPaginationControls(appState, mockApplyFiltersAndRender);
-      
-      const nextBtn = navElement.querySelector('button[data-page="5"]');
+
+      // Next button is the last button
+      const buttons = navElement.querySelectorAll('button');
+      const nextBtn = buttons[buttons.length - 1];
       expect(nextBtn).toBeDefined();
       expect(nextBtn.disabled).toBe(true);
     });
@@ -598,36 +651,39 @@ describe('core/filters.js', () => {
       const appState = {
         pagination: { currentPage: 1, itemsPerPage: 25, totalItems: 100, totalPages: 4 }
       };
-      
+
       renderPaginationControls(appState, mockApplyFiltersAndRender);
-      
+
       const page2Btn = navElement.querySelector('button[data-page="2"]');
       page2Btn.click();
-      
+
       expect(appState.pagination.currentPage).toBe(2);
       expect(mockApplyFiltersAndRender).toHaveBeenCalled();
+    });
+
+    it('should scroll to top when page changes', () => {
+      const appState = {
+        pagination: { currentPage: 1, itemsPerPage: 25, totalItems: 100, totalPages: 4 }
+      };
+
+      // Mock paper list element for scrolling
+      const paperList = document.createElement('div');
+      paperList.id = 'paper-list';
+      paperList.scrollIntoView = vi.fn();
+      document.body.appendChild(paperList);
+
+      renderPaginationControls(appState, mockApplyFiltersAndRender);
+
+      const page2Btn = navElement.querySelector('button[data-page="2"]');
+      page2Btn.click();
+
+      expect(paperList.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+
+      document.body.removeChild(paperList);
     });
   });
 
   describe('applyFiltersAndRender', () => {
-    let mockSortPapers, mockRenderPaperList, mockRenderFilterChips, mockRenderPaginationControls, mockHighlightActiveSidebarLink;
-
-    beforeEach(() => {
-      // Mock UI functions
-      mockSortPapers = vi.fn((papers) => papers);
-      mockRenderPaperList = vi.fn();
-      mockRenderFilterChips = vi.fn();
-      mockRenderPaginationControls = vi.fn();
-      mockHighlightActiveSidebarLink = vi.fn();
-      
-      // Import and mock ui.js
-      vi.mock('../ui.js', () => ({
-        sortPapers: (papers) => mockSortPapers(papers),
-        renderPaperList: (...args) => mockRenderPaperList(...args),
-        highlightActiveSidebarLink: () => mockHighlightActiveSidebarLink()
-      }));
-    });
-
     it('should apply filters, sort, paginate and render', () => {
       const appState = {
         allPapersCache: mockPapers,
@@ -637,16 +693,46 @@ describe('core/filters.js', () => {
         pagination: { currentPage: 1, itemsPerPage: 25, totalItems: 0, totalPages: 0 },
         selectedPaperIds: []
       };
-      
-      // Re-import after mock to get mocked version
-      // Note: This test might need adjustment based on how vi.mock works with dynamic imports
-      // For now, we'll test the logic flow
-      
-      // Since applyFiltersAndRender calls many functions, we'll verify the integration
-      // by checking that filtered papers would be correct
-      const filtered = getFilteredPapers(appState.allPapersCache, appState);
-      expect(filtered.length).toBe(2); // Papers with status 'Reading'
+
+      // Setup DOM elements required by render functions
+      const container = document.createElement('div');
+      container.id = 'filter-chips-container';
+      document.body.appendChild(container);
+
+      const paperList = document.createElement('div');
+      paperList.id = 'paper-list';
+      document.body.appendChild(paperList);
+
+      const paginationContainer = document.createElement('div');
+      paginationContainer.id = 'pagination-container';
+      const paginationInfo = document.createElement('span');
+      paginationInfo.id = 'pagination-info';
+      const paginationNav = document.createElement('nav');
+      paginationNav.id = 'pagination-nav';
+      paginationContainer.appendChild(paginationInfo);
+      paginationContainer.appendChild(paginationNav);
+      document.body.appendChild(paginationContainer);
+
+      applyFiltersAndRender(appState);
+
+      // Verify that external UI functions were called
+      expect(uiMocks.sortPapers).toHaveBeenCalled();
+      expect(uiMocks.renderPaperList).toHaveBeenCalled();
+
+      // For internal functions, we check their side effects (DOM updates)
+      // renderFilterChips should have rendered chips (status: Reading)
+      expect(container.innerHTML).toContain('Status: Reading');
+
+      // renderPaginationControls should have rendered pagination
+      // Since totalItems is 0 in appState (default), it might be hidden.
+      expect(paginationContainer.classList.contains('hidden')).toBe(true);
+
+      expect(uiMocks.highlightActiveSidebarLink).toHaveBeenCalled();
+
+      // Clean up
+      document.body.removeChild(container);
+      document.body.removeChild(paperList);
+      document.body.removeChild(paginationContainer);
     });
   });
 });
-

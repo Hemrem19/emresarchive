@@ -31,7 +31,7 @@ async function openDB() {
 
     return new Promise((resolve, reject) => {
         let request;
-        
+
         try {
             request = indexedDB.open(DB_NAME, DB_VERSION);
         } catch (error) {
@@ -41,12 +41,13 @@ async function openDB() {
         }
 
         request.onupgradeneeded = (event) => {
+            let transaction;
             try {
                 const dbInstance = event.target.result;
-                const transaction = event.target.transaction;
+                transaction = event.target.transaction;
                 const oldVersion = event.oldVersion;
                 let paperStore;
-                
+
                 // Create 'papers' object store
                 if (!dbInstance.objectStoreNames.contains(STORE_NAME_PAPERS)) {
                     paperStore = dbInstance.createObjectStore(STORE_NAME_PAPERS, { keyPath: 'id', autoIncrement: true });
@@ -58,17 +59,17 @@ async function openDB() {
                 } else {
                     paperStore = transaction.objectStore(STORE_NAME_PAPERS);
                 }
-                
+
                 // Add new index for related papers in version 2
                 if (!paperStore.indexNames.contains('relatedPaperIds')) {
                     paperStore.createIndex('relatedPaperIds', 'relatedPaperIds', { unique: false, multiEntry: true });
                 }
-                
+
                 // Add new index for DOI in version 3
                 if (!paperStore.indexNames.contains('doi')) {
                     paperStore.createIndex('doi', 'doi', { unique: false });
                 }
-                
+
                 // Migration for version 3: Add updatedAt to existing papers
                 if (oldVersion < 3) {
                     const getAllRequest = paperStore.getAll();
@@ -87,7 +88,7 @@ async function openDB() {
                         // Don't fail the upgrade, just log the error
                     };
                 }
-                
+
                 // Create 'collections' object store for version 4
                 if (!dbInstance.objectStoreNames.contains(STORE_NAME_COLLECTIONS)) {
                     const collectionStore = dbInstance.createObjectStore(STORE_NAME_COLLECTIONS, { keyPath: 'id', autoIncrement: true });
@@ -95,7 +96,7 @@ async function openDB() {
                     collectionStore.createIndex('name', 'name', { unique: false });
                     collectionStore.createIndex('createdAt', 'createdAt', { unique: false });
                 }
-                
+
                 // Create 'annotations' object store for version 5
                 if (!dbInstance.objectStoreNames.contains(STORE_NAME_ANNOTATIONS)) {
                     const annotationStore = dbInstance.createObjectStore(STORE_NAME_ANNOTATIONS, { keyPath: 'id', autoIncrement: true });
@@ -105,14 +106,14 @@ async function openDB() {
                     annotationStore.createIndex('pageNumber', 'pageNumber', { unique: false }); // To filter by page
                     annotationStore.createIndex('createdAt', 'createdAt', { unique: false });
                 }
-                
+
                 // Migration for version 6: Add rating and summary fields to existing papers
                 if (oldVersion < 6) {
                     // Add rating index for sorting
                     if (!paperStore.indexNames.contains('rating')) {
                         paperStore.createIndex('rating', 'rating', { unique: false });
                     }
-                    
+
                     // Migrate existing papers to add rating and summary fields (both nullable)
                     const getAllRequest = paperStore.getAll();
                     getAllRequest.onsuccess = () => {
@@ -143,28 +144,28 @@ async function openDB() {
 
         request.onsuccess = (event) => {
             db = event.target.result;
-            
+
             // Add error handler for database connection
             db.onerror = (event) => {
                 console.error('Database error:', event.target.error);
             };
-            
+
             // Handle version change (when another tab upgrades the DB)
             db.onversionchange = () => {
                 db.close();
                 db = null;
                 console.warn('Database version changed. Please refresh the page.');
             };
-            
+
             resolve(db);
         };
 
         request.onerror = (event) => {
             const error = event.target.error;
             console.error('IndexedDB error:', error);
-            
+
             let errorMessage = 'Database error: Unable to open database. ';
-            
+
             if (error.name === 'QuotaExceededError') {
                 errorMessage = 'Storage quota exceeded: Your browser storage is full. Please free up space or remove old papers.';
             } else if (error.name === 'VersionError') {
@@ -174,7 +175,7 @@ async function openDB() {
             } else {
                 errorMessage += error.message || 'Unknown error occurred.';
             }
-            
+
             reject(new Error(errorMessage));
         };
 

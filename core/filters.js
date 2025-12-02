@@ -10,7 +10,7 @@ import { sortPapers, renderPaperList, highlightActiveSidebarLink } from '../ui.j
  * @param {Object} appState - Application state object
  * @returns {Array} Filtered array of papers
  */
-export const getFilteredPapers = (papers, appState) => {
+export function getFilteredPapers(papers, appState) {
     let filtered = [...papers];
 
     // Apply status filter
@@ -20,7 +20,7 @@ export const getFilteredPapers = (papers, appState) => {
 
     // Apply tag filters (multiple tags - paper must have ALL selected tags)
     if (appState.activeFilters.tags && appState.activeFilters.tags.length > 0) {
-        filtered = filtered.filter(p => 
+        filtered = filtered.filter(p =>
             p.tags && appState.activeFilters.tags.every(tag => p.tags.includes(tag))
         );
     }
@@ -35,14 +35,14 @@ export const getFilteredPapers = (papers, appState) => {
             if (isExactMatch) {
                 const phrase = searchTerm.substring(1, searchTerm.length - 1);
                 if (phrase) {
-                    filtered = filtered.filter(paper => 
+                    filtered = filtered.filter(paper =>
                         paper.notes?.toLowerCase().includes(phrase)
                     );
                 }
             } else {
                 const searchWords = searchTerm.split(' ').filter(w => w);
                 filtered = filtered.filter(paper => {
-                    return searchWords.every(word => 
+                    return searchWords.every(word =>
                         paper.notes?.toLowerCase().includes(word)
                     );
                 });
@@ -80,10 +80,10 @@ export const getFilteredPapers = (papers, appState) => {
  * 
  * @param {Object} appState - Application state object
  */
-export const updateUrlHash = (appState) => {
+export function updateUrlHash(appState) {
     const { status, tags } = appState.activeFilters;
     const hasFilters = status || (tags && tags.length > 0);
-    
+
     if (hasFilters) {
         let hashParts = [];
         if (status) {
@@ -105,9 +105,9 @@ export const updateUrlHash = (appState) => {
  * 
  * @param {Object} appState - Application state object
  */
-export const parseUrlHash = (appState) => {
+export function parseUrlHash(appState) {
     const path = window.location.hash;
-    
+
     // Reset filters
     appState.activeFilters.status = null;
     appState.activeFilters.tags = [];
@@ -139,12 +139,12 @@ export const parseUrlHash = (appState) => {
  * @param {Object} appState - Application state object
  * @param {Function} applyFiltersAndRender - Callback to re-apply filters
  */
-export const renderFilterChips = (appState, applyFiltersAndRender) => {
+export function renderFilterChips(appState, applyFiltersAndRender) {
     const container = document.getElementById('filter-chips-container');
     if (!container) return;
 
     const chips = [];
-    
+
     // Search term chip
     if (appState.currentSearchTerm) {
         chips.push(`
@@ -157,7 +157,7 @@ export const renderFilterChips = (appState, applyFiltersAndRender) => {
             </div>
         `);
     }
-    
+
     // Status filter chip
     if (appState.activeFilters.status) {
         chips.push(`
@@ -260,10 +260,10 @@ export const renderFilterChips = (appState, applyFiltersAndRender) => {
  * @param {number} totalItems - Total number of items after filtering
  * @param {Object} appState - Application state object
  */
-export const calculatePagination = (totalItems, appState) => {
+export function calculatePagination(totalItems, appState) {
     appState.pagination.totalItems = totalItems;
     appState.pagination.totalPages = Math.ceil(totalItems / appState.pagination.itemsPerPage);
-    
+
     // Ensure current page is within valid range
     if (appState.pagination.currentPage > appState.pagination.totalPages) {
         appState.pagination.currentPage = Math.max(1, appState.pagination.totalPages);
@@ -277,7 +277,7 @@ export const calculatePagination = (totalItems, appState) => {
  * @param {Object} appState - Application state object
  * @returns {Array} Paginated subset of papers
  */
-export const getPaginatedPapers = (papers, appState) => {
+export function getPaginatedPapers(papers, appState) {
     const startIndex = (appState.pagination.currentPage - 1) * appState.pagination.itemsPerPage;
     const endIndex = startIndex + appState.pagination.itemsPerPage;
     return papers.slice(startIndex, endIndex);
@@ -289,11 +289,11 @@ export const getPaginatedPapers = (papers, appState) => {
  * @param {Object} appState - Application state object
  * @param {Function} applyFiltersAndRender - Callback to re-apply filters
  */
-export const renderPaginationControls = (appState, applyFiltersAndRender) => {
+export function renderPaginationControls(appState, applyFiltersAndRender) {
     const container = document.getElementById('pagination-container');
     const infoSpan = document.getElementById('pagination-info');
     const navElement = document.getElementById('pagination-nav');
-    
+
     if (!container || !infoSpan || !navElement) return;
 
     const { currentPage, totalPages, itemsPerPage, totalItems } = appState.pagination;
@@ -423,16 +423,16 @@ export const renderPaginationControls = (appState, applyFiltersAndRender) => {
  * 
  * @param {Object} appState - Application state object
  */
-export const applyFiltersAndRender = (appState) => {
+export function applyFiltersAndRender(appState) {
     let filteredPapers = getFilteredPapers(appState.allPapersCache, appState);
     const sortedPapers = sortPapers(filteredPapers, appState.currentSortBy);
-    
+
     // Calculate pagination
     calculatePagination(sortedPapers.length, appState);
-    
+
     // Get papers for current page
     const paginatedPapers = getPaginatedPapers(sortedPapers, appState);
-    
+
     renderPaperList(paginatedPapers, appState.currentSearchTerm, appState.selectedPaperIds);
     renderFilterChips(appState, () => applyFiltersAndRender(appState));
     renderPaginationControls(appState, () => applyFiltersAndRender(appState));

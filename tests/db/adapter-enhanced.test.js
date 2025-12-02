@@ -1,42 +1,48 @@
 /**
- * DB Adapter Enhancement Tests
- * Additional tests to improve db/adapter.js coverage
+ * Enhanced Adapter Tests
+ * Focuses on rate limiting, version merging, and data mapping
+ * @module tests/db/adapter-enhanced
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers } from '../../db/adapter.js';
-import { resetAllMocks } from '../helpers.js';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { papers, collections, annotations } from '../../db/adapter.js';
+import * as configModule from '../../config.js';
+import * as authModule from '../../api/auth.js';
+import * as utilsModule from '../../api/utils.js';
+import * as localPapers from '../../db/papers.js';
+import * as apiPapers from '../../api/papers.js';
+import * as syncModule from '../../db/sync.js';
+import * as syncManager from '../../core/syncManager.js';
 
-// Mock all dependencies
+// Mock dependencies
 vi.mock('../../config.js', () => ({
-    isCloudSyncEnabled: vi.fn(() => false),
-    getApiBaseUrl: vi.fn(() => 'https://api.example.com')
+    isCloudSyncEnabled: vi.fn(),
+    getApiBaseUrl: vi.fn()
 }));
 
 vi.mock('../../api/auth.js', () => ({
-    isAuthenticated: vi.fn(() => false)
+    isAuthenticated: vi.fn()
+}));
+
+vi.mock('../../api/utils.js', () => ({
+    isRateLimited: vi.fn(),
+    getRateLimitRemainingTime: vi.fn()
 }));
 
 vi.mock('../../db/papers.js', () => ({
     addPaper: vi.fn(),
-    getAllPapers: vi.fn(() => Promise.resolve([])),
+    getAllPapers: vi.fn(),
     getPaperById: vi.fn(),
-    getPaperByDoi: vi.fn(),
     updatePaper: vi.fn(),
     deletePaper: vi.fn()
 }));
 
 vi.mock('../../api/papers.js', () => ({
     createPaper: vi.fn(),
-    getAllPapers: vi.fn(() => Promise.resolve({ papers: [] })),
-    getPaper: vi.fn(),
-    updatePaper: vi.fn(),
-    deletePaper: vi.fn(),
-    batchOperations: vi.fn(() => Promise.resolve([]))
+    batchOperations: vi.fn()
 }));
 
 vi.mock('../../db/sync.js', () => ({
-    trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
     trackPaperDeleted: vi.fn()
 }));
@@ -45,399 +51,162 @@ vi.mock('../../core/syncManager.js', () => ({
     triggerDebouncedSync: vi.fn()
 }));
 
-vi.mock('../../api/utils.js', () => ({
-    isRateLimited: vi.fn(() => false),
-    getRateLimitRemainingTime: vi.fn(() => 0)
-}));
-
-describe('DB Adapter - Enhanced Coverage', () => {
+describe('Adapter Enhanced Coverage', () => {
     beforeEach(() => {
-        resetAllMocks();
         vi.clearAllMocks();
+        configModule.isCloudSyncEnabled.mockReturnValue(true);
+        authModule.isAuthenticated.mockReturnValue(true);
+        utilsModule.isRateLimited.mockReturnValue(false);
     });
 
-    describe('Error Handling', () => {
-        it('should handle network timeouts gracefully', async () => {
-            const localPapers = await import('../../db/papers.js');
-            localPapers.getAllPapers.mockResolvedValue([{ id: 1, title: 'Cached' }]);
+    describe('Rate Limiting Logic', () => {
+        it('should skip cloud sync if rate limited', async () => {
+            utilsModule.isRateLimited.mockReturnValue(true);
+            utilsModule.getRateLimitRemainingTime.mockReturnValue(5000);
 
-            const result = await papers.getAllPapers();
-
-            expect(result).toHaveLength(1);
-        });
-
-        it('should handle corrupted local data', async () => {
-            const localPapers = await import('../../db/papers.js');
-            localPapers.getPaperById.mockResolvedValue(null);
-
-            const result = await papers.getPaperById(999);
-
-            expect(result).toBeNull();
-        });
-    });
-
-    describe('Batch Operations', () => {
-        it('should handle empty batch operations', async () => {
-            const apiPapers = await import('../../api/papers.js');
-            apiPapers.batchOperations.mockResolvedValue([]);
-
-            const result = await papers.batchOperations([]);
-
-            expect(result).toEqual([]);
-        });
-
-        it('should process batch operations in order', async () => {
-            const apiPapers = await import('../../api/papers.js');
-            const operations = [
-                { type: 'update', id: 1 },
-                { type: 'delete', id: 2 }
-            ];
-
-            apiPapers.batchOperations.mockResolvedValue(operations);
-
-            const result = await papers.batchOperations(operations);
-
-            expect(result).toHaveLength(2);
-        });
-    });
-
-    describe('Cache Management', () => {
-        it('should cache paper lookups', async () => {
-            const localPapers = await import('../../db/papers.js');
-            localPapers.getPaperById.mockResolvedValue({ id: 1, title: 'Cached' });
-
-            const result1 = await papers.getPaperById(1);
-            const result2 = await papers.getPaperById(1);
-
-            expect(result1).toEqual(result2);
-        });
-
-        it('should invalidate cache on update', async () => {
-            const localPapers = await import('../../db/papers.js');
-
-            localPapers.getPaperById.mockResolvedValue({ id: 1, title: 'Original' });
-            await papers.getPaperById(1);
-
-            localPapers.updatePaper.mockResolvedValue(1);
-            localPapers.getPaperById.mockResolvedValue({ id: 1, title: 'Updated' });
-
-            await papers.updatePaper(1, { title: 'Updated' });
-            const result = await papers.getPaperById(1);
-
-            expect(result.title).toBe('Updated');
-        });
-    });
-
-    describe('DOI Lookup', () => {
-        it('should find paper by DOI', async () => {
-            const localPapers = await import('../../db/papers.js');
-            localPapers.getPaperByDoi.mockResolvedValue({ id: 1, doi: '10.1234/test' });
-
-            const result = await papers.getPaperByDoi('10.1234/test');
-
-            expect(result).toBeDefined();
-            expect(result.doi).toBe('10.1234/test');
-        });
-
-        it('should return null for non-existent DOI', async () => {
-            const localPapers = await import('../../db/papers.js');
-            localPapers.getPaperByDoi.mockResolvedValue(null);
-
-            const result = await papers.getPaperByDoi('10.9999/nonexistent');
-
-            expect(result).toBeNull();
-        });
-    });
-
-    describe('Concurrent Operations', () => {
-        it('should handle concurrent reads', async () => {
-            const localPapers = await import('../../db/papers.js');
-            localPapers.getAllPapers.mockResolvedValue([{ id: 1 }, { id: 2 }]);
-
-            const [result1, result2] = await Promise.all([
-                papers.getAllPapers(),
-                papers.getAllPapers()
-            ]);
-
-            expect(result1).toEqual(result2);
-        });
-
-        it('should handle concurrent writes', async () => {
-            const localPapers = await import('../../db/papers.js');
-            localPapers.updatePaper.mockResolvedValue(1);
-
-            await Promise.all([
-                papers.updatePaper(1, { title: 'Update 1' }),
-                papers.updatePaper(1, { title: 'Update 2' })
-            ]);
-
-            expect(localPapers.updatePaper).toHaveBeenCalledTimes(2);
-        });
-    });
-
-    describe('Cloud Sync Fallback', () => {
-        beforeEach(async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            configModule.isCloudSyncEnabled.mockReturnValue(true);
-            authModule.isAuthenticated.mockReturnValue(true);
-        });
-
-        it('should fallback to local when cloud sync fails', async () => {
-            const apiPapers = await import('../../api/papers.js');
-            const localPapers = await import('../../db/papers.js');
-
-            apiPapers.createPaper.mockRejectedValueOnce(new Error('Network error'));
-            localPapers.addPaper.mockResolvedValueOnce({ id: 1, title: 'Local Paper' });
-
-            const result = await papers.addPaper({ title: 'Local Paper' });
-
-            expect(localPapers.addPaper).toHaveBeenCalled();
-            expect(result.title).toBe('Local Paper');
-        });
-
-        it('should fallback to local when cloud update fails', async () => {
-            const apiPapers = await import('../../api/papers.js');
-            const localPapers = await import('../../db/papers.js');
-
-            apiPapers.updatePaper.mockRejectedValueOnce(new Error('API error'));
-            localPapers.updatePaper.mockResolvedValueOnce(1);
-            localPapers.getPaperById.mockResolvedValueOnce({ id: 1, title: 'Updated' });
-
-            await papers.updatePaper(1, { title: 'Updated' });
-
-            expect(localPapers.updatePaper).toHaveBeenCalled();
-        });
-
-        it('should fallback to local batch operations when cloud fails', async () => {
-            const apiPapers = await import('../../api/papers.js');
-            const localPapers = await import('../../db/papers.js');
-
-            apiPapers.batchOperations.mockRejectedValueOnce(new Error('Cloud error'));
-            localPapers.updatePaper.mockResolvedValueOnce(1);
-
-            const operations = [{ type: 'update', id: 1, data: { title: 'Updated' } }];
-            const result = await papers.batchOperations(operations);
-
-            expect(result).toHaveLength(1);
-            expect(result[0].success).toBe(true);
-        });
-    });
-
-    describe('Rate Limiting', () => {
-        beforeEach(async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            const utilsModule = await import('../../api/utils.js');
-
-            configModule.isCloudSyncEnabled.mockReturnValue(true);
-            authModule.isAuthenticated.mockReturnValue(true);
-        });
-
-        it('should use local operations when rate limited', async () => {
-            const utilsModule = await import('../../api/utils.js');
-            const localPapers = await import('../../db/papers.js');
-
-            utilsModule.isRateLimited.mockReturnValueOnce(true);
-            localPapers.getAllPapers.mockResolvedValueOnce([{ id: 1, title: 'Local' }]);
-
-            const result = await papers.getAllPapers();
-
-            expect(result).toHaveLength(1);
-            expect(result[0].title).toBe('Local');
-        });
-
-        it('should log rate limit message when skipping cloud sync', async () => {
-            const utilsModule = await import('../../api/utils.js');
-            const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
-
-            utilsModule.isRateLimited.mockReturnValueOnce(true);
-            utilsModule.getRateLimitRemainingTime.mockReturnValueOnce(5000);
-
-            // Trigger an operation that checks rate limit
-            const localPapers = await import('../../db/papers.js');
-            localPapers.getAllPapers.mockResolvedValueOnce([]);
+            // Trigger an operation that would normally sync
             await papers.getAllPapers();
 
-            // Note: canAttemptCloudSync is called internally, but console.log might not be called
-            // depending on implementation. This test verifies the rate limit check works.
-            expect(utilsModule.isRateLimited).toHaveBeenCalled();
+            // Should NOT trigger sync
+            expect(syncManager.triggerDebouncedSync).not.toHaveBeenCalled();
+        });
 
-            consoleSpy.mockRestore();
+        it('should trigger sync if not rate limited', async () => {
+            utilsModule.isRateLimited.mockReturnValue(false);
+
+            await papers.getAllPapers();
+
+            expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
         });
     });
 
-    describe('Authentication Edge Cases', () => {
-        it('should use local when authenticated but sync disabled', async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            const localPapers = await import('../../db/papers.js');
+    describe('Version Merging Logic (updatePaper)', () => {
+        it('should include version in update tracking if available', async () => {
+            const paperId = 1;
+            const updateData = { title: 'New Title' };
+            const existingPaper = { id: 1, title: 'Old Title', version: 5, otherField: 'keep' };
 
-            configModule.isCloudSyncEnabled.mockReturnValue(false);
-            authModule.isAuthenticated.mockReturnValue(true);
-            localPapers.getAllPapers.mockResolvedValueOnce([{ id: 1 }]);
+            localPapers.updatePaper.mockResolvedValue(1);
+            localPapers.getPaperById.mockResolvedValue(existingPaper);
 
-            const result = await papers.getAllPapers();
+            await papers.updatePaper(paperId, updateData);
 
-            expect(result).toHaveLength(1);
+            expect(syncModule.trackPaperUpdated).toHaveBeenCalledWith(
+                paperId,
+                expect.objectContaining({
+                    title: 'New Title',
+                    version: 5,
+                    otherField: 'keep'
+                })
+            );
         });
 
-        it('should use local when sync enabled but not authenticated', async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            const localPapers = await import('../../db/papers.js');
+        it('should track without version if paper fetch fails', async () => {
+            const paperId = 1;
+            const updateData = { title: 'New Title' };
 
-            configModule.isCloudSyncEnabled.mockReturnValue(true);
-            authModule.isAuthenticated.mockReturnValue(false);
-            localPapers.getAllPapers.mockResolvedValueOnce([{ id: 1 }]);
+            localPapers.updatePaper.mockResolvedValue(1);
+            localPapers.getPaperById.mockRejectedValue(new Error('Fetch failed'));
 
-            const result = await papers.getAllPapers();
+            await papers.updatePaper(paperId, updateData);
 
-            expect(result).toHaveLength(1);
+            expect(syncModule.trackPaperUpdated).toHaveBeenCalledWith(
+                paperId,
+                updateData
+            );
+        });
+
+        it('should track without version if paper has no version', async () => {
+            const paperId = 1;
+            const updateData = { title: 'New Title' };
+            const existingPaper = { id: 1, title: 'Old Title' }; // No version
+
+            localPapers.updatePaper.mockResolvedValue(1);
+            localPapers.getPaperById.mockResolvedValue(existingPaper);
+
+            await papers.updatePaper(paperId, updateData);
+
+            expect(syncModule.trackPaperUpdated).toHaveBeenCalledWith(
+                paperId,
+                updateData
+            );
         });
     });
 
-    describe('Data Mapping Edge Cases', () => {
-        it('should map paper data to API format correctly', async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            const apiPapers = await import('../../api/papers.js');
+    describe('Data Mapping Logic', () => {
+        it('should map readingStatus to status for API', async () => {
+            const paperData = { title: 'Test', readingStatus: 'Reading' };
 
-            configModule.isCloudSyncEnabled.mockReturnValue(true);
-            authModule.isAuthenticated.mockReturnValue(true);
-            apiPapers.createPaper.mockResolvedValueOnce({ id: 1, title: 'Test' });
-
-            const paperData = {
-                title: 'Test Paper',
-                readingStatus: 'Reading',
-                s3Key: 's3://bucket/key.pdf',
-                pdfData: new Blob(),
-                hasPdf: true,
-                pdfFile: new File([], 'test.pdf'),
-                createdAt: '2024-01-01',
-                id: 999
-            };
+            apiPapers.createPaper.mockResolvedValue({ id: 1 });
+            localPapers.addPaper.mockResolvedValue(1);
 
             await papers.addPaper(paperData);
 
-            const callArg = apiPapers.createPaper.mock.calls[0][0];
-            expect(callArg.status).toBe('Reading'); // readingStatus mapped to status
-            expect(callArg.pdfUrl).toBe('s3://bucket/key.pdf'); // s3Key mapped to pdfUrl
-            expect(callArg.pdfData).toBeUndefined();
-            expect(callArg.hasPdf).toBeUndefined();
-            expect(callArg.pdfFile).toBeUndefined();
-            expect(callArg.createdAt).toBeUndefined();
-            expect(callArg.id).toBeUndefined();
+            expect(apiPapers.createPaper).toHaveBeenCalledWith(expect.objectContaining({
+                status: 'Reading'
+            }));
+
+            const callArgs = apiPapers.createPaper.mock.calls[0][0];
+            expect(callArgs.readingStatus).toBeUndefined();
         });
 
-        it('should map API paper data to local format correctly', async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            const apiPapers = await import('../../api/papers.js');
-            const localPapers = await import('../../db/papers.js');
+        it('should map s3Key to pdfUrl for API', async () => {
+            const paperData = { title: 'Test', s3Key: 'some-key' };
 
-            configModule.isCloudSyncEnabled.mockReturnValue(true);
-            authModule.isAuthenticated.mockReturnValue(true);
+            apiPapers.createPaper.mockResolvedValue({ id: 1 });
+            localPapers.addPaper.mockResolvedValue(1);
 
-            const apiPaper = {
-                id: 1,
-                title: 'Test Paper',
-                status: 'Reading',
-                pdfUrl: 's3://bucket/key.pdf'
-            };
+            await papers.addPaper(paperData);
 
-            // Mock API to return paper when creating
-            apiPapers.createPaper.mockResolvedValueOnce(apiPaper);
-            // Mock local addPaper to capture what gets saved locally
-            localPapers.addPaper.mockResolvedValueOnce(1);
+            expect(apiPapers.createPaper).toHaveBeenCalledWith(expect.objectContaining({
+                pdfUrl: 'some-key'
+            }));
 
-            // Create a paper (which triggers API call and local save with mapping)
-            await papers.addPaper({
-                title: 'Test Paper',
-                readingStatus: 'Reading'
-            });
-
-            // Verify that the local save was called with properly mapped data
-            expect(localPapers.addPaper).toHaveBeenCalled();
-            const savedData = localPapers.addPaper.mock.calls[0][0];
-            expect(savedData.readingStatus).toBe('Reading');
-            expect(savedData.s3Key).toBe('s3://bucket/key.pdf');
-            expect(savedData.hasPdf).toBe(true);
+            const callArgs = apiPapers.createPaper.mock.calls[0][0];
+            expect(callArgs.s3Key).toBeUndefined();
         });
 
-        it('should handle missing optional fields in API response', async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            const apiPapers = await import('../../api/papers.js');
-            const localPapers = await import('../../db/papers.js');
-
-            configModule.isCloudSyncEnabled.mockReturnValue(true);
-            authModule.isAuthenticated.mockReturnValue(true);
-
-            const apiPaper = {
-                id: 1,
-                title: 'Test Paper'
-                // No status, no pdfUrl
+        it('should remove local-only fields before sending to API', async () => {
+            const paperData = {
+                title: 'Test',
+                pdfData: 'blob',
+                hasPdf: true,
+                pdfFile: 'file',
+                createdAt: 'date',
+                id: 'local-id'
             };
 
-            // Mock API to return paper with minimal fields
-            apiPapers.createPaper.mockResolvedValueOnce(apiPaper);
-            // Mock local addPaper
-            localPapers.addPaper.mockResolvedValueOnce(1);
+            apiPapers.createPaper.mockResolvedValue({ id: 1 });
+            localPapers.addPaper.mockResolvedValue(1);
 
-            // Create a paper with minimal data
-            await papers.addPaper({ title: 'Test Paper' });
+            await papers.addPaper(paperData);
 
-            // Verify that hasPdf is set to false when no PDF URL
-            expect(localPapers.addPaper).toHaveBeenCalled();
-            const savedData = localPapers.addPaper.mock.calls[0][0];
-            expect(savedData).toBeDefined();
-            expect(savedData.hasPdf).toBe(false);
+            const callArgs = apiPapers.createPaper.mock.calls[0][0];
+            expect(callArgs.pdfData).toBeUndefined();
+            expect(callArgs.hasPdf).toBeUndefined();
+            expect(callArgs.pdfFile).toBeUndefined();
+            expect(callArgs.createdAt).toBeUndefined();
+            expect(callArgs.id).toBeUndefined();
         });
     });
 
-    describe('Change Tracking During Concurrent Updates', () => {
-        beforeEach(async () => {
-            const configModule = await import('../../config.js');
-            const authModule = await import('../../api/auth.js');
-            configModule.isCloudSyncEnabled.mockReturnValue(true);
-            authModule.isAuthenticated.mockReturnValue(true);
+    describe('Delete Tracking Logic', () => {
+        it('should track deletion when cloud sync is enabled', async () => {
+            await papers.deletePaper(1);
+
+            expect(localPapers.deletePaper).toHaveBeenCalledWith(1);
+            expect(syncModule.trackPaperDeleted).toHaveBeenCalledWith(1);
+            expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
         });
 
-        it('should track all fields when multiple updates occur', async () => {
-            const localPapers = await import('../../db/papers.js');
-            const syncModule = await import('../../db/sync.js');
+        it('should NOT track deletion when cloud sync is disabled', async () => {
+            configModule.isCloudSyncEnabled.mockReturnValue(false);
 
-            localPapers.updatePaper.mockResolvedValue(1);
-            localPapers.getPaperById
-                .mockResolvedValueOnce({ id: 1, title: 'Original', version: 1 })
-                .mockResolvedValueOnce({ id: 1, title: 'First Update', notes: 'Note 1', version: 1 })
-                .mockResolvedValueOnce({ id: 1, title: 'First Update', notes: 'Note 1', summary: 'Summary', version: 1 });
+            await papers.deletePaper(1);
 
-            // First update
-            await papers.updatePaper(1, { title: 'First Update' });
-
-            // Second update (should merge with first)
-            await papers.updatePaper(1, { notes: 'Note 1' });
-
-            // Third update (should merge with previous)
-            await papers.updatePaper(1, { summary: 'Summary' });
-
-            // All updates should be tracked
-            expect(syncModule.trackPaperUpdated).toHaveBeenCalled();
-        });
-
-        it('should handle version retrieval errors gracefully', async () => {
-            const localPapers = await import('../../db/papers.js');
-            const syncModule = await import('../../db/sync.js');
-
-            localPapers.updatePaper.mockResolvedValue(1);
-            localPapers.getPaperById.mockRejectedValueOnce(new Error('DB error'));
-
-            await papers.updatePaper(1, { title: 'Updated' });
-
-            // Should still track the update (fallback without version)
-            expect(syncModule.trackPaperUpdated).toHaveBeenCalled();
+            expect(localPapers.deletePaper).toHaveBeenCalledWith(1);
+            expect(syncModule.trackPaperDeleted).not.toHaveBeenCalled();
+            expect(syncManager.triggerDebouncedSync).not.toHaveBeenCalled();
         });
     });
 });

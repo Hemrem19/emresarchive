@@ -44,23 +44,7 @@ function shouldUseCloudSync() {
     return isCloudSyncEnabled() && isAuthenticated();
 }
 
-/**
- * Checks if cloud sync should be attempted (not rate limited).
- * @returns {boolean} True if cloud sync is enabled, authenticated, and not rate limited.
- */
-function canAttemptCloudSync() {
-    if (!shouldUseCloudSync()) {
-        return false;
-    }
 
-    if (isRateLimited()) {
-        const remainingSeconds = Math.ceil(getRateLimitRemainingTime() / 1000);
-        console.log(`[Adapter] Skipping cloud sync - rate limited for ${remainingSeconds}s`);
-        return false;
-    }
-
-    return true;
-}
 
 /**
  * Paper operations adapter

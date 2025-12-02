@@ -11,7 +11,13 @@ import {
     highlightText,
     extractNoteSnippet,
     hasNotesMatch,
-    showToast
+    highlightText,
+    extractNoteSnippet,
+    hasNotesMatch,
+    showToast,
+    renderPaperList,
+    renderSidebarTags,
+    renderSidebarCollections
 } from '../ui.js';
 
 // Mock config.js since sortPapers uses getStatusOrder
@@ -271,6 +277,172 @@ describe('UI Utilities', () => {
 
             btn.click();
             expect(onClick).toHaveBeenCalled();
+        });
+    });
+
+    describe('renderPaperList', () => {
+        let container;
+
+        beforeEach(() => {
+            document.body.innerHTML = '<div id="paper-list"></div>';
+            container = document.getElementById('paper-list');
+        });
+
+        it('should render empty state when no papers', () => {
+            renderPaperList([]);
+            expect(container.innerHTML).toContain('No papers found');
+        });
+
+        it('should render paper cards', () => {
+            const papers = [
+                {
+                    id: 1,
+                    title: 'Test Paper',
+                    authors: ['Author A'],
+                    year: 2023,
+                    readingStatus: 'To Read',
+                    tags: ['tag1'],
+                    rating: 8
+                }
+            ];
+            renderPaperList(papers);
+
+            expect(container.querySelectorAll('.paper-card').length).toBe(1);
+            expect(container.textContent).toContain('Test Paper');
+            expect(container.textContent).toContain('Author A');
+            expect(container.textContent).toContain('2023');
+            expect(container.textContent).toContain('8'); // Rating
+        });
+
+        it('should highlight search terms in title and authors', () => {
+            const papers = [
+                {
+                    id: 1,
+                    title: 'Machine Learning',
+                    authors: ['John Doe'],
+                    readingStatus: 'To Read'
+                }
+            ];
+            renderPaperList(papers, 'Machine');
+
+            const titleHtml = container.querySelector('a').innerHTML;
+            expect(titleHtml).toContain('<mark');
+            expect(titleHtml).toContain('Machine</mark>');
+        });
+
+        it('should show note snippet when search matches notes', () => {
+            const papers = [
+                {
+                    id: 1,
+                    title: 'Paper',
+                    authors: ['Author'],
+                    readingStatus: 'To Read',
+                    notes: 'This paper discusses deep learning techniques.'
+                }
+            ];
+            renderPaperList(papers, 'deep learning');
+
+            expect(container.textContent).toContain('Match found in notes');
+            expect(container.innerHTML).toContain('<mark');
+        });
+
+        it('should mark selected papers as checked', () => {
+            const papers = [{ id: 1, title: 'Paper', authors: [], readingStatus: 'To Read' }];
+            const selectedIds = new Set([1]);
+
+            renderPaperList(papers, '', selectedIds);
+
+            const checkbox = container.querySelector('input[type="checkbox"]');
+            expect(checkbox.checked).toBe(true);
+            expect(container.querySelector('.paper-card').className).toContain('border-primary/50');
+        });
+
+        it('should render reading progress bar for Reading status', () => {
+            const papers = [
+                {
+                    id: 1,
+                    title: 'Paper',
+                    authors: [],
+                    readingStatus: 'Reading',
+                    readingProgress: { currentPage: 50, totalPages: 100 }
+                }
+            ];
+            renderPaperList(papers);
+
+            expect(container.textContent).toContain('50%');
+            expect(container.querySelector('.bg-primary').style.width).toBe('50%');
+        });
+    });
+
+    describe('renderSidebarTags', () => {
+        let tagsSection;
+        let mobileTagsSection;
+
+        beforeEach(() => {
+            document.body.innerHTML = `
+                <div id="sidebar-tags-section"></div>
+                <div id="mobile-sidebar-tags-section"></div>
+            `;
+            tagsSection = document.getElementById('sidebar-tags-section');
+            mobileTagsSection = document.getElementById('mobile-sidebar-tags-section');
+        });
+
+        it('should render unique tags', () => {
+            const papers = [
+                { tags: ['ml', 'ai'] },
+                { tags: ['ml', 'data'] }
+            ];
+            renderSidebarTags(papers);
+
+            const tags = tagsSection.querySelectorAll('.sidebar-tag');
+            expect(tags.length).toBe(3); // ml, ai, data
+            expect(tagsSection.textContent).toContain('#ml');
+            expect(tagsSection.textContent).toContain('#ai');
+            expect(tagsSection.textContent).toContain('#data');
+        });
+
+        it('should handle papers with no tags', () => {
+            const papers = [{ title: 'No Tags' }];
+            renderSidebarTags(papers);
+            expect(tagsSection.innerHTML).toBe('');
+        });
+
+        it('should update both desktop and mobile sections', () => {
+            const papers = [{ tags: ['test'] }];
+            renderSidebarTags(papers);
+
+            expect(tagsSection.innerHTML).toContain('test');
+            expect(mobileTagsSection.innerHTML).toContain('test');
+        });
+    });
+
+    describe('renderSidebarCollections', () => {
+        let collectionsSection;
+        let mobileCollectionsSection;
+
+        beforeEach(() => {
+            document.body.innerHTML = `
+                <div id="sidebar-collections-section"></div>
+                <div id="mobile-sidebar-collections-section"></div>
+            `;
+            collectionsSection = document.getElementById('sidebar-collections-section');
+            mobileCollectionsSection = document.getElementById('mobile-sidebar-collections-section');
+        });
+
+        it('should render collections list', () => {
+            const collections = [
+                { id: '1', name: 'My Collection', icon: 'star', color: 'text-yellow-500' }
+            ];
+            renderSidebarCollections(collections);
+
+            expect(collectionsSection.textContent).toContain('My Collection');
+            expect(collectionsSection.innerHTML).toContain('star');
+            expect(collectionsSection.innerHTML).toContain('text-yellow-500');
+        });
+
+        it('should show empty state when no collections', () => {
+            renderSidebarCollections([]);
+            expect(collectionsSection.textContent).toContain('No saved collections yet');
         });
     });
 });

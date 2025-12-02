@@ -47,6 +47,14 @@ function clearPendingChanges() {
 }
 
 /**
+ * Gets the last synced timestamp from localStorage.
+ * @returns {string|null} ISO timestamp or null.
+ */
+export function getLastSyncedAt() {
+    return localStorage.getItem('citavers_last_synced_at');
+}
+
+/**
  * Adds a paper creation to pending changes.
  * @param {Object} paper - Paper data (will be sent to API).
  */
@@ -274,7 +282,7 @@ async function applyServerChanges(serverChanges) {
                     papersByDoi.set(normalizedDoi, paper);
                 }
                 // Check for arXiv ID
-                const arxivId = paper.arxivId || (paper.doi && paper.doi.includes('arXiv') ? paper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                const arxivId = paper.arxivId || (paper.doi && paper.doi.includes('arXiv') ? paper.doi.match(/arXiv[:.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
                 if (arxivId) {
                     const normalizedArxiv = arxivId.trim().toLowerCase();
                     papersByArxivId.set(normalizedArxiv, paper);
@@ -300,7 +308,7 @@ async function applyServerChanges(serverChanges) {
 
                 // Check for arXiv ID duplicate if not found by DOI
                 if (!foundDuplicate) {
-                    const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                    const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[:.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
                     if (arxivId) {
                         const normalizedArxiv = arxivId.trim().toLowerCase();
                         if (papersByArxivId.has(normalizedArxiv)) {
@@ -340,7 +348,7 @@ async function applyServerChanges(serverChanges) {
                     if (localPaper.doi) {
                         papersByDoi.set(localPaper.doi.trim().toLowerCase(), localPaper);
                     }
-                    const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                    const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[:.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
                     if (arxivId) {
                         papersByArxivId.set(arxivId.trim().toLowerCase(), localPaper);
                     }
@@ -361,7 +369,7 @@ async function applyServerChanges(serverChanges) {
                 if (localPaper.doi) {
                     papersByDoi.set(localPaper.doi.trim().toLowerCase(), localPaper);
                 }
-                const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
+                const arxivId = localPaper.arxivId || (localPaper.doi && localPaper.doi.includes('arXiv') ? localPaper.doi.match(/arXiv[:.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i)?.[1] : null);
                 if (arxivId) {
                     papersByArxivId.set(arxivId.trim().toLowerCase(), localPaper);
                 }
@@ -471,7 +479,7 @@ function prepareChangesForSync(changes) {
             deleted: changes.annotations?.deleted || []
         }
     };
-    
+
     return result;
 }
 
@@ -551,7 +559,7 @@ export async function performIncrementalSync() {
         console.error('[Sync] Cloud sync is not enabled');
         throw new Error('Cloud sync is not enabled or user is not authenticated');
     }
-    
+
     if (!isAuthenticated()) {
         console.error('[Sync] User is not authenticated');
         throw new Error('Cloud sync is not enabled or user is not authenticated');
@@ -676,7 +684,7 @@ export async function deduplicateLocalPapers() {
                     return paper.arxivId.trim().toLowerCase();
                 }
                 if (paper.doi) {
-                    const match = paper.doi.match(/arxiv[.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i);
+                    const match = paper.doi.match(/arxiv[:.\/]?(\d{4}\.\d{4,5}(?:v\d+)?)/i);
                     if (match) return match[1].trim().toLowerCase();
                 }
                 return null;

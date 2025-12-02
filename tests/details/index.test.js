@@ -94,7 +94,11 @@ describe('Details View', () => {
                 title: 'Test Paper',
                 authors: ['Author A'],
                 year: 2023,
-                readingStatus: 'To Read'
+                readingStatus: 'To Read',
+                tags: ['tag1', 'tag2'],
+                journal: 'Test Journal',
+                doi: '10.1234/test',
+                updatedAt: new Date().toISOString()
             };
             db.getPaperById.mockResolvedValue(paper);
 
@@ -102,9 +106,87 @@ describe('Details View', () => {
 
             expect(container.innerHTML).toContain('Test Paper');
             expect(container.innerHTML).toContain('Author A');
+            expect(container.innerHTML).toContain('Test Journal');
+            expect(container.innerHTML).toContain('10.1234/test');
+            expect(container.innerHTML).toContain('#tag1');
             expect(notesManager.initialize).toHaveBeenCalled();
             expect(summaryManager.initialize).toHaveBeenCalled();
             expect(relatedManager.initialize).toHaveBeenCalled();
+        });
+
+        it('should handle missing optional fields', async () => {
+            const paper = {
+                id: 1,
+                title: 'Minimal Paper',
+                readingStatus: 'To Read'
+            };
+            db.getPaperById.mockResolvedValue(paper);
+
+            await detailsView.mount(1, {});
+
+            expect(container.innerHTML).toContain('Minimal Paper');
+            expect(container.innerHTML).toContain('Unknown Author');
+            expect(container.innerHTML).toContain('N/A'); // For journal, year, DOI
+        });
+    });
+
+    describe('Rating Component', () => {
+        it('should initialize rating component', async () => {
+            const paper = { id: 1, title: 'Test', rating: 5 };
+            db.getPaperById.mockResolvedValue(paper);
+
+            // Mock createRatingInput to return a real element we can interact with
+            const mockRatingElement = document.createElement('div');
+            mockRatingElement.className = 'rating-component';
+
+            const { createRatingInput } = await import('../../components/rating-input.js');
+            createRatingInput.mockReturnValue(mockRatingElement);
+
+            await detailsView.mount(1, {});
+
+            const ratingContainer = document.getElementById('rating-container');
+            expect(ratingContainer.querySelector('.rating-component')).toBeTruthy();
+        });
+
+        it('should update rating successfully', async () => {
+            const paper = { id: 1, title: 'Test', rating: null };
+            db.getPaperById.mockResolvedValue(paper);
+            db.updatePaper.mockResolvedValue(true);
+
+            // Mock createRatingInput to capture the onChange handler
+            let onChangeHandler;
+            const { createRatingInput } = await import('../../components/rating-input.js');
+            createRatingInput.mockImplementation((props) => {
+                onChangeHandler = props.onChange;
+                return document.createElement('div');
+            });
+
+            await detailsView.mount(1, {});
+
+            // Simulate rating change
+            await onChangeHandler(8);
+
+            expect(db.updatePaper).toHaveBeenCalledWith(1, { rating: 8 });
+            expect(ui.showToast).toHaveBeenCalledWith('Rating set to 8/10', 'success');
+        });
+
+        it('should handle rating update failure', async () => {
+            const paper = { id: 1, title: 'Test' };
+            db.getPaperById.mockResolvedValue(paper);
+            db.updatePaper.mockRejectedValue(new Error('Update failed'));
+
+            let onChangeHandler;
+            const { createRatingInput } = await import('../../components/rating-input.js');
+            createRatingInput.mockImplementation((props) => {
+                onChangeHandler = props.onChange;
+                return document.createElement('div');
+            });
+
+            await detailsView.mount(1, {});
+
+            await onChangeHandler(5);
+
+            expect(ui.showToast).toHaveBeenCalledWith('Failed to update rating', 'error');
         });
     });
 
@@ -219,6 +301,77 @@ describe('Details View', () => {
 
             expect(ui.showToast).toHaveBeenCalledWith('Current page cannot exceed total pages', 'warning');
             expect(db.updatePaper).not.toHaveBeenCalled();
+        });
+    });
+    describe('Citation Generation', () => {
+        it('should open citation modal and generate citations', async () => {
+            const paper = { id: 1, title: 'Test Paper' };
+            db.getPaperById.mockResolvedValue(paper);
+
+            // Mock template
+            const { views } = await import('../../views/index.js');
+            views.citationModal = `
+                <div id="citation-modal" class="hidden">
+                    <div id="citation-modal-content"></div>
+                    <button id="close-citation-modal-btn"></button>
+                    <button id="citation-modal-done-btn"></button>
+                </div>
+            `;
+
+            await detailsView.mount(1, {});
+
+            const generateBtn = document.getElementById('generate-citation-btn');
+            generateBtn.click();
+
+            const modal = document.getElementById('citation-modal');
+            expect(modal).toBeTruthy();
+            expect(modal.classList.contains('hidden')).toBe(false);
+
+            const content = document.getElementById('citation-modal-content');
+            expect(content.innerHTML).toContain('Mock Citation');
+        });
+
+        it('should copy citation to clipboard', async () => {
+            const paper = { id: 1, title: 'Test Paper' };
+            db.getPaperById.mockResolvedValue(paper);
+
+            // Mock clipboard API
+            Object.defineProperty(navigator, 'clipboard', {
+                value: {
+                    writeText: vi.fn().mockResolvedValue()
+                },
+                writable: true
+            });
+
+            await detailsView.mount(1, {});
+            document.getElementById('generate-citation-btn').click();
+
+            const copyBtn = document.querySelector('.copy-citation-btn[data-format="apa"]');
+            copyBtn.click();
+
+            // Wait for promise resolution
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Mock Citation');
+            expect(ui.showToast).toHaveBeenCalledWith('Citation copied to clipboard!');
+        });
+    });
+
+    describe('renderProgressBar', () => {
+        it('should handle 0/0 case', () => {
+            const html = detailsView.renderProgressBar({ currentPage: 0, totalPages: 0 });
+            expect(html).toContain('Set page numbers to track progress');
+        });
+
+        it('should calculate percentage correctly', () => {
+            const html = detailsView.renderProgressBar({ currentPage: 50, totalPages: 100 });
+            expect(html).toContain('50%');
+            expect(html).toContain('width: 50%');
+        });
+
+        it('should cap percentage at 100%', () => {
+            const html = detailsView.renderProgressBar({ currentPage: 150, totalPages: 100 });
+            expect(html).toContain('100%');
         });
     });
 });

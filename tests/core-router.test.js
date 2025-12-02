@@ -467,5 +467,19 @@ describe('core/router.js - Router Functions', () => {
             expect(formView.mount).toHaveBeenCalledWith(99, expect.any(Object));
         });
     });
+
+    describe('initializeRouter', () => {
+        it('should add hashchange event listener', async () => {
+            const { initializeRouter } = await import('../core/router.js');
+            const router = vi.fn();
+
+            const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+
+            initializeRouter(router);
+
+            expect(addEventListenerSpy).toHaveBeenCalledWith('hashchange', router);
+            expect(addEventListenerSpy).toHaveBeenCalledWith('hashchange', expect.any(Function)); // highlightActiveSidebarLink
+        });
+    });
 });
 
