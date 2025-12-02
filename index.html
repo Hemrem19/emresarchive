@@ -341,17 +341,40 @@
     </script>
     <script src="debug.js"></script>
     <script>
-        // Show/hide app shell based on route
+        // Show/hide app shell elements based on route
         function updateAppShellVisibility() {
-            const appShell = document.getElementById('app-shell');
+            const mobileSidebar = document.getElementById('mobile-sidebar');
+            const desktopSidebar = document.getElementById('desktop-sidebar');
+            const header = document.querySelector('header');
+            const app = document.getElementById('app');
             const hash = window.location.hash;
             const isLandingPage = hash === '' || hash === '#/' || hash === '#';
             
-            if (appShell) {
+            if (app) {
                 if (isLandingPage) {
-                    appShell.style.display = 'none';
+                    // Hide sidebar and header for landing page
+                    if (mobileSidebar) mobileSidebar.style.display = 'none';
+                    if (desktopSidebar) desktopSidebar.style.display = 'none';
+                    if (header) header.style.display = 'none';
+                    // Make app full width for landing page
+                    app.className = 'w-full min-h-screen';
+                    // Remove flex container constraints
+                    const flexContainer = app.closest('.flex');
+                    if (flexContainer) {
+                        flexContainer.style.display = 'block';
+                    }
                 } else {
-                    appShell.style.display = '';
+                    // Show sidebar and header for app routes
+                    if (mobileSidebar) mobileSidebar.style.display = '';
+                    if (desktopSidebar) desktopSidebar.style.display = '';
+                    if (header) header.style.display = '';
+                    // Restore app classes for app layout
+                    app.className = 'flex-grow flex flex-col bg-background-light dark:bg-background-dark';
+                    // Restore flex container
+                    const flexContainer = app.closest('.flex');
+                    if (flexContainer) {
+                        flexContainer.style.display = 'flex';
+                    }
                 }
             }
         }
@@ -359,7 +382,8 @@
         // Update on load and hash change
         window.addEventListener('load', updateAppShellVisibility);
         window.addEventListener('hashchange', updateAppShellVisibility);
-        updateAppShellVisibility(); // Initial check
+        // Delay initial check to ensure DOM is ready
+        setTimeout(updateAppShellVisibility, 0);
     </script>
     <script type="module" src="app.js"></script>
 </body>
