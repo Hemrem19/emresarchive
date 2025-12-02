@@ -23,7 +23,7 @@ export const detailsView = {
         let paper = await getPaperById(paperId);
 
         if (!paper) {
-            container.innerHTML = `<h2>Paper not found</h2><p>The requested paper could not be found. <a href="#/" class="text-primary hover:underline">Go back to dashboard</a>.</p>`;
+            container.innerHTML = `<h2>Paper not found</h2><p>The requested paper could not be found. <a href="#/app" class="text-primary hover:underline">Go back to dashboard</a>.</p>`;
             return;
         }
 

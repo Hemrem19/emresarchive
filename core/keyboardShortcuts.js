@@ -126,7 +126,7 @@ export const createKeyboardShortcuts = (commandPalette, appState) => {
                 switch(secondKey) {
                     case 'h':
                         e.preventDefault();
-                        window.location.hash = '#/';
+                        window.location.hash = '#/app';
                         break;
                     case 's':
                         e.preventDefault();

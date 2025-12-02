@@ -338,3 +338,45 @@ main {
 #panel-content::-webkit-scrollbar-thumb:hover {
     background: rgba(100, 116, 139, 1);
 }
+
+/* Landing Page Styles */
+.app-shell {
+    /* App shell is shown/hidden via JavaScript based on route */
+}
+
+/* Smooth scroll behavior for landing page anchor links */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Landing page section fade-in animation */
+.landing-section {
+    opacity: 0;
+    animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.landing-section.animate-fade-in {
+    opacity: 1;
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Ensure landing page takes full viewport */
+body:has(#app:not(:empty)) .app-shell {
+    display: block;
+}
+
+/* Landing page container - full width, no sidebar/header */
+#app:has(.landing-section) {
+    width: 100%;
+    max-width: 100%;
+}

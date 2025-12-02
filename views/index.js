@@ -6,6 +6,7 @@
 
 // Import page views
 import { homeView } from './pages/home.js';
+import { landingView } from './pages/landing.js';
 import { addView } from './pages/add.js';
 import { detailsView } from './pages/details.js';
 import { settingsView } from './pages/settings.js';
@@ -26,6 +27,7 @@ import { commandPaletteView } from './components/commandPalette.js';
 export const views = {
     // Pages
     home: homeView,
+    landing: landingView,
     add: addView,
     details: detailsView,
     settings: settingsView,

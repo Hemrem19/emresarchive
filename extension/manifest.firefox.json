@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "citavErs Web Clipper",
-    "version": "1.0",
+    "version": "1.0.1",
     "description": "Save research papers to your citavErs library.",
     "permissions": [
         "activeTab",

@@ -113,7 +113,7 @@ export const graphView = `
                 <p class="text-slate-400 max-w-md mb-6">
                     Start building your knowledge graph by adding "Related Papers" in the paper details view.
                 </p>
-                <a href="#/" class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-primary/20 pointer-events-auto">
+                <a href="#/app" class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-primary/20 pointer-events-auto">
                     Browse Library
                 </a>
             </div>

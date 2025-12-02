@@ -66,13 +66,11 @@ async function getStoredToken() {
 function showLoginView() {
     document.getElementById('login-view').classList.add('active');
     document.getElementById('main-view').classList.remove('active');
-    document.getElementById('settings-view').classList.remove('active');
 }
 
 function showMainView() {
     document.getElementById('login-view').classList.remove('active');
     document.getElementById('main-view').classList.add('active');
-    document.getElementById('settings-view').classList.remove('active');
     initializeMainView();
 }
 
@@ -102,10 +100,20 @@ async function handleLogin() {
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password }),
+            credentials: 'include'
         });
 
-        const result = await response.json();
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            // Handle non-JSON response (e.g. 502 Bad Gateway)
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            throw new Error(`Server error (${response.status}): Please try again later.`);
+        }
 
         if (result.success) {
             // Save token
@@ -118,6 +126,7 @@ async function handleLogin() {
             throw new Error(result.error?.message || 'Login failed');
         }
     } catch (error) {
+        console.error('Login error:', error);
         errorMsg.textContent = error.message;
         errorMsg.style.display = 'block';
     } finally {

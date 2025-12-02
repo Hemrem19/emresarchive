@@ -423,7 +423,7 @@ export const renderSidebarTags = (papers) => {
         <h3 class="px-3 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider mb-2">Tags</h3>
         <div class="flex flex-wrap gap-2 px-3" id="sidebar-tags-list">
             ${uniqueTags.map(tag => `
-                <a href="#/tag/${encodeURIComponent(tag)}" 
+                <a href="#/app/tag/${encodeURIComponent(tag)}" 
                    class="sidebar-tag text-xs font-medium bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-300 px-2 py-1 rounded-full cursor-pointer hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors"
                    data-tag="${escapeHtml(tag)}">
                    #${escapeHtml(tag)}
@@ -499,8 +499,20 @@ export const highlightActiveSidebarLink = () => {
         const collectionId = decodeURIComponent(path.split('/')[2]);
         setActive(`.collection-item[data-collection-id="${collectionId}"]`);
     }
-    // Handle compound filters: #/filter/status:Reading/tag:ml
-    else if (path.startsWith('#/filter/')) {
+    // Handle compound filters: #/app/filter/status:Reading/tag:ml or #/filter/... (legacy)
+    else if (path.startsWith('#/app/filter/')) {
+        const parts = path.substring(14).split('/'); // Remove '#/app/filter/'
+        parts.forEach(part => {
+            if (part.startsWith('status:')) {
+                const status = decodeURIComponent(part.substring(7));
+                setActive(`.sidebar-status-link[data-status="${status}"]`);
+            } else if (part.startsWith('tag:')) {
+                const tag = decodeURIComponent(part.substring(4));
+                setActive(`.sidebar-tag[data-tag="${tag}"]`);
+            }
+        });
+    } else if (path.startsWith('#/filter/')) {
+        // Legacy support
         const parts = path.substring(9).split('/'); // Remove '#/filter/'
         parts.forEach(part => {
             if (part.startsWith('status:')) {
@@ -512,13 +524,21 @@ export const highlightActiveSidebarLink = () => {
             }
         });
     }
-    // Handle single status filter: #/status/Reading
-    else if (path.startsWith('#/status/')) {
+    // Handle single status filter: #/app/status/Reading or #/status/... (legacy)
+    else if (path.startsWith('#/app/status/')) {
+        const status = decodeURIComponent(path.split('/')[3]);
+        setActive(`.sidebar-status-link[data-status="${status}"]`);
+    } else if (path.startsWith('#/status/')) {
+        // Legacy support
         const status = decodeURIComponent(path.split('/')[2]);
         setActive(`.sidebar-status-link[data-status="${status}"]`);
     }
-    // Handle single tag filter: #/tag/ml
-    else if (path.startsWith('#/tag/')) {
+    // Handle single tag filter: #/app/tag/ml or #/tag/... (legacy)
+    else if (path.startsWith('#/app/tag/')) {
+        const tag = decodeURIComponent(path.split('/')[3]);
+        setActive(`.sidebar-tag[data-tag="${tag}"]`);
+    } else if (path.startsWith('#/tag/')) {
+        // Legacy support
         const tag = decodeURIComponent(path.split('/')[2]);
         setActive(`.sidebar-tag[data-tag="${tag}"]`);
     }
@@ -526,8 +546,8 @@ export const highlightActiveSidebarLink = () => {
     else if (path.startsWith('#/docs')) {
         setActive('.sidebar-docs-link');
     }
-    // No filters active - highlight "All Papers"
-    else if (path === '#/' || path === '') {
+    // No filters active - highlight "All Papers" (for #/app route)
+    else if (path === '#/app') {
         setActive('.sidebar-all-papers-link');
     }
 };

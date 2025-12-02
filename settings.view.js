@@ -540,7 +540,7 @@ export const settingsView = {
                         appState.allPapersCache = []; // Clear cache in app state
                         
                         // Navigate to dashboard without full page reload to avoid aborting pending requests
-                        window.location.hash = '#/';
+                        window.location.hash = '#/app';
                         // Let the router handle the view change naturally
                     } catch (error) {
                         console.error('Import failed:', error);
@@ -1040,7 +1040,7 @@ export const settingsView = {
                         
                         // Redirect to home page to reflect the empty state
                         setTimeout(() => {
-                            window.location.hash = '#/';
+                            window.location.hash = '#/app';
                             window.location.reload();
                         }, 1000);
                     } catch (error) {

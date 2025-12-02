@@ -74,7 +74,7 @@ export const addView = `
                             </div>
                         </div>
                         <div class="mt-6 flex items-center justify-end gap-x-4">
-                            <a href="#/" class="text-sm font-semibold leading-6 text-stone-900 dark:text-white">Cancel</a>
+                            <a href="#/app" class="text-sm font-semibold leading-6 text-stone-900 dark:text-white">Cancel</a>
                             <button type="submit" class="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Save</button>
                         </div>
                     </form>

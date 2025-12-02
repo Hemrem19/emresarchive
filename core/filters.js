@@ -94,9 +94,9 @@ export function updateUrlHash(appState) {
                 hashParts.push(`tag:${encodeURIComponent(tag)}`);
             });
         }
-        window.location.hash = `#/filter/${hashParts.join('/')}`;
+        window.location.hash = `#/app/filter/${hashParts.join('/')}`;
     } else {
-        window.location.hash = '#/';
+        window.location.hash = '#/app';
     }
 };
 
@@ -112,8 +112,18 @@ export function parseUrlHash(appState) {
     appState.activeFilters.status = null;
     appState.activeFilters.tags = [];
 
-    // Parse compound filter format: #/filter/status:Reading/tag:ml/tag:ai
-    if (path.startsWith('#/filter/')) {
+    // Parse compound filter format: #/app/filter/status:Reading/tag:ml/tag:ai or #/filter/... (legacy)
+    if (path.startsWith('#/app/filter/')) {
+        const parts = path.substring(14).split('/'); // Remove '#/app/filter/'
+        parts.forEach(part => {
+            if (part.startsWith('status:')) {
+                appState.activeFilters.status = decodeURIComponent(part.substring(7));
+            } else if (part.startsWith('tag:')) {
+                appState.activeFilters.tags.push(decodeURIComponent(part.substring(4)));
+            }
+        });
+    } else if (path.startsWith('#/filter/')) {
+        // Legacy support for old filter format
         const parts = path.substring(9).split('/'); // Remove '#/filter/'
         parts.forEach(part => {
             if (part.startsWith('status:')) {
@@ -123,12 +133,18 @@ export function parseUrlHash(appState) {
             }
         });
     }
-    // Legacy: Parse single status filter: #/status/Reading
-    else if (path.startsWith('#/status/')) {
+    // Parse single status filter: #/app/status/Reading or #/status/... (legacy)
+    else if (path.startsWith('#/app/status/')) {
+        appState.activeFilters.status = decodeURIComponent(path.split('/')[3]);
+    } else if (path.startsWith('#/status/')) {
+        // Legacy support
         appState.activeFilters.status = decodeURIComponent(path.split('/')[2]);
     }
-    // Legacy: Parse single tag filter: #/tag/ml
-    else if (path.startsWith('#/tag/')) {
+    // Parse single tag filter: #/app/tag/ml or #/tag/... (legacy)
+    else if (path.startsWith('#/app/tag/')) {
+        appState.activeFilters.tags.push(decodeURIComponent(path.split('/')[3]));
+    } else if (path.startsWith('#/tag/')) {
+        // Legacy support
         appState.activeFilters.tags.push(decodeURIComponent(path.split('/')[2]));
     }
 };

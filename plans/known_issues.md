@@ -12,6 +12,7 @@
 
 ### Paper Network
     - Paper network does not syncing across other devices.
+    - Paper network should be saved once created and need to be showed until new one created.
 
 ### Sync (FIXED)
     - ✅ FIXED: Tags, notes, summary, and rating were not syncing between devices. Root cause: sync endpoints were missing `summary` and `rating` in database select statements. Fixed in `backend/src/controllers/sync.js`.

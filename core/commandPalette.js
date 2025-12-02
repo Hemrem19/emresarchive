@@ -209,7 +209,7 @@ export const createCommandPalette = (appState) => {
                 { name: 'Export Data', icon: 'download', action: () => window.location.hash = '#/settings' },
                 { name: 'Import Data', icon: 'upload', action: () => window.location.hash = '#/settings' },
                 { name: 'Settings', icon: 'settings', action: () => window.location.hash = '#/settings' },
-                { name: 'Dashboard', icon: 'inbox', action: () => window.location.hash = '#/' }
+                { name: 'Dashboard', icon: 'inbox', action: () => window.location.hash = '#/app' }
             ];
 
             actions.forEach(action => {

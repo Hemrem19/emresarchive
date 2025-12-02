@@ -2,6 +2,7 @@
 // Client-side Routing and Navigation
 
 import { dashboardView } from '../dashboard.view.js';
+import { landingView } from '../landing.view.js';
 import { detailsView } from '../details/index.js';
 import { formView } from '../form.view.js';
 import { settingsView } from '../settings.view.js';
@@ -80,7 +81,11 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
         appState.currentPath = requestedPath;
 
         // Simple routing logic
-        if (requestedPath === '/add') {
+        // Landing page route - show marketing landing page
+        if (requestedPath === '/') {
+            appState.currentView = landingView;
+            renderView(app, templates.landing, () => appState.currentView.mount());
+        } else if (requestedPath === '/add') {
             appState.currentView = formView;
             renderView(app, templates.add, () => appState.currentView.mount(null, appState));
         } else if (requestedPath.startsWith('/details/')) {
@@ -145,7 +150,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                     // Show success message and redirect
                     showToast('Email verified successfully!', 'success');
                     setTimeout(() => {
-                        window.location.hash = '#/';
+                        window.location.hash = '#/app';
                         window.location.search = ''; // Remove any query params from URL
                     }, 2000);
                 } catch (error) {
@@ -161,7 +166,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                                 </div>
                                 <h2 class="text-xl font-semibold text-stone-900 dark:text-stone-100 mb-2">Verification Failed</h2>
                                 <p class="text-stone-600 dark:text-stone-400 mb-4">${error.message || 'Email verification failed. The link may have expired or is invalid.'}</p>
-                                <a href="#/" class="inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                                <a href="#/app" class="inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                                     Go to Dashboard
                                 </a>
                             </div>
@@ -169,7 +174,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                     `);
 
                     setTimeout(() => {
-                        window.location.hash = '#/';
+                        window.location.hash = '#/app';
                         window.location.search = '';
                     }, 5000);
                 }
@@ -183,14 +188,14 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                             </div>
                             <h2 class="text-xl font-semibold text-stone-900 dark:text-stone-100 mb-2">Invalid Verification Link</h2>
                             <p class="text-stone-600 dark:text-stone-400 mb-4">No verification token found in the URL. Please check your email for the correct link.</p>
-                            <a href="#/" class="inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                            <a href="#/app" class="inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                                 Go to Dashboard
                             </a>
                         </div>
                     </div>
                 `);
             }
-        } else if (requestedPath === '/' || requestedPath.startsWith('/tag/') || requestedPath.startsWith('/status/') || requestedPath.startsWith('/filter/')) {
+        } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/')) {
             // Parse URL hash to update filters
             parseUrlHash(appState);
 

@@ -23,7 +23,7 @@ export const formView = {
         if (this.isEditMode) {
             const paper = await getPaperById(this.paperId);
             if (!paper) {
-                window.location.hash = '#/';
+                window.location.hash = '#/app';
                 return;
             }
             formTitle.textContent = 'Edit Paper';
@@ -298,7 +298,7 @@ export const formView = {
                     showToast('Paper added successfully!', 'success');
                 }
                 appState.hasUnsavedChanges = false;
-                window.location.hash = '#/';
+                window.location.hash = '#/app';
             } catch (error) {
                 console.error('Failed to save paper:', error);
                 // Show user-friendly error message from database

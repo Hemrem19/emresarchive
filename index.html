@@ -4,7 +4,23 @@
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
-    <title>citavErs</title>
+    <title>citavErs - Local-First Research Paper Manager | No Sign-up Required</title>
+    <meta name="description" content="Organize your research papers locally with citavErs. Offline-capable, privacy-focused, and fully under your control. No servers, no tracking." />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://citavers.com/" />
+    <meta property="og:title" content="citavErs - Local-First Research Paper Manager" />
+    <meta property="og:description" content="Organize your research papers locally with citavErs. Offline-capable, privacy-focused, and fully under your control." />
+    <meta property="og:image" content="https://citavers.com/assets/logos/logo-full.png" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://citavers.com/" />
+    <meta property="twitter:title" content="citavErs - Local-First Research Paper Manager" />
+    <meta property="twitter:description" content="Organize your research papers locally with citavErs. Offline-capable, privacy-focused, and fully under your control." />
+    <meta property="twitter:image" content="https://citavers.com/assets/logos/logo-full.png" />
+    
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#137fec">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -85,12 +101,14 @@
 </head>
 
 <body class="bg-background-light dark:bg-background-dark font-display text-stone-900 dark:text-stone-100 antialiased">
+    <!-- App Shell (Sidebar and Header) - Hidden on landing page -->
+    <div id="app-shell" class="app-shell">
     <!-- Mobile Sidebar -->
     <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
     <aside id="mobile-sidebar"
         class="fixed top-0 left-0 h-full w-64 bg-white dark:bg-stone-900 p-4 flex flex-col z-40 transform -translate-x-full transition-transform duration-300 ease-in-out lg:hidden">
         <div class="flex items-center justify-between mb-8">
-            <a href="#/" class="flex items-center gap-3 text-stone-900 dark:text-stone-100">
+            <a href="#/app" class="flex items-center gap-3 text-stone-900 dark:text-stone-100">
                 <img src="assets/logos/logo-mark.png" alt="citavErs logo" class="h-12 w-12"
                     style="background: transparent;"
                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -145,7 +163,7 @@
         <!-- Static Sidebar -->
         <aside id="desktop-sidebar"
             class="w-64 bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 p-4 flex-col hidden lg:flex sticky top-0 h-screen">
-            <a href="#/" class="flex items-center gap-3 mb-8 text-stone-900 dark:text-stone-100">
+            <a href="#/app" class="flex items-center gap-3 mb-8 text-stone-900 dark:text-stone-100">
                 <img src="assets/logos/logo-mark.png" alt="citavErs logo" class="h-12 w-12"
                     style="background: transparent;"
                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -160,7 +178,7 @@
             <nav class="flex-grow space-y-2 overflow-y-auto">
                 <h3 class="px-3 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider mb-2">
                     Library</h3>
-                <a href="#/"
+                <a href="#/app"
                     class="sidebar-all-papers-link flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                     <span class="material-symbols-outlined text-lg">inbox</span>
                     <span class="text-sm font-medium">All Papers</span>
@@ -280,6 +298,8 @@
             <main id="app" class="flex-grow flex flex-col bg-background-light dark:bg-background-dark"></main>
         </div>
     </div>
+    </div>
+    <!-- End App Shell -->
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
@@ -320,6 +340,27 @@
         });
     </script>
     <script src="debug.js"></script>
+    <script>
+        // Show/hide app shell based on route
+        function updateAppShellVisibility() {
+            const appShell = document.getElementById('app-shell');
+            const hash = window.location.hash;
+            const isLandingPage = hash === '' || hash === '#/' || hash === '#';
+            
+            if (appShell) {
+                if (isLandingPage) {
+                    appShell.style.display = 'none';
+                } else {
+                    appShell.style.display = '';
+                }
+            }
+        }
+        
+        // Update on load and hash change
+        window.addEventListener('load', updateAppShellVisibility);
+        window.addEventListener('hashchange', updateAppShellVisibility);
+        updateAppShellVisibility(); // Initial check
+    </script>
     <script type="module" src="app.js"></script>
 </body>
 
