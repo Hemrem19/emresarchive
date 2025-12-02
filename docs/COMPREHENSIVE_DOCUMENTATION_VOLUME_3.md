@@ -1,6 +1,7 @@
 # Volume 3: Technical Architecture
 
 **Generated from Code Audit** | **Date:** 2025-01-XX  
+**Last Updated:** 2025-01-XX (Test coverage and architecture updated)  
 **Status:** Verified Against Source Code
 
 ---
@@ -110,7 +111,7 @@ emresarchive/
 ├── tests/                     # Test suite
 │   ├── setup.js               # Test setup (IndexedDB mock, etc.)
 │   ├── helpers.js             # Test helpers
-│   ├── *.test.js              # Test files (167 tests total)
+│   ├── *.test.js              # Test files (700+ tests total)
 │   └── [subdirectories]/     # Organized test files
 │
 ├── backend/                   # Backend server (Node.js + Express)
@@ -590,15 +591,58 @@ unmount() {
 ### Test Structure
 ```
 tests/
-├── setup.js              # Test setup (IndexedDB mock, etc.)
-├── helpers.js            # Test helpers
-├── *.test.js            # Test files
-└── [subdirectories]/    # Organized by feature
+├── setup.js              # Test setup (IndexedDB mock, DOMParser mock, etc.)
+├── helpers.js            # Test helpers (createMockPaper, resetAllMocks, etc.)
+├── api/                  # API module tests
+│   ├── api-import.test.js      # Batch import API tests
+│   ├── api-network.test.js     # Network graph API tests
+│   ├── api-user.test.js        # User management API tests
+│   ├── api-papers.test.js      # Papers API tests
+│   ├── api-collections.test.js # Collections API tests
+│   ├── api-annotations.test.js # Annotations API tests
+│   ├── api-utils.test.js       # API utilities (rate limiting, error handling)
+│   ├── api-arxiv.test.js       # ArXiv metadata fetching tests
+│   └── api-sync.test.js        # Sync API tests
+├── db/                   # Database layer tests
+│   ├── adapter-enhanced.test.js # Adapter edge cases (cloud fallback, rate limiting)
+│   ├── adapter.test.js         # Basic adapter tests
+│   ├── papers.test.js          # Paper CRUD tests
+│   ├── collections.test.js     # Collection CRUD tests
+│   ├── annotations.test.js     # Annotation CRUD tests
+│   └── sync.test.js            # Sync change tracking tests
+├── core/                 # Core module tests
+│   ├── core-router.test.js     # Router tests (route matching, navigation)
+│   ├── core-filters.test.js    # Filtering and search tests
+│   ├── core-state.test.js      # State management tests
+│   └── core-command-palette.test.js # Command palette tests
+├── dashboard/            # Dashboard tests
+│   ├── batch-operations.test.js # Batch operation tests
+│   ├── collections.test.js     # Collection management tests
+│   └── [other dashboard tests]
+├── sync/                 # Sync tests
+│   ├── sync-manager.test.js    # Auto-sync manager tests
+│   └── db-sync.test.js         # Database sync tests
+└── [other test files]    # Integration, UI, component tests
 ```
 
 ### Test Coverage
-- **167 tests** (100% pass rate)
-- **Coverage**: 93% state, 87% filter branches, 74% database
+- **700+ tests** (100% pass rate)
+- **Coverage**: 90.53% statements, 85.46% branches, 87.35% functions
+- **Test Files**: 70+ test files organized by module
+- **Coverage Areas**:
+  - API modules (papers, collections, annotations, sync, import, network, user, utils, arxiv)
+  - Database layer (adapter, papers, collections, annotations, sync, core, data)
+  - Core modules (router, filters, state, commandPalette, keyboardShortcuts, syncManager)
+  - UI components and helpers
+  - Dashboard handlers, services, and utilities
+  - Details view managers (notes, related, summary)
+  - Integration tests and end-to-end workflows
+
+### Recent Test Additions (2025-01)
+- **API Module Tests**: Added comprehensive tests for `api/import.js`, `api/network.js`, and `api/user.js`
+- **Adapter Edge Cases**: Expanded `db/adapter.js` tests with cloud fallback, rate limiting, and error handling scenarios
+- **Router Tests**: Fixed and expanded `core/router.js` tests with route matching, navigation handling, and error cases
+- **Coverage Improvement**: Increased overall coverage from ~71% to 90.53% statements
 - **CI/CD**: GitHub Actions
 
 ---

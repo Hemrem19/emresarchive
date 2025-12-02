@@ -147,9 +147,10 @@ Documentation should be updated **immediately** when code changes are made. Do n
 2. Update version in Section 1.2
 3. Verify deployment URLs (frontend and backend)
 4. Run test suite and update test statistics:
-   - Total test count
-   - Pass rate
-   - Coverage percentages
+   - Total test count (currently 700+ tests)
+   - Pass rate (100%)
+   - Coverage percentages (90.53% statements, 85.46% branches, 87.35% functions)
+   - Number of test files (70+ test files)
 5. Update "Production Readiness" checklist if status changed
 
 **VALIDATION**:
@@ -466,11 +467,20 @@ Documentation should be updated **immediately** when code changes are made. Do n
 ---
 
 #### COMMAND: Update Section 3.7 (Testing Architecture)
-**TRIGGER**: Test framework changed, test structure changed, coverage tools changed
+**TRIGGER**: Test framework changed, test structure changed, coverage tools changed, new tests added
 
 **STEPS**:
 1. Check `vitest.config.js` for changes
 2. Update test framework information
+3. Count test files in `tests/` directory
+4. Run `npm test` to get current test count
+5. Run `npm run test:coverage` to get coverage percentages
+6. Update test structure section with new test files if added
+7. Update coverage statistics:
+   - Statements coverage
+   - Branches coverage
+   - Functions coverage
+8. Document any new test categories or test organization changes
 3. Update test structure description
 4. Update coverage configuration
 

@@ -1,0 +1,36 @@
+{
+    "manifest_version": 3,
+    "name": "citavErs Web Clipper (DEBUG)",
+    "version": "1.0",
+    "description": "Save research papers to your citavErs library.",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage"
+    ],
+    "host_permissions": [
+        "https://emresarchive-production.up.railway.app/*",
+        "http://localhost:8080/*",
+        "https://arxiv.org/*",
+        "https://*.doi.org/*"
+    ],
+    "background": {
+        "scripts": [
+            "background.js"
+        ]
+    },
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "clipper-debug@citavers.com",
+            "strict_min_version": "109.0"
+        }
+    }
+}
