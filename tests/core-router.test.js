@@ -59,7 +59,21 @@ vi.mock('../views/index.js', () => ({
 }));
 
 vi.mock('../ui.js', () => ({
-    highlightActiveSidebarLink: vi.fn()
+    highlightActiveSidebarLink: vi.fn(),
+    showToast: vi.fn()
+}));
+
+vi.mock('../api/auth.js', () => ({
+    verifyEmail: vi.fn(() => Promise.resolve()),
+    getUser: vi.fn(() => ({ id: 1, email: 'test@example.com', emailVerified: false })),
+    setAuth: vi.fn(),
+    getAccessToken: vi.fn(() => 'mock-token')
+}));
+
+vi.mock('../auth.view.js', () => ({
+    authView: {
+        updateUIForAuthenticated: vi.fn()
+    }
 }));
 
 vi.mock('../core/filters.js', () => ({
@@ -91,6 +105,15 @@ describe('core/router.js - Router Functions', () => {
 
         // Mock confirm
         global.confirm = vi.fn(() => true);
+
+        // Mock AbortSignal.timeout for email verification tests
+        if (!AbortSignal.timeout) {
+            AbortSignal.timeout = vi.fn((timeout) => {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), timeout);
+                return controller.signal;
+            });
+        }
     });
 
     afterEach(() => {
@@ -327,6 +350,121 @@ describe('core/router.js - Router Functions', () => {
 
             // Should not throw - router should handle gracefully
             expect(appElement.innerHTML).toContain('Dashboard');
+        });
+
+        it('should handle filter routes with tag', async () => {
+            window.location.hash = '#/tag/ml';
+
+            await router();
+            vi.advanceTimersByTime(1);
+
+            expect(appState.currentPath).toBe('/tag/ml');
+        });
+
+        it('should handle filter routes with status', async () => {
+            window.location.hash = '#/status/Reading';
+
+            await router();
+            vi.advanceTimersByTime(1);
+
+            expect(appState.currentPath).toBe('/status/Reading');
+        });
+
+        it('should handle filter routes with complex filters', async () => {
+            window.location.hash = '#/filter/status:Reading,tag:ml';
+
+            await router();
+            vi.advanceTimersByTime(1);
+
+            expect(appState.currentPath).toBe('/filter/status:Reading,tag:ml');
+        });
+
+        it('should show 404 for invalid routes', async () => {
+            window.location.hash = '#/invalid-route';
+
+            await router();
+
+            expect(appElement.innerHTML).toContain('404');
+            expect(appState.currentPath).toBe('/invalid-route');
+        });
+
+        it('should handle email verification route with token', async () => {
+            window.location.hash = '#/verify-email?token=test-token-123';
+
+            await router();
+
+            expect(appElement.innerHTML).toContain('Verifying Email');
+        });
+
+        it('should handle email verification route without token', async () => {
+            window.location.hash = '#/verify-email';
+
+            await router();
+
+            expect(appElement.innerHTML).toContain('Invalid Verification Link');
+        });
+
+        it('should prevent navigation when user cancels unsaved changes', async () => {
+            // Set up initial state
+            appState.hasUnsavedChanges = true;
+            appState.currentPath = '/add';
+
+            // Track hash changes properly
+            let currentHash = '#/add';
+            Object.defineProperty(window, 'location', {
+                value: {
+                    ...window.location,
+                    get hash() {
+                        return currentHash;
+                    },
+                    set hash(value) {
+                        // Ensure hash always has '#' prefix
+                        currentHash = value.startsWith('#') ? value : '#' + value;
+                    }
+                },
+                writable: true,
+                configurable: true
+            });
+
+            // User tries to navigate away
+            window.location.hash = '#/dashboard';
+            global.confirm.mockReturnValueOnce(false);
+
+            await router();
+
+            expect(global.confirm).toHaveBeenCalledWith('You have unsaved changes. Are you sure you want to leave?');
+            // Hash should be reverted to original
+            expect(window.location.hash).toBe('#/add');
+        });
+
+        it('should handle view mounting errors gracefully', async () => {
+            const { dashboardView } = await import('../dashboard.view.js');
+            dashboardView.mount.mockRejectedValueOnce(new Error('Mount error'));
+
+            window.location.hash = '#/';
+
+            // Should not throw
+            await expect(router()).resolves.not.toThrow();
+        });
+
+        it('should parse details route ID correctly', async () => {
+            window.location.hash = '#/details/42';
+
+            await router();
+            vi.advanceTimersByTime(1);
+
+            const { detailsView } = await import('../details/index.js');
+            expect(detailsView.mount).toHaveBeenCalledWith(42, expect.any(Object));
+        });
+
+        it('should parse edit route ID correctly', async () => {
+            window.location.hash = '#/edit/99';
+
+            await router();
+            vi.advanceTimersByTime(1);
+
+            const { formView } = await import('../form.view.js');
+            expect(formView.mount).toHaveBeenCalledWith(99, expect.any(Object));
         });
     });
 });

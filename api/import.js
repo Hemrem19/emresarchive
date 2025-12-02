@@ -3,7 +3,7 @@
  * Handles batch import operations
  */
 
-import { getApiUrl } from './utils.js';
+import { getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshAccessToken } from './auth.js';
 
 /**
@@ -12,8 +12,8 @@ import { getAccessToken, refreshAccessToken } from './auth.js';
  * @returns {Promise<Object>} Import results
  */
 export async function batchImport(data) {
-    const url = `${getApiUrl()}/import/batch-import`;
-    
+    const url = `${getApiBaseUrl()}/api/import/batch-import`;
+
     let accessToken = getAccessToken();
     if (!accessToken) {
         throw new Error('Not authenticated. Please log in.');
@@ -40,7 +40,7 @@ export async function batchImport(data) {
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+            const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.error?.message || `Batch import failed: ${response.status}`);
         }
 
