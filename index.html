@@ -365,7 +365,13 @@
                     }
                 } else {
                     // Show sidebar and header for app routes
-                    if (mobileSidebar) mobileSidebar.style.display = '';
+                    if (mobileSidebar) {
+                        mobileSidebar.style.display = '';
+                        // Ensure mobile sidebar starts in closed state
+                        if (!mobileSidebar.classList.contains('-translate-x-full')) {
+                            mobileSidebar.classList.add('-translate-x-full');
+                        }
+                    }
                     if (desktopSidebar) desktopSidebar.style.display = '';
                     if (header) header.style.display = '';
                     // Restore app classes for app layout

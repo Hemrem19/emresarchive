@@ -50,7 +50,7 @@ const renderSidebarStatusLinks = () => {
     };
 
     const linksHtml = statusOrder.map(status => `
-            <a href="#/status/${encodeURIComponent(status)}" data-status="${status}" class="sidebar-status-link flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+            <a href="#/app/status/${encodeURIComponent(status)}" data-status="${status}" class="sidebar-status-link flex items-center gap-3 px-3 py-2 rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                 <span class="h-2 w-2 rounded-full ${statusColors[status] || 'bg-gray-400'}"></span>
                 <span class="text-sm font-medium">${status}</span>
             </a>
@@ -61,6 +61,11 @@ const renderSidebarStatusLinks = () => {
 };
 
 renderSidebarStatusLinks(); // Initial render on page load
+
+// Make renderSidebarStatusLinks available globally for re-initialization
+if (typeof window !== 'undefined') {
+    window.renderSidebarStatusLinks = renderSidebarStatusLinks;
+}
 
 // --- Authentication Initialization ---
 authView.mount().then(() => {

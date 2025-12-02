@@ -107,9 +107,9 @@ export const landingView = `
                         <div class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 dark:bg-primary/20 mb-4">
                             <span class="material-symbols-outlined text-2xl text-primary">edit_note</span>
                         </div>
-                        <h3 class="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-2">Rich Annotations</h3>
+                        <h3 class="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-2">Rich Notes & Summaries</h3>
                         <p class="text-sm text-stone-600 dark:text-stone-400">
-                            Highlight PDFs, add notes on specific pages, and write rich-text summaries directly in the browser.
+                            Write rich-text notes with formatting, add paper summaries, and track reading progress. All searchable and organized.
                         </p>
                     </div>
                     <!-- Visual Discovery -->
@@ -170,7 +170,7 @@ export const landingView = `
                         <span class="material-symbols-outlined text-4xl text-primary mb-3">verified</span>
                         <h3 class="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-2">Test Coverage</h3>
                         <p class="text-sm text-stone-600 dark:text-stone-400">
-                            100% test pass rate with 700+ automated tests ensuring stability and reliability.
+                            100% test pass rate with 1600+ automated tests ensuring stability and reliability.
                         </p>
                     </div>
                 </div>
@@ -190,7 +190,7 @@ export const landingView = `
                         <div class="flex items-center justify-center mb-4">
                             <span class="material-symbols-outlined text-4xl text-primary">verified</span>
                         </div>
-                        <p class="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-2">700+ Tests Passing</p>
+                        <p class="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-2">1600+ Tests Passing</p>
                         <p class="text-sm text-stone-600 dark:text-stone-400">Verified against comprehensive test suite</p>
                     </div>
                     <div class="p-6 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700">

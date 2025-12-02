@@ -204,6 +204,8 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
             renderView(app, templates.home, async () => {
                 await appState.currentView.mount(appState, () => applyFiltersAndRender(appState));
                 applyFiltersAndRender(appState); // This now handles the initial render correctly
+                // Re-render sidebar status links to ensure they use correct routes
+                renderSidebarStatusLinks();
             });
         } else {
             renderView(app, `<h1>404 - Not Found</h1>`);
