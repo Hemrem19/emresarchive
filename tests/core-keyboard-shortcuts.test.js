@@ -179,6 +179,7 @@ describe('core/keyboardShortcuts.js', () => {
         });
 
         it('should not trigger shortcuts when typing in input', () => {
+            window.location.hash = '#/app';
             const input = document.getElementById('search-input');
             input.focus();
 
@@ -191,6 +192,7 @@ describe('core/keyboardShortcuts.js', () => {
         });
 
         it('should not trigger shortcuts when typing in textarea', () => {
+            window.location.hash = '#/app';
             document.body.insertAdjacentHTML('beforeend', '<textarea id="test-textarea"></textarea>');
             const textarea = document.getElementById('test-textarea');
             textarea.focus();
