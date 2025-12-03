@@ -1,7 +1,7 @@
 // core/filters.js
 // Filter and Pagination Logic
 
-import { sortPapers, renderPaperList, highlightActiveSidebarLink } from '../ui.js';
+import { sortPapers, renderPaperList, highlightActiveSidebarLink, escapeHtml } from '../ui.js';
 
 /**
  * Filters papers based on active filters (status, tags, search)
@@ -166,11 +166,11 @@ export function renderFilterChips(appState, applyFiltersAndRender) {
     // Search term chip
     if (appState.currentSearchTerm) {
         chips.push(`
-            <div class="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-3 py-1.5 rounded-full text-sm font-medium">
-                <span class="material-symbols-outlined text-base">search</span>
-                <span>Search: "${appState.currentSearchTerm}"</span>
-                <button class="remove-filter-btn hover:bg-green-200 dark:hover:bg-green-800/50 rounded-full p-0.5 transition-colors" data-filter-type="search">
-                    <span class="material-symbols-outlined text-base">close</span>
+            <div class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm backdrop-blur">
+                <span class="material-symbols-outlined text-sm">search</span>
+                <span>Search: "${escapeHtml(appState.currentSearchTerm)}"</span>
+                <button class="remove-filter-btn hover:bg-white/10 rounded-full p-0.5 transition-colors" data-filter-type="search" aria-label="Remove search filter">
+                    <span class="material-symbols-outlined text-sm">close</span>
                 </button>
             </div>
         `);
@@ -179,11 +179,11 @@ export function renderFilterChips(appState, applyFiltersAndRender) {
     // Status filter chip
     if (appState.activeFilters.status) {
         chips.push(`
-            <div class="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1.5 rounded-full text-sm font-medium">
-                <span class="material-symbols-outlined text-base">filter_list</span>
-                <span>Status: ${appState.activeFilters.status}</span>
-                <button class="remove-filter-btn hover:bg-blue-200 dark:hover:bg-blue-800/50 rounded-full p-0.5 transition-colors" data-filter-type="status">
-                    <span class="material-symbols-outlined text-base">close</span>
+            <div class="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-200 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm backdrop-blur">
+                <span class="material-symbols-outlined text-sm">filter_list</span>
+                <span>Status: ${escapeHtml(appState.activeFilters.status)}</span>
+                <button class="remove-filter-btn hover:bg-white/10 rounded-full p-0.5 transition-colors" data-filter-type="status" aria-label="Remove status filter">
+                    <span class="material-symbols-outlined text-sm">close</span>
                 </button>
             </div>
         `);
@@ -193,11 +193,11 @@ export function renderFilterChips(appState, applyFiltersAndRender) {
     if (appState.activeFilters.tags && appState.activeFilters.tags.length > 0) {
         appState.activeFilters.tags.forEach(tag => {
             chips.push(`
-                <div class="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-medium">
-                    <span class="material-symbols-outlined text-base">tag</span>
-                    <span>${tag}</span>
-                    <button class="remove-tag-btn hover:bg-primary/20 rounded-full p-0.5 transition-colors" data-tag="${tag}">
-                        <span class="material-symbols-outlined text-base">close</span>
+                <div class="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 text-purple-200 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm backdrop-blur">
+                    <span class="material-symbols-outlined text-sm">sell</span>
+                    <span>${escapeHtml(tag)}</span>
+                    <button class="remove-tag-btn hover:bg-white/10 rounded-full p-0.5 transition-colors" data-tag="${escapeHtml(tag)}" aria-label="Remove tag ${escapeHtml(tag)}">
+                        <span class="material-symbols-outlined text-sm">close</span>
                     </button>
                 </div>
             `);
@@ -208,8 +208,8 @@ export function renderFilterChips(appState, applyFiltersAndRender) {
         container.innerHTML = `
             <div class="flex items-center gap-2 flex-wrap">
                 ${chips.join('')}
-                <button id="clear-all-filters-btn" class="text-xs font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline ml-2">
-                    Clear all filters
+                <button id="clear-all-filters-btn" class="text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 px-3 py-1 rounded-full transition-colors ml-2">
+                    Clear all
                 </button>
             </div>
         `;

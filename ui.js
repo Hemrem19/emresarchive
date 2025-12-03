@@ -223,7 +223,7 @@ export const highlightText = (text, term) => {
     const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escapedTerm})`, 'gi');
     // Escape the full text to prevent XSS, then apply highlighting
-    return escapeHtml(text).replace(regex, `<mark class="bg-yellow-200 dark:bg-yellow-500/50 rounded-sm px-0.5 py-px">$1</mark>`);
+    return escapeHtml(text).replace(regex, `<mark class="bg-yellow-500/30 text-yellow-200 rounded-sm px-0.5 py-px">$1</mark>`);
 };
 
 /**
@@ -293,15 +293,19 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
     if (!paperListContainer) return;
 
     if (papers.length === 0) {
-        paperListContainer.innerHTML = `<p class="text-stone-500 dark:text-stone-400">No papers found for the current filter.</p>`;
+        paperListContainer.innerHTML = `
+            <div class="text-center py-12">
+                <p class="text-slate-500 text-lg">No papers found.</p>
+                <p class="text-slate-600 text-sm mt-2">Try adjusting your filters or search term.</p>
+            </div>`;
         return;
     }
 
     const statusColors = {
-        'To Read': 'bg-yellow-500',
         'Reading': 'bg-blue-500',
+        'To Read': 'bg-yellow-500',
         'Finished': 'bg-green-500',
-        'Archived': 'bg-stone-500',
+        'Archived': 'bg-slate-500'
     };
 
     const statusOrder = getStatusOrder();
@@ -310,95 +314,100 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
         const isSelected = selectedIds.has(paper.id);
         const showNoteSnippet = searchTerm && hasNotesMatch(paper, searchTerm);
         const noteSnippet = showNoteSnippet ? extractNoteSnippet(paper.notes, searchTerm) : '';
-
         const hasNotes = paper.notes && typeof paper.notes === 'string' && paper.notes.trim().length > 0;
+        const statusColor = statusColors[paper.readingStatus] || 'bg-slate-500';
 
         return `
-        <div class="paper-card bg-white dark:bg-stone-900 border-2 ${isSelected ? 'border-primary/50 bg-primary/5 dark:bg-primary/10' : 'border-stone-200 dark:border-stone-800'} rounded-lg p-4 transition-all duration-200" data-paper-id="${paper.id}">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div class="flex items-center gap-3 sm:flex-shrink-0">
-                    <input type="checkbox" class="paper-checkbox w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800 cursor-pointer" data-paper-id="${paper.id}" ${isSelected ? 'checked' : ''}>
-                    <span 
-                        class="h-2.5 w-2.5 rounded-full flex-shrink-0 ${statusColors[paper.readingStatus] || 'bg-stone-400'}" 
-                        title="Status: ${paper.readingStatus}"
-                    ></span>
+        <div class="paper-card rounded-xl p-5 group cursor-pointer relative overflow-hidden ${isSelected ? 'border-blue-500/50 bg-blue-500/5' : ''}" data-paper-id="${paper.id}">
+            <div class="absolute left-0 top-0 bottom-0 w-1 ${statusColor} rounded-l-xl shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
+            
+            <div class="flex items-start gap-4 pl-2">
+                <!-- Icon Box -->
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center flex-shrink-0 text-slate-400 group-hover:text-blue-400 group-hover:border-blue-500/30 transition-colors shadow-lg">
+                    <span class="material-symbols-outlined text-[24px]">${paper.hasPdf ? 'picture_as_pdf' : 'description'}</span>
                 </div>
-                <div class="flex-grow w-full min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                        ${showNoteSnippet ? `<span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mr-1" title="Match found in notes">description</span>` : ''}
-                        <a href="#/details/${paper.id}" class="font-bold text-lg text-stone-900 dark:text-stone-100 hover:text-primary dark:hover:text-primary transition-colors">${highlightText(paper.title, searchTerm)}</a>
-                        ${hasNotes ? `
-                            <button class="expand-notes-btn ml-2 p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-primary dark:hover:text-primary transition-colors" data-paper-id="${paper.id}" title="Show notes">
-                                <span class="material-symbols-outlined text-sm expand-icon">expand_more</span>
+
+                <!-- Content -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between gap-4">
+                        <h3 class="text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors leading-tight mb-1 line-clamp-2">
+                            <a href="#/details/${paper.id}" class="hover:underline">${highlightText(paper.title, searchTerm)}</a>
+                        </h3>
+                        
+                        <!-- Actions (Visible on Hover/Focus) -->
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                            <input type="checkbox" class="paper-checkbox w-4 h-4 text-blue-500 border-slate-600 rounded focus:ring-blue-500 bg-slate-800/50 mr-2 cursor-pointer" data-paper-id="${paper.id}" ${isSelected ? 'checked' : ''}>
+                            
+                            <select class="reading-status-select h-8 bg-slate-800/80 border border-slate-700 rounded-lg text-xs text-slate-300 focus:ring-blue-500 focus:border-blue-500 mr-1 hidden sm:block" data-id="${paper.id}">
+                                ${statusOrder.map(status => `<option value="${status}" ${paper.readingStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
+                            </select>
+
+                            <a href="#/edit/${paper.id}" class="p-2 hover:bg-blue-500/20 rounded-lg text-slate-400 hover:text-blue-400 transition-colors" title="Edit">
+                                <span class="material-symbols-outlined text-[20px]">edit</span>
+                            </a>
+                            <button class="delete-paper-btn p-2 hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-400 transition-colors" data-id="${paper.id}" title="Delete">
+                                <span class="material-symbols-outlined text-[20px]">delete</span>
                             </button>
-                        ` : ''}
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-slate-400 mb-3 truncate font-medium">
+                        ${highlightText(paper.authors.join(', '), searchTerm)}
+                    </p>
+
+                    <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                        ${paper.year ? `
+                        <span class="flex items-center gap-1.5 bg-slate-800/50 px-2.5 py-1 rounded-md border border-white/5">
+                            <span class="material-symbols-outlined text-[14px]">calendar_today</span> ${paper.year}
+                        </span>` : ''}
+                        
                         ${paper.rating !== null && paper.rating !== undefined ? `
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-semibold ml-auto" title="Rating: ${paper.rating}/10">
-                                <span class="material-symbols-outlined text-sm">star</span>
-                                <span>${paper.rating}</span>
-                            </span>
-                        ` : ''}
+                        <span class="flex items-center gap-1 text-yellow-500 font-bold bg-yellow-500/10 px-2 py-1 rounded-md border border-yellow-500/20">
+                            <span class="material-symbols-outlined text-[14px] fill-current">star</span> ${paper.rating}
+                        </span>` : ''}
+
+                        ${hasNotes ? `
+                        <button class="expand-notes-btn flex items-center gap-1 text-slate-400 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-white/5" data-paper-id="${paper.id}">
+                            <span class="material-symbols-outlined text-[16px] expand-icon">expand_more</span>
+                            <span>Notes</span>
+                        </button>` : ''}
+                        
+                        <!-- Tags -->
+                        ${paper.tags && paper.tags.length > 0 ? `
+                        <div class="flex gap-2 ml-auto sm:ml-0">
+                            ${paper.tags.map(tag => `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 tracking-wide">#${highlightText(tag, searchTerm)}</span>`).join('')}
+                        </div>` : ''}
                     </div>
-                    <p class="text-sm text-stone-500 dark:text-stone-400 mb-2">${highlightText(paper.authors.join(', '), searchTerm)} - ${paper.year || 'N/A'}</p>
+
                     ${showNoteSnippet && noteSnippet ? `
-                        <div class="mt-2 mb-3 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 rounded-md">
+                        <div class="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                             <div class="flex items-start gap-2">
-                                <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-sm mt-0.5 flex-shrink-0">notes</span>
+                                <span class="material-symbols-outlined text-green-400 text-sm mt-0.5 flex-shrink-0">notes</span>
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-xs font-medium text-green-800 dark:text-green-300 mb-1">Match found in notes:</p>
-                                    <p class="text-sm text-stone-700 dark:text-stone-300 italic leading-relaxed">${highlightText(noteSnippet, searchTerm)}</p>
+                                    <p class="text-xs font-medium text-green-400 mb-1">Match found in notes:</p>
+                                    <p class="text-sm text-slate-300 italic leading-relaxed">${highlightText(noteSnippet, searchTerm)}</p>
                                 </div>
                             </div>
                         </div>
                     ` : ''}
-                    <!-- Expandable Notes Section -->
+
                     ${hasNotes ? `
-                        <div class="notes-expandable-section hidden mt-3 mb-2 p-3 bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-md" data-paper-id="${paper.id}">
-                            <div class="flex items-start gap-2">
-                                <span class="material-symbols-outlined text-stone-500 dark:text-stone-400 text-sm mt-0.5 flex-shrink-0">notes</span>
-                                <div class="flex-1 min-w-0 prose prose-stone dark:prose-invert max-w-none text-sm">
-                                    <div class="notes-content text-stone-700 dark:text-stone-300">${paper.notes}</div>
-                                </div>
+                        <div class="notes-expandable-section hidden mt-3 p-4 bg-slate-800/50 border border-white/5 rounded-lg" data-paper-id="${paper.id}">
+                            <div class="prose prose-invert max-w-none text-sm text-slate-300">
+                                <div class="notes-content">${paper.notes}</div>
                             </div>
                         </div>
                     ` : ''}
-                    ${paper.tags && paper.tags.length > 0 ? `
-                        <div class="flex flex-wrap gap-2 ${showNoteSnippet ? 'mt-2' : ''}">
-                            ${paper.tags.map(tag => `<span class="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">#${tag}</span>`).join('')}
-                        </div>
-                    ` : ''}
+
                     ${paper.readingStatus === 'Reading' && paper.readingProgress?.totalPages > 0 ? `
-                        <div class="mt-2 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary text-sm">auto_stories</span>
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between gap-2 text-xs text-stone-600 dark:text-stone-400 mb-1">
-                                    <span>Page ${paper.readingProgress.currentPage || 0} of ${paper.readingProgress.totalPages}</span>
-                                    <span class="font-bold text-primary">${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%</span>
-                                </div>
-                                <div class="w-full h-1.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
-                                    <div class="h-full bg-primary transition-all duration-300" style="width: ${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%"></div>
-                                </div>
-                            </div>
+                        <div class="mt-3 w-full h-1 bg-slate-700 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-500 transition-all duration-300" style="width: ${Math.min(Math.round(((paper.readingProgress.currentPage || 0) / paper.readingProgress.totalPages) * 100), 100)}%"></div>
                         </div>
                     ` : ''}
-                </div>
-                <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2 sm:mt-0 flex-shrink-0 w-full sm:w-auto">
-                    <select class="reading-status-select w-full sm:w-32 h-8 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg focus:ring-primary focus:border-primary text-xs text-stone-900 dark:text-stone-100" data-id="${paper.id}">
-                        ${statusOrder.map(status => `<option value="${status}" ${paper.readingStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
-                    </select>
-                    <div class="flex items-center gap-1 self-end">
-                        ${paper.hasPdf ? `<span class="material-symbols-outlined text-stone-400 dark:text-stone-500 text-lg" title="PDF attached">attachment</span>` : ''}
-                        <a href="#/edit/${paper.id}" class="edit-paper-btn p-1 rounded-full text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-700" title="Edit Paper">
-                            <span class="material-symbols-outlined text-lg">edit</span>
-                        </a>
-                        <button class="delete-paper-btn p-1 rounded-full text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50" data-id="${paper.id}" title="Delete Paper">
-                            <span class="material-symbols-outlined text-lg">delete</span>
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
-    `;
+        `;
     }).join('');
 
     paperListContainer.innerHTML = paperItemsHtml;
@@ -420,11 +429,11 @@ export const renderSidebarTags = (papers) => {
     }
 
     const tagsHtml = `
-        <h3 class="px-3 text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider mb-2">Tags</h3>
+        <h3 class="px-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2">Tags</h3>
         <div class="flex flex-wrap gap-2 px-3" id="sidebar-tags-list">
             ${uniqueTags.map(tag => `
                 <a href="#/app/tag/${encodeURIComponent(tag)}" 
-                   class="sidebar-tag text-xs font-medium bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-300 px-2 py-1 rounded-full cursor-pointer hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors"
+                   class="sidebar-tag text-xs font-medium bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full cursor-pointer hover:bg-blue-500/20 hover:text-blue-400 transition-colors border border-white/5"
                    data-tag="${escapeHtml(tag)}">
                    #${escapeHtml(tag)}
                 </a>
@@ -449,24 +458,24 @@ export const renderSidebarCollections = (collections) => {
     // Always show the Collections header and + button, even if no collections exist
     const collectionsHtml = `
         <div class="flex items-center justify-between px-3 mb-2">
-            <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-stone-400 tracking-wider">Collections</h3>
-            <button id="save-collection-btn" class="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors" title="Save current filters as collection">
-                <span class="material-symbols-outlined text-sm text-stone-500 dark:text-stone-400">add_circle</span>
+            <h3 class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Collections</h3>
+            <button id="save-collection-btn" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors" title="Save current filters as collection">
+                <span class="material-symbols-outlined text-sm">add_circle</span>
             </button>
         </div>
         ${(!collections || collections.length === 0) ? `
             <div class="px-3 py-4 text-center">
-                <p class="text-xs text-stone-500 dark:text-stone-400">No saved collections yet.</p>
-                <p class="text-xs text-stone-400 dark:text-stone-500 mt-1">Apply filters and click + to save</p>
+                <p class="text-xs text-slate-500">No saved collections yet.</p>
+                <p class="text-xs text-slate-600 mt-1">Apply filters and click + to save</p>
             </div>
         ` : `
             <div class="space-y-1">
                 ${collections.map(collection => `
-                    <div class="collection-item group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors" data-collection-id="${collection.id}">
-                        <span class="material-symbols-outlined text-lg ${collection.color || 'text-primary'}">${collection.icon || 'folder'}</span>
-                        <span class="flex-1 text-sm font-medium text-stone-700 dark:text-stone-300 collection-name">${escapeHtml(collection.name)}</span>
-                        <button class="edit-collection-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-all" data-collection-id="${collection.id}" title="Edit collection">
-                            <span class="material-symbols-outlined text-sm text-stone-500 dark:text-stone-400">edit</span>
+                    <div class="collection-item group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors" data-collection-id="${collection.id}">
+                        <span class="material-symbols-outlined text-lg ${collection.color || 'text-blue-400'} opacity-70 group-hover:opacity-100">${collection.icon || 'folder'}</span>
+                        <span class="flex-1 text-sm font-medium text-slate-400 group-hover:text-white collection-name transition-colors">${escapeHtml(collection.name)}</span>
+                        <button class="edit-collection-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-700 transition-all" data-collection-id="${collection.id}" title="Edit collection">
+                            <span class="material-symbols-outlined text-sm text-slate-400 hover:text-white">edit</span>
                         </button>
                     </div>
                 `).join('')}
@@ -483,14 +492,23 @@ export const highlightActiveSidebarLink = () => {
 
     // Reset all links to inactive state
     document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .sidebar-docs-link, .collection-item').forEach(el => {
-        el.classList.remove('text-primary', 'bg-primary/10', 'dark:bg-primary/20');
-        el.classList.add('text-stone-500', 'dark:text-stone-400', 'hover:text-stone-900', 'dark:hover:text-stone-100', 'hover:bg-stone-100', 'dark:hover:bg-stone-800');
+        el.classList.remove('text-blue-400', 'bg-blue-500/10', 'border-blue-500/10');
+        el.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-white/5');
+        // Remove specific classes added by setActive
+        if (el.classList.contains('sidebar-tag')) {
+             el.classList.add('bg-slate-800', 'text-slate-300');
+             el.classList.remove('bg-blue-500/20', 'text-blue-300');
+        }
     });
 
     const setActive = (selector) => {
         document.querySelectorAll(selector).forEach(el => {
-            el.classList.add('text-primary', 'bg-primary/10', 'dark:bg-primary/20');
-            el.classList.remove('text-stone-500', 'dark:text-stone-400');
+            el.classList.add('text-blue-400', 'bg-blue-500/10', 'border-blue-500/10');
+            el.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-white/5');
+             if (el.classList.contains('sidebar-tag')) {
+                 el.classList.remove('bg-slate-800', 'text-slate-300');
+                 el.classList.add('bg-blue-500/20', 'text-blue-300');
+            }
         });
     };
 
@@ -499,9 +517,9 @@ export const highlightActiveSidebarLink = () => {
         const collectionId = decodeURIComponent(path.split('/')[2]);
         setActive(`.collection-item[data-collection-id="${collectionId}"]`);
     }
-    // Handle compound filters: #/app/filter/status:Reading/tag:ml or #/filter/... (legacy)
+    // Handle compound filters
     else if (path.startsWith('#/app/filter/')) {
-        const parts = path.substring(14).split('/'); // Remove '#/app/filter/'
+        const parts = path.substring(14).split('/'); 
         parts.forEach(part => {
             if (part.startsWith('status:')) {
                 const status = decodeURIComponent(part.substring(7));
@@ -513,7 +531,7 @@ export const highlightActiveSidebarLink = () => {
         });
     } else if (path.startsWith('#/filter/')) {
         // Legacy support
-        const parts = path.substring(9).split('/'); // Remove '#/filter/'
+        const parts = path.substring(9).split('/'); 
         parts.forEach(part => {
             if (part.startsWith('status:')) {
                 const status = decodeURIComponent(part.substring(7));
@@ -524,21 +542,19 @@ export const highlightActiveSidebarLink = () => {
             }
         });
     }
-    // Handle single status filter: #/app/status/Reading or #/status/... (legacy)
+    // Handle single status filter
     else if (path.startsWith('#/app/status/')) {
         const status = decodeURIComponent(path.split('/')[3]);
         setActive(`.sidebar-status-link[data-status="${status}"]`);
     } else if (path.startsWith('#/status/')) {
-        // Legacy support
         const status = decodeURIComponent(path.split('/')[2]);
         setActive(`.sidebar-status-link[data-status="${status}"]`);
     }
-    // Handle single tag filter: #/app/tag/ml or #/tag/... (legacy)
+    // Handle single tag filter
     else if (path.startsWith('#/app/tag/')) {
         const tag = decodeURIComponent(path.split('/')[3]);
         setActive(`.sidebar-tag[data-tag="${tag}"]`);
     } else if (path.startsWith('#/tag/')) {
-        // Legacy support
         const tag = decodeURIComponent(path.split('/')[2]);
         setActive(`.sidebar-tag[data-tag="${tag}"]`);
     }
@@ -547,7 +563,7 @@ export const highlightActiveSidebarLink = () => {
         setActive('.sidebar-docs-link');
     }
     // No filters active - highlight "All Papers" (for #/app route)
-    else if (path === '#/app') {
+    else if (path === '#/app' || path === '') {
         setActive('.sidebar-all-papers-link');
     }
 };

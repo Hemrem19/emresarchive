@@ -46,16 +46,18 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#3b82f6", /* Modern Blue */
+                        "primary": "#3b82f6",
                         "primary-dark": "#2563eb",
-                        "dark-bg": "#0B0F19", /* Deep dark blue-black */
+                        "dark-bg": "#0B0F19",
                         "card-dark": "#111827",
+                        "sidebar-dark": "#0f172a",
                     },
                     fontFamily: {
-                        "display": ["Manrope", "sans-serif"]
+                        "display": ["Manrope", "sans-serif"],
+                        "sans": ["Manrope", "sans-serif"]
                     },
                     backgroundImage: {
-                        'hero-glow': "radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 60%)",
+                        'hero-glow': "radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%)",
                         'grid-pattern': "linear-gradient(to right, #1f2937 1px, transparent 1px), linear-gradient(to bottom, #1f2937 1px, transparent 1px)",
                     }
                 },
@@ -66,21 +68,35 @@
     <style>
         /* Modern Scrollbar */
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: #0f172a;
+            background: transparent;
         }
         ::-webkit-scrollbar-thumb {
             background: #334155;
-            border-radius: 4px;
+            border-radius: 10px;
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #475569;
         }
 
         /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(11, 15, 25, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-sidebar {
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
         .glass {
             background: rgba(17, 24, 39, 0.8);
             backdrop-filter: blur(12px);
@@ -100,7 +116,27 @@
             border-color: rgba(59, 130, 246, 0.3);
         }
 
-        /* Hero Image 3D effect - reduced rotation on mobile for better fit */
+        /* Paper Card Styles */
+        .paper-card {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.3) 0%, rgba(15, 23, 42, 0.3) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .paper-card:hover {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%);
+            border-color: rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Status Dot Glows */
+        .status-dot-reading { box-shadow: 0 0 10px rgba(59, 130, 246, 0.6); }
+        .status-dot-toread { box-shadow: 0 0 10px rgba(234, 179, 8, 0.6); }
+        .status-dot-finished { box-shadow: 0 0 10px rgba(34, 197, 94, 0.6); }
+
+        /* Hero Image 3D effect */
         .hero-image-container {
             transform: perspective(1000px) rotateX(2deg);
             box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.5);
@@ -123,20 +159,32 @@
         .sidebar-transition {
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        
+        /* Hide scrollbar for horizontal scroll areas */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 </head>
 
 <body class="bg-[#0B0F19] font-display text-slate-300 antialiased selection:bg-primary selection:text-white overflow-x-hidden">
 
     <!-- ========================================== -->
+    <!-- GLOBAL BACKGROUNDS                         -->
+    <!-- ========================================== -->
+    <!-- Background Grids & Glows (Visible on both Landing and App) -->
+    <div class="fixed inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] [mask-image:linear-gradient(to_bottom,white,transparent)] pointer-events-none z-0"></div>
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-hero-glow pointer-events-none z-0"></div>
+
+    <!-- ========================================== -->
     <!-- LANDING PAGE (Visible only on root / )     -->
     <!-- ========================================== -->
-    <div id="landing-page" class="relative w-full overflow-hidden">
+    <div id="landing-page" class="relative w-full overflow-hidden z-10">
         
-        <!-- Background Grids & Glows -->
-        <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] [mask-image:linear-gradient(to_bottom,white,transparent)] pointer-events-none"></div>
-        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-hero-glow pointer-events-none"></div>
-
         <!-- Navbar -->
         <nav class="fixed top-0 w-full z-50 glass">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -355,16 +403,18 @@
     <!-- ========================================== -->
     <!-- APP SHELL (Hidden by default on root)      -->
     <!-- ========================================== -->
-    <div id="app-shell" class="hidden">
+    <div id="app-shell" class="hidden relative z-10">
         
         <!-- Mobile Sidebar Overlay & Sidebar -->
-        <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden transition-opacity opacity-0 pointer-events-none"></div>
+        <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden transition-opacity opacity-0 pointer-events-none backdrop-blur-sm"></div>
         <aside id="mobile-sidebar"
-            class="fixed top-0 left-0 h-full w-72 bg-white dark:bg-card-dark border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col z-40 transform -translate-x-full sidebar-transition lg:hidden shadow-2xl">
+            class="fixed top-0 left-0 h-full w-72 glass-sidebar border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col z-40 transform -translate-x-full sidebar-transition lg:hidden shadow-2xl">
             <!-- Mobile Sidebar Content -->
              <div class="flex items-center justify-between mb-8">
                 <a href="#/app" class="flex items-center gap-3 text-slate-900 dark:text-slate-100">
-                    <img src="assets/logos/logo-mark.png" alt="Logo" class="h-8 w-8" onerror="this.style.display='none'">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <span class="material-symbols-outlined text-sm text-white">article</span>
+                    </div>
                     <h1 class="text-xl font-bold font-display lowercase">citavers</h1>
                 </a>
                 <button id="close-mobile-menu-btn" class="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -374,7 +424,7 @@
             
             <!-- Mobile Nav Links -->
             <nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
-                <a href="#/app" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-base">
+                <a href="#/app" class="sidebar-all-papers-link sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-base">
                     <span class="material-symbols-outlined text-[24px]">inbox</span>
                     <span class="font-medium">All Papers</span>
                 </a>
@@ -392,22 +442,26 @@
                 
                 <!-- Sidebar dynamic content containers -->
                 <div id="mobile-sidebar-status-list"></div>
+                <div id="mobile-sidebar-collections-section"></div>
+                <div id="mobile-sidebar-tags-section"></div>
             </nav>
         </aside>
 
         <div class="flex min-h-screen">
             <!-- Desktop Sidebar -->
             <aside id="desktop-sidebar"
-                class="w-64 bg-white dark:bg-card-dark border-r border-slate-200 dark:border-slate-800 p-4 flex-col hidden lg:flex sticky top-0 h-screen">
+                class="w-64 glass-sidebar border-r border-slate-200 dark:border-slate-800 p-4 flex-col hidden lg:flex sticky top-0 h-screen">
                 <a href="#/app" class="flex items-center gap-3 mb-8 text-slate-900 dark:text-slate-100 px-2">
-                    <img src="assets/logos/logo-mark.png" alt="Logo" class="h-8 w-8" onerror="this.style.display='none'">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <span class="material-symbols-outlined text-sm text-white">article</span>
+                    </div>
                     <h1 class="text-xl font-bold font-display lowercase">citavers</h1>
                 </a>
                 
                 <nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
                     <h3 class="px-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2 mt-2">Library</h3>
                     
-                    <a href="#/app" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
+                    <a href="#/app" class="sidebar-all-papers-link sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
                         <span class="material-symbols-outlined text-[20px]">inbox</span>
                         <span class="text-sm font-medium">All Papers</span>
                     </a>
@@ -436,31 +490,36 @@
             </aside>
 
             <!-- Main Application Area -->
-            <div class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0B0F19]">
+            <div class="flex-1 flex flex-col min-w-0 bg-transparent">
                 <!-- Header -->
-                <header class="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-card-dark sticky top-0 z-20">
+                <header class="flex items-center justify-between px-4 sm:px-6 py-3 glass-panel sticky top-0 z-20">
                     <div class="flex items-center gap-3 sm:gap-4 flex-1">
                         <button id="mobile-menu-btn" class="lg:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
                             <span class="material-symbols-outlined">menu</span>
                         </button>
                         
                         <!-- Search Bar -->
-                        <div class="relative flex-1 max-w-2xl">
-                            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+                        <div class="relative flex-1 max-w-2xl group">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-slate-500 group-focus-within:text-blue-400 transition-colors text-[20px]">search</span>
+                            </div>
                             <input id="search-input" 
-                                class="w-full h-10 pl-10 pr-4 bg-slate-100 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary text-sm placeholder-slate-500 dark:text-slate-200" 
-                                placeholder="Search..." type="text" />
+                                class="w-full h-10 pl-10 pr-10 bg-slate-100 dark:bg-slate-800/40 border border-transparent dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800/80 text-sm placeholder-slate-500 dark:text-slate-200 transition-all shadow-sm" 
+                                placeholder="Search papers, authors, or paste a DOI..." type="text" />
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <kbd class="hidden sm:inline-flex items-center h-5 px-2 rounded border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800/50 text-[10px] text-slate-500 font-sans font-bold">⌘K</kbd>
+                            </div>
                         </div>
                         
                         <!-- Search Mode -->
-                        <div class="hidden md:flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                            <button id="search-mode-all" class="px-3 py-1 text-xs font-medium rounded shadow-sm bg-white dark:bg-slate-600 text-slate-900 dark:text-white transition-all">All</button>
+                        <div class="hidden md:flex bg-slate-100 dark:bg-slate-800/40 rounded-lg p-1 border border-transparent dark:border-slate-700/50">
+                            <button id="search-mode-all" class="px-3 py-1 text-xs font-medium rounded shadow-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white transition-all">All</button>
                             <button id="search-mode-notes" class="px-3 py-1 text-xs font-medium rounded text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all">Notes</button>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4">
-                        <a href="#/add" class="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-blue-500/20">
+                        <a href="#/add" class="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 border border-blue-400/20 active:scale-95">
                             <span class="material-symbols-outlined text-[20px]">add</span>
                             <span class="hidden sm:inline">Add Paper</span>
                         </a>
