@@ -374,8 +374,11 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                         
                         <!-- Tags -->
                         ${paper.tags && paper.tags.length > 0 ? `
-                        <div class="flex gap-2 ml-auto sm:ml-0">
-                            ${paper.tags.map(tag => `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 tracking-wide">#${highlightText(tag, searchTerm)}</span>`).join('')}
+                        <div class="flex flex-wrap gap-2 ml-auto sm:ml-0">
+                            ${paper.tags.map(tag => {
+                                const tagColor = getTagColor(tag);
+                                return `<span class="px-3 py-1.5 rounded-full text-[11px] font-semibold ${tagColor.bg} ${tagColor.text} ${tagColor.border} tracking-wide shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">#${highlightText(tag, searchTerm)}</span>`;
+                            }).join('')}
                         </div>` : ''}
                     </div>
 
@@ -413,6 +416,41 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
     paperListContainer.innerHTML = paperItemsHtml;
 };
 
+/**
+ * Gets a consistent color scheme for a tag based on its name.
+ * Uses a hash function to deterministically assign colors.
+ * @param {string} tagName - The tag name
+ * @returns {Object} Object with bg, text, and border color classes
+ */
+export const getTagColor = (tagName) => {
+    // Modern color palette with good contrast in dark mode
+    const colorPalettes = [
+        { bg: 'bg-blue-500/15', text: 'text-blue-300', border: 'border border-blue-400/30' },
+        { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border border-purple-400/30' },
+        { bg: 'bg-pink-500/15', text: 'text-pink-300', border: 'border border-pink-400/30' },
+        { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border border-emerald-400/30' },
+        { bg: 'bg-cyan-500/15', text: 'text-cyan-300', border: 'border border-cyan-400/30' },
+        { bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border border-amber-400/30' },
+        { bg: 'bg-rose-500/15', text: 'text-rose-300', border: 'border border-rose-400/30' },
+        { bg: 'bg-indigo-500/15', text: 'text-indigo-300', border: 'border border-indigo-400/30' },
+        { bg: 'bg-teal-500/15', text: 'text-teal-300', border: 'border border-teal-400/30' },
+        { bg: 'bg-orange-500/15', text: 'text-orange-300', border: 'border border-orange-400/30' },
+        { bg: 'bg-violet-500/15', text: 'text-violet-300', border: 'border border-violet-400/30' },
+        { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-300', border: 'border border-fuchsia-400/30' },
+    ];
+
+    // Simple hash function for consistent color assignment
+    let hash = 0;
+    for (let i = 0; i < tagName.length; i++) {
+        hash = ((hash << 5) - hash) + tagName.charCodeAt(i);
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+
+    // Use absolute value and modulo to get index
+    const index = Math.abs(hash) % colorPalettes.length;
+    return colorPalettes[index];
+};
+
 export const renderSidebarTags = (papers) => {
     const tagsSection = document.getElementById('sidebar-tags-section');
     const mobileTagsSection = document.getElementById('mobile-sidebar-tags-section');
@@ -431,13 +469,16 @@ export const renderSidebarTags = (papers) => {
     const tagsHtml = `
         <h3 class="px-3 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2">Tags</h3>
         <div class="flex flex-wrap gap-2 px-3" id="sidebar-tags-list">
-            ${uniqueTags.map(tag => `
+            ${uniqueTags.map(tag => {
+                const tagColor = getTagColor(tag);
+                return `
                 <a href="#/app/tag/${encodeURIComponent(tag)}" 
-                   class="sidebar-tag text-xs font-medium bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full cursor-pointer hover:bg-blue-500/20 hover:text-blue-400 transition-colors border border-white/5"
+                   class="sidebar-tag text-xs font-semibold ${tagColor.bg} ${tagColor.text} ${tagColor.border} px-3 py-1.5 rounded-full cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105 shadow-sm"
                    data-tag="${escapeHtml(tag)}">
                    #${escapeHtml(tag)}
                 </a>
-            `).join('')}
+            `;
+            }).join('')}
         </div>
     `;
 
@@ -492,12 +533,22 @@ export const highlightActiveSidebarLink = () => {
 
     // Reset all links to inactive state
     document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .sidebar-docs-link, .collection-item').forEach(el => {
-        el.classList.remove('text-blue-400', 'bg-blue-500/10', 'border-blue-500/10');
+        el.classList.remove('text-blue-400', 'bg-blue-500/10', 'border-blue-500/10', 'ring-2', 'ring-blue-400/50', 'ring-offset-2', 'ring-offset-slate-900', 'scale-110');
         el.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-white/5');
-        // Remove specific classes added by setActive
+        // Remove specific classes added by setActive for tags
         if (el.classList.contains('sidebar-tag')) {
-             el.classList.add('bg-slate-800', 'text-slate-300');
-             el.classList.remove('bg-blue-500/20', 'text-blue-300');
+            // Remove active state classes
+            el.classList.remove('ring-2', 'ring-blue-400/50', 'ring-offset-2', 'ring-offset-slate-900', 'scale-110');
+            el.classList.add('hover:scale-105');
+            // Restore original tag colors (will be handled by getTagColor)
+            const tag = el.dataset.tag;
+            if (tag) {
+                const tagColor = getTagColor(tag);
+                // Remove old color classes
+                el.classList.remove('bg-slate-800', 'text-slate-300', 'bg-blue-500/20', 'text-blue-300', 'text-blue-400', 'bg-blue-500/10', 'border-blue-500/10');
+                // Add correct color classes
+                el.classList.add(tagColor.bg, tagColor.text, tagColor.border);
+            }
         }
     });
 
@@ -505,9 +556,10 @@ export const highlightActiveSidebarLink = () => {
         document.querySelectorAll(selector).forEach(el => {
             el.classList.add('text-blue-400', 'bg-blue-500/10', 'border-blue-500/10');
             el.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-white/5');
-             if (el.classList.contains('sidebar-tag')) {
-                 el.classList.remove('bg-slate-800', 'text-slate-300');
-                 el.classList.add('bg-blue-500/20', 'text-blue-300');
+            if (el.classList.contains('sidebar-tag')) {
+                // Highlight active tag with ring and scale
+                el.classList.add('ring-2', 'ring-blue-400/50', 'ring-offset-2', 'ring-offset-slate-900', 'scale-110');
+                el.classList.remove('hover:scale-105');
             }
         });
     };
