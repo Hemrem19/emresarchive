@@ -370,10 +370,13 @@ describe('UI Utilities', () => {
             renderPaperList(papers);
 
             // Reading progress bar shows percentage
-            const progressBar = container.querySelector('.bg-blue-500');
+            // The progress bar is inside a container with bg-slate-700, find it specifically
+            const progressContainer = container.querySelector('.bg-slate-700');
+            expect(progressContainer).toBeTruthy();
+            // The progress bar itself is the bg-blue-500 div inside the progress container
+            const progressBar = progressContainer.querySelector('.bg-blue-500');
             expect(progressBar).toBeTruthy();
             // Check that width style is set - verify the HTML contains the style attribute
-            // In test environment, we can check the outerHTML or innerHTML
             const html = progressBar.outerHTML;
             expect(html).toContain('style');
             expect(html).toContain('50%');
