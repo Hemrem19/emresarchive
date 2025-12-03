@@ -51,157 +51,177 @@ export const detailsView = {
         if (!paper) return;
 
         const detailsHtml = `
-        <div class="flex flex-col lg:flex-row gap-8">
-            <aside class="w-full lg:w-96 lg:flex-shrink-0 order-2 lg:order-1">
-                <div class="space-y-6 bg-white dark:bg-stone-900/70 p-6 rounded-lg border border-stone-200 dark:border-stone-800">
-                    <div>
-                        <div class="flex items-start justify-between gap-3 mb-2">
-                            <h1 class="text-xl font-bold text-stone-900 dark:text-white flex-1">${escapeHtml(paper.title)}</h1>
-                            <a href="#/edit/${paper.id}" class="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-lg transition-colors text-sm font-medium whitespace-nowrap">
-                                <span class="material-symbols-outlined text-lg">edit</span>
-                                <span>Edit</span>
-                            </a>
+        <div class="flex flex-col xl:flex-row gap-8">
+            <aside class="w-full xl:w-96 order-2 xl:order-1 space-y-6">
+                <div class="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/40 p-6 space-y-6">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1">
+                            <p class="text-[11px] uppercase tracking-[0.4em] text-slate-500 mb-3">Paper</p>
+                            <h1 class="text-2xl font-bold text-white leading-snug">${escapeHtml(paper.title)}</h1>
+                            <p class="text-sm text-slate-400 mt-3">${escapeHtml((paper.authors && Array.isArray(paper.authors) ? paper.authors.join(', ') : 'Unknown Author'))}</p>
                         </div>
-                        <p class="text-sm text-stone-600 dark:text-stone-400">${escapeHtml((paper.authors && Array.isArray(paper.authors) ? paper.authors.join(', ') : 'Unknown Author'))}</p>
+                        <a href="#/edit/${paper.id}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-sm font-semibold hover:border-blue-400/40 hover:text-white transition-colors">
+                            <span class="material-symbols-outlined text-lg">edit</span>
+                            <span>Edit</span>
+                        </a>
                     </div>
-                    <div class="space-y-3 text-sm">
-                        <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Journal:</span><span class="text-stone-700 dark:text-stone-300 text-right">${escapeHtml(paper.journal || 'N/A')}</span></div>
-                        <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Year:</span><span class="text-stone-700 dark:text-stone-300">${paper.year || 'N/A'}</span></div>
-                        <div class="flex justify-between items-start"><span class="font-medium text-stone-500 dark:text-stone-400">DOI/URL:</span><a class="text-primary hover:underline truncate text-right" href="${paper.doi ? `https://doi.org/${paper.doi}` : '#'}" target="_blank" rel="noopener noreferrer">${escapeHtml(paper.doi || 'N/A')}</a></div>
-                        <div class="flex justify-between"><span class="font-medium text-stone-500 dark:text-stone-400">Status:</span><span class="text-stone-700 dark:text-stone-300">${escapeHtml(paper.readingStatus || 'N/A')}</span></div>
-                        ${paper.updatedAt ? `<div class="flex justify-between items-center pt-2 border-t border-stone-200 dark:border-stone-700"><span class="font-medium text-stone-500 dark:text-stone-400">Last updated:</span><span class="text-stone-600 dark:text-stone-400 text-sm">${formatRelativeTime(paper.updatedAt)}</span></div>` : ''}
+                    <div class="space-y-3 text-sm text-slate-300">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-slate-500">Journal</span>
+                            <span class="text-right">${escapeHtml(paper.journal || 'N/A')}</span>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-slate-500">Year</span>
+                            <span>${paper.year || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between gap-3 items-start">
+                            <span class="text-slate-500 whitespace-nowrap">DOI / URL</span>
+                            ${paper.doi ? `
+                                <a class="text-blue-300 hover:text-white transition-colors truncate max-w-[200px]" href="https://doi.org/${paper.doi}" target="_blank" rel="noopener noreferrer">${escapeHtml(paper.doi)}</a>
+                            ` : `<span class="text-slate-500">N/A</span>`}
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-slate-500">Status</span>
+                            <span>${escapeHtml(paper.readingStatus || 'N/A')}</span>
+                        </div>
+                        ${paper.updatedAt ? `
+                            <div class="flex justify-between gap-3 pt-3 border-t border-white/5 text-xs uppercase tracking-wide text-slate-500">
+                                <span>Last updated</span>
+                                <span class="text-slate-300">${formatRelativeTime(paper.updatedAt)}</span>
+                            </div>
+                        ` : ''}
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">Rating</h3>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-white tracking-wide uppercase">Rating</h3>
+                            <span class="text-xs text-slate-500">0-10</span>
+                        </div>
                         <div id="rating-container"></div>
                     </div>
                     ${paper.readingStatus === 'Reading' ? `
-                        <div>
-                            <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">Reading Progress</h3>
-                            <div class="space-y-3">
-                                <div class="flex gap-2 items-center">
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Current Page</label>
-                                        <input type="number" id="current-page-input" min="0" value="${paper.readingProgress?.currentPage || 0}" class="w-full h-10 px-3 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                                    </div>
-                                    <div class="flex-1">
-                                        <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1">Total Pages</label>
-                                        <input type="number" id="total-pages-input" min="1" value="${paper.readingProgress?.totalPages || 0}" class="w-full h-10 px-3 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-sm focus:ring-2 focus:ring-primary focus:border-primary">
-                                    </div>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-semibold text-white tracking-wide uppercase">Reading Progress</h3>
+                                <span class="text-xs text-slate-500">Live</span>
+                            </div>
+                            <div class="flex gap-3">
+                                <div class="flex-1">
+                                    <label class="text-xs text-slate-500 uppercase tracking-wide mb-1 block">Current Page</label>
+                                    <input type="number" id="current-page-input" min="0" value="${paper.readingProgress?.currentPage || 0}" class="w-full h-11 px-3 rounded-xl border border-white/10 bg-slate-900/70 text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500/40 transition-all">
                                 </div>
-                                <div id="progress-display" class="p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg">
-                                    ${this.renderProgressBar(paper.readingProgress)}
+                                <div class="flex-1">
+                                    <label class="text-xs text-slate-500 uppercase tracking-wide mb-1 block">Total Pages</label>
+                                    <input type="number" id="total-pages-input" min="1" value="${paper.readingProgress?.totalPages || 0}" class="w-full h-11 px-3 rounded-xl border border-white/10 bg-slate-900/70 text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500/40 transition-all">
                                 </div>
+                            </div>
+                            <div id="progress-display" class="p-4 rounded-xl border border-white/5 bg-white/5">
+                                ${this.renderProgressBar(paper.readingProgress)}
                             </div>
                         </div>
                     ` : ''}
                     ${paper.tags && paper.tags.length > 0 ? `
                         <div>
-                            <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">Tags</h3>
+                            <h3 class="text-sm font-semibold text-white tracking-wide uppercase mb-3">Tags</h3>
                             <div class="flex flex-wrap gap-2">
-                                ${paper.tags.map(tag => `<span class="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">#${escapeHtml(tag)}</span>`).join('')}
+                                ${paper.tags.map(tag => `
+                                    <span class="px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-500/10 border border-blue-500/30 text-blue-200">#${escapeHtml(tag)}</span>
+                                `).join('')}
                             </div>
                         </div>
                     ` : ''}
                     ${paper.hasPdf ? `
-                        <div>
-                            <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">File</h3>
-                            <div class="space-y-2">
-                                <button id="read-paper-btn" class="w-full flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90">
-                                    <span class="material-symbols-outlined">menu_book</span> Read Paper
-                                </button>
-                                <button id="download-pdf-btn" class="w-full flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold text-stone-700 dark:text-stone-200 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200 dark:hover:bg-stone-700">
-                                    <span class="material-symbols-outlined">download</span> Download PDF
-                                </button>
-                            </div>
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold text-white tracking-wide uppercase">File</h3>
+                            <button id="read-paper-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white bg-primary rounded-xl shadow-lg shadow-blue-500/30 hover:bg-primary-dark transition-all">
+                                <span class="material-symbols-outlined text-base">menu_book</span>
+                                <span>Read Paper</span>
+                            </button>
+                            <button id="download-pdf-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+                                <span class="material-symbols-outlined text-base">download</span>
+                                <span>Download PDF</span>
+                            </button>
                         </div>
                     ` : ''}
-                    <div>
-                        <h3 class="text-base font-bold text-stone-900 dark:text-white mb-3">Actions</h3>
-                        <button id="generate-citation-btn" class="w-full flex items-center justify-center gap-2 py-2 px-4 text-sm font-semibold text-stone-700 dark:text-stone-200 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200 dark:hover:bg-stone-700">
-                            <span class="material-symbols-outlined">format_quote</span> Generate Citation
+                    <div class="space-y-3">
+                        <h3 class="text-sm font-semibold text-white tracking-wide uppercase">Actions</h3>
+                        <button id="generate-citation-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl bg-gradient-to-r from-white/5 to-white/10 hover:from-white/10 hover:to-white/20 transition-all">
+                            <span class="material-symbols-outlined text-base">format_quote</span>
+                            <span>Generate Citation</span>
                         </button>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-base font-bold text-stone-900 dark:text-white">Related Papers</h3>
-                            <button id="add-link-btn" class="text-sm font-medium text-primary hover:underline">Add Link</button>
+                            <h3 class="text-sm font-semibold text-white tracking-wide uppercase">Related Papers</h3>
+                            <button id="add-link-btn" class="text-xs font-semibold text-blue-300 hover:text-white transition-colors">+ Add Link</button>
                         </div>
-                        <div id="related-papers-list" class="space-y-2">
-                            <!-- Linked papers will be rendered here -->
+                        <div id="related-papers-list" class="space-y-3 text-sm text-slate-300">
+                            <!-- Linked papers render here -->
                         </div>
                     </div>
                 </div>
             </aside>
-            <div class="flex-1 order-1 lg:order-2">
-                <div class="bg-white dark:bg-stone-900/70 rounded-lg border border-stone-200 dark:border-stone-800 flex flex-col h-full">
-                    <!-- Tab Navigation -->
-                    <div class="border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
-                        <nav class="-mb-px flex gap-x-6 px-4" id="details-tabs">
-                            <button data-tab="abstract" class="tab-btn shrink-0 border-b-2 border-transparent px-1 py-3 text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:border-stone-300 dark:hover:border-stone-600 transition-colors">Abstract</button>
-                            <button data-tab="summary" class="tab-btn shrink-0 border-b-2 border-transparent px-1 py-3 text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:border-stone-300 dark:hover:border-stone-600 transition-colors">Summary</button>
-                            <button data-tab="notes" class="tab-btn shrink-0 border-b-2 border-primary px-1 py-3 text-sm font-medium text-primary">Notes</button>
-                        </nav>
-                    </div>
+            <section class="flex-1 order-1 xl:order-2">
+                <div class="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/50 flex flex-col h-full overflow-hidden">
+                    <nav id="details-tabs" class="flex flex-wrap gap-2 px-4 pt-4 border-b border-white/5 bg-white/5">
+                        <button data-tab="abstract" class="tab-btn px-4 py-2 rounded-xl border border-transparent text-xs font-semibold tracking-wide text-slate-400 hover:text-white hover:border-white/10 transition-all">Abstract</button>
+                        <button data-tab="summary" class="tab-btn px-4 py-2 rounded-xl border border-transparent text-xs font-semibold tracking-wide text-slate-400 hover:text-white hover:border-white/10 transition-all">Summary</button>
+                        <button data-tab="notes" class="tab-btn px-4 py-2 rounded-xl border border-primary text-xs font-semibold tracking-wide text-primary bg-primary/10 shadow-inner shadow-blue-500/30">Notes</button>
+                    </nav>
 
-                    <!-- Abstract Panel -->
                     <div id="abstract-panel" class="tab-panel hidden flex-grow flex flex-col">
-                        <div class="p-6 overflow-y-auto">
+                        <div class="p-6 overflow-y-auto text-slate-200 leading-relaxed">
                             ${paper.abstract ? `
-                                <div class="prose prose-stone dark:prose-invert max-w-none">
-                                    <p class="text-stone-700 dark:text-stone-300 whitespace-pre-wrap leading-relaxed">${escapeHtml(paper.abstract)}</p>
+                                <div class="prose prose-invert max-w-none">
+                                    <p class="whitespace-pre-wrap">${escapeHtml(paper.abstract)}</p>
                                 </div>
                             ` : `
-                                <div class="flex flex-col items-center justify-center h-full text-center py-12">
-                                    <span class="material-symbols-outlined text-4xl text-stone-300 dark:text-stone-700 mb-4">description</span>
-                                    <p class="text-stone-500 dark:text-stone-400">No abstract available for this paper.</p>
+                                <div class="flex flex-col items-center justify-center text-center py-16 gap-3">
+                                    <span class="material-symbols-outlined text-4xl text-slate-700">draft</span>
+                                    <p class="text-slate-500 text-sm">No abstract available for this paper.</p>
                                 </div>
                             `}
                         </div>
                     </div>
 
-                    <!-- Summary Panel -->
                     <div id="summary-panel" class="tab-panel hidden flex-grow flex flex-col">
-                        <div class="border-b border-stone-200 dark:border-stone-800 p-2 flex items-center gap-1 flex-shrink-0" id="summary-toolbar">
-                            <button data-command="bold" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                        <div class="border-b border-white/5 bg-white/5 p-2 flex items-center gap-1 flex-shrink-0" id="summary-toolbar">
+                            <button data-command="bold" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_bold</span>
                             </button>
-                            <button data-command="italic" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                            <button data-command="italic" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_italic</span>
                             </button>
-                            <button data-command="insertUnorderedList" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                            <button data-command="insertUnorderedList" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_list_bulleted</span>
                             </button>
-                            <button data-command="insertOrderedList" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                            <button data-command="insertOrderedList" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_list_numbered</span>
                             </button>
                         </div>
-                        <div id="summary-editor" contenteditable="true" class="w-full flex-grow p-4 bg-transparent focus:outline-none resize-y overflow-auto" placeholder="Write a summary of this paper..."></div>
+                        <div id="summary-editor" contenteditable="true" class="w-full flex-grow p-6 text-slate-100 leading-relaxed focus:outline-none overflow-auto" placeholder="Write a summary of this paper..."></div>
                     </div>
 
-                    <!-- Notes Panel -->
                     <div id="notes-panel" class="tab-panel flex-grow flex flex-col">
-                        <div class="border-b border-stone-200 dark:border-stone-800 p-2 flex items-center gap-1 flex-shrink-0" id="notes-toolbar">
-                            <button data-command="bold" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                        <div class="border-b border-white/5 bg-white/5 p-2 flex items-center gap-1 flex-shrink-0" id="notes-toolbar">
+                            <button data-command="bold" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_bold</span>
                             </button>
-                            <button data-command="italic" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                            <button data-command="italic" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_italic</span>
                             </button>
-                            <button data-command="insertUnorderedList" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                            <button data-command="insertUnorderedList" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_list_bulleted</span>
                             </button>
-                            <button data-command="insertOrderedList" class="p-2 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300">
+                            <button data-command="insertOrderedList" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                                 <span class="material-symbols-outlined">format_list_numbered</span>
                             </button>
                         </div>
-                        <div id="notes-editor" contenteditable="true" class="w-full flex-grow p-4 bg-transparent focus:outline-none resize-y overflow-auto" placeholder="Start writing your notes here..."></div>
+                        <div id="notes-editor" contenteditable="true" class="w-full flex-grow p-6 text-slate-100 leading-relaxed focus:outline-none overflow-auto" placeholder="Start writing your notes here..."></div>
                     </div>
 
-                    <!-- PDF Panel -->
-
+                    <!-- Future PDF Panel slot -->
                 </div>
-            </div>
+            </section>
         </div>
         `;
         container.innerHTML = detailsHtml;
@@ -379,11 +399,11 @@ export const detailsView = {
                 
                 // Update button states
                 tabButtons.forEach(btn => {
-                    btn.classList.remove('border-primary', 'text-primary');
-                    btn.classList.add('border-transparent', 'text-stone-500', 'dark:text-stone-400');
+                    btn.classList.remove('border-primary', 'text-primary', 'bg-primary/10', 'shadow-inner', 'shadow-blue-500/30');
+                    btn.classList.add('border-transparent', 'text-slate-400');
                 });
-                button.classList.remove('border-transparent', 'text-stone-500', 'dark:text-stone-400');
-                button.classList.add('border-primary', 'text-primary');
+                button.classList.remove('border-transparent', 'text-slate-400');
+                button.classList.add('border-primary', 'text-primary', 'bg-primary/10', 'shadow-inner', 'shadow-blue-500/30');
                 
                 // Show/hide panels
                 tabPanels.forEach(panel => {
@@ -448,19 +468,19 @@ export const detailsView = {
         const total = readingProgress?.totalPages || 0;
 
         if (total === 0 || current === 0) {
-            return `<p class="text-sm text-stone-500 dark:text-stone-400 text-center">Set page numbers to track progress</p>`;
+            return `<p class="text-sm text-slate-500 text-center">Set page numbers to track progress</p>`;
         }
 
         const percentage = Math.min(Math.round((current / total) * 100), 100);
 
         return `
-            <div class="space-y-2">
-                <div class="flex justify-between items-center text-sm">
-                    <span class="text-stone-600 dark:text-stone-300 font-medium">Page ${current} of ${total}</span>
-                    <span class="text-primary font-bold">${percentage}%</span>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center text-xs uppercase tracking-wide text-slate-400">
+                    <span>Page ${current} of ${total}</span>
+                    <span class="text-blue-300 font-semibold">${percentage}%</span>
                 </div>
-                <div class="w-full h-2 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
-                    <div class="h-full bg-primary transition-all duration-300" style="width: ${percentage}%"></div>
+                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transition-all duration-500" style="width: ${percentage}%"></div>
                 </div>
             </div>
         `;
