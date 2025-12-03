@@ -185,7 +185,8 @@ const closeMobileMenu = () => {
             if (mobileSidebar && mobileSidebar.classList.contains('-translate-x-full')) {
                 mobileSidebarOverlay.classList.add('hidden');
             }
-        }, 300);
+        }, 250);
+        /* Reduced from 300ms to match new transition duration */
     }
 };
 

@@ -321,21 +321,21 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
         <div class="paper-card rounded-xl p-5 group cursor-pointer relative overflow-hidden ${isSelected ? 'border-blue-500/50 bg-blue-500/5' : ''}" data-paper-id="${paper.id}">
             <div class="absolute left-0 top-0 bottom-0 w-1 ${statusColor} rounded-l-xl shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
             
-            <div class="flex items-start gap-4 pl-2">
+            <div class="flex items-start gap-3 sm:gap-4 pl-2">
                 <!-- Icon Box -->
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center flex-shrink-0 text-slate-400 group-hover:text-blue-400 group-hover:border-blue-500/30 transition-colors shadow-lg">
-                    <span class="material-symbols-outlined text-[24px]">${paper.hasPdf ? 'picture_as_pdf' : 'description'}</span>
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center flex-shrink-0 text-slate-400 group-hover:text-blue-400 group-hover:border-blue-500/30 transition-colors shadow-lg">
+                    <span class="material-symbols-outlined text-[20px] sm:text-[24px]">${paper.hasPdf ? 'picture_as_pdf' : 'description'}</span>
                 </div>
 
                 <!-- Content -->
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-start justify-between gap-4">
-                        <h3 class="text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors leading-tight mb-1 line-clamp-2">
+                    <div class="flex items-start justify-between gap-3 sm:gap-4">
+                        <h3 class="text-base sm:text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors leading-tight mb-1 line-clamp-3 sm:line-clamp-2">
                             <a href="#/details/${paper.id}" class="hover:underline">${highlightText(paper.title, searchTerm)}</a>
                         </h3>
                         
                         <!-- Actions (Visible on Hover/Focus) -->
-                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        <div class="flex items-center gap-0.5 sm:gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                             <input type="checkbox" class="paper-checkbox w-4 h-4 text-blue-500 border-slate-600 rounded focus:ring-blue-500 bg-slate-800/50 mr-2 cursor-pointer" data-paper-id="${paper.id}" ${isSelected ? 'checked' : ''}>
                             
                             <select class="reading-status-select h-8 bg-slate-800/80 border border-slate-700 rounded-lg text-xs text-slate-300 focus:ring-blue-500 focus:border-blue-500 mr-1 hidden sm:block" data-id="${paper.id}">
@@ -355,7 +355,7 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                         ${highlightText(paper.authors.join(', '), searchTerm)}
                     </p>
 
-                    <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-500">
                         ${paper.year ? `
                         <span class="flex items-center gap-1.5 bg-slate-800/50 px-2.5 py-1 rounded-md border border-white/5">
                             <span class="material-symbols-outlined text-[14px]">calendar_today</span> ${paper.year}
@@ -374,7 +374,7 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                         
                         <!-- Tags -->
                         ${paper.tags && paper.tags.length > 0 ? `
-                        <div class="flex flex-wrap gap-2 ml-auto sm:ml-0">
+                        <div class="flex flex-wrap gap-1.5 sm:gap-2 ml-auto sm:ml-0">
                             ${paper.tags.map(tag => {
                                 const tagColor = getTagColor(tag);
                                 return `<span class="px-3 py-1.5 rounded-full text-[11px] font-semibold ${tagColor.bg} ${tagColor.text} ${tagColor.border} tracking-wide shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">#${highlightText(tag, searchTerm)}</span>`;

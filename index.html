@@ -408,32 +408,32 @@
         <!-- Mobile Sidebar Overlay & Sidebar -->
         <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden transition-opacity opacity-0 pointer-events-none backdrop-blur-sm"></div>
         <aside id="mobile-sidebar"
-            class="fixed top-0 left-0 h-full w-72 glass-sidebar border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col z-40 transform -translate-x-full sidebar-transition lg:hidden shadow-2xl">
+            class="fixed top-0 left-0 h-full w-64 max-w-[85vw] glass-sidebar border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col z-40 -translate-x-full lg:hidden shadow-2xl">
             <!-- Mobile Sidebar Content -->
-             <div class="flex items-center justify-between mb-8">
-                <a href="#/app" class="flex items-center gap-3 text-slate-900 dark:text-slate-100">
-                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <span class="material-symbols-outlined text-sm text-white">article</span>
+             <div class="flex items-center justify-between mb-6 sm:mb-8">
+                <a href="#/app" class="flex items-center gap-2 sm:gap-3 text-slate-900 dark:text-slate-100">
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <span class="material-symbols-outlined text-xs sm:text-sm text-white">article</span>
                     </div>
-                    <h1 class="text-xl font-bold font-display lowercase">citavers</h1>
+                    <h1 class="text-lg sm:text-xl font-bold font-display lowercase">citavers</h1>
                 </a>
-                <button id="close-mobile-menu-btn" class="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                <button id="close-mobile-menu-btn" class="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 min-w-[44px] min-h-[44px] flex items-center justify-center">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
             
             <!-- Mobile Nav Links -->
             <nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
-                <a href="#/app" class="sidebar-all-papers-link sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-base">
-                    <span class="material-symbols-outlined text-[24px]">inbox</span>
+                <a href="#/app" class="sidebar-all-papers-link sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
+                    <span class="material-symbols-outlined text-[20px] sm:text-[24px]">inbox</span>
                     <span class="font-medium">All Papers</span>
                 </a>
-                <a href="#/graph" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-base">
-                    <span class="material-symbols-outlined text-[24px]">hub</span>
+                <a href="#/graph" class="sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
+                    <span class="material-symbols-outlined text-[20px] sm:text-[24px]">hub</span>
                     <span class="font-medium">Network</span>
                 </a>
-                <a href="#/settings" class="sidebar-link flex items-center gap-3 px-3 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-base">
-                    <span class="material-symbols-outlined text-[24px]">settings</span>
+                <a href="#/settings" class="sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
+                    <span class="material-symbols-outlined text-[20px] sm:text-[24px]">settings</span>
                     <span class="font-medium">Settings</span>
                 </a>
                 
