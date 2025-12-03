@@ -264,12 +264,30 @@
                 </a>
             </div>
 
-            <!-- Hero Dashboard Preview - Animated Cards -->
+            <!-- Hero Dashboard Preview - Interactive Search Demo -->
             <div class="relative max-w-5xl mx-auto hero-image-container rounded-xl overflow-hidden bg-slate-900/50 backdrop-blur-sm border border-white/5 p-6 md:p-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="hero-paper-cards">
-                    <!-- Paper cards will be animated in here -->
+                <!-- Search Bar -->
+                <div class="relative mb-6">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span class="material-symbols-outlined text-slate-500 text-xl">search</span>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="hero-search-input"
+                        placeholder="Try searching: 'transformer', 'NLP', or 'BERT'..."
+                        class="w-full h-12 pl-12 pr-4 bg-slate-800/60 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-white placeholder-slate-500 transition-all shadow-lg"
+                    />
+                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <kbd class="hidden sm:inline-flex items-center h-6 px-2 rounded border border-slate-600 bg-slate-800/50 text-[10px] text-slate-400 font-sans font-bold">⌘K</kbd>
+                    </div>
                 </div>
-                <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent opacity-30 pointer-events-none">
+
+                <!-- Paper Cards Container -->
+                <div class="space-y-3" id="hero-search-results">
+                    <!-- Paper cards will be filtered here -->
+                </div>
+
+                <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent opacity-20 pointer-events-none">
                 </div>
             </div>
         </section>
@@ -676,6 +694,18 @@
         // Initialize routing
         window.addEventListener('load', handleRouting);
         window.addEventListener('hashchange', handleRouting);
+        
+        // Also handle clicks on landing page links to ensure routing works
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href^="#"]');
+            if (link && link.getAttribute('href') !== '#') {
+                const href = link.getAttribute('href');
+                if (href.startsWith('#/')) {
+                    // Let the hashchange event handle it, but ensure routing triggers
+                    setTimeout(handleRouting, 0);
+                }
+            }
+        });
     </script>
 
       <!-- Core App Script -->
@@ -976,13 +1006,16 @@
                   }, 1000);
               }
 
-              // 2. Cascading Paper Cards Animation for Hero Section
-              function initHeroCards() {
-                  const container = document.getElementById('hero-paper-cards');
-                  if (!container) return;
+              // 2. Interactive Search Demo for Hero Section
+              function initHeroSearchDemo() {
+                  const searchInput = document.getElementById('hero-search-input');
+                  const resultsContainer = document.getElementById('hero-search-results');
+                  
+                  if (!searchInput || !resultsContainer) return;
 
-                  const demoCards = [
+                  const allPapers = [
                       { 
+                          id: 1,
                           title: 'Attention Is All You Need', 
                           authors: 'Vaswani et al.', 
                           year: 2017,
@@ -991,6 +1024,7 @@
                           tags: ['NLP', 'Transformers']
                       },
                       { 
+                          id: 2,
                           title: 'BERT: Pre-training of Deep Bidirectional Transformers', 
                           authors: 'Devlin et al.', 
                           year: 2018,
@@ -999,6 +1033,7 @@
                           tags: ['NLP', 'BERT']
                       },
                       { 
+                          id: 3,
                           title: 'Language Models are Few-Shot Learners', 
                           authors: 'Brown et al.', 
                           year: 2020,
@@ -1007,61 +1042,94 @@
                           tags: ['GPT', 'LLM']
                       },
                       { 
+                          id: 4,
                           title: 'Scaling Laws for Neural Language Models', 
                           authors: 'Kaplan et al.', 
                           year: 2020,
                           status: 'Reading',
                           statusColor: 'bg-blue-500',
                           tags: ['Scaling', 'LLM']
-                      },
-                      { 
-                          title: 'Retrieval-Augmented Generation', 
-                          authors: 'Lewis et al.', 
-                          year: 2020,
-                          status: 'To Read',
-                          statusColor: 'bg-yellow-500',
-                          tags: ['RAG', 'Retrieval']
-                      },
-                      { 
-                          title: 'Chain-of-Thought Prompting', 
-                          authors: 'Wei et al.', 
-                          year: 2022,
-                          status: 'Finished',
-                          statusColor: 'bg-green-500',
-                          tags: ['Prompting', 'Reasoning']
                       }
                   ];
 
-                  demoCards.forEach((card, index) => {
-                      const cardEl = document.createElement('div');
-                      cardEl.className = 'paper-card rounded-xl p-4 relative overflow-hidden opacity-0 transform translate-y-4';
-                      cardEl.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-                      cardEl.style.transitionDelay = `${index * 100}ms`;
-                      
-                      cardEl.innerHTML = `
-                          <div class="absolute left-0 top-0 bottom-0 w-1 ${card.statusColor} rounded-l-xl"></div>
-                          <div class="flex items-start gap-3 pl-2">
-                              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center flex-shrink-0">
-                                  <span class="material-symbols-outlined text-[20px] text-slate-400">description</span>
+                  function highlightText(text, searchTerm) {
+                      if (!searchTerm) return text;
+                      const regex = new RegExp(`(${searchTerm})`, 'gi');
+                      return text.replace(regex, '<mark class="bg-yellow-500/30 text-yellow-200 rounded px-0.5">$1</mark>');
+                  }
+
+                  function renderPapers(papers, searchTerm = '') {
+                      if (papers.length === 0) {
+                          resultsContainer.innerHTML = `
+                              <div class="text-center py-8 text-slate-400">
+                                  <span class="material-symbols-outlined text-4xl mb-2 block">search_off</span>
+                                  <p class="text-sm">No papers found</p>
                               </div>
-                              <div class="flex-1 min-w-0">
-                                  <h3 class="text-sm font-bold text-slate-100 mb-1 line-clamp-2">${card.title}</h3>
-                                  <p class="text-xs text-slate-400 mb-2">${card.authors} - ${card.year}</p>
-                                  <div class="flex flex-wrap gap-1">
-                                      ${card.tags.map(tag => `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">#${tag}</span>`).join('')}
+                          `;
+                          return;
+                      }
+
+                      resultsContainer.innerHTML = papers.map(card => {
+                          const highlightedTitle = highlightText(card.title, searchTerm);
+                          const highlightedAuthors = highlightText(card.authors, searchTerm);
+                          
+                          return `
+                              <div class="paper-card rounded-xl p-4 relative overflow-hidden transform transition-all duration-300" style="opacity: 0; transform: translateY(10px);">
+                                  <div class="absolute left-0 top-0 bottom-0 w-1 ${card.statusColor} rounded-l-xl"></div>
+                                  <div class="flex items-start gap-3 pl-2">
+                                      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center flex-shrink-0">
+                                          <span class="material-symbols-outlined text-[20px] text-slate-400">description</span>
+                                      </div>
+                                      <div class="flex-1 min-w-0">
+                                          <h3 class="text-sm font-bold text-slate-100 mb-1 line-clamp-2">${highlightedTitle}</h3>
+                                          <p class="text-xs text-slate-400 mb-2">${highlightedAuthors} - ${card.year}</p>
+                                          <div class="flex flex-wrap gap-1">
+                                              ${card.tags.map(tag => `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">#${tag}</span>`).join('')}
+                                          </div>
+                                      </div>
                                   </div>
                               </div>
-                          </div>
-                      `;
+                          `;
+                      }).join('');
+
+                      // Animate cards in
+                      const cards = resultsContainer.querySelectorAll('.paper-card');
+                      cards.forEach((card, index) => {
+                          setTimeout(() => {
+                              card.style.opacity = '1';
+                              card.style.transform = 'translateY(0)';
+                          }, index * 50);
+                      });
+                  }
+
+                  // Initial render
+                  renderPapers(allPapers);
+
+                  // Search functionality
+                  let searchTimeout;
+                  searchInput.addEventListener('input', function(e) {
+                      const searchTerm = e.target.value.trim().toLowerCase();
                       
-                      container.appendChild(cardEl);
-                      
-                      // Animate in
-                      setTimeout(() => {
-                          cardEl.style.opacity = '1';
-                          cardEl.style.transform = 'translateY(0)';
-                      }, 300 + (index * 100));
+                      clearTimeout(searchTimeout);
+                      searchTimeout = setTimeout(() => {
+                          if (searchTerm === '') {
+                              renderPapers(allPapers);
+                          } else {
+                              const filtered = allPapers.filter(paper => {
+                                  const titleMatch = paper.title.toLowerCase().includes(searchTerm);
+                                  const authorsMatch = paper.authors.toLowerCase().includes(searchTerm);
+                                  const tagsMatch = paper.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+                                  return titleMatch || authorsMatch || tagsMatch;
+                              });
+                              renderPapers(filtered, searchTerm);
+                          }
+                      }, 150);
                   });
+
+                  // Focus search input on load
+                  setTimeout(() => {
+                      searchInput.focus();
+                  }, 1000);
               }
 
               // 3. Feature Checklist Animation
@@ -1119,7 +1187,7 @@
               // Initialize all animations when DOM is ready
               function initAllAnimations() {
                   initNotesTypingDemo();
-                  initHeroCards();
+                  initHeroSearchDemo();
                   
                   // Feature checklist uses Intersection Observer to trigger on scroll
                   const featureSection = document.getElementById('feature-checklist');
