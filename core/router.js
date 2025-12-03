@@ -20,11 +20,22 @@ import { parseUrlHash, applyFiltersAndRender } from './filters.js';
  * @param {Function} setupFn - Optional setup/mount function to call after render
  */
 export const renderView = (app, viewContent, setupFn = null) => {
+    if (!app) {
+        console.error('renderView: app element is null');
+        return;
+    }
     app.innerHTML = viewContent;
     // Defer execution of setupFn to allow the browser to parse the new HTML and create DOM elements.
     // This prevents race conditions where view mount methods try to access elements not yet in the DOM.
+    // Use a longer timeout for graph view to ensure vis-network is loaded
     if (setupFn && typeof setupFn === 'function') {
-        setTimeout(() => setupFn(), 0);
+        setTimeout(() => {
+            try {
+                setupFn();
+            } catch (error) {
+                console.error('Error in view setup function:', error);
+            }
+        }, 0);
     }
 };
 
@@ -95,26 +106,44 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
             return; // Early return to avoid rendering into hidden container
         } else if (requestedPath === '/add') {
             appState.currentView = formView;
+            // Restore padding for form view
+            app.classList.remove('p-0');
+            app.classList.add('p-4', 'sm:p-6');
             renderView(app, templates.add, () => appState.currentView.mount(null, appState));
         } else if (requestedPath.startsWith('/details/')) {
             const id = parseInt(requestedPath.split('/')[2], 10);
             appState.currentView = detailsView; // Set the new current view
+            // Restore padding for details view
+            app.classList.remove('p-0');
+            app.classList.add('p-4', 'sm:p-6');
             renderView(app, templates.details, () => appState.currentView.mount(id, appState));
         } else if (requestedPath.startsWith('/edit/')) {
             const id = parseInt(requestedPath.split('/')[2], 10);
             appState.currentView = formView;
+            // Restore padding for edit view
+            app.classList.remove('p-0');
+            app.classList.add('p-4', 'sm:p-6');
             renderView(app, templates.add, () => appState.currentView.mount(id, appState));
         } else if (requestedPath === '/settings') {
             appState.currentView = settingsView;
+            // Restore padding for settings view
+            app.classList.remove('p-0');
+            app.classList.add('p-4', 'sm:p-6');
             renderView(app, templates.settings, async () => {
                 await appState.currentView.mount(appState);
                 renderSidebarStatusLinks(); // Re-render in case order changed
             });
         } else if (requestedPath === '/graph') {
             appState.currentView = graphView;
+            // Remove padding from app container for full-screen graph view
+            app.classList.remove('p-4', 'sm:p-6');
+            app.classList.add('p-0');
             renderView(app, templates.graph, () => appState.currentView.mount(appState));
         } else if (requestedPath === '/docs' || requestedPath.startsWith('/docs')) {
             appState.currentView = docsView;
+            // Restore padding for docs view
+            app.classList.remove('p-0');
+            app.classList.add('p-4', 'sm:p-6');
             renderView(app, templates.docs, () => appState.currentView.mount(appState));
         } else if (requestedPath.startsWith('/verify-email')) {
             // Handle email verification - extract token from hash query string
@@ -203,18 +232,21 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                     </div>
                 `);
             }
-        } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/')) {
-            // Parse URL hash to update filters (this reads from the URL and updates appState)
-            parseUrlHash(appState);
+            } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/')) {
+                // Parse URL hash to update filters (this reads from the URL and updates appState)
+                parseUrlHash(appState);
 
-            appState.currentView = dashboardView; // Set the new current view
-            // All dashboard-like views
-            renderView(app, templates.home, async () => {
-                await appState.currentView.mount(appState, () => applyFiltersAndRender(appState));
-                applyFiltersAndRender(appState); // This now handles the initial render correctly
-                // Re-render sidebar status links to ensure they use correct routes
-                renderSidebarStatusLinks();
-            });
+                appState.currentView = dashboardView; // Set the new current view
+                // Restore padding for dashboard view
+                app.classList.remove('p-0');
+                app.classList.add('p-4', 'sm:p-6');
+                // All dashboard-like views
+                renderView(app, templates.home, async () => {
+                    await appState.currentView.mount(appState, () => applyFiltersAndRender(appState));
+                    applyFiltersAndRender(appState); // This now handles the initial render correctly
+                    // Re-render sidebar status links to ensure they use correct routes
+                    renderSidebarStatusLinks();
+                });
         } else {
             renderView(app, `<h1>404 - Not Found</h1>`);
         }

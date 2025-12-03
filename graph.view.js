@@ -21,13 +21,16 @@ export const graphView = {
 
     async mount(appState) {
         try {
-            // Wait for DOM to be ready (renderView uses setTimeout, so we need to wait)
-            await new Promise(resolve => setTimeout(resolve, 0));
+            // Wait for DOM to be ready (renderView uses setTimeout, so we need to wait longer)
+            // Also wait for vis-network library to load
+            await new Promise(resolve => setTimeout(resolve, 100));
             
-            // Always load local papers and use local graph data
-            this.allPapers = await getAllPapers();
-            this.populateTagFilter();
-            const graphData = this.prepareLocalGraphData(this.allPapers);
+            // Check if vis-network is loaded
+            if (!window.vis) {
+                console.error('vis-network library not loaded');
+                showToast('Graph library not loaded. Please refresh the page.', 'error');
+                return;
+            }
 
             // Check if elements exist before accessing them
             const emptyState = document.getElementById('graph-empty-state');
@@ -38,6 +41,29 @@ export const graphView = {
                 showToast('Failed to initialize graph view', 'error');
                 return;
             }
+
+            // Always load local papers and use local graph data
+            try {
+                this.allPapers = await getAllPapers();
+            } catch (dbError) {
+                console.error('Error loading papers for graph:', dbError);
+                // Show empty state if database error
+                if (emptyState) {
+                    emptyState.classList.remove('hidden');
+                    // Update empty state message for database error
+                    const emptyStateText = emptyState.querySelector('p');
+                    if (emptyStateText) {
+                        emptyStateText.textContent = 'Unable to load papers. Database error: ' + (dbError.message || 'Unknown error');
+                    }
+                }
+                showToast('Failed to load papers for graph view: ' + (dbError.message || 'Database error'), 'error', { duration: 5000 });
+                // Don't return - still try to set up event listeners so UI is functional
+                this.setupEventListeners();
+                return;
+            }
+
+            this.populateTagFilter();
+            const graphData = this.prepareLocalGraphData(this.allPapers);
 
             if (graphData.edges.length === 0) {
                 if (emptyState) emptyState.classList.remove('hidden');
@@ -51,6 +77,12 @@ export const graphView = {
         } catch (error) {
             console.error('Error mounting graph view:', error);
             showToast('Failed to load paper network', 'error');
+            
+            // Show empty state on error
+            const emptyState = document.getElementById('graph-empty-state');
+            if (emptyState) {
+                emptyState.classList.remove('hidden');
+            }
         }
     },
 
@@ -219,7 +251,33 @@ export const graphView = {
 
     renderGraph(graphData) {
         const container = document.getElementById('graph-network');
-        if (!container || !window.vis) return;
+        if (!container) {
+            console.error('Graph network container not found in renderGraph');
+            return;
+        }
+        
+        if (!window.vis) {
+            console.error('vis-network library not available');
+            showToast('Graph library not loaded. Please refresh the page.', 'error');
+            return;
+        }
+
+        // Destroy existing network if it exists
+        if (this.network) {
+            try {
+                this.network.destroy();
+            } catch (e) {
+                console.warn('Error destroying existing network:', e);
+            }
+            this.network = null;
+        }
+
+        // Validate graph data
+        if (!graphData || !graphData.nodes || !graphData.edges) {
+            console.error('Invalid graph data:', graphData);
+            showToast('Invalid graph data', 'error');
+            return;
+        }
 
         const data = {
             nodes: new vis.DataSet(graphData.nodes),
@@ -301,7 +359,18 @@ export const graphView = {
             }
         };
 
-        this.network = new vis.Network(container, data, options);
+        try {
+            this.network = new vis.Network(container, data, options);
+        } catch (error) {
+            console.error('Error creating vis-network:', error);
+            showToast('Failed to render graph. Please refresh the page.', 'error');
+            // Show empty state on render error
+            const emptyState = document.getElementById('graph-empty-state');
+            if (emptyState) {
+                emptyState.classList.remove('hidden');
+            }
+            return;
+        }
 
         // Events
         this.network.on('click', (params) => {
