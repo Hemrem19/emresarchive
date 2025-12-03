@@ -106,44 +106,51 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
             return; // Early return to avoid rendering into hidden container
         } else if (requestedPath === '/add') {
             appState.currentView = formView;
-            // Restore padding for form view
-            app.classList.remove('p-0');
-            app.classList.add('p-4', 'sm:p-6');
+            // Restore padding and overflow for form view
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
             renderView(app, templates.add, () => appState.currentView.mount(null, appState));
         } else if (requestedPath.startsWith('/details/')) {
             const id = parseInt(requestedPath.split('/')[2], 10);
             appState.currentView = detailsView; // Set the new current view
-            // Restore padding for details view
-            app.classList.remove('p-0');
-            app.classList.add('p-4', 'sm:p-6');
+            // Restore padding and overflow for details view
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
             renderView(app, templates.details, () => appState.currentView.mount(id, appState));
         } else if (requestedPath.startsWith('/edit/')) {
             const id = parseInt(requestedPath.split('/')[2], 10);
             appState.currentView = formView;
-            // Restore padding for edit view
-            app.classList.remove('p-0');
-            app.classList.add('p-4', 'sm:p-6');
+            // Restore padding and overflow for edit view
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
             renderView(app, templates.add, () => appState.currentView.mount(id, appState));
         } else if (requestedPath === '/settings') {
             appState.currentView = settingsView;
-            // Restore padding for settings view
-            app.classList.remove('p-0');
-            app.classList.add('p-4', 'sm:p-6');
+            // Restore padding and overflow for settings view
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
             renderView(app, templates.settings, async () => {
                 await appState.currentView.mount(appState);
                 renderSidebarStatusLinks(); // Re-render in case order changed
             });
         } else if (requestedPath === '/graph') {
             appState.currentView = graphView;
-            // Remove padding from app container for full-screen graph view
-            app.classList.remove('p-4', 'sm:p-6');
-            app.classList.add('p-0');
+            // Remove padding and overflow from app container for full-screen graph view
+            app.classList.remove('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.classList.add('p-0', 'overflow-hidden');
+            // Ensure app container has full height
+            app.style.height = '100vh';
             renderView(app, templates.graph, () => appState.currentView.mount(appState));
         } else if (requestedPath === '/docs' || requestedPath.startsWith('/docs')) {
             appState.currentView = docsView;
-            // Restore padding for docs view
-            app.classList.remove('p-0');
-            app.classList.add('p-4', 'sm:p-6');
+            // Restore padding and overflow for docs view
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
             renderView(app, templates.docs, () => appState.currentView.mount(appState));
         } else if (requestedPath.startsWith('/verify-email')) {
             // Handle email verification - extract token from hash query string
@@ -237,9 +244,10 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                 parseUrlHash(appState);
 
                 appState.currentView = dashboardView; // Set the new current view
-                // Restore padding for dashboard view
-                app.classList.remove('p-0');
-                app.classList.add('p-4', 'sm:p-6');
+                // Restore padding and overflow for dashboard view
+                app.classList.remove('p-0', 'overflow-hidden');
+                app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+                app.style.height = '';
                 // All dashboard-like views
                 renderView(app, templates.home, async () => {
                     await appState.currentView.mount(appState, () => applyFiltersAndRender(appState));

@@ -88,15 +88,22 @@ describe('DB Core Module', () => {
     });
 
     it('should return existing db instance if already open', async () => {
-        // First call opens the DB
+        // First call opens the DB - need to handle the version check first
         const promise1 = openDB();
+        // First call is to check version (without version parameter)
+        expect(mockIndexedDB.open).toHaveBeenCalledWith(DB_NAME);
+        mockRequest.onsuccess({ target: { result: mockDb } });
+        
+        // Second call is to open with version
+        expect(mockIndexedDB.open).toHaveBeenCalledWith(DB_NAME, DB_VERSION);
         mockRequest.onsuccess({ target: { result: mockDb } });
         const db1 = await promise1;
 
-        // Second call should return the same instance immediately
+        // Second call should return the same instance immediately (no new open calls)
         const db2 = await openDB();
         expect(db2).toBe(db1);
-        expect(mockIndexedDB.open).toHaveBeenCalledTimes(1);
+        // Should only have 2 calls total (one for each openDB call, each doing version check + open)
+        expect(mockIndexedDB.open).toHaveBeenCalledTimes(2);
     });
 
     it('should open database successfully', async () => {
@@ -174,13 +181,16 @@ describe('DB Core Module - Fresh Instances', () => {
         };
 
         const mockRequest = {
-            onupgradeneeded: null,
-            onsuccess: null,
-            onerror: null,
-            onblocked: null,
+            onupgradeneeded: vi.fn(),
+            onsuccess: vi.fn(),
+            onerror: vi.fn(),
+            onblocked: vi.fn(),
             result: mockDb,
             transaction: mockTransaction
         };
+
+        // Mock version property for the database
+        mockDb.version = 6;
 
         const mockIndexedDB = {
             open: vi.fn().mockReturnValue(mockRequest)
@@ -206,65 +216,85 @@ describe('DB Core Module - Fresh Instances', () => {
 
     it('should handle database open error', async () => {
         const { openDB } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open(); // Get the mock request
-
+        // First call is version check - make it succeed
+        const checkRequest = global.indexedDB.open();
+        checkRequest.onsuccess({ target: { result: { version: 6, close: vi.fn() } } });
+        
+        // Second call is the actual open - make it fail
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
-        // Trigger error
+        // Trigger error on the actual open request
         const error = new Error('Access denied');
-        mockRequest.onerror({ target: { error } });
+        openRequest.onerror({ target: { error } });
 
         await expect(promise).rejects.toThrow('Database error: Unable to open database');
     });
 
     it('should handle QuotaExceededError', async () => {
         const { openDB } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed
+        const checkRequest = global.indexedDB.open();
+        checkRequest.onsuccess({ target: { result: { version: 6, close: vi.fn() } } });
+        
+        // Second call is the actual open - make it fail with QuotaExceededError
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
         const error = new Error('Quota exceeded');
         error.name = 'QuotaExceededError';
-        mockRequest.onerror({ target: { error } });
+        openRequest.onerror({ target: { error } });
 
         await expect(promise).rejects.toThrow('Storage quota exceeded');
     });
 
     it('should handle VersionError', async () => {
         const { openDB } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed
+        const checkRequest = global.indexedDB.open();
+        checkRequest.onsuccess({ target: { result: { version: 6, close: vi.fn() } } });
+        
+        // Second call is the actual open - make it fail with VersionError
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
         const error = new Error('Version mismatch');
         error.name = 'VersionError';
-        mockRequest.onerror({ target: { error } });
+        openRequest.onerror({ target: { error } });
 
         await expect(promise).rejects.toThrow('Database version error');
     });
 
     it('should handle blocked database', async () => {
         const { openDB } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed
+        const checkRequest = global.indexedDB.open();
+        checkRequest.onsuccess({ target: { result: { version: 6, close: vi.fn() } } });
+        
+        // Second call is the actual open - make it blocked
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
-        mockRequest.onblocked();
+        openRequest.onblocked();
 
         await expect(promise).rejects.toThrow('Database blocked');
     });
 
     it('should handle database upgrade (schema creation)', async () => {
         const { openDB, STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed with version 0 (new database)
+        const checkRequest = global.indexedDB.open();
+        const checkDb = { version: 0, close: vi.fn() };
+        checkRequest.onsuccess({ target: { result: checkDb } });
+        
+        // Second call is the actual open with version - trigger upgrade
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
-        // Trigger upgrade
-        const mockDb = mockRequest.result;
-        const mockTransaction = mockRequest.transaction;
+        const mockDb = openRequest.result;
+        const mockTransaction = openRequest.transaction;
 
-        mockRequest.onupgradeneeded({
+        openRequest.onupgradeneeded({
             target: {
                 result: mockDb,
                 transaction: mockTransaction
@@ -278,18 +308,23 @@ describe('DB Core Module - Fresh Instances', () => {
         expect(mockDb.createObjectStore).toHaveBeenCalledWith(STORE_NAME_ANNOTATIONS, expect.any(Object));
 
         // Complete success
-        mockRequest.onsuccess({ target: { result: mockDb } });
+        openRequest.onsuccess({ target: { result: mockDb } });
         await promise;
     });
 
     it('should handle migration for version 3 (updatedAt)', async () => {
         const { openDB, STORE_NAME_PAPERS } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed with version 2
+        const checkRequest = global.indexedDB.open();
+        const checkDb = { version: 2, close: vi.fn() };
+        checkRequest.onsuccess({ target: { result: checkDb } });
+        
+        // Second call is the actual open with version - trigger upgrade
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
-        const mockDb = mockRequest.result;
-        const mockTransaction = mockRequest.transaction;
+        const mockDb = openRequest.result;
+        const mockTransaction = openRequest.transaction;
 
         // Mock existing stores
         mockDb.objectStoreNames.contains.mockReturnValue(true);
@@ -306,7 +341,7 @@ describe('DB Core Module - Fresh Instances', () => {
         };
         mockTransaction.objectStore.mockReturnValue(mockPaperStore);
 
-        mockRequest.onupgradeneeded({
+        openRequest.onupgradeneeded({
             target: {
                 result: mockDb,
                 transaction: mockTransaction
@@ -324,18 +359,23 @@ describe('DB Core Module - Fresh Instances', () => {
             updatedAt: expect.any(Date)
         }));
 
-        mockRequest.onsuccess({ target: { result: mockDb } });
+        openRequest.onsuccess({ target: { result: mockDb } });
         await promise;
     });
 
     it('should handle migration for version 6 (rating/summary)', async () => {
         const { openDB } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed with version 5
+        const checkRequest = global.indexedDB.open();
+        const checkDb = { version: 5, close: vi.fn() };
+        checkRequest.onsuccess({ target: { result: checkDb } });
+        
+        // Second call is the actual open with version - trigger upgrade
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
-        const mockDb = mockRequest.result;
-        const mockTransaction = mockRequest.transaction;
+        const mockDb = openRequest.result;
+        const mockTransaction = openRequest.transaction;
 
         mockDb.objectStoreNames.contains.mockReturnValue(true);
 
@@ -344,13 +384,12 @@ describe('DB Core Module - Fresh Instances', () => {
             createIndex: vi.fn(),
             indexNames: { contains: vi.fn().mockReturnValue(false) },
             getAll: vi.fn()
-                .mockReturnValueOnce({ onsuccess: null, result: mockPapers }) // For v3
-                .mockReturnValueOnce({ onsuccess: null, result: mockPapers }), // For v6
+                .mockReturnValueOnce({ onsuccess: null, result: mockPapers }), // For v6 only (oldVersion=5 > 3)
             put: vi.fn()
         };
         mockTransaction.objectStore.mockReturnValue(mockPaperStore);
 
-        mockRequest.onupgradeneeded({
+        openRequest.onupgradeneeded({
             target: {
                 result: mockDb,
                 transaction: mockTransaction
@@ -368,39 +407,49 @@ describe('DB Core Module - Fresh Instances', () => {
             summary: null
         }));
 
-        mockRequest.onsuccess({ target: { result: mockDb } });
+        openRequest.onsuccess({ target: { result: mockDb } });
         await promise;
     });
 
     it('should handle upgrade errors gracefully', async () => {
         const { openDB } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed with version 0
+        const checkRequest = global.indexedDB.open();
+        const checkDb = { version: 0, close: vi.fn() };
+        checkRequest.onsuccess({ target: { result: checkDb } });
+        
+        // Second call is the actual open with version - trigger upgrade error
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
 
         // Mock error during upgrade
-        mockRequest.result.createObjectStore.mockImplementation(() => {
+        openRequest.result.createObjectStore.mockImplementation(() => {
             throw new Error('Create store failed');
         });
 
-        mockRequest.onupgradeneeded({
+        openRequest.onupgradeneeded({
             target: {
-                result: mockRequest.result,
-                transaction: mockRequest.transaction
+                result: openRequest.result,
+                transaction: openRequest.transaction
             },
             oldVersion: 0
         });
 
         await expect(promise).rejects.toThrow('Database upgrade failed');
-        expect(mockRequest.transaction.abort).toHaveBeenCalled();
+        expect(openRequest.transaction.abort).toHaveBeenCalled();
     });
 
     it('should handle version change event', async () => {
         const { openDB } = await import('../../db/core.js');
-        const mockRequest = global.indexedDB.open();
-
+        // First call is version check - make it succeed
+        const checkRequest = global.indexedDB.open();
+        const checkDb = { version: 6, close: vi.fn() };
+        checkRequest.onsuccess({ target: { result: checkDb } });
+        
+        // Second call is the actual open
+        const openRequest = global.indexedDB.open();
         const promise = openDB();
-        mockRequest.onsuccess({ target: { result: mockRequest.result } });
+        openRequest.onsuccess({ target: { result: openRequest.result } });
         const db = await promise;
 
         // Trigger version change

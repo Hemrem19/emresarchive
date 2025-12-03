@@ -256,6 +256,19 @@ export const graphView = {
             return;
         }
         
+        // Ensure container has dimensions
+        const containerRect = container.getBoundingClientRect();
+        if (containerRect.width === 0 || containerRect.height === 0) {
+            console.warn('Graph container has zero dimensions:', containerRect);
+            // Force container to have dimensions
+            if (containerRect.width === 0) {
+                container.style.width = '100%';
+            }
+            if (containerRect.height === 0) {
+                container.style.height = '100vh';
+            }
+        }
+        
         if (!window.vis) {
             console.error('vis-network library not available');
             showToast('Graph library not loaded. Please refresh the page.', 'error');
@@ -278,6 +291,8 @@ export const graphView = {
             showToast('Invalid graph data', 'error');
             return;
         }
+
+        console.log('Rendering graph with', graphData.nodes.length, 'nodes and', graphData.edges.length, 'edges');
 
         const data = {
             nodes: new vis.DataSet(graphData.nodes),

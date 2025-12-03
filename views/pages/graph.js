@@ -1,7 +1,7 @@
 export const graphView = `
-        <div class="flex-grow flex flex-col w-full min-h-0 relative bg-slate-900 text-slate-100 overflow-hidden">
+        <div class="flex-grow flex flex-col w-full h-full min-h-screen relative bg-slate-900 text-slate-100 overflow-hidden">
             <!-- Graph Container -->
-            <div id="graph-network" class="absolute inset-0 w-full h-full z-0"></div>
+            <div id="graph-network" class="absolute inset-0 w-full h-full z-0" style="min-height: 100vh;"></div>
 
             <!-- Floating Header / Controls -->
             <div class="absolute top-4 left-4 right-4 z-20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pointer-events-none">
