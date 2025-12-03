@@ -120,12 +120,12 @@ export const formView = {
         // Drag and drop
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropzone.classList.add('border-primary', 'bg-primary/5');
+            dropzone.classList.add('border-blue-500/50', 'bg-blue-500/10');
         });
 
         dropzone.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            dropzone.classList.remove('border-primary', 'bg-primary/5');
+            dropzone.classList.remove('border-blue-500/50', 'bg-blue-500/10');
         });
 
         dropzone.addEventListener('drop', (e) => {
@@ -338,7 +338,7 @@ export const formView = {
             const filteredSuggestions = suggestions.filter(s => !existingTags.has(s));
 
             if (filteredSuggestions.length > 0) {
-                suggestionsContainer.innerHTML = `<p class="text-xs text-stone-500 dark:text-stone-400 w-full mb-1">Suggested tags from title:</p>`;
+                suggestionsContainer.innerHTML = `<p class="text-xs text-slate-500 w-full mb-2 uppercase tracking-wide">Suggested tags from title:</p>`;
             }
 
             filteredSuggestions.forEach(suggestion => {
@@ -346,7 +346,7 @@ export const formView = {
                 button.type = 'button';
                 button.textContent = `+ ${suggestion}`;
                 button.dataset.tag = suggestion;
-                button.className = 'text-xs font-medium bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300 px-2 py-1 rounded-full hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors';
+                button.className = 'text-xs font-semibold bg-blue-500/10 border border-blue-500/30 text-blue-300 px-3 py-1.5 rounded-full hover:bg-blue-500/20 hover:text-blue-200 transition-colors';
                 suggestionsContainer.appendChild(button);
             });
         };

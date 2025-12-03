@@ -1,81 +1,102 @@
 export const addView = `
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="max-w-3xl mx-auto" id="add-edit-paper-view">
-                <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg p-4 sm:p-6 lg:p-8">
-                    <h2 class="text-2xl font-bold mb-6">Add New Paper</h2>
+                <div class="glass-panel border border-white/5 rounded-2xl shadow-2xl shadow-black/40 p-6 sm:p-8 lg:p-10">
+                    <div class="flex items-center justify-between mb-8">
+                        <h2 class="text-2xl font-bold text-white">Add New Paper</h2>
+                        <a href="#/app" class="text-sm font-medium text-slate-400 hover:text-white transition-colors">Cancel</a>
+                    </div>
                     <form id="add-paper-form">
                         <div class="grid grid-cols-1 gap-6">
                             <div>
-                                <label for="title" class="block text-sm font-medium text-stone-700 dark:text-stone-300">Title</label>
-                                <input type="text" name="title" id="title" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm">
+                                <label for="title" class="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Title</label>
+                                <input type="text" name="title" id="title" 
+                                    class="w-full h-11 px-4 rounded-xl border border-white/10 bg-slate-800/50 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/40 focus:bg-slate-800/80 transition-all shadow-inner" 
+                                    placeholder="Enter paper title">
                             </div>
                             <div>
-                                <label for="authors" class="block text-sm font-medium text-stone-700 dark:text-stone-300">Authors</label>
-                                <input type="text" name="authors" id="authors" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm">
-                                <p class="mt-2 text-sm text-stone-500">Comma-separated list of authors.</p>
+                                <label for="authors" class="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Authors</label>
+                                <input type="text" name="authors" id="authors" 
+                                    class="w-full h-11 px-4 rounded-xl border border-white/10 bg-slate-800/50 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/40 focus:bg-slate-800/80 transition-all shadow-inner" 
+                                    placeholder="Author 1, Author 2, ...">
+                                <p class="mt-2 text-xs text-slate-500">Comma-separated list of authors</p>
                             </div>
                             <details id="advanced-details" class="group">
-                                <summary class="list-none flex items-center gap-2 cursor-pointer text-sm font-medium text-stone-600 dark:text-stone-400 hover:text-primary">
-                                    <span class="material-symbols-outlined transition-transform group-open:rotate-90">chevron_right</span>
-                                    Advanced
+                                <summary class="list-none flex items-center gap-2 cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-400 hover:text-white transition-colors py-2">
+                                    <span class="material-symbols-outlined text-base transition-transform group-open:rotate-90">chevron_right</span>
+                                    Advanced Details
                                 </summary>
-                                <div class="mt-4 grid grid-cols-1 gap-6 border-t border-stone-200 dark:border-stone-800 pt-6">
+                                <div class="mt-4 grid grid-cols-1 gap-6 border-t border-white/5 pt-6">
                                     <div>
-                                        <label for="journal" class="block text-sm font-medium text-stone-700 dark:text-stone-300">Journal / Conference</label>
-                                        <input type="text" name="journal" id="journal" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm">
+                                        <label for="journal" class="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Journal / Conference</label>
+                                        <input type="text" name="journal" id="journal" 
+                                            class="w-full h-11 px-4 rounded-xl border border-white/10 bg-slate-800/50 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/40 focus:bg-slate-800/80 transition-all shadow-inner" 
+                                            placeholder="Journal or conference name">
                                     </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
-                                            <label for="year" class="block text-sm font-medium text-stone-700 dark:text-stone-300">Publication Year</label>
-                                            <input type="number" name="year" id="year" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm">
+                                            <label for="year" class="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Publication Year</label>
+                                            <input type="number" name="year" id="year" 
+                                                class="w-full h-11 px-4 rounded-xl border border-white/10 bg-slate-800/50 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/40 focus:bg-slate-800/80 transition-all shadow-inner" 
+                                                placeholder="2024">
                                         </div>
                                         <div>
-                                            <label for="doi" class="block text-sm font-medium text-stone-700 dark:text-stone-300">URL or DOI</label>
-                                            <div class="mt-1 flex rounded-md shadow-sm">
-                                                <input type="text" name="doi" id="doi" class="block w-full flex-1 rounded-none rounded-l-md border-stone-300 focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm" placeholder="10.1109/...">
-                                                <button type="button" id="fetch-doi-btn" class="inline-flex items-center rounded-r-md border border-l-0 border-stone-300 bg-stone-50 px-3 text-sm text-stone-500 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-700/50 dark:text-stone-300 dark:hover:bg-stone-700">Fetch</button>
+                                            <label for="doi" class="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">URL or DOI</label>
+                                            <div class="flex rounded-xl shadow-inner overflow-hidden border border-white/10 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/40 transition-all">
+                                                <input type="text" name="doi" id="doi" 
+                                                    class="flex-1 h-11 px-4 bg-slate-800/50 text-white placeholder-slate-500 focus:outline-none" 
+                                                    placeholder="10.1109/... or https://...">
+                                                <button type="button" id="fetch-doi-btn" 
+                                                    class="px-4 border-l border-white/10 bg-slate-700/50 text-sm font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+                                                    Fetch
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </details>
                             <div>
-                                <label for="tags" class="block text-sm font-medium text-stone-700 dark:text-stone-300">Tags</label>
-                                <input type="text" name="tags" id="tags" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-primary focus:ring-primary dark:bg-stone-800 dark:border-stone-700 dark:text-white sm:text-sm">
-                                <p class="mt-2 text-sm text-stone-500">Comma-separated list of tags.</p>
-                                <div id="tag-suggestions" class="mt-2 flex flex-wrap gap-2"></div>
+                                <label for="tags" class="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Tags</label>
+                                <input type="text" name="tags" id="tags" 
+                                    class="w-full h-11 px-4 rounded-xl border border-white/10 bg-slate-800/50 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-blue-500/40 focus:bg-slate-800/80 transition-all shadow-inner" 
+                                    placeholder="tag1, tag2, ...">
+                                <p class="mt-2 text-xs text-slate-500">Comma-separated list of tags</p>
+                                <div id="tag-suggestions" class="mt-3 flex flex-wrap gap-2"></div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-stone-700 dark:text-stone-300">PDF File</label>
-                                <div id="file-upload-dropzone" class="mt-1 flex justify-center rounded-md border-2 border-dashed border-stone-300 px-6 pt-5 pb-6 dark:border-stone-700 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
-                                    <div class="space-y-1 text-center">
-                                        <svg class="mx-auto h-12 w-12 text-stone-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                        </svg>
-                                        <div class="flex text-sm text-stone-600 dark:text-stone-400">
-                                            <label for="file-upload" class="relative cursor-pointer rounded-md bg-white font-medium text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 hover:text-primary-dark dark:bg-stone-900">
+                                <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">PDF File</label>
+                                <div id="file-upload-dropzone" 
+                                    class="mt-1 flex justify-center rounded-xl border-2 border-dashed border-white/10 bg-slate-800/30 px-6 pt-8 pb-8 cursor-pointer hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group">
+                                    <div class="space-y-3 text-center">
+                                        <span class="material-symbols-outlined text-5xl text-slate-600 group-hover:text-blue-400 transition-colors">cloud_upload</span>
+                                        <div class="flex text-sm text-slate-400">
+                                            <label for="file-upload" class="relative cursor-pointer rounded-md font-semibold text-blue-400 hover:text-blue-300 focus-within:outline-none">
                                                 <span>Upload a file</span>
                                                 <input id="file-upload" name="file-upload" type="file" class="sr-only" accept="application/pdf">
                                             </label>
                                             <p class="pl-1">or drag and drop</p>
                                         </div>
-                                        <p class="text-xs text-stone-500">PDF up to 10MB</p>
+                                        <p class="text-xs text-slate-500">PDF up to 10MB</p>
                                     </div>
                                 </div>
-                                <div id="file-preview" class="hidden mt-2 flex items-center justify-between p-3 bg-stone-100 dark:bg-stone-800/50 rounded-lg">
+                                <div id="file-preview" class="hidden mt-3 flex items-center justify-between p-4 rounded-xl border border-white/10 bg-slate-800/50">
                                     <div class="flex items-center gap-3">
-                                        <span class="material-symbols-outlined text-red-500">picture_as_pdf</span>
-                                        <p id="file-name" class="text-sm font-medium text-stone-800 dark:text-stone-200 truncate"></p>
+                                        <span class="material-symbols-outlined text-2xl text-red-400">picture_as_pdf</span>
+                                        <p id="file-name" class="text-sm font-medium text-slate-200 truncate"></p>
                                     </div>
-                                    <button type="button" id="remove-file-btn" class="p-1.5 text-red-500 hover:text-red-700 dark:hover:text-red-400 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50">
+                                    <button type="button" id="remove-file-btn" 
+                                        class="p-2 text-red-400 hover:text-red-300 rounded-lg hover:bg-red-500/20 transition-colors">
                                         <span class="material-symbols-outlined text-xl">delete</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-6 flex items-center justify-end gap-x-4">
-                            <a href="#/app" class="text-sm font-semibold leading-6 text-stone-900 dark:text-white">Cancel</a>
-                            <button type="submit" class="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Save</button>
+                        <div class="mt-8 flex items-center justify-end gap-4 pt-6 border-t border-white/5">
+                            <a href="#/app" class="px-4 py-2.5 text-sm font-semibold text-slate-400 hover:text-white transition-colors">Cancel</a>
+                            <button type="submit" 
+                                class="px-6 py-2.5 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-95 border border-blue-400/20">
+                                Save Paper
+                            </button>
                         </div>
                     </form>
                 </div>
