@@ -114,21 +114,23 @@ export function parseUrlHash(appState) {
 
     // Parse compound filter format: #/app/filter/status:Reading/tag:ml/tag:ai or #/filter/... (legacy)
     if (path.startsWith('#/app/filter/')) {
-        const parts = path.substring(14).split('/'); // Remove '#/app/filter/'
+        const prefix = '#/app/filter/';
+        const parts = path.substring(prefix.length).split('/'); // Remove '#/app/filter/'
         parts.forEach(part => {
-            if (part.startsWith('status:')) {
+            if (part && part.startsWith('status:')) {
                 appState.activeFilters.status = decodeURIComponent(part.substring(7));
-            } else if (part.startsWith('tag:')) {
+            } else if (part && part.startsWith('tag:')) {
                 appState.activeFilters.tags.push(decodeURIComponent(part.substring(4)));
             }
         });
     } else if (path.startsWith('#/filter/')) {
         // Legacy support for old filter format
-        const parts = path.substring(9).split('/'); // Remove '#/filter/'
+        const prefix = '#/filter/';
+        const parts = path.substring(prefix.length).split('/'); // Remove '#/filter/'
         parts.forEach(part => {
-            if (part.startsWith('status:')) {
+            if (part && part.startsWith('status:')) {
                 appState.activeFilters.status = decodeURIComponent(part.substring(7));
-            } else if (part.startsWith('tag:')) {
+            } else if (part && part.startsWith('tag:')) {
                 appState.activeFilters.tags.push(decodeURIComponent(part.substring(4)));
             }
         });
