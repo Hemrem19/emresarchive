@@ -45,27 +45,27 @@ export const settingsView = {
                 }, {});
 
                 let fullStatsHtml = `
-                <div class="flex flex-col rounded-lg bg-stone-100 dark:bg-stone-800/50 p-4">
-                    <dt class="text-sm font-medium text-stone-500 dark:text-stone-400 truncate">Total Papers</dt>
-                    <dd class="mt-1 text-3xl font-semibold text-primary">${totalPapers}</dd>
+                <div class="flex flex-col rounded-xl border border-white/5 bg-slate-800/50 backdrop-blur-sm p-4 shadow-lg shadow-black/20">
+                    <dt class="text-xs font-medium text-slate-400 uppercase tracking-wider truncate">Total Papers</dt>
+                    <dd class="mt-2 text-3xl font-bold text-primary">${totalPapers}</dd>
                 </div>
                 `;
 
                 const statusOrder = [...getStatusOrder(), 'Unknown'];
                 const statusColors = {
-                    'Reading': 'text-blue-500',
-                    'To Read': 'text-yellow-500',
-                    'Finished': 'text-green-500',
-                    'Archived': 'text-stone-500',
-                    'Unknown': 'text-red-500',
+                    'Reading': 'text-blue-400',
+                    'To Read': 'text-yellow-400',
+                    'Finished': 'text-green-400',
+                    'Archived': 'text-slate-400',
+                    'Unknown': 'text-red-400',
                 };
 
                 fullStatsHtml += statusOrder
                     .filter(status => statusCounts[status] > 0 || status === 'Unknown' && !Object.keys(statusCounts).length) // Only show existing or default
                     .map(status => `
-                    <div class="flex flex-col rounded-lg bg-stone-100 dark:bg-stone-800/50 p-4">
-                        <dt class="text-sm font-medium text-stone-500 dark:text-stone-400 truncate">${status}</dt>
-                        <dd class="mt-1 text-3xl font-semibold ${statusColors[status] || 'text-stone-900 dark:text-white'}">${statusCounts[status] || 0}</dd>
+                    <div class="flex flex-col rounded-xl border border-white/5 bg-slate-800/50 backdrop-blur-sm p-4 shadow-lg shadow-black/20">
+                        <dt class="text-xs font-medium text-slate-400 uppercase tracking-wider truncate">${status}</dt>
+                        <dd class="mt-2 text-3xl font-bold ${statusColors[status] || 'text-slate-100'}">${statusCounts[status] || 0}</dd>
                     </div>
                 `).join('');
 
@@ -362,12 +362,12 @@ export const settingsView = {
 
         let draggedItem = null;
 
-        const render = () => {
+            const render = () => {
             const statuses = getStatusOrder();
             container.innerHTML = statuses.map(status => `
-                <li draggable="true" class="status-item flex items-center justify-between p-3 bg-stone-100 dark:bg-stone-800/50 rounded-lg cursor-grab active:cursor-grabbing">
-                    <span class="font-medium">${status}</span>
-                    <span class="material-symbols-outlined text-stone-400 dark:text-stone-500">drag_indicator</span>
+                <li draggable="true" class="status-item flex items-center justify-between p-3 border border-white/5 bg-slate-800/50 rounded-xl cursor-grab active:cursor-grabbing hover:bg-slate-700/50 transition-colors shadow-sm">
+                    <span class="font-medium text-slate-100">${status}</span>
+                    <span class="material-symbols-outlined text-slate-400">drag_indicator</span>
                 </li>
             `).join('');
         };
