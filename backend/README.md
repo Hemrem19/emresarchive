@@ -244,5 +244,13 @@ Current status: **Foundation Setup Complete**
 
 ---
 
+## 📝 License
+
+This backend software is proprietary and confidential.
+All rights reserved.
+See [LICENSE](LICENSE) for details.
+
+---
+
 **Built for citavErs** 🚀
 

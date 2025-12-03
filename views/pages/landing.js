@@ -152,7 +152,7 @@ export const landingView = `
                         <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">
                             Fully open source on GitHub. Inspect, modify, and contribute.
                         </p>
-                        <a href="https://github.com/Hemrem19/citavers" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-primary hover:underline">
+                        <a href="https://github.com/Hemrem19/emresarchive" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-primary hover:underline">
                             View on GitHub
                             <span class="material-symbols-outlined text-sm ml-1">open_in_new</span>
                         </a>
@@ -288,7 +288,7 @@ export const landingView = `
                     <div>
                         <h4 class="text-sm font-semibold text-white uppercase tracking-wider mb-4">Resources</h4>
                         <ul class="space-y-2">
-                            <li><a href="https://github.com/Hemrem19/citavers" target="_blank" rel="noopener noreferrer" class="text-sm hover:text-white transition-colors">GitHub Repository</a></li>
+                            <li><a href="https://github.com/Hemrem19/emresarchive" target="_blank" rel="noopener noreferrer" class="text-sm hover:text-white transition-colors">GitHub Repository</a></li>
                             <li><a href="#/docs" class="text-sm hover:text-white transition-colors">Documentation</a></li>
                             <li><a href="#/app" class="text-sm hover:text-white transition-colors">Launch App</a></li>
                         </ul>

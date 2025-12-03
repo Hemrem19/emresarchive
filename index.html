@@ -5,30 +5,33 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
     <title>citavers - Your Research, Your Rules.</title>
-    <meta name="description" content="The simple research paper manager. Organize, annotate, and connect your knowledge without losing control of your data." />
-    
+    <meta name="description"
+        content="The simple research paper manager. Organize, annotate, and connect your knowledge without losing control of your data." />
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://citavers.com/" />
     <meta property="og:title" content="citavers - Your Research, Your Rules." />
-    <meta property="og:description" content="The simple research paper manager. Organize, annotate, and connect your knowledge." />
+    <meta property="og:description"
+        content="The simple research paper manager. Organize, annotate, and connect your knowledge." />
     <meta property="og:image" content="https://citavers.com/assets/logos/social-preview.png" />
-    
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#0f172a">
     <link rel="icon" type="image/png" href="assets/logos/favicon.png">
     <link rel="apple-touch-icon" href="assets/logos/icon-192.png">
     <link rel="manifest" href="assets/logos/site.webmanifest">
-    
+
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com" rel="preconnect" />
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    
+
     <!-- PDF.js & Vis-Network (App Dependencies) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -71,13 +74,16 @@
             width: 6px;
             height: 6px;
         }
+
         ::-webkit-scrollbar-track {
             background: transparent;
         }
+
         ::-webkit-scrollbar-thumb {
             background: #334155;
             border-radius: 10px;
         }
+
         ::-webkit-scrollbar-thumb:hover {
             background: #475569;
         }
@@ -96,14 +102,14 @@
             -webkit-backdrop-filter: blur(20px);
             border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
-        
+
         .glass {
             background: rgba(17, 24, 39, 0.8);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
-        
+
         .glass-card {
             background: linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%);
             backdrop-filter: blur(10px);
@@ -123,7 +129,7 @@
             border: 1px solid rgba(255, 255, 255, 0.03);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .paper-card:hover {
             background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%);
             border-color: rgba(59, 130, 246, 0.3);
@@ -132,16 +138,25 @@
         }
 
         /* Status Dot Glows */
-        .status-dot-reading { box-shadow: 0 0 10px rgba(59, 130, 246, 0.6); }
-        .status-dot-toread { box-shadow: 0 0 10px rgba(234, 179, 8, 0.6); }
-        .status-dot-finished { box-shadow: 0 0 10px rgba(34, 197, 94, 0.6); }
+        .status-dot-reading {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+        }
+
+        .status-dot-toread {
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.6);
+        }
+
+        .status-dot-finished {
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+        }
 
         /* Hero Image 3D effect */
         .hero-image-container {
             transform: perspective(1000px) rotateX(2deg);
             box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
         @media (min-width: 768px) {
             .hero-image-container {
                 box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -154,16 +169,17 @@
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
         }
-        
+
         /* Mobile Sidebar transitions */
         .sidebar-transition {
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         /* Hide scrollbar for horizontal scroll areas */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
+
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -171,32 +187,38 @@
     </style>
 </head>
 
-<body class="bg-[#0B0F19] font-display text-slate-300 antialiased selection:bg-primary selection:text-white overflow-x-hidden">
+<body
+    class="bg-[#0B0F19] font-display text-slate-300 antialiased selection:bg-primary selection:text-white overflow-x-hidden">
 
     <!-- ========================================== -->
     <!-- GLOBAL BACKGROUNDS                         -->
     <!-- ========================================== -->
     <!-- Background Grids & Glows (Visible on both Landing and App) -->
-    <div class="fixed inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] [mask-image:linear-gradient(to_bottom,white,transparent)] pointer-events-none z-0"></div>
+    <div
+        class="fixed inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] [mask-image:linear-gradient(to_bottom,white,transparent)] pointer-events-none z-0">
+    </div>
     <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-hero-glow pointer-events-none z-0"></div>
 
     <!-- ========================================== -->
     <!-- LANDING PAGE (Visible only on root / )     -->
     <!-- ========================================== -->
     <div id="landing-page" class="relative w-full overflow-hidden z-10">
-        
+
         <!-- Navbar -->
         <nav class="fixed top-0 w-full z-50 glass">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <img src="assets/logos/logo-mark.png" alt="Logo" class="h-8 w-8" onerror="this.style.display='none'">
+                    <img src="assets/logos/logo-mark.png" alt="Logo" class="h-8 w-8"
+                        onerror="this.style.display='none'">
                     <span class="text-white font-bold text-lg tracking-tight lowercase">citavers</span>
                 </div>
                 <div class="flex items-center gap-4">
-                    <a href="https://github.com/Hemrem19/citavers" target="_blank" class="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">
+                    <a href="https://github.com/Hemrem19/emresarchive" target="_blank"
+                        class="hidden sm:flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">
                         GitHub
                     </a>
-                    <a href="#/app" class="bg-white text-slate-900 px-4 sm:px-5 py-2 rounded-full text-sm font-bold hover:bg-slate-200 transition-colors whitespace-nowrap">
+                    <a href="#/app"
+                        class="bg-white text-slate-900 px-4 sm:px-5 py-2 rounded-full text-sm font-bold hover:bg-slate-200 transition-colors whitespace-nowrap">
                         Open App
                     </a>
                 </div>
@@ -205,26 +227,31 @@
 
         <!-- Hero Section -->
         <section class="relative pt-28 pb-16 md:pt-32 md:pb-20 px-4 sm:px-6 max-w-7xl mx-auto text-center">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-6 animate-fade-in">
+            <div
+                class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-6 animate-fade-in">
                 <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
                 v2.2 Available
             </div>
-            
+
             <h1 class="text-4xl sm:text-5xl md:text-7xl font-extrabold text-white mb-6 leading-tight tracking-tight">
                 Your Research. <br class="hidden md:block" />
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Fully Under Your Control.</span>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Fully Under
+                    Your Control.</span>
             </h1>
-            
-            <p class="text-base sm:text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-8 md:mb-10 leading-relaxed px-2">
+
+            <p
+                class="text-base sm:text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-8 md:mb-10 leading-relaxed px-2">
                 The research assistant that lives on your computer. Private, fast, and yours forever.
                 No servers to trust, no subscriptions to pay.
             </p>
 
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 md:mb-20 px-4">
-                <a href="#/app" class="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary-dark text-white rounded-lg font-bold text-lg shadow-lg shadow-blue-500/25 transition-all transform hover:scale-105">
+                <a href="#/app"
+                    class="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary-dark text-white rounded-lg font-bold text-lg shadow-lg shadow-blue-500/25 transition-all transform hover:scale-105">
                     Start Organizing
                 </a>
-                <a href="#/docs" class="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-semibold text-lg transition-all">
+                <a href="#/docs"
+                    class="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-semibold text-lg transition-all">
                     See How It Works
                 </a>
             </div>
@@ -232,12 +259,13 @@
             <!-- Hero Image / Dashboard Preview -->
             <div class="relative max-w-5xl mx-auto hero-image-container rounded-xl overflow-hidden bg-slate-800">
                 <!-- PLACEHOLDER: Replace src with your actual dashboard screenshot -->
-                <img src="assets/screenshots/dashboard-preview.png" 
-                     onerror="this.src='https://placehold.co/1200x800/1e293b/cbd5e1?text=Dashboard+Preview+Image'" 
-                     alt="App Dashboard" 
-                     class="w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500">
-                     
-                <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent opacity-50"></div>
+                <img src="assets/screenshots/dashboard-preview.png"
+                    onerror="this.src='https://placehold.co/1200x800/1e293b/cbd5e1?text=Dashboard+Preview+Image'"
+                    alt="App Dashboard"
+                    class="w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500">
+
+                <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent opacity-50">
+                </div>
             </div>
         </section>
 
@@ -245,7 +273,7 @@
         <section class="py-16 md:py-24 px-4 sm:px-6 relative">
             <div class="max-w-7xl mx-auto">
                 <h2 class="text-2xl sm:text-3xl font-bold text-white mb-8 md:mb-12 text-center">Why use citavers?</h2>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Card 1: Privacy (Large) -->
                     <div class="glass-card md:col-span-2 p-6 md:p-8 rounded-2xl relative overflow-hidden group">
@@ -258,7 +286,9 @@
                             </div>
                             <h3 class="text-xl md:text-2xl font-bold text-white mb-3">Private by Design</h3>
                             <p class="text-slate-400 text-base md:text-lg leading-relaxed">
-                                Your library lives directly on your device. We don't see your research, we don't track your reading habits, and we don't store your files on our servers. Your intellectual property stays with you.
+                                Your library lives directly on your device. We don't see your research, we don't track
+                                your reading habits, and we don't store your files on our servers. Your intellectual
+                                property stays with you.
                             </p>
                         </div>
                     </div>
@@ -294,7 +324,8 @@
                             <h3 class="text-lg md:text-xl font-bold text-white">Free & Transparent</h3>
                         </div>
                         <p class="text-slate-400 text-sm md:text-base">
-                            Built by researchers, for researchers. The code is open for anyone to see. No hidden fees or locked features.
+                            Built by researchers, for researchers. The code is open for anyone to see. No hidden fees or
+                            locked features.
                         </p>
                     </div>
                 </div>
@@ -304,16 +335,19 @@
         <!-- Features (Zig-Zag Layout) -->
         <section class="py-16 md:py-24 px-4 sm:px-6 bg-slate-900/50">
             <div class="max-w-7xl mx-auto space-y-16 md:space-y-24">
-                
+
                 <!-- Feature 1: Graph -->
                 <div class="flex flex-col md:flex-row items-center gap-8 md:gap-12">
                     <div class="md:w-1/2 order-2 md:order-1">
-                        <div class="inline-block px-3 py-1 mb-4 text-xs font-semibold tracking-wider text-blue-400 uppercase bg-blue-900/30 rounded-full">
+                        <div
+                            class="inline-block px-3 py-1 mb-4 text-xs font-semibold tracking-wider text-blue-400 uppercase bg-blue-900/30 rounded-full">
                             Visual Discovery
                         </div>
                         <h2 class="text-2xl md:text-4xl font-bold text-white mb-4 md:mb-6">See the Big Picture.</h2>
                         <p class="text-slate-400 text-base md:text-lg mb-6 md:mb-8 leading-relaxed">
-                            Don't just collect papers—connect them. Visualize how your sources relate to each other with an interactive map. Find patterns and clusters in your research that simple lists can't show.
+                            Don't just collect papers—connect them. Visualize how your sources relate to each other with
+                            an interactive map. Find patterns and clusters in your research that simple lists can't
+                            show.
                         </p>
                         <ul class="space-y-3 text-slate-300 text-sm md:text-base">
                             <li class="flex items-center gap-3">
@@ -328,41 +362,48 @@
                     </div>
                     <div class="md:w-1/2 order-1 md:order-2 w-full">
                         <div class="glass-card p-2 rounded-xl border border-slate-700">
-                             <!-- PLACEHOLDER: Replace with Graph Screenshot -->
-                            <img src="assets/screenshots/graph-view.png" 
-                                 onerror="this.src='https://placehold.co/800x600/1e293b/cbd5e1?text=Network+Graph+Screenshot'"
-                                 alt="Graph View" class="rounded-lg w-full h-auto shadow-2xl">
+                            <!-- PLACEHOLDER: Replace with Graph Screenshot -->
+                            <img src="assets/screenshots/graph-view.png"
+                                onerror="this.src='https://placehold.co/800x600/1e293b/cbd5e1?text=Network+Graph+Screenshot'"
+                                alt="Graph View" class="rounded-lg w-full h-auto shadow-2xl">
                         </div>
                     </div>
                 </div>
 
-                <!-- Feature 2: PDF Reader (Reversed) -->
+                <!-- Feature 2: Notes & Annotations (Reversed) -->
                 <div class="flex flex-col md:flex-row-reverse items-center gap-8 md:gap-12">
                     <div class="md:w-1/2 order-2 md:order-1">
-                        <div class="inline-block px-3 py-1 mb-4 text-xs font-semibold tracking-wider text-purple-400 uppercase bg-purple-900/30 rounded-full">
-                            Better Reading
+                        <div
+                            class="inline-block px-3 py-1 mb-4 text-xs font-semibold tracking-wider text-purple-400 uppercase bg-purple-900/30 rounded-full">
+                            Deep Work
                         </div>
-                        <h2 class="text-2xl md:text-4xl font-bold text-white mb-4 md:mb-6">Read. Highlight. Think.</h2>
+                        <h2 class="text-2xl md:text-4xl font-bold text-white mb-4 md:mb-6">Annotate. Summarize. Track.
+                        </h2>
                         <p class="text-slate-400 text-base md:text-lg mb-6 md:mb-8 leading-relaxed">
-                            A reading experience designed for deep work. Highlight important sections, stick notes to specific pages, and write summaries without ever leaving your document.
+                            Take rich notes with formatting, write detailed summaries, and track your reading progress.
+                            Keep all your thoughts and insights organized alongside your papers.
                         </p>
                         <ul class="space-y-3 text-slate-300 text-sm md:text-base">
                             <li class="flex items-center gap-3">
                                 <span class="material-symbols-outlined text-purple-400 text-xl">edit_note</span>
-                                Write notes as you read
+                                Rich text notes with formatting support
                             </li>
                             <li class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-purple-400 text-xl">picture_as_pdf</span>
-                                Highlight key text
+                                <span class="material-symbols-outlined text-purple-400 text-xl">summarize</span>
+                                Write detailed summaries for each paper
+                            </li>
+                            <li class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-purple-400 text-xl">track_changes</span>
+                                Track reading progress by page
                             </li>
                         </ul>
                     </div>
                     <div class="md:w-1/2 order-1 md:order-2 w-full">
                         <div class="glass-card p-2 rounded-xl border border-slate-700">
-                             <!-- PLACEHOLDER: Replace with PDF Viewer Screenshot -->
-                            <img src="assets/screenshots/pdf-view.png" 
-                                 onerror="this.src='https://placehold.co/800x600/1e293b/cbd5e1?text=PDF+Viewer+Screenshot'"
-                                 alt="PDF Reader" class="rounded-lg w-full h-auto shadow-2xl">
+                            <!-- PLACEHOLDER: Replace with Notes/Summary Screenshot -->
+                            <img src="assets/screenshots/notes-view.png"
+                                onerror="this.src='https://placehold.co/800x600/1e293b/cbd5e1?text=Notes+%26+Summary+View'"
+                                alt="Notes and Summary" class="rounded-lg w-full h-auto shadow-2xl">
                         </div>
                     </div>
                 </div>
@@ -372,14 +413,17 @@
 
         <!-- CTA Section -->
         <section class="py-16 md:py-24 px-4 sm:px-6 text-center">
-            <div class="max-w-4xl mx-auto glass p-8 md:p-12 rounded-3xl border border-blue-500/20 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500"></div>
-                
+            <div
+                class="max-w-4xl mx-auto glass p-8 md:p-12 rounded-3xl border border-blue-500/20 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500">
+                </div>
+
                 <h2 class="text-2xl md:text-4xl font-bold text-white mb-4 md:mb-6">Ready to get organized?</h2>
                 <p class="text-slate-400 text-base md:text-lg mb-8 md:mb-10 max-w-2xl mx-auto">
                     Start managing your research simply and securely. No sign-up required.
                 </p>
-                <a href="#/app" class="inline-flex items-center gap-2 px-8 py-4 bg-white text-slate-900 rounded-lg font-bold text-lg hover:bg-slate-200 transition-colors w-full sm:w-auto justify-center">
+                <a href="#/app"
+                    class="inline-flex items-center gap-2 px-8 py-4 bg-white text-slate-900 rounded-lg font-bold text-lg hover:bg-slate-200 transition-colors w-full sm:w-auto justify-center">
                     <span>Launch App</span>
                     <span class="material-symbols-outlined">rocket_launch</span>
                 </a>
@@ -390,9 +434,10 @@
         <!-- Footer -->
         <footer class="py-12 border-t border-slate-800 text-center text-slate-500 text-sm px-4">
             <div class="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mb-4">
-                <a href="#" class="hover:text-slate-300 transition-colors">Privacy Policy</a>
-                <a href="#" class="hover:text-slate-300 transition-colors">Terms of Service</a>
-                <a href="https://github.com/Hemrem19/citavers" target="_blank" class="hover:text-slate-300 transition-colors">GitHub</a>
+                <a href="#/privacy" class="hover:text-slate-300 transition-colors">Privacy Policy</a>
+                <a href="#/terms" class="hover:text-slate-300 transition-colors">Terms of Service</a>
+                <a href="https://github.com/Hemrem19/emresarchive" target="_blank"
+                    class="hover:text-slate-300 transition-colors">GitHub</a>
             </div>
             <p>&copy; 2025 citavers. Built for science.</p>
         </footer>
@@ -404,42 +449,47 @@
     <!-- APP SHELL (Hidden by default on root)      -->
     <!-- ========================================== -->
     <div id="app-shell" class="hidden relative z-10">
-        
+
         <!-- Mobile Sidebar Overlay & Sidebar -->
-        <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden transition-opacity opacity-0 pointer-events-none backdrop-blur-sm"></div>
+        <div id="mobile-sidebar-overlay"
+            class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden transition-opacity opacity-0 pointer-events-none backdrop-blur-sm">
+        </div>
         <aside id="mobile-sidebar"
             class="fixed top-0 left-0 h-full w-64 max-w-[85vw] glass-sidebar border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col z-40 -translate-x-full lg:hidden shadow-2xl">
             <!-- Mobile Sidebar Content -->
-             <div class="flex items-center justify-between mb-6 sm:mb-8">
+            <div class="flex items-center justify-between mb-6 sm:mb-8">
                 <a href="#/app" class="flex items-center gap-2 sm:gap-3 text-slate-900 dark:text-slate-100">
-                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <span class="material-symbols-outlined text-xs sm:text-sm text-white">article</span>
-                    </div>
+                    <img src="assets/logos/logo-mark.png" alt="citavers logo" class="h-7 w-7 sm:h-8 sm:w-8"
+                        onerror="this.style.display='none'">
                     <h1 class="text-lg sm:text-xl font-bold font-display lowercase">citavers</h1>
                 </a>
-                <button id="close-mobile-menu-btn" class="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                <button id="close-mobile-menu-btn"
+                    class="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 min-w-[44px] min-h-[44px] flex items-center justify-center">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
-            
+
             <!-- Mobile Nav Links -->
             <nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
-                <a href="#/app" class="sidebar-all-papers-link sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
+                <a href="#/app"
+                    class="sidebar-all-papers-link sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
                     <span class="material-symbols-outlined text-[20px] sm:text-[24px]">inbox</span>
                     <span class="font-medium">All Papers</span>
                 </a>
-                <a href="#/graph" class="sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
+                <a href="#/graph"
+                    class="sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
                     <span class="material-symbols-outlined text-[20px] sm:text-[24px]">hub</span>
                     <span class="font-medium">Network</span>
                 </a>
-                <a href="#/settings" class="sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
+                <a href="#/settings"
+                    class="sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
                     <span class="material-symbols-outlined text-[20px] sm:text-[24px]">settings</span>
                     <span class="font-medium">Settings</span>
                 </a>
-                
+
                 <!-- Spacer -->
                 <div class="h-4"></div>
-                
+
                 <!-- Sidebar dynamic content containers -->
                 <div id="mobile-sidebar-status-list"></div>
                 <div id="mobile-sidebar-collections-section"></div>
@@ -452,28 +502,33 @@
             <aside id="desktop-sidebar"
                 class="w-64 glass-sidebar border-r border-slate-200 dark:border-slate-800 p-4 flex-col hidden lg:flex sticky top-0 h-screen">
                 <a href="#/app" class="flex items-center gap-3 mb-8 text-slate-900 dark:text-slate-100 px-2">
-                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <span class="material-symbols-outlined text-sm text-white">article</span>
-                    </div>
+                    <img src="assets/logos/logo-mark.png" alt="citavers logo" class="h-8 w-8"
+                        onerror="this.style.display='none'">
                     <h1 class="text-xl font-bold font-display lowercase">citavers</h1>
                 </a>
-                
+
                 <nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
-                    <h3 class="px-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2 mt-2">Library</h3>
-                    
-                    <a href="#/app" class="sidebar-all-papers-link sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
+                    <h3
+                        class="px-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2 mt-2">
+                        Library</h3>
+
+                    <a href="#/app"
+                        class="sidebar-all-papers-link sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
                         <span class="material-symbols-outlined text-[20px]">inbox</span>
                         <span class="text-sm font-medium">All Papers</span>
                     </a>
-                    <a href="#/graph" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
+                    <a href="#/graph"
+                        class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
                         <span class="material-symbols-outlined text-[20px]">hub</span>
                         <span class="text-sm font-medium">Network</span>
                     </a>
-                    
+
                     <!-- Dynamic Status & Collections Container -->
                     <div id="sidebar-dynamic-content">
                         <div class="pt-6">
-                            <h3 class="px-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2">Status</h3>
+                            <h3
+                                class="px-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2">
+                                Status</h3>
                             <div id="sidebar-status-list" class="space-y-1"></div>
                         </div>
                         <div id="sidebar-collections-section" class="pt-6"></div>
@@ -482,7 +537,8 @@
                 </nav>
 
                 <div class="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800">
-                    <a href="#/settings" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
+                    <a href="#/settings"
+                        class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
                         <span class="material-symbols-outlined text-[20px]">settings</span>
                         <span class="text-sm font-medium">Settings</span>
                     </a>
@@ -494,32 +550,39 @@
                 <!-- Header -->
                 <header class="flex items-center justify-between px-4 sm:px-6 py-3 glass-panel sticky top-0 z-20">
                     <div class="flex items-center gap-3 sm:gap-4 flex-1">
-                        <button id="mobile-menu-btn" class="lg:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                        <button id="mobile-menu-btn"
+                            class="lg:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
                             <span class="material-symbols-outlined">menu</span>
                         </button>
-                        
+
                         <!-- Search Bar -->
                         <div class="relative flex-1 max-w-2xl group">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="material-symbols-outlined text-slate-500 group-focus-within:text-blue-400 transition-colors text-[20px]">search</span>
+                                <span
+                                    class="material-symbols-outlined text-slate-500 group-focus-within:text-blue-400 transition-colors text-[20px]">search</span>
                             </div>
-                            <input id="search-input" 
-                                class="w-full h-10 pl-10 pr-10 bg-slate-100 dark:bg-slate-800/40 border border-transparent dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800/80 text-sm placeholder-slate-500 dark:text-slate-200 transition-all shadow-sm" 
+                            <input id="search-input"
+                                class="w-full h-10 pl-10 pr-10 bg-slate-100 dark:bg-slate-800/40 border border-transparent dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800/80 text-sm placeholder-slate-500 dark:text-slate-200 transition-all shadow-sm"
                                 placeholder="Search papers, authors, or paste a DOI..." type="text" />
                             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                <kbd class="hidden sm:inline-flex items-center h-5 px-2 rounded border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800/50 text-[10px] text-slate-500 font-sans font-bold">⌘K</kbd>
+                                <kbd
+                                    class="hidden sm:inline-flex items-center h-5 px-2 rounded border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800/50 text-[10px] text-slate-500 font-sans font-bold">⌘K</kbd>
                             </div>
                         </div>
-                        
+
                         <!-- Search Mode -->
-                        <div class="hidden md:flex bg-slate-100 dark:bg-slate-800/40 rounded-lg p-1 border border-transparent dark:border-slate-700/50">
-                            <button id="search-mode-all" class="px-3 py-1 text-xs font-medium rounded shadow-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white transition-all">All</button>
-                            <button id="search-mode-notes" class="px-3 py-1 text-xs font-medium rounded text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all">Notes</button>
+                        <div
+                            class="hidden md:flex bg-slate-100 dark:bg-slate-800/40 rounded-lg p-1 border border-transparent dark:border-slate-700/50">
+                            <button id="search-mode-all"
+                                class="px-3 py-1 text-xs font-medium rounded shadow-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white transition-all">All</button>
+                            <button id="search-mode-notes"
+                                class="px-3 py-1 text-xs font-medium rounded text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all">Notes</button>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4">
-                        <a href="#/add" class="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 border border-blue-400/20 active:scale-95">
+                        <a href="#/add"
+                            class="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 border border-blue-400/20 active:scale-95">
                             <span class="material-symbols-outlined text-[20px]">add</span>
                             <span class="hidden sm:inline">Add Paper</span>
                         </a>
@@ -545,7 +608,7 @@
             const hash = window.location.hash;
             const landingPage = document.getElementById('landing-page');
             const appShell = document.getElementById('app-shell');
-            
+
             // If hash is empty or just #/ -> Show Landing Page
             if (!hash || hash === '#/' || hash === '#') {
                 landingPage.classList.remove('hidden');
@@ -557,7 +620,7 @@
                 appShell.classList.remove('hidden');
                 // Don't set body overflow to hidden - let the app container handle scrolling
                 // The #app container has overflow-y-auto which handles scrolling
-                
+
                 // Dispatch custom event when app shell becomes visible so app.js can re-initialize handlers
                 // Use setTimeout to ensure DOM is updated before dispatching
                 setTimeout(() => {
@@ -570,9 +633,10 @@
         window.addEventListener('load', handleRouting);
         window.addEventListener('hashchange', handleRouting);
     </script>
-    
+
     <!-- Core App Script -->
     <script type="module" src="app.js"></script>
 
 </body>
+
 </html>

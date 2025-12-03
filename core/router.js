@@ -8,6 +8,8 @@ import { formView } from '../form.view.js';
 import { settingsView } from '../settings.view.js';
 import { graphView } from '../graph.view.js';
 import { docsView } from '../docs.view.js';
+import { privacyView } from '../privacy.view.js';
+import { termsView } from '../terms.view.js';
 import { views as templates } from '../views/index.js';
 import { highlightActiveSidebarLink } from '../ui.js';
 import { parseUrlHash, applyFiltersAndRender } from './filters.js';
@@ -152,6 +154,20 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
             app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
             app.style.height = '';
             renderView(app, templates.docs, () => appState.currentView.mount(appState));
+        } else if (requestedPath === '/privacy') {
+            appState.currentView = privacyView;
+            // Restore padding and overflow
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
+            renderView(app, templates.privacy, () => appState.currentView.mount(appState));
+        } else if (requestedPath === '/terms') {
+            appState.currentView = termsView;
+            // Restore padding and overflow
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
+            renderView(app, templates.terms, () => appState.currentView.mount(appState));
         } else if (requestedPath.startsWith('/verify-email')) {
             // Handle email verification - extract token from hash query string
             const hashQueryString = requestedPath.split('?')[1] || '';
@@ -239,22 +255,22 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                     </div>
                 `);
             }
-            } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/')) {
-                // Parse URL hash to update filters (this reads from the URL and updates appState)
-                parseUrlHash(appState);
+        } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/')) {
+            // Parse URL hash to update filters (this reads from the URL and updates appState)
+            parseUrlHash(appState);
 
-                appState.currentView = dashboardView; // Set the new current view
-                // Restore padding and overflow for dashboard view
-                app.classList.remove('p-0', 'overflow-hidden');
-                app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
-                app.style.height = '';
-                // All dashboard-like views
-                renderView(app, templates.home, async () => {
-                    await appState.currentView.mount(appState, () => applyFiltersAndRender(appState));
-                    applyFiltersAndRender(appState); // This now handles the initial render correctly
-                    // Re-render sidebar status links to ensure they use correct routes
-                    renderSidebarStatusLinks();
-                });
+            appState.currentView = dashboardView; // Set the new current view
+            // Restore padding and overflow for dashboard view
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
+            // All dashboard-like views
+            renderView(app, templates.home, async () => {
+                await appState.currentView.mount(appState, () => applyFiltersAndRender(appState));
+                applyFiltersAndRender(appState); // This now handles the initial render correctly
+                // Re-render sidebar status links to ensure they use correct routes
+                renderSidebarStatusLinks();
+            });
         } else {
             renderView(app, `<h1>404 - Not Found</h1>`);
         }

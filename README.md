@@ -1,7 +1,7 @@
 # citavErs
 
-[![Tests](https://github.com/Hemrem19/citavers/actions/workflows/test.yml/badge.svg)](https://github.com/Hemrem19/citavers/actions/workflows/coverage.yml)
-[![Coverage](https://github.com/Hemrem19/citavers/actions/workflows/coverage.yml/badge.svg)](https://github.com/Hemrem19/citavers/actions/workflows/coverage.yml)
+[![Tests](https://github.com/Hemrem19/emresarchive/actions/workflows/test.yml/badge.svg)](https://github.com/Hemrem19/emresarchive/actions/workflows/coverage.yml)
+[![Coverage](https://github.com/Hemrem19/emresarchive/actions/workflows/coverage.yml/badge.svg)](https://github.com/Hemrem19/emresarchive/actions/workflows/coverage.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > A local-first research paper management application built with vanilla JavaScript
@@ -13,7 +13,7 @@
 - 🔍 **Powerful Search** - Full-text search across titles, authors, and notes
 - 🏷️ **Smart Tagging** - Organize with custom tags and filters
 - 📊 **Collections** - Save filter combinations for quick access
-- 📄 **PDF Viewer** - Built-in PDF viewer with search, zoom, and rotation
+- 📄 **PDF Management** - Store and download PDFs, open in your browser
 - 🔗 **Paper Linking** - Connect related papers visually
 - 📈 **Network Graph** - Interactive visualization of paper relationships
 - ⌨️ **Keyboard Shortcuts** - Command palette and global shortcuts
@@ -34,7 +34,7 @@ The landing page provides an overview of features and benefits. Click "Start Org
 ### Run Locally
 ```bash
 # Clone the repository
-git clone https://github.com/Hemrem19/citavers.git
+git clone https://github.com/Hemrem19/emresarchive.git
 cd citavers
 
 # Serve with any static file server
@@ -171,7 +171,8 @@ This is a personal project, but issues and suggestions are welcome!
 
 ## 📝 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License, with the exception of the backend code which is proprietary and all rights reserved.
+See [backend/LICENSE](backend/LICENSE) for details.
 
 ## 🙏 Acknowledgments
 

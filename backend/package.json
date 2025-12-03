@@ -30,7 +30,7 @@
     "postgresql"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.490.0",
     "@aws-sdk/s3-presigned-post": "^3.922.0",
