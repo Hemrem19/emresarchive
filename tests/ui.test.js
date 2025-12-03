@@ -372,10 +372,8 @@ describe('UI Utilities', () => {
             // Reading progress bar shows percentage
             const progressBar = container.querySelector('.bg-blue-500');
             expect(progressBar).toBeTruthy();
-            // Check that width style is set (might be inline style attribute)
-            const width = progressBar.getAttribute('style');
-            expect(width).toContain('width');
-            expect(width).toContain('50%');
+            // Check that width style is set (check style property directly)
+            expect(progressBar.style.width).toBe('50%');
         });
     });
 
