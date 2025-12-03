@@ -20,7 +20,7 @@
 - ☁️ **Cloud Sync** - Optional cloud sync for multi-device access (requires account)
 - 🔐 **Authentication** - Secure user accounts with email verification
 - 🌙 **Dark Mode** - Easy on the eyes
-- 📱 **Mobile Friendly** - Touch gestures and responsive design
+- 📱 **Mobile Optimized** - Responsive design with optimized sidebar width, enhanced paper title display, and hardware-accelerated animations for smooth performance
 - 💾 **Local-First** - All data stored locally (IndexedDB), cloud sync optional
 - 📤 **Export/Import** - Full data portability with one-click cloud reset for conflict-free restores
 
@@ -49,8 +49,8 @@ npx serve
 
 When cloud sync is enabled, imports are now conflict-free thanks to a hard-delete API on the backend. To restore a backup safely:
 
-1. Open **Settings → Data Management**.
-2. Click **Clear All Data** to wipe both local IndexedDB and all cloud records via `DELETE /api/user/data`.
+1. Open **Settings → Import Library** (modern glassmorphic interface with Material Icons).
+2. Click **Clear All Data** in the Danger Zone to wipe both local IndexedDB and all cloud records via `DELETE /api/user/data`.
 3. Choose **Import Data** and select your exported JSON file.
 4. Wait for the automatic sync to finish (toasts will confirm). Imported papers, collections, and annotations are pushed to the cloud with no duplicate DOI conflicts.
 

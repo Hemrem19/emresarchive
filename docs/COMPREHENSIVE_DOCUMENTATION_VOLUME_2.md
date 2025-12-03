@@ -738,12 +738,39 @@ Export Bibliography
 
 ## 2.1.8 Data Management Features
 
+### Feature: Settings View
+**Location**: `settings.view.js`, `views/pages/settings.js`
+
+**Design & Aesthetics**:
+- **Modern Dark Theme**: Glassmorphic design with `bg-slate-900/60 backdrop-blur-xl`
+- **Visual Hierarchy**: Material Icons on section headers for better navigation
+- **Consistent Styling**: Matches dashboard and details views with slate color scheme
+- **Stats Cards**: Glassmorphic cards with `bg-slate-800/50 backdrop-blur-sm` and subtle borders
+- **Buttons**: Enhanced with shadow effects (`shadow-lg shadow-blue-500/20`) and rounded-xl styling
+- **Section Dividers**: Subtle `border-white/5` dividers for clean separation
+- **Responsive Layout**: Optimized spacing and layout for all screen sizes
+
+**Sections**:
+1. Library Statistics - Overview cards with paper counts by status
+2. Documentation - Link to user documentation
+3. Export Library - Download JSON backup
+4. Reading Statuses - Drag-and-drop reordering
+5. Import Library - Restore from backup
+6. Migrate Library - Import from Zotero/Mendeley (RIS format)
+7. Import Settings - Manage import preferences
+8. Email Verification - Resend verification email (if needed)
+9. Cloud Sync - Enable/disable and manual sync controls
+10. Database Maintenance - Clean up duplicate papers
+11. Danger Zone - Clear all data (destructive)
+
+---
+
 ### Feature: Export Data
 **Location**: `settings.view.js`, `db/data.js`
 
 **User Flow**:
-1. User navigates to Settings → Data Management
-2. User clicks "Export Data"
+1. User navigates to Settings → Export Library
+2. User clicks "Export Data" button (with download icon)
 3. All data exported:
    - Papers (metadata, notes, but not PDFs)
    - Collections
@@ -1229,13 +1256,13 @@ Toast
 ---
 
 ### Feature: Mobile Sidebar
-**Location**: `app.js`, `index.html`
+**Location**: `app.js`, `index.html`, `style.css`
 
 **User Flow**:
 1. On mobile (< 1024px), sidebar hidden by default
 2. User swipes from left edge (or clicks hamburger menu)
-3. Sidebar slides in from left
-4. Overlay shown (dark background)
+3. Sidebar slides in from left with hardware-accelerated animation
+4. Overlay shown (dark background with blur)
 5. User clicks link or overlay → Sidebar closes
 
 **Code Flow**:
@@ -1244,16 +1271,23 @@ Mobile Sidebar
   → Touch gesture (swipe from left edge)
     → app.js (openMobileMenu)
       → Sidebar.classList.remove('-translate-x-full')
-        → Overlay shown
+        → CSS transform3d() for hardware acceleration
+        → Overlay shown with opacity transition
           → User clicks link/overlay
             → app.js (closeMobileMenu)
 ```
 
-**Swipe Gesture**:
-- Detects touch start from left edge (< 20px)
-- Tracks horizontal movement
-- If swipe right > 50px: Open sidebar
-- Velocity threshold: 0.3 px/ms
+**Mobile Optimizations**:
+- **Sidebar Width**: Reduced from `w-72` (288px) to `w-64` (256px) with `max-w-[85vw]` for better mobile fit
+- **Hardware Acceleration**: Uses `transform3d()` and `will-change: transform` for smooth animations
+- **Performance**: Transition duration reduced to 250ms for snappier feel
+- **Backdrop Blur**: Optimized blur levels (8px on tablet, 4px on mobile) for better performance
+- **Touch Interactions**: Added `touch-action: pan-y` to prevent horizontal scroll interference
+- **Swipe Gesture**:
+  - Detects touch start from left edge (< 20px)
+  - Tracks horizontal movement
+  - If swipe right > 50px: Open sidebar
+  - Velocity threshold: 0.3 px/ms
 
 ---
 

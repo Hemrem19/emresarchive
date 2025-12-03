@@ -1156,15 +1156,24 @@ export function hideGraph() {
 
 | Export | Description | Parameters | Returns |
 | --- | --- | --- | --- |
-| `settingsView` | — | — | — |
+| `settingsView` | Settings view module with modern dark theme aesthetic | — | — |
 
 **Key Methods**
 - `mount(appState)` wires appearance toggles, import/export, sync controls, and status drag-and-drop.
-- `setupStatusReordering()` persists a custom reading-status order.
+- `setupStatistics()` renders library statistics with glassmorphic stat cards.
+- `setupStatusReordering()` persists a custom reading-status order with modern drag-and-drop UI.
 - `setupImportExport(appState)` handles JSON (and RIS) import/export flows.
 - `setupCloudSync()` toggles cloud sync and triggers manual sync actions.
 - `setupDangerZone(appState)` surfaces destructive actions like clearing all data.
+- `setupRISImport(appState)` handles Zotero/Mendeley RIS file imports with preview modal.
 - `unmount()` currently logs teardown (extend when adding listeners).
+
+**Design Features**:
+- Glassmorphic container with `bg-slate-900/60 backdrop-blur-xl`
+- Material Icons on section headers for visual hierarchy
+- Enhanced buttons with shadow effects and rounded-xl styling
+- Modern stats cards with glassmorphic design
+- Consistent slate color scheme matching dashboard/details views
 
 **Usage Example**
 
