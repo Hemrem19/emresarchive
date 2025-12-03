@@ -248,6 +248,7 @@ describe('core/router.js - Router Functions', () => {
         });
 
         it('should route to landing page for root path', async () => {
+            const { landingView } = await import('../landing.view.js');
             window.location.hash = '#/';
 
             await router();
@@ -255,8 +256,13 @@ describe('core/router.js - Router Functions', () => {
             vi.advanceTimersByTime(1);
 
             expect(appState.currentPath).toBe('/');
-            // Router should render landing page
-            expect(appElement.innerHTML).toContain('Your Research, Fully Under Your Control');
+            // Router should set landing view but NOT render template (landing page is hardcoded in index.html)
+            expect(appState.currentView).toBe(landingView);
+            // Router should call mount() on landing view
+            expect(landingView.mount).toHaveBeenCalled();
+            // Router should NOT render template into #app (landing page is hardcoded in index.html, not rendered by router)
+            // The app element should remain empty for landing page route
+            expect(appElement.innerHTML).toBe('');
         });
 
         it('should route to dashboard for /app path', async () => {

@@ -204,7 +204,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                 `);
             }
         } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/')) {
-            // Parse URL hash to update filters
+            // Parse URL hash to update filters (this reads from the URL and updates appState)
             parseUrlHash(appState);
 
             appState.currentView = dashboardView; // Set the new current view

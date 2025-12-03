@@ -113,6 +113,7 @@ document.addEventListener('click', (e) => {
 
     if (statusLink) {
         e.preventDefault();
+        e.stopPropagation(); // Prevent router from handling this
         const status = statusLink.dataset.status;
 
         // Toggle: if clicking the same status, remove it; otherwise set/change it
@@ -123,10 +124,14 @@ document.addEventListener('click', (e) => {
         }
 
         appState.pagination.currentPage = 1; // Reset to first page when filter changes
+        
+        // Use updateUrlHash to preserve existing tags when changing status
+        // This creates a compound filter URL if tags exist, or single status URL if no tags
         updateUrlHash(appState);
-        applyFiltersAndRender(appState);
+        // The hash change will trigger the router which will call parseUrlHash and applyFiltersAndRender
     } else if (tagLink) {
         e.preventDefault();
+        e.stopPropagation(); // Prevent router from handling this
         const tag = tagLink.dataset.tag;
 
         // Toggle: if tag is already selected, remove it; otherwise add it
@@ -140,8 +145,9 @@ document.addEventListener('click', (e) => {
         }
 
         appState.pagination.currentPage = 1; // Reset to first page when filter changes
+        // Update URL hash to reflect current filters
         updateUrlHash(appState);
-        applyFiltersAndRender(appState);
+        // The hash change will trigger the router which will call applyFiltersAndRender
     } else if (allPapersLink) {
         e.preventDefault();
         // Clear all filters

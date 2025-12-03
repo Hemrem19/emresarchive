@@ -496,7 +496,8 @@
                 // Any other route -> Show App Shell
                 landingPage.classList.add('hidden');
                 appShell.classList.remove('hidden');
-                document.body.style.overflow = 'hidden'; // App handles its own scrolling
+                // Don't set body overflow to hidden - let the app container handle scrolling
+                // The #app container has overflow-y-auto which handles scrolling
                 
                 // Dispatch custom event when app shell becomes visible so app.js can re-initialize handlers
                 // Use setTimeout to ensure DOM is updated before dispatching

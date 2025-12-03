@@ -21,15 +21,28 @@ export const graphView = {
 
     async mount(appState) {
         try {
+            // Wait for DOM to be ready (renderView uses setTimeout, so we need to wait)
+            await new Promise(resolve => setTimeout(resolve, 0));
+            
             // Always load local papers and use local graph data
             this.allPapers = await getAllPapers();
             this.populateTagFilter();
             const graphData = this.prepareLocalGraphData(this.allPapers);
 
+            // Check if elements exist before accessing them
+            const emptyState = document.getElementById('graph-empty-state');
+            const networkContainer = document.getElementById('graph-network');
+            
+            if (!networkContainer) {
+                console.error('Graph network container not found');
+                showToast('Failed to initialize graph view', 'error');
+                return;
+            }
+
             if (graphData.edges.length === 0) {
-                document.getElementById('graph-empty-state').classList.remove('hidden');
+                if (emptyState) emptyState.classList.remove('hidden');
             } else {
-                document.getElementById('graph-empty-state').classList.add('hidden');
+                if (emptyState) emptyState.classList.add('hidden');
                 this.renderGraph(graphData);
             }
 
