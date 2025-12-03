@@ -37,25 +37,6 @@ export const settingsView = `
                     <section>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
-                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Appearance</h3>
-                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Choose between light and dark theme.</p>
-                            </div>
-                            <div class="flex items-center md:col-span-2">
-                                <label for="dark-mode-toggle" class="flex items-center cursor-pointer">
-                                    <div class="relative">
-                                        <input type="checkbox" id="dark-mode-toggle" class="sr-only peer">
-                                        <div class="w-14 h-8 bg-stone-200 rounded-full dark:bg-stone-700 peer-checked:bg-primary"></div>
-                                        <div class="absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform transform peer-checked:translate-x-6"></div>
-                                    </div>
-                                    <span class="ml-3 text-sm font-medium text-stone-700 dark:text-stone-300">Dark Mode</span>
-                                </label>
-                            </div>
-                        </div>
-                    </section>
-                    <div class="border-t border-gray-200 dark:border-stone-700/50"></div>
-                    <section>
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
-                            <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Export Library</h3>
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Download a single .json backup file of all your paper data, notes, and attached PDFs.</p>
                             </div>

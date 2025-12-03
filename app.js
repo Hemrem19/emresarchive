@@ -26,13 +26,11 @@ if ('serviceWorker' in navigator) {
 }
 
 // --- Theme Management ---
+// Force dark mode - always enabled
 const applyTheme = () => {
-    const isDarkMode = localStorage.getItem('theme') === 'dark';
-    if (isDarkMode) {
-        document.documentElement.classList.add('dark');
-    } else {
-        document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.add('dark');
+    // Remove any light theme preference
+    localStorage.removeItem('theme');
 };
 
 applyTheme(); // Apply theme on initial load

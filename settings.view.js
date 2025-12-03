@@ -28,21 +28,8 @@ export const settingsView = {
     },
 
     setupAppearance() {
-        const darkModeToggle = document.getElementById('dark-mode-toggle');
-        if (darkModeToggle) {
-            if (localStorage.getItem('theme') === 'dark') {
-                darkModeToggle.checked = true;
-            }
-            darkModeToggle.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    document.documentElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                }
-            });
-        }
+        // Dark mode is now always enabled - no toggle needed
+        // This function is kept for compatibility but does nothing
     },
 
     async setupStatistics() {
