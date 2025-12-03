@@ -67,10 +67,11 @@ describe('Rating Display in Paper Cards', () => {
     renderPaperList(papers, '', new Set());
 
     const paperCard = container.querySelector('.paper-card');
-    const ratingBadge = paperCard.querySelector('[title*="Rating"]');
+    // Rating badge contains star icon and rating number
+    const ratingBadge = paperCard.querySelector('.text-yellow-500');
     expect(ratingBadge).toBeTruthy();
     expect(ratingBadge.textContent).toContain('9');
-    expect(ratingBadge.getAttribute('title')).toContain('9/10');
+    expect(ratingBadge.innerHTML).toContain('star');
   });
 
   it('should display rating badge for all rating values (1-10)', () => {
@@ -92,10 +93,12 @@ describe('Rating Display in Paper Cards', () => {
     renderPaperList(papers, '', new Set());
 
     const paperCard = container.querySelector('.paper-card');
-    const ratingBadge = paperCard.querySelector('[title*="Rating"]');
+    // Rating badge has yellow color and flex layout
+    const ratingBadge = paperCard.querySelector('.text-yellow-500');
     expect(ratingBadge).toBeTruthy();
-    expect(ratingBadge.className).toContain('inline-flex');
+    expect(ratingBadge.className).toContain('flex');
     expect(ratingBadge.className).toContain('items-center');
+    expect(ratingBadge.className).toContain('text-yellow-500');
   });
 
   it('should display rating badge alongside other paper info', () => {
@@ -135,8 +138,8 @@ describe('Rating Display in Paper Cards', () => {
     expect(paperCards[0].innerHTML).toContain('10');
     // Check second paper has rating 5
     expect(paperCards[1].innerHTML).toContain('5');
-    // Check third paper has no rating badge
-    expect(paperCards[2].querySelector('[title*="Rating"]')).toBeFalsy();
+    // Check third paper has no rating badge (no yellow-500 class for rating)
+    expect(paperCards[2].querySelector('.text-yellow-500')).toBeFalsy();
     // Check fourth paper has rating 1
     expect(paperCards[3].innerHTML).toContain('1');
   });

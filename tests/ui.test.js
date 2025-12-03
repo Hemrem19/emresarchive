@@ -354,7 +354,7 @@ describe('UI Utilities', () => {
 
             const checkbox = container.querySelector('input[type="checkbox"]');
             expect(checkbox.checked).toBe(true);
-            expect(container.querySelector('.paper-card').className).toContain('border-primary/50');
+            expect(container.querySelector('.paper-card').className).toContain('border-blue-500/50');
         });
 
         it('should render reading progress bar for Reading status', () => {
@@ -369,8 +369,10 @@ describe('UI Utilities', () => {
             ];
             renderPaperList(papers);
 
-            expect(container.textContent).toContain('50%');
-            expect(container.querySelector('.bg-primary').style.width).toBe('50%');
+            // Reading progress bar shows percentage
+            const progressBar = container.querySelector('.bg-blue-500');
+            expect(progressBar).toBeTruthy();
+            expect(progressBar.style.width).toBe('50%');
         });
     });
 

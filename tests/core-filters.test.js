@@ -7,7 +7,8 @@ const uiMocks = vi.hoisted(() => ({
   renderPaperList: vi.fn(),
   highlightActiveSidebarLink: vi.fn(),
   renderFilterChips: vi.fn(),
-  showToast: vi.fn()
+  showToast: vi.fn(),
+  escapeHtml: (unsafe) => unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;")
 }));
 
 // Mock ui.js globally for this test file
@@ -16,7 +17,8 @@ vi.mock('../ui.js', () => ({
   renderPaperList: uiMocks.renderPaperList,
   highlightActiveSidebarLink: uiMocks.highlightActiveSidebarLink,
   renderFilterChips: uiMocks.renderFilterChips,
-  showToast: uiMocks.showToast
+  showToast: uiMocks.showToast,
+  escapeHtml: uiMocks.escapeHtml
 }));
 
 import {

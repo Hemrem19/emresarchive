@@ -180,20 +180,21 @@ describe('DB Core Module - Fresh Instances', () => {
             abort: vi.fn()
         };
 
-        const mockRequest = {
+        // Create a factory function to generate new mock requests
+        const createMockRequest = () => ({
             onupgradeneeded: vi.fn(),
             onsuccess: vi.fn(),
             onerror: vi.fn(),
             onblocked: vi.fn(),
-            result: mockDb,
-            transaction: mockTransaction
-        };
+            result: { ...mockDb },
+            transaction: { ...mockTransaction }
+        });
 
         // Mock version property for the database
         mockDb.version = 6;
 
         const mockIndexedDB = {
-            open: vi.fn().mockReturnValue(mockRequest)
+            open: vi.fn().mockImplementation(() => createMockRequest())
         };
 
         const originalWindow = global.window || {};
@@ -293,6 +294,9 @@ describe('DB Core Module - Fresh Instances', () => {
 
         const mockDb = openRequest.result;
         const mockTransaction = openRequest.transaction;
+        
+        // Ensure objectStoreNames.contains returns false for new stores
+        mockDb.objectStoreNames.contains.mockReturnValue(false);
 
         openRequest.onupgradeneeded({
             target: {
@@ -331,12 +335,24 @@ describe('DB Core Module - Fresh Instances', () => {
 
         // Mock papers needing update
         const mockPapers = [{ id: 1, title: 'Old Paper' }]; // No updatedAt
+        
+        // Create mock getAll requests with callable onsuccess
+        let v3GetAllRequest = null;
+        let v6GetAllRequest = null;
+        
         const mockPaperStore = {
             createIndex: vi.fn(),
             indexNames: { contains: vi.fn().mockReturnValue(false) },
-            getAll: vi.fn()
-                .mockReturnValueOnce({ onsuccess: null, result: mockPapers }) // For v3
-                .mockReturnValueOnce({ onsuccess: null, result: mockPapers }), // For v6
+            getAll: vi.fn().mockImplementation(() => {
+                const request = { onsuccess: null, onerror: null, result: mockPapers };
+                // Store reference for later
+                if (!v3GetAllRequest) {
+                    v3GetAllRequest = request;
+                } else if (!v6GetAllRequest) {
+                    v6GetAllRequest = request;
+                }
+                return request;
+            }),
             put: vi.fn()
         };
         mockTransaction.objectStore.mockReturnValue(mockPaperStore);
@@ -349,10 +365,13 @@ describe('DB Core Module - Fresh Instances', () => {
             oldVersion: 2
         });
 
-        // Trigger getAll success
+        // Wait a bit for getAll to be called and onsuccess to be set
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
         // Trigger getAll success for v3 (first call)
-        const v3Request = mockPaperStore.getAll.mock.results[0].value;
-        v3Request.onsuccess();
+        if (v3GetAllRequest && v3GetAllRequest.onsuccess) {
+            v3GetAllRequest.onsuccess();
+        }
 
         expect(mockPaperStore.put).toHaveBeenCalledWith(expect.objectContaining({
             id: 1,
@@ -380,11 +399,18 @@ describe('DB Core Module - Fresh Instances', () => {
         mockDb.objectStoreNames.contains.mockReturnValue(true);
 
         const mockPapers = [{ id: 1, title: 'Old Paper' }]; // No rating/summary
+        
+        // Create mock getAll request with callable onsuccess
+        let v6GetAllRequest = null;
+        
         const mockPaperStore = {
             createIndex: vi.fn(),
             indexNames: { contains: vi.fn().mockReturnValue(false) },
-            getAll: vi.fn()
-                .mockReturnValueOnce({ onsuccess: null, result: mockPapers }), // For v6 only (oldVersion=5 > 3)
+            getAll: vi.fn().mockImplementation(() => {
+                const request = { onsuccess: null, onerror: null, result: mockPapers };
+                v6GetAllRequest = request;
+                return request;
+            }),
             put: vi.fn()
         };
         mockTransaction.objectStore.mockReturnValue(mockPaperStore);
@@ -397,9 +423,13 @@ describe('DB Core Module - Fresh Instances', () => {
             oldVersion: 5
         });
 
+        // Wait a bit for getAll to be called and onsuccess to be set
+        await new Promise(resolve => setTimeout(resolve, 10));
+
         // Trigger getAll success for v6 (only call since oldVersion=5 > 3)
-        const v6Request = mockPaperStore.getAll.mock.results[0].value;
-        v6Request.onsuccess();
+        if (v6GetAllRequest && v6GetAllRequest.onsuccess) {
+            v6GetAllRequest.onsuccess();
+        }
 
         expect(mockPaperStore.put).toHaveBeenCalledWith(expect.objectContaining({
             id: 1,
