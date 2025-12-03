@@ -155,6 +155,14 @@
             transform: perspective(1000px) rotateX(2deg);
             box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            min-height: 400px;
+        }
+        
+        @media (max-width: 768px) {
+            .hero-image-container {
+                transform: none;
+                min-height: auto;
+            }
         }
 
         @media (min-width: 768px) {
@@ -256,15 +264,12 @@
                 </a>
             </div>
 
-            <!-- Hero Image / Dashboard Preview -->
-            <div class="relative max-w-5xl mx-auto hero-image-container rounded-xl overflow-hidden bg-slate-800">
-                <!-- PLACEHOLDER: Replace src with your actual dashboard screenshot -->
-                <img src="assets/screenshots/dashboard-preview.png"
-                    onerror="this.src='https://placehold.co/1200x800/1e293b/cbd5e1?text=Dashboard+Preview+Image'"
-                    alt="App Dashboard"
-                    class="w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500">
-
-                <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent opacity-50">
+            <!-- Hero Dashboard Preview - Animated Cards -->
+            <div class="relative max-w-5xl mx-auto hero-image-container rounded-xl overflow-hidden bg-slate-900/50 backdrop-blur-sm border border-white/5 p-6 md:p-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="hero-paper-cards">
+                    <!-- Paper cards will be animated in here -->
+                </div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent opacity-30 pointer-events-none">
                 </div>
             </div>
         </section>
@@ -397,15 +402,56 @@
                         </ul>
                     </div>
                     <div class="md:w-1/2 order-1 md:order-2 w-full">
-                        <div class="glass-card p-2 rounded-xl border border-slate-700">
-                            <!-- PLACEHOLDER: Replace with Notes/Summary Screenshot -->
-                            <img src="assets/screenshots/notes-view.png"
-                                onerror="this.src='https://placehold.co/800x600/1e293b/cbd5e1?text=Notes+%26+Summary+View'"
-                                alt="Notes and Summary" class="rounded-lg w-full h-auto shadow-2xl">
+                        <div class="glass-card p-4 rounded-xl border border-slate-700">
+                            <!-- Interactive Notes Editor Demo -->
+                            <div class="bg-slate-900/60 backdrop-blur-xl rounded-lg border border-white/5 overflow-hidden">
+                                <!-- Toolbar -->
+                                <div class="flex items-center gap-1 px-3 py-2 border-b border-white/5 bg-white/5">
+                                    <button class="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Bold">
+                                        <span class="material-symbols-outlined text-sm">format_bold</span>
+                                    </button>
+                                    <button class="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Italic">
+                                        <span class="material-symbols-outlined text-sm">format_italic</span>
+                                    </button>
+                                    <div class="w-px h-4 bg-white/10 mx-1"></div>
+                                    <button class="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Bullet List">
+                                        <span class="material-symbols-outlined text-sm">format_list_bulleted</span>
+                                    </button>
+                                    <button class="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Numbered List">
+                                        <span class="material-symbols-outlined text-sm">format_list_numbered</span>
+                                    </button>
+                                </div>
+                                
+                                <!-- Content Area with Typing Animation -->
+                                <div id="notes-demo-content" class="p-4 h-[300px] text-slate-300 text-sm leading-relaxed overflow-y-auto custom-scrollbar">
+                                    <!-- Content will be typed here -->
+                                </div>
+                                
+                                <!-- Progress Bar -->
+                                <div class="px-4 pb-4 border-t border-white/5 pt-3">
+                                    <div class="flex justify-between text-xs text-slate-400 mb-2">
+                                        <span>Reading Progress</span>
+                                        <span id="progress-text">0%</span>
+                                    </div>
+                                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                        <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+            </div>
+        </section>
+
+        <!-- Feature Checklist Section -->
+        <section class="py-16 md:py-24 px-4 sm:px-6 bg-slate-900/30">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-2xl md:text-3xl font-bold text-white mb-8 text-center">Everything you need to organize your research</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="feature-checklist">
+                    <!-- Feature items will be animated here -->
+                </div>
             </div>
         </section>
 
@@ -827,6 +873,274 @@
                   });
               } else {
                   setTimeout(initGraphDemo, 500);
+              }
+          })();
+      </script>
+
+      <!-- Landing Page Animations: Notes Typing, Hero Cards, Feature Checklist -->
+      <script>
+          (function() {
+              // 1. Animated Typing Demo for Notes Section
+              function initNotesTypingDemo() {
+                  const contentEl = document.getElementById('notes-demo-content');
+                  const progressBar = document.getElementById('progress-bar');
+                  const progressText = document.getElementById('progress-text');
+                  
+                  if (!contentEl) return;
+
+                  const sampleNotes = [
+                      '**Key Findings:**',
+                      '',
+                      '• The transformer architecture revolutionized NLP',
+                      '• Attention mechanisms allow parallel processing',
+                      '• Pre-training on large datasets improves downstream tasks',
+                      '',
+                      '**Important Points:**',
+                      '',
+                      '1. Self-attention enables long-range dependencies',
+                      '2. Positional encoding maintains sequence order',
+                      '3. Multi-head attention captures different relationships',
+                      '',
+                      '**Questions to explore:**',
+                      '',
+                      '• How does this compare to RNN architectures?',
+                      '• What are the computational requirements?'
+                  ];
+
+                  let currentLine = 0;
+                  let currentChar = 0;
+                  let isTyping = false;
+
+                  function typeNextChar() {
+                      if (currentLine >= sampleNotes.length) {
+                          // Reset and restart after a pause
+                          setTimeout(() => {
+                              contentEl.innerHTML = '';
+                              currentLine = 0;
+                              currentChar = 0;
+                              typeNextChar();
+                          }, 3000);
+                          return;
+                      }
+
+                      const line = sampleNotes[currentLine];
+                      
+                      if (currentChar === 0) {
+                          // Start new line
+                          if (currentLine > 0) {
+                              contentEl.innerHTML += '<br>';
+                          }
+                      }
+
+                      if (currentChar < line.length) {
+                          // Type character
+                          const char = line[currentChar];
+                          if (char === '*') {
+                              // Handle markdown bold
+                              const nextChar = line[currentChar + 1];
+                              if (nextChar === '*') {
+                                  contentEl.innerHTML += '<strong>';
+                                  currentChar += 2;
+                                  typeNextChar();
+                                  return;
+                              }
+                          }
+                          
+                          // Check for closing bold
+                          if (char === '*' && line[currentChar + 1] === '*' && contentEl.innerHTML.includes('<strong>')) {
+                              contentEl.innerHTML += '</strong>';
+                              currentChar += 2;
+                              typeNextChar();
+                              return;
+                          }
+
+                          contentEl.innerHTML += char === ' ' ? '&nbsp;' : char;
+                          currentChar++;
+                          setTimeout(typeNextChar, 30 + Math.random() * 20);
+                      } else {
+                          // Line complete, move to next
+                          currentLine++;
+                          currentChar = 0;
+                          setTimeout(typeNextChar, 200);
+                      }
+
+                      // Update progress bar
+                      const progress = Math.min(100, (currentLine / sampleNotes.length) * 100);
+                      progressBar.style.width = progress + '%';
+                      progressText.textContent = Math.round(progress) + '%';
+                  }
+
+                  // Start typing after a short delay
+                  setTimeout(() => {
+                      typeNextChar();
+                  }, 1000);
+              }
+
+              // 2. Cascading Paper Cards Animation for Hero Section
+              function initHeroCards() {
+                  const container = document.getElementById('hero-paper-cards');
+                  if (!container) return;
+
+                  const demoCards = [
+                      { 
+                          title: 'Attention Is All You Need', 
+                          authors: 'Vaswani et al.', 
+                          year: 2017,
+                          status: 'Finished',
+                          statusColor: 'bg-green-500',
+                          tags: ['NLP', 'Transformers']
+                      },
+                      { 
+                          title: 'BERT: Pre-training of Deep Bidirectional Transformers', 
+                          authors: 'Devlin et al.', 
+                          year: 2018,
+                          status: 'Reading',
+                          statusColor: 'bg-blue-500',
+                          tags: ['NLP', 'BERT']
+                      },
+                      { 
+                          title: 'Language Models are Few-Shot Learners', 
+                          authors: 'Brown et al.', 
+                          year: 2020,
+                          status: 'To Read',
+                          statusColor: 'bg-yellow-500',
+                          tags: ['GPT', 'LLM']
+                      },
+                      { 
+                          title: 'Scaling Laws for Neural Language Models', 
+                          authors: 'Kaplan et al.', 
+                          year: 2020,
+                          status: 'Reading',
+                          statusColor: 'bg-blue-500',
+                          tags: ['Scaling', 'LLM']
+                      },
+                      { 
+                          title: 'Retrieval-Augmented Generation', 
+                          authors: 'Lewis et al.', 
+                          year: 2020,
+                          status: 'To Read',
+                          statusColor: 'bg-yellow-500',
+                          tags: ['RAG', 'Retrieval']
+                      },
+                      { 
+                          title: 'Chain-of-Thought Prompting', 
+                          authors: 'Wei et al.', 
+                          year: 2022,
+                          status: 'Finished',
+                          statusColor: 'bg-green-500',
+                          tags: ['Prompting', 'Reasoning']
+                      }
+                  ];
+
+                  demoCards.forEach((card, index) => {
+                      const cardEl = document.createElement('div');
+                      cardEl.className = 'paper-card rounded-xl p-4 relative overflow-hidden opacity-0 transform translate-y-4';
+                      cardEl.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                      cardEl.style.transitionDelay = `${index * 100}ms`;
+                      
+                      cardEl.innerHTML = `
+                          <div class="absolute left-0 top-0 bottom-0 w-1 ${card.statusColor} rounded-l-xl"></div>
+                          <div class="flex items-start gap-3 pl-2">
+                              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center flex-shrink-0">
+                                  <span class="material-symbols-outlined text-[20px] text-slate-400">description</span>
+                              </div>
+                              <div class="flex-1 min-w-0">
+                                  <h3 class="text-sm font-bold text-slate-100 mb-1 line-clamp-2">${card.title}</h3>
+                                  <p class="text-xs text-slate-400 mb-2">${card.authors} - ${card.year}</p>
+                                  <div class="flex flex-wrap gap-1">
+                                      ${card.tags.map(tag => `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">#${tag}</span>`).join('')}
+                                  </div>
+                              </div>
+                          </div>
+                      `;
+                      
+                      container.appendChild(cardEl);
+                      
+                      // Animate in
+                      setTimeout(() => {
+                          cardEl.style.opacity = '1';
+                          cardEl.style.transform = 'translateY(0)';
+                      }, 300 + (index * 100));
+                  });
+              }
+
+              // 3. Feature Checklist Animation
+              function initFeatureChecklist() {
+                  const container = document.getElementById('feature-checklist');
+                  if (!container) return;
+
+                  const features = [
+                      { icon: 'description', text: 'Paper Management & Organization' },
+                      { icon: 'edit_note', text: 'Rich Text Notes & Summaries' },
+                      { icon: 'search', text: 'Powerful Full-Text Search' },
+                      { icon: 'label', text: 'Smart Tagging & Filtering' },
+                      { icon: 'hub', text: 'Interactive Network Graph' },
+                      { icon: 'link', text: 'Paper Linking & Relationships' },
+                      { icon: 'folder', text: 'Collections & Saved Filters' },
+                      { icon: 'track_changes', text: 'Reading Progress Tracking' },
+                      { icon: 'format_quote', text: 'Citation Export (6 Formats)' },
+                      { icon: 'cloud_upload', text: 'PDF Storage & Management' },
+                      { icon: 'keyboard', text: 'Keyboard Shortcuts & Command Palette' },
+                      { icon: 'sync', text: 'Optional Cloud Sync' }
+                  ];
+
+                  features.forEach((feature, index) => {
+                      const itemEl = document.createElement('div');
+                      itemEl.className = 'flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-white/5 opacity-0 transform translate-x-4';
+                      itemEl.style.transition = 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+                      
+                      itemEl.innerHTML = `
+                          <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                              <span class="material-symbols-outlined text-purple-400 text-lg checkmark-icon" style="opacity: 0; transform: scale(0);">check_circle</span>
+                          </div>
+                          <span class="text-slate-300 text-sm font-medium">${feature.text}</span>
+                      `;
+                      
+                      container.appendChild(itemEl);
+                      
+                      // Animate in with checkmark
+                      setTimeout(() => {
+                          itemEl.style.opacity = '1';
+                          itemEl.style.transform = 'translateX(0)';
+                          
+                          // Animate checkmark
+                          setTimeout(() => {
+                              const checkmark = itemEl.querySelector('.checkmark-icon');
+                              if (checkmark) {
+                                  checkmark.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+                                  checkmark.style.opacity = '1';
+                                  checkmark.style.transform = 'scale(1)';
+                              }
+                          }, 200);
+                      }, 500 + (index * 100));
+                  });
+              }
+
+              // Initialize all animations when DOM is ready
+              function initAllAnimations() {
+                  initNotesTypingDemo();
+                  initHeroCards();
+                  
+                  // Feature checklist uses Intersection Observer to trigger on scroll
+                  const featureSection = document.getElementById('feature-checklist');
+                  if (featureSection) {
+                      const observer = new IntersectionObserver((entries) => {
+                          entries.forEach(entry => {
+                              if (entry.isIntersecting) {
+                                  initFeatureChecklist();
+                                  observer.unobserve(entry.target);
+                              }
+                          });
+                      }, { threshold: 0.2 });
+                      
+                      observer.observe(featureSection.parentElement);
+                  }
+              }
+
+              if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', initAllAnimations);
+              } else {
+                  initAllAnimations();
               }
           })();
       </script>
