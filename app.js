@@ -158,36 +158,95 @@ document.addEventListener('click', (e) => {
 });
 
 // --- Mobile Sidebar Logic ---
-const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-const closeMobileMenuBtn = document.getElementById('close-mobile-menu-btn');
-const mobileSidebar = document.getElementById('mobile-sidebar');
-const mobileSidebarOverlay = document.getElementById('mobile-sidebar-overlay');
+let mobileMenuBtn = null;
+let closeMobileMenuBtn = null;
+let mobileSidebar = null;
+let mobileSidebarOverlay = null;
 
 const openMobileMenu = () => {
     if (mobileSidebar && mobileSidebarOverlay) {
         mobileSidebar.classList.remove('-translate-x-full');
-        mobileSidebarOverlay.classList.remove('hidden');
+        mobileSidebarOverlay.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+        mobileSidebarOverlay.classList.add('opacity-100', 'pointer-events-auto');
     }
 };
 
 const closeMobileMenu = () => {
     if (mobileSidebar && mobileSidebarOverlay) {
         mobileSidebar.classList.add('-translate-x-full');
-        mobileSidebarOverlay.classList.add('hidden');
+        mobileSidebarOverlay.classList.remove('opacity-100', 'pointer-events-auto');
+        mobileSidebarOverlay.classList.add('opacity-0', 'pointer-events-none');
+        // Slight delay to hide completely after transition
+        setTimeout(() => {
+            if (mobileSidebar && mobileSidebar.classList.contains('-translate-x-full')) {
+                mobileSidebarOverlay.classList.add('hidden');
+            }
+        }, 300);
     }
 };
 
-if (mobileMenuBtn && closeMobileMenuBtn && mobileSidebar && mobileSidebarOverlay) {
-    mobileMenuBtn.addEventListener('click', openMobileMenu);
-    closeMobileMenuBtn.addEventListener('click', closeMobileMenu);
-    mobileSidebarOverlay.addEventListener('click', closeMobileMenu);
+// Initialize mobile menu handlers
+const initializeMobileMenu = () => {
+    // Get fresh references to elements (they might have been hidden/shown)
+    const newMobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const newCloseMobileMenuBtn = document.getElementById('close-mobile-menu-btn');
+    const newMobileSidebar = document.getElementById('mobile-sidebar');
+    const newMobileSidebarOverlay = document.getElementById('mobile-sidebar-overlay');
+
+    // Only initialize if elements exist (app shell is visible)
+    if (!newMobileMenuBtn || !newCloseMobileMenuBtn || !newMobileSidebar || !newMobileSidebarOverlay) {
+        return; // Elements not available yet
+    }
+
+    // Remove existing listeners by cloning nodes (clean way to remove all listeners)
+    if (mobileMenuBtn && mobileMenuBtn.parentNode) {
+        const clonedBtn = mobileMenuBtn.cloneNode(true);
+        mobileMenuBtn.replaceWith(clonedBtn);
+    }
+    if (closeMobileMenuBtn && closeMobileMenuBtn.parentNode) {
+        const clonedBtn = closeMobileMenuBtn.cloneNode(true);
+        closeMobileMenuBtn.replaceWith(clonedBtn);
+    }
+    if (mobileSidebarOverlay && mobileSidebarOverlay.parentNode) {
+        const clonedOverlay = mobileSidebarOverlay.cloneNode(true);
+        mobileSidebarOverlay.replaceWith(clonedOverlay);
+    }
+
+    // Update references to the new cloned elements
+    mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    closeMobileMenuBtn = document.getElementById('close-mobile-menu-btn');
+    mobileSidebar = document.getElementById('mobile-sidebar');
+    mobileSidebarOverlay = document.getElementById('mobile-sidebar-overlay');
+
+    // Attach event listeners
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', openMobileMenu);
+    }
+    if (closeMobileMenuBtn) {
+        closeMobileMenuBtn.addEventListener('click', closeMobileMenu);
+    }
+    if (mobileSidebarOverlay) {
+        mobileSidebarOverlay.addEventListener('click', closeMobileMenu);
+    }
     // Close menu when a link inside it is clicked
-    mobileSidebar.addEventListener('click', (e) => {
-        if (e.target.closest('a')) {
-            closeMobileMenu();
-        }
-    });
+    if (mobileSidebar) {
+        mobileSidebar.addEventListener('click', (e) => {
+            if (e.target.closest('a')) {
+                closeMobileMenu();
+            }
+        });
+    }
+};
+
+// Initialize on DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeMobileMenu);
+} else {
+    initializeMobileMenu();
 }
+
+// Re-initialize when app shell becomes visible (e.g., navigating from landing page)
+window.addEventListener('app-shell-visible', initializeMobileMenu);
 
 // --- Swipe Gesture for Mobile Sidebar (Left to Right) ---
 let touchStartX = 0;
@@ -199,6 +258,10 @@ const EDGE_ZONE = 20; // Distance from left edge to trigger swipe
 const MAX_VERTICAL_DIFF = 100; // Maximum vertical movement to consider it a horizontal swipe
 
 const handleTouchStart = (e) => {
+    // Get fresh reference in case element was recreated
+    if (!mobileSidebar) {
+        mobileSidebar = document.getElementById('mobile-sidebar');
+    }
     // Only handle swipe if sidebar is closed
     if (mobileSidebar && mobileSidebar.classList.contains('-translate-x-full')) {
         touchStartX = e.touches[0].clientX;
@@ -208,6 +271,10 @@ const handleTouchStart = (e) => {
 };
 
 const handleTouchMove = (e) => {
+    // Get fresh reference in case element was recreated
+    if (!mobileSidebar) {
+        mobileSidebar = document.getElementById('mobile-sidebar');
+    }
     // Prevent default scrolling if we're in a potential swipe gesture
     if (mobileSidebar && mobileSidebar.classList.contains('-translate-x-full')) {
         const currentX = e.touches[0].clientX;
@@ -227,6 +294,10 @@ const handleTouchMove = (e) => {
 };
 
 const handleTouchEnd = (e) => {
+    // Get fresh reference in case element was recreated
+    if (!mobileSidebar) {
+        mobileSidebar = document.getElementById('mobile-sidebar');
+    }
     if (!mobileSidebar || !mobileSidebar.classList.contains('-translate-x-full')) {
         return;
     }

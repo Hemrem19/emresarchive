@@ -61,6 +61,7 @@ emresarchive/
 │   ├── index.js               # Views aggregator (exports all views)
 │   ├── pages/                 # Page views
 │   │   ├── home.js            # Dashboard/home page
+│   │   ├── landing.js         # Landing page (marketing)
 │   │   ├── add.js             # Add/Edit paper form
 │   │   ├── details.js         # Paper details page
 │   │   ├── settings.js        # Settings page
@@ -75,6 +76,7 @@ emresarchive/
 │       └── commandPalette.js  # Command palette component
 │
 ├── *.view.js                  # Legacy view modules (backward compatibility)
+│   ├── landing.view.js        # Landing page view (uses views/pages/landing.js)
 │   ├── dashboard.view.js      # Dashboard view (uses views/pages/home.js)
 │   ├── form.view.js           # Form view (uses views/pages/add.js)
 │   ├── details.view.js        # Details view (uses views/pages/details.js)
@@ -111,7 +113,7 @@ emresarchive/
 ├── tests/                     # Test suite
 │   ├── setup.js               # Test setup (IndexedDB mock, etc.)
 │   ├── helpers.js             # Test helpers
-│   ├── *.test.js              # Test files (700+ tests total)
+│   ├── *.test.js              # Test files (1600+ tests total)
 │   └── [subdirectories]/     # Organized test files
 │
 ├── backend/                   # Backend server (Node.js + Express)
@@ -412,6 +414,20 @@ View → db.addPaper()
 
 **Pattern**: Each view is a module with `mount()` and `unmount()` methods. Router renders view template and calls `mount()`.
 
+**Route Structure**:
+- `#/` → Landing page (marketing)
+- `#/app` → Dashboard (moved from `#/`)
+- `#/app/filter/...` → Dashboard with filters
+- `#/app/status/...` → Dashboard filtered by status
+- `#/app/tag/...` → Dashboard filtered by tag
+- `#/add` → Add paper form
+- `#/edit/{id}` → Edit paper form
+- `#/details/{id}` → Paper details
+- `#/settings` → Settings page
+- `#/graph` → Network graph
+- `#/docs` → Documentation
+- Legacy routes (`#/filter/...`, `#/status/...`, `#/tag/...`) supported for backward compatibility
+
 **Lifecycle**:
 ```
 Router → renderView(template, mountFn)
@@ -626,7 +642,7 @@ tests/
 ```
 
 ### Test Coverage
-- **700+ tests** (100% pass rate)
+- **1600+ tests** (100% pass rate)
 - **Coverage**: 90.53% statements, 85.46% branches, 87.35% functions
 - **Test Files**: 70+ test files organized by module
 - **Coverage Areas**:

@@ -1062,6 +1062,70 @@ Sync Status
 
 ## 2.1.11 UI/UX Features
 
+### Feature: Landing Page
+**Location**: `landing.view.js`, `views/pages/landing.js`, `core/router.js`, `index.html`
+
+**User Flow**:
+1. User visits root URL (`#/` or no hash)
+2. Landing page displays with marketing content:
+   - Hero section with headline and primary CTA
+   - Value proposition (Data Ownership, Offline, Privacy)
+   - Key features showcase
+   - Technical trust signals (Open Source, No Build Tools, 1600+ Tests)
+   - Social proof section
+   - How it works (3-step process)
+   - Secondary CTA section
+   - Footer with links
+3. User clicks "Start Organizing - No Sign-up Required" button
+4. Router navigates to `#/app` (dashboard)
+5. App shell (sidebar/header) becomes visible
+6. Dashboard loads normally
+
+**Code Flow**:
+```
+Root URL (#/)
+  → Router detects landing page route
+    → landingView.mount()
+      → views/pages/landing.js template rendered
+        → Smooth scroll animations initialized
+        → Intersection Observer for fade-in effects
+          → User clicks CTA
+            → Router navigates to #/app
+              → Dashboard view mounts
+                → App shell visibility updated
+```
+
+**Key Sections**:
+- **Hero Section**: Headline, sub-headline, primary CTA button
+- **Value Proposition**: Three-column layout (Data Ownership, Offline, Privacy)
+- **Key Features**: Four-column grid (Smart Management, Rich Notes, Visual Discovery, Citations)
+- **Technical Trust**: Open Source, No Build Tools, Test Coverage (1600+ tests)
+- **Social Proof**: Metrics and badges
+- **How It Works**: Three-step process visualization
+- **Secondary CTA**: Final conversion opportunity
+- **Footer**: Links, branding, copyright
+
+**Routing Changes**:
+- `#/` → Landing page (new)
+- `#/app` → Dashboard (moved from `#/`)
+- All filter routes now use `/app` prefix: `#/app/filter/...`, `#/app/status/...`, `#/app/tag/...`
+- Legacy routes (`#/filter/...`, `#/status/...`, `#/tag/...`) still supported for backward compatibility
+
+**SEO Features**:
+- Meta tags (title, description)
+- Open Graph tags for social sharing
+- Twitter Card tags
+- Semantic HTML structure
+- Responsive meta viewport
+
+**Dependencies**:
+- `landing.view.js` - View module with mount/unmount lifecycle
+- `views/pages/landing.js` - HTML template
+- `core/router.js` - Route handling
+- `index.html` - App shell visibility logic
+
+---
+
 ### Feature: Dark Mode
 **Location**: `app.js`, `settings.view.js`
 

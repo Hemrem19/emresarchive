@@ -1063,6 +1063,36 @@ function showDocs(appState) {
 }
 ```
 
+### `landing.view.js`
+
+| Export | Description | Parameters | Returns |
+| --- | --- | --- | --- |
+| `landingView` | Landing page view module for marketing content | — | — |
+
+**Key Methods**
+- `mount()` sets up smooth scroll animations, CTA tracking, and Intersection Observer for fade-in effects.
+- `unmount()` cleans up event listeners (currently no-op as cleanup handled by DOM removal).
+
+**Features**
+- Hero section with headline and primary CTA
+- Value proposition section (3 columns)
+- Key features showcase (4 columns)
+- Technical trust signals
+- Social proof section
+- How it works (3-step process)
+- Secondary CTA section
+- Footer with links and branding
+
+**Usage Example**
+
+```js
+import { landingView } from './landing.view.js';
+import { views as templates } from './views/index.js';
+
+// Router automatically handles landing page
+// When route is #/, router renders templates.landing and calls landingView.mount()
+```
+
 ### `form.view.js`
 
 | Export | Description | Parameters | Returns |

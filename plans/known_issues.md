@@ -26,6 +26,14 @@
 ### Rating
     - Every change on the slider send notification to user and probably syncing. It should not send any notification and only sync when slider is dropped.
 
+### Email Verification
+    - Although email is verified for user, verify email address notice stays open.
+
+### Import
+    - CRITICAL ERROR: Global Error: Uncaught ReferenceError: setDuplicatePreference is not defined at https://citavers.com/settings.view.js:830
+    - set all to overwrite/skip button causes this error
+    - Importing multiple papers cause rate limit error. Because importing sends all papers individually, it should send them as batch.
+
 node build.js
 cmd /c npx cap sync android
 

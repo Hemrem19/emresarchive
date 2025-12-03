@@ -696,7 +696,12 @@ Each view module exports an object with:
 - `mount(params, appState)` - Mounts view, sets up event listeners
 - `unmount(appState)` - Unmounts view, cleans up event listeners
 
+**Landing View (`landing.view.js`)**:
+- `mount()` - Sets up smooth scroll animations, CTA tracking, and Intersection Observer for fade-in effects
+- `unmount()` - Cleanup (currently no-op as cleanup handled by DOM removal)
+
 **View Modules**:
+- `landing.view.js` → `landingView`
 - `dashboard.view.js` → `dashboardView`
 - `form.view.js` → `formView`
 - `details/index.js` → `detailsView`

@@ -29,6 +29,8 @@
 ### Use Online
 Visit: **https://citavers.com**
 
+The landing page provides an overview of features and benefits. Click "Start Organizing - No Sign-up Required" to access the application dashboard.
+
 ### Run Locally
 ```bash
 # Clone the repository
@@ -80,7 +82,7 @@ npm run test:coverage
 ```
 
 ### Test Status
-- ✅ **167 tests passing** (100% pass rate)
+- ✅ **1600+ tests passing** (100% pass rate)
 - ⏱️ **~2 second execution time**
 - 📊 **Coverage:** 93% state, 87% filter branches, 74% database
 
@@ -186,6 +188,7 @@ This project is licensed under the MIT License.
 - **Test Coverage:** 93% state, 87% filter branches, 74% database
 - **Status:** Production Ready ✅
 - **Deployment:** Live at https://citavers.com
+- **Landing Page:** Marketing-focused landing page at root route with SEO optimization
 
 ---
 
