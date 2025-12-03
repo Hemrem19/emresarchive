@@ -81,10 +81,18 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
         appState.currentPath = requestedPath;
 
         // Simple routing logic
-        // Landing page route - show marketing landing page
+        // Landing page route - skip router rendering since it's hardcoded in index.html
+        // The index.html handleRouting() function handles showing/hiding the landing page
         if (requestedPath === '/') {
+            // Don't render anything - the hardcoded landing page in index.html is already visible
+            // Just set the view for state tracking
             appState.currentView = landingView;
-            renderView(app, templates.landing, () => appState.currentView.mount());
+            // Mount the view to initialize any interactive features (smooth scroll, etc.)
+            // but don't render into #app since it's hidden
+            if (typeof landingView.mount === 'function') {
+                landingView.mount();
+            }
+            return; // Early return to avoid rendering into hidden container
         } else if (requestedPath === '/add') {
             appState.currentView = formView;
             renderView(app, templates.add, () => appState.currentView.mount(null, appState));
