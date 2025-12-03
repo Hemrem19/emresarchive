@@ -361,11 +361,9 @@
                         </ul>
                     </div>
                     <div class="md:w-1/2 order-1 md:order-2 w-full">
-                        <div class="glass-card p-2 rounded-xl border border-slate-700">
-                            <!-- PLACEHOLDER: Replace with Graph Screenshot -->
-                            <img src="assets/screenshots/graph-view.png"
-                                onerror="this.src='https://placehold.co/800x600/1e293b/cbd5e1?text=Network+Graph+Screenshot'"
-                                alt="Graph View" class="rounded-lg w-full h-auto shadow-2xl">
+                        <div class="glass-card p-2 rounded-xl border border-slate-700 overflow-hidden">
+                            <!-- Interactive Graph Demo -->
+                            <div id="landing-graph-demo" class="w-full h-[400px] md:h-[500px] rounded-lg bg-slate-900/50"></div>
                         </div>
                     </div>
                 </div>
@@ -634,9 +632,205 @@
         window.addEventListener('hashchange', handleRouting);
     </script>
 
-    <!-- Core App Script -->
-    <script type="module" src="app.js"></script>
+      <!-- Core App Script -->
+      <script type="module" src="app.js"></script>
 
-</body>
+      <!-- Landing Page Graph Demo -->
+      <script>
+          // Initialize interactive graph demo on landing page
+          (function() {
+              // Sample paper data for demo
+              const demoPapers = [
+                  { id: 1, title: 'Deep Learning Fundamentals', readingStatus: 'Finished', relatedPaperIds: [2, 3, 4] },
+                  { id: 2, title: 'Neural Network Architectures', readingStatus: 'Reading', relatedPaperIds: [1, 3, 5] },
+                  { id: 3, title: 'Attention Mechanisms in NLP', readingStatus: 'Reading', relatedPaperIds: [1, 2, 4, 6] },
+                  { id: 4, title: 'Transformer Models', readingStatus: 'Finished', relatedPaperIds: [1, 3, 5, 7] },
+                  { id: 5, title: 'BERT and Variants', readingStatus: 'To Read', relatedPaperIds: [2, 4, 6] },
+                  { id: 6, title: 'GPT Architecture', readingStatus: 'To Read', relatedPaperIds: [3, 5, 7] },
+                  { id: 7, title: 'Large Language Models', readingStatus: 'Reading', relatedPaperIds: [4, 6, 8] },
+                  { id: 8, title: 'Prompt Engineering', readingStatus: 'To Read', relatedPaperIds: [7, 9] },
+                  { id: 9, title: 'Fine-tuning Strategies', readingStatus: 'To Read', relatedPaperIds: [8] },
+                  { id: 10, title: 'Reinforcement Learning', readingStatus: 'Finished', relatedPaperIds: [1] }
+              ];
 
-</html>
+              function getNodeColor(status) {
+                  const s = (status || '').toLowerCase().trim();
+                  const colors = {
+                      'reading': { background: '#3b82f6', border: '#60a5fa' },
+                      'to read': { background: '#eab308', border: '#facc15' },
+                      'finished': { background: '#22c55e', border: '#4ade80' },
+                      'completed': { background: '#22c55e', border: '#4ade80' }
+                  };
+                  return colors[s] || { background: '#64748b', border: '#94a3b8' };
+              }
+
+              function truncateTitle(title, maxLength) {
+                  if (title.length <= maxLength) return title;
+                  return title.substring(0, maxLength - 3) + '...';
+              }
+
+              function prepareGraphData(papers) {
+                  const nodes = [];
+                  const edges = [];
+                  const paperIdSet = new Set(papers.map(p => p.id));
+                  const edgeSet = new Set();
+
+                  papers.forEach(paper => {
+                      const connectionCount = (paper.relatedPaperIds || []).filter(id => paperIdSet.has(id)).length;
+                      const color = getNodeColor(paper.readingStatus);
+                      nodes.push({
+                          id: paper.id,
+                          label: truncateTitle(paper.title, 20),
+                          shape: 'dot',
+                          size: Math.max(20, Math.min(50, 20 + connectionCount * 3)),
+                          color: color,
+                          font: { color: '#ffffff', strokeWidth: 0, size: 14, face: 'Manrope' },
+                          shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10, x: 0, y: 0 }
+                      });
+
+                      if (paper.relatedPaperIds) {
+                          paper.relatedPaperIds.forEach(relatedId => {
+                              if (paperIdSet.has(relatedId)) {
+                                  const edgeKey = [Math.min(paper.id, relatedId), Math.max(paper.id, relatedId)].join('-');
+                                  if (!edgeSet.has(edgeKey)) {
+                                      edgeSet.add(edgeKey);
+                                      edges.push({
+                                          from: paper.id,
+                                          to: relatedId,
+                                          width: 1,
+                                          color: { color: 'rgba(255,255,255,0.15)', highlight: '#3b82f6', hover: '#3b82f6' },
+                                          smooth: { type: 'curvedCW', roundness: 0.2 }
+                                      });
+                                  }
+                              }
+                          });
+                      }
+                  });
+                  return { nodes, edges };
+              }
+
+              function initGraphDemo() {
+                  const container = document.getElementById('landing-graph-demo');
+                  if (!container) return;
+
+                  // Wait for vis-network to load
+                  if (!window.vis) {
+                      // Retry after a short delay
+                      setTimeout(initGraphDemo, 100);
+                      return;
+                  }
+
+                  const graphData = prepareGraphData(demoPapers);
+                  const data = {
+                      nodes: new vis.DataSet(graphData.nodes),
+                      edges: new vis.DataSet(graphData.edges)
+                  };
+
+                  const options = {
+                      nodes: {
+                          borderWidth: 0,
+                          borderWidthSelected: 2,
+                          color: {
+                              border: '#ffffff',
+                              highlight: { border: '#ffffff', background: '#3b82f6' },
+                              hover: { border: '#ffffff', background: '#3b82f6' }
+                          },
+                          font: {
+                              color: '#ffffff',
+                              size: 14,
+                              face: 'Manrope',
+                              strokeWidth: 0
+                          },
+                          shadow: {
+                              enabled: true,
+                              color: 'rgba(0,0,0,0.5)',
+                              size: 10,
+                              x: 0,
+                              y: 0
+                          }
+                      },
+                      edges: {
+                          width: 1,
+                          color: {
+                              color: 'rgba(255,255,255,0.15)',
+                              highlight: '#3b82f6',
+                              hover: '#3b82f6'
+                          },
+                          smooth: {
+                              type: 'curvedCW',
+                              roundness: 0.2
+                          },
+                          shadow: {
+                              enabled: false
+                          }
+                      },
+                      physics: {
+                          enabled: true,
+                          stabilization: {
+                              enabled: true,
+                              iterations: 200,
+                              updateInterval: 25,
+                              onlyDynamicEdges: false,
+                              fit: true
+                          },
+                          solver: 'forceAtlas2Based',
+                          forceAtlas2Based: {
+                              gravitationalConstant: -50,
+                              centralGravity: 0.01,
+                              springLength: 100,
+                              springConstant: 0.08,
+                              damping: 0.4,
+                              avoidOverlap: 0.5
+                          },
+                          maxVelocity: 50,
+                          minVelocity: 0.1,
+                          timestep: 0.5,
+                          adaptiveTimestep: true
+                      },
+                      interaction: {
+                          hover: true,
+                          tooltipDelay: 200,
+                          hideEdgesOnDrag: false,
+                          hideEdgesOnZoom: false,
+                          navigationButtons: false,
+                          keyboard: false,
+                          multiselect: false,
+                          zoomView: true,
+                          dragView: true,
+                          zoomSpeed: 0.5
+                      }
+                  };
+
+                  try {
+                      const network = new vis.Network(container, data, options);
+                      
+                      // Add hover tooltip
+                      network.on('hoverNode', function(params) {
+                          const paper = demoPapers.find(p => p.id === params.node);
+                          if (paper) {
+                              container.style.cursor = 'pointer';
+                          }
+                      });
+                      
+                      network.on('blurNode', function() {
+                          container.style.cursor = 'default';
+                      });
+                  } catch (error) {
+                      console.error('Error initializing graph demo:', error);
+                  }
+              }
+
+              // Initialize when DOM is ready
+              if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', function() {
+                      setTimeout(initGraphDemo, 500);
+                  });
+              } else {
+                  setTimeout(initGraphDemo, 500);
+              }
+          })();
+      </script>
+
+  </body>
+
+  </html>

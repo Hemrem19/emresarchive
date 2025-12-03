@@ -29,7 +29,7 @@ export const landingView = {
         anchorLinks.forEach(link => {
             const handler = (e) => {
                 const href = link.getAttribute('href');
-                if (href.startsWith('#') && href !== '#/app' && href !== '#/' && href !== '#') {
+                if (href.startsWith('#') && href !== '#/app' && href !== '#/' && href !== '#' && href !== '#/privacy' && href !== '#/terms') {
                     e.preventDefault();
                     const targetId = href.substring(1);
                     const targetElement = document.getElementById(targetId);
