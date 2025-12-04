@@ -1,7 +1,7 @@
 ## Known Issues
 
 ### Login
-    - Login buton on citavErs web clipper does not working.
+    - Login buton on citavErs web clipper does not working. (FIXED)
     - Logging in should trigger background sync.
 
 ### Edit Paper
