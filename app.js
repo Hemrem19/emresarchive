@@ -364,6 +364,11 @@ window.addEventListener('resize', () => {
 const router = createRouter(app, appState, renderSidebarStatusLinks);
 initializeRouter(router);
 
+// Make router available globally for landing page navigation
+if (typeof window !== 'undefined') {
+    window.appRouter = router;
+}
+
 // --- Database Initialization & Initial Routing ---
 openDB().then(() => {
     console.log('IndexedDB initialized.');

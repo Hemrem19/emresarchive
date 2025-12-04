@@ -703,6 +703,12 @@
                 if (href.startsWith('#/')) {
                     // Let the hashchange event handle it, but ensure routing triggers
                     setTimeout(handleRouting, 0);
+                    // Also ensure the router is called if available
+                    setTimeout(() => {
+                        if (window.appRouter && typeof window.appRouter === 'function') {
+                            window.appRouter();
+                        }
+                    }, 10);
                 }
             }
         });
