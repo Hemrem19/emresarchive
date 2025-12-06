@@ -258,8 +258,8 @@
                     class="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary-dark text-white rounded-lg font-bold text-lg shadow-lg shadow-blue-500/25 transition-all transform hover:scale-105">
                     Start Organizing
                 </a>
-                <a href="#/docs" id="docs-link"
-                    class="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-semibold text-lg transition-all cursor-pointer">
+                <a href="#/docs"
+                    class="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-semibold text-lg transition-all">
                     See How It Works
                 </a>
             </div>
@@ -684,10 +684,16 @@
                 // The #app container has overflow-y-auto which handles scrolling
 
                 // Dispatch custom event when app shell becomes visible so app.js can re-initialize handlers
-                // Use setTimeout to ensure DOM is updated before dispatching
-                setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent('app-shell-visible'));
-                }, 0);
+                // Use requestAnimationFrame to ensure DOM is updated before calling router
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        window.dispatchEvent(new CustomEvent('app-shell-visible'));
+                        // Call router after app-shell is visible (same as working buttons)
+                        if (window.appRouter && typeof window.appRouter === 'function') {
+                            window.appRouter();
+                        }
+                    });
+                });
             }
         }
 
@@ -695,37 +701,13 @@
         window.addEventListener('load', handleRouting);
         window.addEventListener('hashchange', function() {
             handleRouting();
-            // Also explicitly call the router if available
-            if (window.appRouter && typeof window.appRouter === 'function') {
-                window.appRouter();
-            }
+            // handleRouting will call the router after app-shell becomes visible
+            // This matches how the working buttons (#/app) work - they rely on hashchange
+            // and handleRouting() ensures app-shell is visible before router runs
         });
         
-        // Also handle clicks on landing page links to ensure routing works
-        document.addEventListener('click', function(e) {
-            const link = e.target.closest('a[href^="#"]');
-            if (link && link.getAttribute('href') !== '#') {
-                const href = link.getAttribute('href');
-                if (href.startsWith('#/')) {
-                    // Let browser handle hash change, but ensure router is called
-                    // The hashchange event should fire automatically, but we also
-                    // explicitly call the router to handle any edge cases
-                    setTimeout(() => {
-                        handleRouting();
-                        // Ensure router is called - retry if not ready
-                        const tryRouter = () => {
-                            if (window.appRouter && typeof window.appRouter === 'function') {
-                                window.appRouter();
-                            } else {
-                                // Router not ready, try again after a short delay
-                                setTimeout(tryRouter, 50);
-                            }
-                        };
-                        tryRouter();
-                    }, 0);
-                }
-            }
-        });
+        // Note: No special click handler needed - let browser handle hash navigation naturally
+        // The hashchange event listener will handle routing for all links
     </script>
 
       <!-- Core App Script -->
