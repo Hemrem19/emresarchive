@@ -547,7 +547,9 @@ export const highlightActiveSidebarLink = () => {
                 // Remove old color classes
                 el.classList.remove('bg-slate-800', 'text-slate-300', 'bg-blue-500/20', 'text-blue-300', 'text-blue-400', 'bg-blue-500/10', 'border-blue-500/10');
                 // Add correct color classes
-                el.classList.add(tagColor.bg, tagColor.text, tagColor.border);
+                // Split border classes since it may contain multiple classes separated by spaces
+                const borderClasses = tagColor.border.split(' ').filter(c => c.trim());
+                el.classList.add(tagColor.bg, tagColor.text, ...borderClasses);
             }
         }
     });
