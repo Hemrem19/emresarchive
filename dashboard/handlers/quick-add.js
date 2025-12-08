@@ -14,30 +14,54 @@ import { fetchDoiMetadata, normalizePaperIdentifier } from '../../api.js';
  * @returns {Function} Event handler for quick add form
  */
 export function createQuickAddHandler(appState, applyFiltersAndRender) {
+    let isProcessing = false; // Flag to prevent double submission
+    
     return async (e) => {
         e.preventDefault();
+        
+        // Prevent double submission
+        if (isProcessing) {
+            return;
+        }
+        
         const doiInput = document.getElementById('quick-add-doi');
+        const quickAddForm = document.getElementById('quick-add-form');
+        const submitButton = quickAddForm?.querySelector('button[type="submit"], input[type="submit"]');
         const inputValue = doiInput.value.trim();
         if (!inputValue) return;
 
         try {
+            isProcessing = true;
+            // Disable form during processing
+            if (doiInput) doiInput.disabled = true;
+            if (submitButton) submitButton.disabled = true;
+            
             // Normalize input to extract DOI/identifier
             const normalized = normalizePaperIdentifier(inputValue);
             
             // Handle arXiv (not yet supported)
             if (normalized.type === 'arxiv') {
                 showToast(normalized.error || 'arXiv papers are not yet supported. Please use a DOI or add the paper manually.', 'warning', { duration: 7000 });
+                isProcessing = false;
+                if (doiInput) doiInput.disabled = false;
+                if (submitButton) submitButton.disabled = false;
                 return;
             }
             
             // Handle unsupported formats
             if (normalized.type === 'unsupported') {
                 showToast(normalized.error || 'Could not detect a valid DOI. Please provide a DOI (e.g., 10.1234/example) or a doi.org URL.', 'error', { duration: 7000 });
+                isProcessing = false;
+                if (doiInput) doiInput.disabled = false;
+                if (submitButton) submitButton.disabled = false;
                 return;
             }
             
             if (normalized.type !== 'doi' || !normalized.value) {
                 showToast('Could not extract a valid DOI from the input. Please check the format and try again.', 'error', { duration: 5000 });
+                isProcessing = false;
+                if (doiInput) doiInput.disabled = false;
+                if (submitButton) submitButton.disabled = false;
                 return;
             }
 
@@ -48,6 +72,9 @@ export function createQuickAddHandler(appState, applyFiltersAndRender) {
                 const existingPaper = await getPaperByDoi(extractedDoi);
                 if (existingPaper) {
                     showToast(`Paper with this DOI already exists: "${existingPaper.title}"`, 'error', { duration: 5000 });
+                    isProcessing = false;
+                    if (doiInput) doiInput.disabled = false;
+                    if (submitButton) submitButton.disabled = false;
                     return;
                 }
             } catch (duplicateError) {
@@ -63,6 +90,23 @@ export function createQuickAddHandler(appState, applyFiltersAndRender) {
             }
             
             const metadata = await fetchDoiMetadata(inputValue); // fetchDoiMetadata handles normalization internally
+            
+            // Re-check for duplicates after fetching metadata (in case it was added during fetch)
+            // This is important because fetching metadata takes time, and another submission might have happened
+            try {
+                const existingPaper = await getPaperByDoi(metadata.doi || extractedDoi);
+                if (existingPaper) {
+                    showToast(`Paper with this DOI already exists: "${existingPaper.title}"`, 'error', { duration: 5000 });
+                    isProcessing = false;
+                    if (doiInput) doiInput.disabled = false;
+                    if (submitButton) submitButton.disabled = false;
+                    return;
+                }
+            } catch (duplicateError) {
+                console.error('Error checking for duplicate after fetch:', duplicateError);
+                // Continue with add if duplicate check fails
+            }
+            
             const paperData = {
                 ...metadata,
                 tags: [], createdAt: new Date(), readingStatus: 'To Read',
@@ -84,6 +128,12 @@ export function createQuickAddHandler(appState, applyFiltersAndRender) {
                     onClick: () => document.getElementById('quick-add-form').requestSubmit()
                 }]
             });
+        } finally {
+            // Re-enable form
+            isProcessing = false;
+            if (doiInput) doiInput.disabled = false;
+            if (submitButton) submitButton.disabled = false;
+            if (doiInput) doiInput.focus(); // Refocus input for next entry
         }
     };
 }
