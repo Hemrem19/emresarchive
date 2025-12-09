@@ -42,7 +42,30 @@ export const graphView = {
                 return;
             }
 
-            // Always load local papers and use local graph data
+            // Try to load the latest saved network first (if authenticated)
+            const token = getAccessToken();
+            if (token) {
+                try {
+                    const networks = await getUserNetworks();
+                    if (networks && networks.length > 0) {
+                        // Sort by updatedAt descending to get the most recent
+                        const latestNetwork = networks.sort((a, b) => 
+                            new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
+                        )[0];
+                        
+                        if (latestNetwork && latestNetwork.id) {
+                            await this.loadNetwork(latestNetwork.id);
+                            this.setupEventListeners();
+                            return; // Successfully loaded saved network
+                        }
+                    }
+                } catch (networkError) {
+                    console.warn('Failed to load saved network, falling back to local data:', networkError);
+                    // Continue to local data fallback
+                }
+            }
+
+            // Fallback: Load local papers and use local graph data
             try {
                 this.allPapers = await getAllPapers();
             } catch (dbError) {

@@ -10,9 +10,9 @@
 ### citavErs Web Clipper
     - Dark mode button does not work.
 
-### Paper Network
-    - Paper network does not syncing across other devices.
-    - Paper network should be saved once created and need to be showed until new one created.
+### Paper Network (FIXED)
+    - ✅ FIXED: Paper network now syncs across devices. Networks are stored on the backend and automatically loaded when the graph view mounts.
+    - ✅ FIXED: Paper network is now saved when created and automatically displayed until a new one is generated.
 
 ### Sync (FIXED)
     - ✅ FIXED: Tags, notes, summary, and rating were not syncing between devices. Root cause: sync endpoints were missing `summary` and `rating` in database select statements. Fixed in `backend/src/controllers/sync.js`.
