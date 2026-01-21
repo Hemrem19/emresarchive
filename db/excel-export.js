@@ -50,15 +50,15 @@ export async function exportToExcel() {
         papers.forEach(paper => {
             worksheet.addRow({
                 id: paper.id,
-                title: paper.title || '',
-                authors: Array.isArray(paper.authors) ? paper.authors.join(', ') : (paper.authors || ''),
+                title: decodeHtml(paper.title || ''),
+                authors: Array.isArray(paper.authors) ? decodeHtml(paper.authors.join(', ')) : decodeHtml(paper.authors || ''),
                 year: paper.year || '',
-                journal: paper.journal || '',
-                doi: paper.doi || '',
+                journal: decodeHtml(paper.journal || ''),
+                doi: formatDoi(paper.doi),
                 status: paper.readingStatus || paper.status || 'To Read', // Fallback
                 rating: paper.rating || '',
-                summary: paper.summary || '',
-                tags: Array.isArray(paper.tags) ? paper.tags.join(', ') : (paper.tags || ''),
+                summary: stripHtml(paper.summary || ''),
+                tags: Array.isArray(paper.tags) ? decodeHtml(paper.tags.join(', ')) : decodeHtml(paper.tags || ''),
                 notes: stripHtml(paper.notes || ''), // Helper to strip HTML
                 createdAt: formatDate(paper.createdAt)
             });
@@ -118,4 +118,24 @@ function formatDate(date) {
     } catch (e) {
         return '';
     }
+}
+
+/**
+ * Helper to format DOI with https://doi.org/ prefix
+ */
+function formatDoi(doi) {
+    if (!doi) return '';
+    const cleanDoi = doi.trim();
+    if (cleanDoi.startsWith('http')) return cleanDoi;
+    return `https://doi.org/${cleanDoi}`;
+}
+
+/**
+ * Helper to decode HTML entities (e.g. &amp; -> &)
+ */
+function decodeHtml(html) {
+    if (!html) return '';
+    const txt = document.createElement('textarea');
+    txt.innerHTML = html;
+    return txt.value;
 }
