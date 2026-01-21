@@ -51,9 +51,13 @@ export const settingsView = `
                                 <p class="mt-2 text-sm text-slate-400">Download a single .json backup file of all your paper data, notes, and attached PDFs.</p>
                             </div>
                             <div class="flex items-start md:col-span-2">
-                                <button id="export-btn" class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-primary/90 hover:shadow-blue-500/30">
+                                <button id="export-btn" class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-primary/90 hover:shadow-blue-500/30 mr-3">
                                     <span class="material-symbols-outlined text-base">download</span>
-                                    <span>Export Data</span>
+                                    <span>Export Data (JSON)</span>
+                                </button>
+                                <button id="export-excel-btn" class="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-green-500/20 transition-all hover:bg-green-700 hover:shadow-green-500/30">
+                                    <span class="material-symbols-outlined text-base">table_view</span>
+                                    <span>Export to Excel</span>
                                 </button>
                             </div>
                         </div>

@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@capacitor/browser": "^7.0.2",
-    "@capacitor/filesystem": "^7.1.5"
+    "@capacitor/filesystem": "^7.1.5",
+    "exceljs": "^4.4.0"
   }
 }

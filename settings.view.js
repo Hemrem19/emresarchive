@@ -1,4 +1,5 @@
 import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi, performSync, performFullSync, performIncrementalSync, getSyncStatusInfo, deduplicateLocalPapers } from './db.js';
+import { exportToExcel } from './db/excel-export.js';
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
@@ -15,7 +16,7 @@ export const settingsView = {
         this.setupImportExport(appState);
         this.setupCloudSync();
         this.setupDangerZone(appState);
-        
+
     },
 
     unmount() {
@@ -84,28 +85,28 @@ export const settingsView = {
         const syncNowBtn = document.getElementById('sync-now-btn');
         const syncStatusDisplay = document.getElementById('sync-status-display');
         const pendingChangesDisplay = document.getElementById('pending-changes-display');
-        
+
         if (!toggle || !statusText) {
             console.warn('[Settings] Cloud sync toggle or status text not found');
             return;
         }
-        
+
         // Setup de-duplicate button
         const dedupBtn = document.getElementById('dedup-papers-btn');
         if (dedupBtn) {
             dedupBtn.addEventListener('click', async () => {
                 if (dedupBtn.disabled) return;
-                
+
                 const originalHTML = dedupBtn.innerHTML;
-                
+
                 try {
                     dedupBtn.disabled = true;
                     dedupBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">cleaning_services</span><span>Cleaning...</span>';
-                    
+
                     showToast('Scanning for duplicate papers...', 'info', { duration: 3000 });
-                    
+
                     const result = await deduplicateLocalPapers();
-                    
+
                     if (result.duplicatesRemoved > 0) {
                         showToast(`Successfully removed ${result.duplicatesRemoved} duplicate paper(s)!`, 'success', {
                             duration: 5000
@@ -134,17 +135,17 @@ export const settingsView = {
 
         const updateSyncStatus = async () => {
             if (!syncControlsContainer || syncControlsContainer.classList.contains('hidden')) return;
-            
+
             // Check if rate limited before making API call
             const { isRateLimited, getRateLimitRemainingTime } = await import('./api/utils.js');
             if (isRateLimited()) {
                 const remainingSeconds = Math.ceil(getRateLimitRemainingTime() / 1000);
                 return;
             }
-            
+
             try {
                 const status = await getSyncStatusInfo();
-                
+
                 // Update last sync time
                 if (status.lastSyncedAt) {
                     const lastSyncedDate = new Date(status.lastSyncedAt);
@@ -153,7 +154,7 @@ export const settingsView = {
                     const diffMins = Math.floor(diffMs / 60000);
                     const diffHours = Math.floor(diffMs / 3600000);
                     const diffDays = Math.floor(diffMs / 86400000);
-                    
+
                     let lastSyncedText;
                     if (diffMins < 1) {
                         lastSyncedText = 'Just now';
@@ -164,7 +165,7 @@ export const settingsView = {
                     } else {
                         lastSyncedText = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
                     }
-                    
+
                     if (syncStatusDisplay) {
                         syncStatusDisplay.textContent = `Last synced: ${lastSyncedText}`;
                     }
@@ -173,15 +174,15 @@ export const settingsView = {
                         syncStatusDisplay.textContent = 'Never synced';
                     }
                 }
-                
+
                 // Update pending changes
                 if (status.hasPendingChanges) {
                     const counts = status.pendingChangeCounts;
-                    const total = 
+                    const total =
                         (counts.papers?.created || 0) + (counts.papers?.updated || 0) + (counts.papers?.deleted || 0) +
                         (counts.collections?.created || 0) + (counts.collections?.updated || 0) + (counts.collections?.deleted || 0) +
                         (counts.annotations?.created || 0) + (counts.annotations?.updated || 0) + (counts.annotations?.deleted || 0);
-                    
+
                     if (pendingChangesDisplay && total > 0) {
                         pendingChangesDisplay.textContent = `${total} pending change${total !== 1 ? 's' : ''} waiting to sync`;
                         pendingChangesDisplay.className = 'text-xs text-yellow-600 dark:text-yellow-400';
@@ -195,7 +196,7 @@ export const settingsView = {
                         pendingChangesDisplay.className = 'text-xs text-green-600 dark:text-green-400';
                     }
                 }
-                
+
                 // Update sync button state
                 if (syncNowBtn) {
                     syncNowBtn.disabled = status.inProgress || false;
@@ -217,10 +218,10 @@ export const settingsView = {
         const updateUI = async () => {
             const syncEnabled = isCloudSyncEnabled();
             const authenticated = isAuthenticated();
-            
+
             toggle.checked = syncEnabled && authenticated;
             toggle.disabled = !authenticated;
-            
+
             if (!authenticated) {
                 statusText.textContent = 'Please log in to enable cloud sync.';
                 statusText.className = 'text-xs text-yellow-600 dark:text-yellow-400 ml-20';
@@ -247,14 +248,14 @@ export const settingsView = {
 
         // Initial UI update
         updateUI();
-        
+
         // Show email verification section if user is authenticated but not verified
         const emailVerificationSection = document.getElementById('email-verification-section');
         if (emailVerificationSection) {
             const checkEmailVerification = () => {
                 const authenticated = isAuthenticated();
                 const user = getUser();
-                
+
                 if (authenticated && user && !user.emailVerified) {
                     emailVerificationSection.classList.remove('hidden');
                     const resendBtn = document.getElementById('resend-verification-settings-btn');
@@ -281,7 +282,7 @@ export const settingsView = {
                     emailVerificationSection.classList.add('hidden');
                 }
             };
-            
+
             checkEmailVerification();
             // Re-check when toggle changes (user might log in/out)
             toggle.addEventListener('change', checkEmailVerification);
@@ -290,7 +291,7 @@ export const settingsView = {
         // Handle toggle change
         toggle.addEventListener('change', (e) => {
             const enabled = e.target.checked;
-            
+
             if (enabled && !isAuthenticated()) {
                 // Show login prompt
                 showToast('Please log in to enable cloud sync.', 'warning');
@@ -301,7 +302,7 @@ export const settingsView = {
 
             setCloudSyncEnabled(enabled);
             updateUI();
-            
+
             // Start/stop automatic sync based on toggle
             if (enabled && isAuthenticated()) {
                 restartAutoSync();
@@ -318,16 +319,16 @@ export const settingsView = {
         if (syncNowBtn) {
             syncNowBtn.addEventListener('click', async () => {
                 if (syncNowBtn.disabled) return;
-                
+
                 try {
                     syncNowBtn.disabled = true;
                     syncNowBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">sync</span><span>Syncing...</span>';
-                    
+
                     showToast('Syncing data...', 'info', { duration: 5000 });
-                    
+
                     // Use sync manager's manual sync function
                     await performManualSync();
-                    
+
                     // Update status display
                     await updateSyncStatus();
                 } catch (error) {
@@ -362,7 +363,7 @@ export const settingsView = {
 
         let draggedItem = null;
 
-            const render = () => {
+        const render = () => {
             const statuses = getStatusOrder();
             container.innerHTML = statuses.map(status => `
                 <li draggable="true" class="status-item flex items-center justify-between p-3 border border-white/5 bg-slate-800/50 rounded-xl cursor-grab active:cursor-grabbing hover:bg-slate-700/50 transition-colors shadow-sm">
@@ -388,7 +389,7 @@ export const settingsView = {
             e.preventDefault();
             const afterElement = getDragAfterElement(container, e.clientY);
             const currentItems = [...container.querySelectorAll('.status-item:not(.opacity-50)')];
-            
+
             if (afterElement == null) {
                 container.appendChild(draggedItem);
             } else {
@@ -424,24 +425,25 @@ export const settingsView = {
 
     setupImportExport(appState) {
         const exportBtn = document.getElementById('export-btn');
+        const exportExcelBtn = document.getElementById('export-excel-btn');
         const importBtn = document.getElementById('import-btn');
         const importFileInput = document.getElementById('import-file-input');
 
-        if (exportBtn && importBtn && importFileInput) {
+        if (exportBtn && exportExcelBtn && importBtn && importFileInput) {
             const exportHandler = async () => {
                 try {
                     showToast('Exporting data... Please wait.', 'info', { duration: 10000 });
                     const data = await exportAllData();
-                    
+
                     // data is now an object with papers and collections arrays
                     const paperCount = (data.papers || []).length;
                     const collectionCount = (data.collections || []).length;
-                    
+
                     if (paperCount === 0 && collectionCount === 0) {
                         showToast('No data to export. Your library is empty.', 'warning');
                         return;
                     }
-                    
+
                     const jsonString = JSON.stringify(data, null, 2);
                     const blob = new Blob([jsonString], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -453,13 +455,13 @@ export const settingsView = {
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                    
+
                     let message = 'Export complete! ';
                     if (paperCount > 0) message += `${paperCount} paper(s)`;
                     if (paperCount > 0 && collectionCount > 0) message += ' and ';
                     if (collectionCount > 0) message += `${collectionCount} collection(s)`;
                     message += ' exported.';
-                    
+
                     showToast(message, 'success');
                 } catch (error) {
                     console.error('Export failed:', error);
@@ -473,6 +475,18 @@ export const settingsView = {
                 }
             };
             exportBtn.addEventListener('click', exportHandler);
+
+            const exportExcelHandler = async () => {
+                try {
+                    showToast('Exporting to Excel... Please wait.', 'info', { duration: 5000 });
+                    const result = await exportToExcel();
+                    showToast(`Successfully exported ${result.count} papers to Excel!`, 'success');
+                } catch (error) {
+                    console.error('Excel Export failed:', error);
+                    showToast(error.message || 'Excel Export failed. Please try again.', 'error');
+                }
+            };
+            exportExcelBtn.addEventListener('click', exportExcelHandler);
 
             const importHandler = () => {
                 importFileInput.click();
@@ -492,14 +506,14 @@ export const settingsView = {
                 reader.onload = async (e) => {
                     try {
                         showToast('Preparing import... Please wait.', 'info', { duration: 10000 });
-                        
+
                         let papersToImport;
                         try {
                             papersToImport = JSON.parse(e.target.result);
                         } catch (parseError) {
                             throw new Error('Invalid file format: Unable to parse JSON. Please use a valid backup file.');
                         }
-                        
+
                         // Step 1: Clear ALL data (local + cloud) before importing
                         // This prevents conflicts when syncing imported data
                         if (isCloudSyncEnabled() && isAuthenticated()) {
@@ -514,18 +528,18 @@ export const settingsView = {
                                 showToast('Warning: Cloud data may not have been fully cleared', 'warning', { duration: 3000 });
                             }
                         }
-                        
+
                         // Step 2: Import data (handles both local and cloud in one batch)
                         showToast('Importing data... Please wait.', 'info', { duration: 10000 });
                         await importData(papersToImport);
-                        
+
                         if (isCloudSyncEnabled() && isAuthenticated()) {
                             showToast('Import successful! Data synced to cloud.', 'success');
                         } else {
                             showToast('Import successful! Library has been restored.', 'success');
                         }
                         appState.allPapersCache = []; // Clear cache in app state
-                        
+
                         // Navigate to dashboard without full page reload to avoid aborting pending requests
                         window.location.hash = '#/app';
                         // Let the router handle the view change naturally
@@ -537,12 +551,12 @@ export const settingsView = {
                         importFileInput.value = ''; // Clear file input
                     }
                 };
-                
+
                 reader.onerror = () => {
                     showToast('Failed to read file. Please try again.', 'error');
                     importFileInput.value = '';
                 };
-                
+
                 reader.readAsText(file);
             };
             importFileInput.addEventListener('change', fileChangeHandler);
@@ -590,7 +604,7 @@ export const settingsView = {
 
                         const risContent = e.target.result;
                         const papers = parseRIS(risContent);
-                        
+
                         if (!papers || papers.length === 0) {
                             showToast('No papers found in RIS file. Please check the file format.', 'warning');
                             importRISFileInput.value = '';
@@ -617,7 +631,7 @@ export const settingsView = {
                                 const cleanYear = parseInt(paper.year, 10);
 
                                 if (cleanTitle && !isNaN(cleanYear)) {
-                                    existingPaper = allExistingPapers.find(p => 
+                                    existingPaper = allExistingPapers.find(p =>
                                         p.title && p.title.trim().toLowerCase() === cleanTitle &&
                                         p.year && parseInt(p.year, 10) === cleanYear
                                     );
@@ -703,8 +717,8 @@ export const settingsView = {
                         </div>
                         <div class="space-y-3 max-h-[400px] overflow-y-auto">
                             ${papersWithStatus.map((paper, index) => {
-                                const isDuplicate = paper.status === 'duplicate';
-                                return `
+            const isDuplicate = paper.status === 'duplicate';
+            return `
                                 <div class="ris-paper-item p-3 ${isDuplicate ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/30' : 'bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700'} border rounded-md" data-index="${index}" data-status="${paper.status}">
                                     <div class="flex items-start gap-4">
                                         <input type="checkbox" class="ris-item-checkbox mt-1 w-4 h-4 text-primary border-stone-300 rounded focus:ring-primary dark:border-stone-700 dark:bg-stone-800" data-index="${index}" checked>
@@ -986,12 +1000,12 @@ export const settingsView = {
                     console.error(`Error importing paper:`, paperData, error);
                 }
             }
-            
+
             // Update cache
             appState.allPapersCache = await getAllPapers();
 
             // Show a simple toast for completion
-            const toastMessage = successCount > 0 
+            const toastMessage = successCount > 0
                 ? `Import complete. ${successCount} paper(s) added.`
                 : 'Import finished. No new papers were added.';
             showToast(toastMessage, successCount > 0 ? 'success' : 'info');
@@ -1024,7 +1038,7 @@ export const settingsView = {
                         await clearAllData();
                         appState.allPapersCache = []; // Clear the global cache
                         showToast('All data has been permanently deleted.', 'success');
-                        
+
                         // Redirect to home page to reflect the empty state
                         setTimeout(() => {
                             window.location.hash = '#/app';
