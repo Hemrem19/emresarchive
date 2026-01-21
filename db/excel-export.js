@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+// ExcelJS is loaded via CDN in index.html and available as window.ExcelJS
 import { getAllPapers } from '../db.js';
 
 /**
