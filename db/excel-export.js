@@ -32,6 +32,7 @@ export async function exportToExcel() {
             { header: 'Status', key: 'status', width: 15 },
             { header: 'Rating', key: 'rating', width: 10 },
             { header: 'Summary', key: 'summary', width: 40 },
+            { header: 'Abstract', key: 'abstract', width: 40 },
             { header: 'Tags', key: 'tags', width: 20 },
             { header: 'Notes', key: 'notes', width: 50 },
             { header: 'Added', key: 'createdAt', width: 20 },
@@ -58,6 +59,7 @@ export async function exportToExcel() {
                 status: paper.readingStatus || paper.status || 'To Read', // Fallback
                 rating: paper.rating || '',
                 summary: htmlToRichText(paper.summary || ''),
+                abstract: stripHtml(paper.abstract || ''),
                 tags: Array.isArray(paper.tags) ? decodeHtml(paper.tags.join(', ')) : decodeHtml(paper.tags || ''),
                 notes: htmlToRichText(paper.notes || ''),
                 createdAt: formatDate(paper.createdAt)
@@ -66,6 +68,7 @@ export async function exportToExcel() {
             // Set alignment for rich text cells to ensure wrapping
             const row = worksheet.lastRow;
             row.getCell('summary').alignment = { wrapText: true, vertical: 'top' };
+            row.getCell('abstract').alignment = { wrapText: true, vertical: 'top' };
             row.getCell('notes').alignment = { wrapText: true, vertical: 'top' };
         });
 
@@ -100,6 +103,16 @@ export async function exportToExcel() {
         console.error('Excel export failed:', error);
         throw error;
     }
+}
+
+/**
+ * Helper to strip HTML tags from a string.
+ */
+function stripHtml(html) {
+    if (!html) return '';
+    const tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
 }
 
 /**
@@ -147,9 +160,34 @@ function htmlToRichText(html) {
 
     const richText = [];
 
+    function getLastText() {
+        if (richText.length === 0) return '';
+        return richText[richText.length - 1].text;
+    }
+
+    function endsWithNewline() {
+        const last = getLastText();
+        return last.endsWith('\n');
+    }
+
+    function endsWithBullet() {
+        const last = getLastText();
+        return last.endsWith('• ');
+    }
+
+    function addNewlineIfNeeded() {
+        if (richText.length > 0 && !endsWithNewline() && !endsWithBullet()) {
+            richText.push({ text: '\n' });
+        }
+    }
+
     function traverse(node, style = {}) {
         if (node.nodeType === Node.TEXT_NODE) {
-            const text = node.textContent;
+            let text = node.textContent;
+            // Basic whitespace trimming but allow single spaces
+            // This prevents weird massive spaces but keeps sentence flow
+            text = text.replace(/[\n\r]+/g, ' ').replace(/\s{2,}/g, ' ');
+
             if (text) {
                 richText.push({
                     text: text,
@@ -172,10 +210,8 @@ function htmlToRichText(html) {
             } else if (tagName === 'br') {
                 richText.push({ text: '\n' });
             } else if (tagName === 'p' || tagName === 'div' || tagName === 'li') {
-                // Add newline before block elements (unless it's the very first element)
-                if (richText.length > 0 && !richText[richText.length - 1].text.endsWith('\n')) {
-                    richText.push({ text: '\n' });
-                }
+                // Formatting for block elements
+                addNewlineIfNeeded();
 
                 // Add bullet point for list items
                 if (tagName === 'li') {
@@ -187,9 +223,7 @@ function htmlToRichText(html) {
 
             // Add newline after block elements
             if (tagName === 'p' || tagName === 'div' || tagName === 'li') {
-                if (richText.length > 0 && !richText[richText.length - 1].text.endsWith('\n')) {
-                    richText.push({ text: '\n' });
-                }
+                addNewlineIfNeeded();
             }
         }
     }
@@ -198,7 +232,20 @@ function htmlToRichText(html) {
 
     // Fallback: If rich text parsing produced nothing meaningful but there was content, return raw text
     if (richText.length === 0 && html.length > 0) {
-        return decodeHtml(div.textContent || div.innerText || html);
+        return [{ text: decodeHtml(div.textContent || div.innerText || html) }];
+    }
+
+    // Clean up trailing newline
+    if (richText.length > 0 && richText[richText.length - 1].text.endsWith('\n')) {
+        // Create a new object to avoid mutation issues if ref is shared (unlikely here but safe)
+        const last = richText[richText.length - 1];
+        // If it's just a newline, remove it
+        if (last.text === '\n') {
+            richText.pop();
+        } else {
+            // remove trailing \n from text string
+            last.text = last.text.slice(0, -1);
+        }
     }
 
     return { richText: richText };
