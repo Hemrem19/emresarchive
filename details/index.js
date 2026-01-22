@@ -14,9 +14,11 @@ import { relatedManager } from './related.manager.js';
 
 export const detailsView = {
     paperId: null,
+    hasUnsavedChanges: false,
 
     async mount(paperId, appState) {
         this.paperId = paperId;
+        this.hasUnsavedChanges = false; // Reset state
         const container = document.getElementById('paper-details-container');
         if (!container) return;
 
@@ -28,7 +30,7 @@ export const detailsView = {
         }
 
         this.render(paper);
-        this.setupEventListeners(paper);
+        this.setupEventListeners(paper, appState);
     },
 
     unmount() {
@@ -64,6 +66,10 @@ export const detailsView = {
                             <span class="material-symbols-outlined text-lg">edit</span>
                             <span>Edit</span>
                         </a>
+                        <button id="save-changes-btn" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-sm font-semibold hover:bg-green-500/20 hover:text-green-300 transition-all">
+                            <span class="material-symbols-outlined text-lg">save</span>
+                            <span>Save Changes</span>
+                        </button>
                     </div>
                     <div class="space-y-3 text-sm text-slate-300">
                         <div class="flex justify-between gap-3">
@@ -227,16 +233,22 @@ export const detailsView = {
         container.innerHTML = detailsHtml;
     },
 
-    async setupEventListeners(paper) {
+    async setupEventListeners(paper, appState) {
         const paperId = paper.id;
 
         // Initialize Notes Manager
         const notesEditor = document.getElementById('notes-editor');
-        notesManager.initialize(paperId, notesEditor, paper.notes);
+        notesManager.initialize(paperId, notesEditor, paper.notes, () => this.markAsDirty(appState));
 
         // Initialize Summary Manager
         const summaryEditor = document.getElementById('summary-editor');
-        summaryManager.initialize(paperId, summaryEditor, paper.summary || null);
+        summaryManager.initialize(paperId, summaryEditor, paper.summary || null, () => this.markAsDirty(appState));
+
+        // Save Button Handler
+        const saveBtn = document.getElementById('save-changes-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => this.saveTextUpdates(appState));
+        }
 
         // Initialize Related Papers Manager
         const relatedPapersList = document.getElementById('related-papers-list');
@@ -392,11 +404,11 @@ export const detailsView = {
         // Tab Switching
         const tabButtons = document.querySelectorAll('#details-tabs .tab-btn');
         const tabPanels = document.querySelectorAll('.tab-panel');
-        
+
         tabButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const targetTab = button.dataset.tab;
-                
+
                 // Update button states
                 tabButtons.forEach(btn => {
                     btn.classList.remove('border-primary', 'text-primary', 'bg-primary/10', 'shadow-inner', 'shadow-blue-500/30');
@@ -404,7 +416,7 @@ export const detailsView = {
                 });
                 button.classList.remove('border-transparent', 'text-slate-400');
                 button.classList.add('border-primary', 'text-primary', 'bg-primary/10', 'shadow-inner', 'shadow-blue-500/30');
-                
+
                 // Show/hide panels
                 tabPanels.forEach(panel => {
                     panel.classList.add('hidden');
@@ -489,5 +501,45 @@ export const detailsView = {
     calculateProgress(current, total) {
         if (!current || !total || total === 0) return 0;
         return Math.min(Math.round((current / total) * 100), 100);
+    },
+
+    markAsDirty(appState) {
+        if (!this.hasUnsavedChanges) {
+            this.hasUnsavedChanges = true;
+            if (appState) appState.hasUnsavedChanges = true;
+
+            const saveBtn = document.getElementById('save-changes-btn');
+            if (saveBtn) {
+                saveBtn.classList.remove('hidden');
+            }
+        }
+    },
+
+    async saveTextUpdates(appState) {
+        if (!this.paperId) return;
+
+        const notesEditor = document.getElementById('notes-editor');
+        const summaryEditor = document.getElementById('summary-editor');
+
+        const updates = {};
+        if (notesEditor) updates.notes = notesEditor.innerHTML;
+        if (summaryEditor) updates.summary = summaryEditor.innerHTML;
+
+        try {
+            await updatePaper(this.paperId, updates);
+
+            this.hasUnsavedChanges = false;
+            if (appState) appState.hasUnsavedChanges = false;
+
+            const saveBtn = document.getElementById('save-changes-btn');
+            if (saveBtn) {
+                saveBtn.classList.add('hidden');
+            }
+
+            showToast('Changes saved successfully', 'success');
+        } catch (error) {
+            console.error('Error saving changes:', error);
+            showToast('Failed to save changes', 'error');
+        }
     }
 };

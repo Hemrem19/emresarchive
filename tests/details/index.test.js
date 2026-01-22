@@ -40,14 +40,18 @@ vi.mock('../../api/auth.js', () => ({
 
 vi.mock('../../details/notes.manager.js', () => ({
     notesManager: {
-        initialize: vi.fn(),
+        initialize: vi.fn((id, el, notes, onDirty) => {
+            el.addEventListener('input', () => { if (onDirty) onDirty(); });
+        }),
         cleanup: vi.fn()
     }
 }));
 
 vi.mock('../../details/summary.manager.js', () => ({
     summaryManager: {
-        initialize: vi.fn(),
+        initialize: vi.fn((id, el, summary, onDirty) => {
+            el.addEventListener('input', () => { if (onDirty) onDirty(); });
+        }),
         cleanup: vi.fn()
     }
 }));
@@ -372,6 +376,40 @@ describe('Details View', () => {
         it('should cap percentage at 100%', () => {
             const html = detailsView.renderProgressBar({ currentPage: 150, totalPages: 100 });
             expect(html).toContain('100%');
+        });
+    });
+
+    describe('Manual Save', () => {
+        it('should show save button when notes are modified', async () => {
+            const paper = { id: 1, title: 'Test Paper', notes: 'Old Notes' };
+            db.getPaperById.mockResolvedValue(paper);
+            await detailsView.mount(1, {});
+
+            const notesEditor = document.getElementById('notes-editor');
+            notesEditor.dispatchEvent(new Event('input')); // Simulate typing
+
+            const saveBtn = document.getElementById('save-changes-btn');
+            expect(saveBtn.classList.contains('hidden')).toBe(false);
+        });
+
+        it('should save changes when button clicked', async () => {
+            const paper = { id: 1, title: 'Test Paper', notes: 'Old Notes' };
+            db.getPaperById.mockResolvedValue(paper);
+            db.updatePaper.mockResolvedValue(true);
+            await detailsView.mount(1, {});
+
+            const notesEditor = document.getElementById('notes-editor');
+            notesEditor.innerHTML = 'New Notes';
+            notesEditor.dispatchEvent(new Event('input')); // Trigger dirty state
+
+            const saveBtn = document.getElementById('save-changes-btn');
+            saveBtn.click();
+
+            await new Promise(resolve => setTimeout(resolve, 0)); // Wait for async
+
+            expect(db.updatePaper).toHaveBeenCalledWith(1, expect.objectContaining({ notes: 'New Notes' }));
+            expect(ui.showToast).toHaveBeenCalledWith('Changes saved successfully', 'success');
+            expect(saveBtn.classList.contains('hidden')).toBe(true);
         });
     });
 });

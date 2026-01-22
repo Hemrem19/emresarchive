@@ -1,10 +1,10 @@
-import { updatePaper } from '../db.js';
+
 
 export const summaryManager = {
     summarySaveHandler: null,
     paperId: null,
 
-    initialize(paperId, summaryEditor, initialSummary) {
+    initialize(paperId, summaryEditor, initialSummary, onDirty) {
         this.paperId = paperId;
         if (summaryEditor) {
             summaryEditor.innerHTML = initialSummary || '';
@@ -22,22 +22,14 @@ export const summaryManager = {
                 });
             }
 
-            this.summarySaveHandler = async () => {
-                const newSummary = summaryEditor.innerHTML;
-                if (newSummary === initialSummary) return;
-                await updatePaper(paperId, { summary: newSummary });
-                initialSummary = newSummary; // Update local state
-                console.log(`Summary for paper ${paperId} updated.`);
-            };
-            summaryEditor.addEventListener('blur', this.summarySaveHandler);
+            // Mark as dirty on input
+            summaryEditor.addEventListener('input', () => {
+                if (onDirty) onDirty();
+            });
         }
     },
 
     cleanup(summaryEditor) {
-        if (summaryEditor && this.summarySaveHandler) {
-            summaryEditor.removeEventListener('blur', this.summarySaveHandler);
-        }
-        this.summarySaveHandler = null;
         this.paperId = null;
     }
 };

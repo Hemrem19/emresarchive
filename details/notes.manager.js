@@ -1,30 +1,23 @@
-import { updatePaper } from '../db.js';
+
 
 export const notesManager = {
     notesSaveHandler: null,
     paperId: null,
 
-    initialize(paperId, notesEditor, initialNotes) {
+    initialize(paperId, notesEditor, initialNotes, onDirty) {
         this.paperId = paperId;
         if (notesEditor) {
             notesEditor.innerHTML = initialNotes || '';
 
-            this.notesSaveHandler = async () => {
-                const newNotes = notesEditor.innerHTML;
-                if (newNotes === initialNotes) return;
-                await updatePaper(paperId, { notes: newNotes });
-                initialNotes = newNotes; // Update local state
-                console.log(`Notes for paper ${paperId} updated.`);
-            };
-            notesEditor.addEventListener('blur', this.notesSaveHandler);
+            // Mark as dirty on input
+            notesEditor.addEventListener('input', () => {
+                if (onDirty) onDirty();
+            });
         }
     },
 
     cleanup(notesEditor) {
-        if (notesEditor && this.notesSaveHandler) {
-            notesEditor.removeEventListener('blur', this.notesSaveHandler);
-        }
-        this.notesSaveHandler = null;
+        // No event listeners to clean up that would cause issues
         this.paperId = null;
     }
 };

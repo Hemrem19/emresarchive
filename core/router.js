@@ -49,8 +49,8 @@ export const renderView = (app, viewContent, setupFn = null) => {
  * @returns {string|undefined} Warning message or undefined
  */
 export const handleBeforeUnload = (event, appState) => {
-    // Only prompt if there are unsaved changes AND we are on the add/edit form
-    if (appState.hasUnsavedChanges && (appState.currentPath.startsWith('/add') || appState.currentPath.startsWith('/edit/'))) {
+    // Only prompt if there are unsaved changes AND we are on the add/edit form or details view
+    if (appState.hasUnsavedChanges && (appState.currentPath.startsWith('/add') || appState.currentPath.startsWith('/edit/') || appState.currentPath.startsWith('/details/'))) {
         event.preventDefault();
         // Chrome requires returnValue to be set
         event.returnValue = '';
@@ -71,8 +71,12 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
         // Get the hash from the URL, remove the '#'
         const requestedPath = window.location.hash.substring(1) || '/';
 
-        // Check for unsaved changes before navigating away from add/edit form
-        if (appState.hasUnsavedChanges && (appState.currentPath.startsWith('/add') || appState.currentPath.startsWith('/edit/')) && requestedPath !== appState.currentPath) {
+        // Check for unsaved changes before navigating away from add/edit form or details view
+        if (appState.hasUnsavedChanges &&
+            (appState.currentPath.startsWith('/add') ||
+                appState.currentPath.startsWith('/edit/') ||
+                appState.currentPath.startsWith('/details/')) &&
+            requestedPath !== appState.currentPath) {
             const confirmNavigation = confirm('You have unsaved changes. Are you sure you want to leave?');
             if (!confirmNavigation) {
                 // User cancelled navigation, revert hash to current path
