@@ -66,10 +66,6 @@ export const detailsView = {
                             <span class="material-symbols-outlined text-lg">edit</span>
                             <span>Edit</span>
                         </a>
-                        <button id="save-changes-btn" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-sm font-semibold hover:bg-green-500/20 hover:text-green-300 transition-all">
-                            <span class="material-symbols-outlined text-lg">save</span>
-                            <span>Save Changes</span>
-                        </button>
                     </div>
                     <div class="space-y-3 text-sm text-slate-300">
                         <div class="flex justify-between gap-3">
@@ -172,6 +168,13 @@ export const detailsView = {
                         <button data-tab="abstract" class="tab-btn px-4 py-2 rounded-xl border border-transparent text-xs font-semibold tracking-wide text-slate-400 hover:text-white hover:border-white/10 transition-all">Abstract</button>
                         <button data-tab="summary" class="tab-btn px-4 py-2 rounded-xl border border-transparent text-xs font-semibold tracking-wide text-slate-400 hover:text-white hover:border-white/10 transition-all">Summary</button>
                         <button data-tab="notes" class="tab-btn px-4 py-2 rounded-xl border border-primary text-xs font-semibold tracking-wide text-primary bg-primary/10 shadow-inner shadow-blue-500/30">Notes</button>
+                        
+                        <div class="flex-1 flex justify-end">
+                             <button id="save-changes-btn" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-xs font-semibold hover:bg-green-500/20 hover:text-green-300 transition-all">
+                                <span class="material-symbols-outlined text-base">save</span>
+                                <span>Save Changes</span>
+                            </button>
+                        </div>
                     </nav>
 
                     <div id="abstract-panel" class="tab-panel hidden flex-grow flex flex-col">
