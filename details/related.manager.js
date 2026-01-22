@@ -34,11 +34,15 @@ export const relatedManager = {
         if (!this.elements.list) return;
 
         const currentPaper = await getPaperById(this.paperId);
+        if (!this.elements.list) return; // Guard clause after async
+
         if (!currentPaper.relatedPaperIds || currentPaper.relatedPaperIds.length === 0) {
             this.elements.list.innerHTML = `<p class="text-sm text-stone-500">No related papers linked.</p>`;
             return;
         }
         const relatedPapers = await Promise.all(currentPaper.relatedPaperIds.map(id => getPaperById(id)));
+        if (!this.elements.list) return; // Guard clause after async
+
         this.elements.list.innerHTML = relatedPapers
             .filter(p => p)
             .map(p => `

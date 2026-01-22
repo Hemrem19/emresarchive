@@ -8,6 +8,9 @@ import { showToast } from '../ui.js';
 
 const AUTH_ENDPOINT = `${API_CONFIG.BASE_URL}/api/auth`;
 
+// Promise deduplication for token refresh
+let refreshPromise = null;
+
 /**
  * Gets the stored access token.
  * @returns {string|null} The access token or null if not found.
@@ -319,58 +322,69 @@ export async function logout() {
  * @returns {Promise<string>} Promise resolving to new access token.
  */
 export async function refreshToken() {
-    try {
-        const response = await fetch(`${AUTH_ENDPOINT}/refresh`, {
-            method: 'POST',
-            credentials: 'include', // Include refresh token cookie
-            signal: AbortSignal.timeout(10000) // 10 second timeout
-        });
-
-        // Handle non-JSON responses
-        let result;
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            result = await response.json();
-        } else {
-            throw new Error('Invalid response from server');
-        }
-
-        if (!response.ok) {
-            const errorMessage = parseApiError(response, result);
-            const error = new Error(errorMessage);
-            error.status = response.status;
-            throw error;
-        }
-
-        if (result.success && result.data && result.data.accessToken) {
-            const user = getUser();
-            setAuth(result.data.accessToken, user);
-            return result.data.accessToken;
-        }
-
-        throw new Error('Invalid response from server');
-    } catch (error) {
-        // Handle AbortError (timeout)
-        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-            clearAuth();
-            throw new Error('Session refresh timed out. Please log in again.');
-        }
-
-        // Handle network errors
-        if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
-            // Don't clear auth on network errors - might be temporary
-            throw new Error('Network error. Please check your connection.');
-        }
-
-        console.error('Token refresh error:', error);
-        // If refresh fails (401, 403, etc.), user needs to log in again
-        if (error.status === 401 || error.status === 403) {
-            clearAuth();
-            throw new Error('Session expired. Please log in again.');
-        }
-
-        throw error;
+    // Return existing promise if one is already in progress
+    if (refreshPromise) {
+        return refreshPromise;
     }
+
+    refreshPromise = (async () => {
+        try {
+            const response = await fetch(`${AUTH_ENDPOINT}/refresh`, {
+                method: 'POST',
+                credentials: 'include', // Include refresh token cookie
+                signal: AbortSignal.timeout(10000) // 10 second timeout
+            });
+
+            // Handle non-JSON responses
+            let result;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                throw new Error('Invalid response from server');
+            }
+
+            if (!response.ok) {
+                const errorMessage = parseApiError(response, result);
+                const error = new Error(errorMessage);
+                error.status = response.status;
+                throw error;
+            }
+
+            if (result.success && result.data && result.data.accessToken) {
+                const user = getUser();
+                setAuth(result.data.accessToken, user);
+                return result.data.accessToken;
+            }
+
+            throw new Error('Invalid response from server');
+        } catch (error) {
+            // Handle AbortError (timeout)
+            if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+                clearAuth();
+                throw new Error('Session refresh timed out. Please log in again.');
+            }
+
+            // Handle network errors
+            if (!error.status && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+                // Don't clear auth on network errors - might be temporary
+                throw new Error('Network error. Please check your connection.');
+            }
+
+            console.error('Token refresh error:', error);
+            // If refresh fails (401, 403, etc.), user needs to log in again
+            if (error.status === 401 || error.status === 403) {
+                clearAuth();
+                throw new Error('Session expired. Please log in again.');
+            }
+
+            throw error;
+        } finally {
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
 }
 
 /**
