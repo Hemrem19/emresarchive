@@ -57,11 +57,16 @@ export async function exportToExcel() {
                 doi: formatDoi(paper.doi),
                 status: paper.readingStatus || paper.status || 'To Read', // Fallback
                 rating: paper.rating || '',
-                summary: stripHtml(paper.summary || ''),
+                summary: htmlToRichText(paper.summary || ''),
                 tags: Array.isArray(paper.tags) ? decodeHtml(paper.tags.join(', ')) : decodeHtml(paper.tags || ''),
-                notes: stripHtml(paper.notes || ''), // Helper to strip HTML
+                notes: htmlToRichText(paper.notes || ''),
                 createdAt: formatDate(paper.createdAt)
             });
+
+            // Set alignment for rich text cells to ensure wrapping
+            const row = worksheet.lastRow;
+            row.getCell('summary').alignment = { wrapText: true, vertical: 'top' };
+            row.getCell('notes').alignment = { wrapText: true, vertical: 'top' };
         });
 
         // Auto-filter
@@ -98,16 +103,6 @@ export async function exportToExcel() {
 }
 
 /**
- * Helper to strip HTML tags from a string.
- */
-function stripHtml(html) {
-    if (!html) return '';
-    const tmp = document.createElement('DIV');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
-}
-
-/**
  * Helper to format date objects.
  */
 function formatDate(date) {
@@ -138,4 +133,73 @@ function decodeHtml(html) {
     const txt = document.createElement('textarea');
     txt.innerHTML = html;
     return txt.value;
+}
+
+/**
+ * Converts HTML string to ExcelJS Rich Text array.
+ * Preserves bold, italic, and newlines.
+ */
+function htmlToRichText(html) {
+    if (!html) return '';
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+
+    const richText = [];
+
+    function traverse(node, style = {}) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent;
+            if (text) {
+                richText.push({
+                    text: text,
+                    font: {
+                        bold: style.bold,
+                        italic: style.italic,
+                        name: 'Calibri', // Default Excel font
+                        size: 11
+                    }
+                });
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const newStyle = { ...style };
+            const tagName = node.tagName.toLowerCase();
+
+            if (tagName === 'b' || tagName === 'strong') {
+                newStyle.bold = true;
+            } else if (tagName === 'i' || tagName === 'em') {
+                newStyle.italic = true;
+            } else if (tagName === 'br') {
+                richText.push({ text: '\n' });
+            } else if (tagName === 'p' || tagName === 'div' || tagName === 'li') {
+                // Add newline before block elements (unless it's the very first element)
+                if (richText.length > 0 && !richText[richText.length - 1].text.endsWith('\n')) {
+                    richText.push({ text: '\n' });
+                }
+
+                // Add bullet point for list items
+                if (tagName === 'li') {
+                    richText.push({ text: '• ' });
+                }
+            }
+
+            node.childNodes.forEach(child => traverse(child, newStyle));
+
+            // Add newline after block elements
+            if (tagName === 'p' || tagName === 'div' || tagName === 'li') {
+                if (richText.length > 0 && !richText[richText.length - 1].text.endsWith('\n')) {
+                    richText.push({ text: '\n' });
+                }
+            }
+        }
+    }
+
+    traverse(div);
+
+    // Fallback: If rich text parsing produced nothing meaningful but there was content, return raw text
+    if (richText.length === 0 && html.length > 0) {
+        return decodeHtml(div.textContent || div.innerText || html);
+    }
+
+    return { richText: richText };
 }
