@@ -1,4 +1,5 @@
 
+import { updatePaper } from '../db.js';
 
 export const summaryManager = {
     summarySaveHandler: null,
@@ -8,6 +9,7 @@ export const summaryManager = {
         this.paperId = paperId;
         if (summaryEditor) {
             summaryEditor.innerHTML = initialSummary || '';
+            const initialContent = summaryEditor.innerHTML;
 
             // Setup toolbar buttons
             const toolbar = document.getElementById('summary-toolbar');
@@ -26,11 +28,34 @@ export const summaryManager = {
             summaryEditor.addEventListener('input', () => {
                 if (onDirty) onDirty();
             });
+
+            // Auto-save on blur
+            this.summarySaveHandler = async () => {
+                const currentContent = summaryEditor.innerHTML;
+                // Save if content changed (compare normalized or just direct string if simplest)
+                // Note: initialContent logic might need to track lastSavedContent for multiple blurs
+                if (currentContent !== this.lastSavedContent) {
+                    try {
+                        await updatePaper(this.paperId, { summary: currentContent });
+                        this.lastSavedContent = currentContent;
+                    } catch (error) {
+                        console.error('Error auto-saving summary:', error);
+                    }
+                }
+            };
+            this.lastSavedContent = initialContent;
+
+            summaryEditor.addEventListener('blur', this.summarySaveHandler);
         }
     },
 
     cleanup(summaryEditor) {
+        if (summaryEditor && this.summarySaveHandler) {
+            summaryEditor.removeEventListener('blur', this.summarySaveHandler);
+            this.summarySaveHandler = null;
+        }
         this.paperId = null;
+        this.lastSavedContent = null;
     }
 };
 
