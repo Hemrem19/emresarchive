@@ -2,13 +2,25 @@
  * This file centralizes application-wide configurations, such as reading statuses.
  */
 
+
 export const DEFAULT_STATUSES = ['Reading', 'To Read', 'Finished', 'Archived'];
 const STATUS_STORAGE_KEY = 'readingStatusOrder';
 
+const PROD_BACKEND_URL = 'https://emresarchive-production.up.railway.app';
+const DEV_BACKEND_URL = 'https://emresarchive-development.up.railway.app';
+
+// Determine which URL to use based on the current website domain
+let currentBaseUrl = PROD_BACKEND_URL;
+
+// Use the DEV backend when local development or Cloudflare Pages
+if (window.location.hostname === 'localhost' || window.location.hostname === 'emresarchive.pages.dev') {
+    currentBaseUrl = DEV_BACKEND_URL;
+}
+
 // Backend API Configuration
 export const API_CONFIG = {
-    // API URL - defaults to localhost for development, can be overridden
-    BASE_URL: localStorage.getItem('apiBaseUrl') || 'https://emresarchive-production.up.railway.app',
+    // API URL
+    BASE_URL: currentBaseUrl,
     // Storage keys for auth tokens
     ACCESS_TOKEN_KEY: 'citavers_access_token',
     REFRESH_TOKEN_KEY: 'citavers_refresh_token',
