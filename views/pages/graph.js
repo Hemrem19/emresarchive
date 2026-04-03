@@ -42,6 +42,13 @@ export const graphView = `
                 </div>
             </div>
 
+            <!-- Warning Banner -->
+            <div class="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-amber-500/90 text-white px-4 py-2.5 rounded-xl backdrop-blur-md shadow-lg border border-amber-400 text-sm font-medium flex items-center gap-3 w-[90%] sm:w-auto max-w-2xl text-left pointer-events-auto">
+                <span class="material-symbols-outlined text-2xl flex-shrink-0">warning</span>
+                <span>The Network feature is currently experimental and may not work as intended. We are actively working on improvements.</span>
+            </div>
+
+
             <!-- Side Panel (Details) -->
             <div id="graph-side-panel" class="absolute top-4 bottom-4 right-4 w-80 sm:w-96 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-2xl z-30 transform translate-x-[110%] transition-transform duration-300 ease-in-out flex flex-col">
                 <!-- Panel Header -->
