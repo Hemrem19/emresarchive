@@ -34,6 +34,9 @@
     - set all to overwrite/skip button causes this error
     - Importing multiple papers cause rate limit error. Because importing sends all papers individually, it should send them as batch.
 
+### Service Worker (FIXED)
+    - ✅ FIXED: Service worker now uses network-first strategy for dynamic requests and cache-first strategy for static assets. Also added `self.skipWaiting()` so new updates don't get stuck in a waiting state.
+
 node build.js
 cmd /c npx cap sync android
 
