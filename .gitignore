@@ -59,5 +59,6 @@ DEPLOYMENT_PLAN.md
 # Build artifacts
 dist/
 
-# Build artifacts
-dist/
+# Business Plan
+idea/
+
