@@ -1,0 +1,1243 @@
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/Users/PC/Python_Projects/emresarchive[39m
+
+[90mstdout[2m | tests/controllers/sync.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/sync.test.js [2m ([22m[2m16 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+[90mstdout[2m | tests/controllers/annotations.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/annotations.test.js [2m ([22m[2m16 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/auth.test.js [2m ([22m[2m31 tests[22m[2m)[22m[90m 30[2mms[22m[39m
+[90mstdout[2m | tests/controllers/auth.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+[90mstdout[2m | tests/controllers/user.test.js[2m > [22m[2mUser Controller[2m > [22m[2mclearAllData[2m > [22m[2mshould permanently delete all user data[22m[39m
+Permanently cleared all data for user 1: 10 papers, 3 collections, 25 annotations
+
+[90mstdout[2m | tests/controllers/user.test.js[2m > [22m[2mUser Controller[2m > [22m[2mclearAllData[2m > [22m[2mshould delete annotations first (foreign key dependency)[22m[39m
+Permanently cleared all data for user 1: 2 papers, 1 collections, 5 annotations
+
+[90mstdout[2m | tests/controllers/user.test.js[2m > [22m[2mUser Controller[2m > [22m[2mclearAllData[2m > [22m[2mshould return zero counts when no data exists[22m[39m
+Permanently cleared all data for user 1: 0 papers, 0 collections, 0 annotations
+
+[90mstdout[2m | tests/controllers/user.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/user.test.js [2m ([22m[2m14 tests[22m[2m)[22m[90m 12[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/collections.test.js [2m ([22m[2m16 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+[90mstdout[2m | tests/controllers/collections.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+[90mstdout[2m | tests/lib/validation.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/lib/validation.test.js [2m ([22m[2m31 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/lib/metadata.test.js [2m ([22m[2m15 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+[90mstdout[2m | tests/lib/metadata.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+[90mstdout[2m | tests/middleware/errorHandler.test.js[2m > [22m[2mError Handler Middleware[2m > [22m[2mPrisma errors[2m > [22m[2mshould handle P2002 unique constraint violation[22m[39m
+ℹ️  Duplicate constraint detected (handled gracefully): [ [32m'email'[39m ]
+
+[90mstdout[2m | tests/middleware/errorHandler.test.js[2m > [22m[2mError Handler Middleware[2m > [22m[2mPrisma errors[2m > [22m[2mshould handle P2002 for duplicate DOI[22m[39m
+ℹ️  Duplicate constraint detected (handled gracefully): [ [32m'user_id'[39m, [32m'doi'[39m ]
+
+[90mstdout[2m | tests/middleware/errorHandler.test.js[2m > [22m[2mError Handler Middleware[2m > [22m[2mProduction mode[2m > [22m[2mshould show Prisma errors even in production[22m[39m
+ℹ️  Duplicate constraint detected (handled gracefully): [ [32m'email'[39m ]
+
+[90mstdout[2m | tests/middleware/errorHandler.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/middleware/errorHandler.test.js [2m ([22m[2m22 tests[22m[2m)[22m[90m 19[2mms[22m[39m
+[90mstdout[2m | tests/form-view.test.js[2m > [22m[2mform.view.js - Paper Form View[2m > [22m[2munmount[2m > [22m[2mshould remove event listeners and clean up[22m[39m
+Form view unmounted.
+
+[90mstdout[2m | tests/form-view.test.js[2m > [22m[2mform.view.js - Paper Form View[2m > [22m[2munmount[2m > [22m[2mshould not throw if form elements  do not exist[22m[39m
+Form view unmounted.
+
+ [32m✓[39m tests/api-papers.test.js [2m ([22m[2m30 tests[22m[2m)[22m[90m 58[2mms[22m[39m
+[90mstdout[2m | tests/api-papers.test.js[2m > [22m[2mapi/papers.js - Papers API[2m > [22m[2mgetPdfDownloadUrl[2m > [22m[2mshould get download URL and construct proxy URL[22m[39m
+[API] getPdfDownloadUrl - raw proxyUrl from backend: /api/papers/1/pdf-proxy
+[API] getPdfDownloadUrl - constructed full proxyUrl: https://api.example.com/api/papers/1/pdf-proxy
+[API] getPdfDownloadUrl - final proxyUrl: https://api.example.com/api/papers/1/pdf-proxy
+
+[90mstdout[2m | tests/api-papers.test.js[2m > [22m[2mapi/papers.js - Papers API[2m > [22m[2mgetPdfViewUrl[2m > [22m[2mshould prefer proxy URL if available[22m[39m
+[API] getPdfDownloadUrl - raw proxyUrl from backend: /api/papers/1/pdf-proxy
+[API] getPdfDownloadUrl - constructed full proxyUrl: https://api.example.com/api/papers/1/pdf-proxy
+[API] getPdfDownloadUrl - final proxyUrl: https://api.example.com/api/papers/1/pdf-proxy
+[API] getPdfViewUrl - getPdfDownloadUrl returned: {
+  proxyUrl: [32m'https://api.example.com/api/papers/1/pdf-proxy'[39m,
+  downloadUrl: [32m'https://s3.example.com/signed'[39m
+}
+[API] getPdfViewUrl - baseUrl: https://api.example.com
+[API] getPdfViewUrl - using full proxy URL: https://api.example.com/api/papers/1/pdf-proxy
+[API] getPdfViewUrl - returning final URL: https://api.example.com/api/papers/1/pdf-proxy
+
+[90mstdout[2m | tests/api-papers.test.js[2m > [22m[2mapi/papers.js - Papers API[2m > [22m[2mgetPdfViewUrl[2m > [22m[2mshould fallback to download URL if proxy URL missing[22m[39m
+[API] getPdfDownloadUrl - raw proxyUrl from backend: /api/papers/1/pdf-proxy
+[API] getPdfDownloadUrl - constructed full proxyUrl: https://api.example.com/api/papers/1/pdf-proxy
+[API] getPdfDownloadUrl - final proxyUrl: https://api.example.com/api/papers/1/pdf-proxy
+[API] getPdfViewUrl - getPdfDownloadUrl returned: {
+  proxyUrl: [32m'https://api.example.com/api/papers/1/pdf-proxy'[39m,
+  downloadUrl: [32m'https://s3.example.com/signed'[39m
+}
+[API] getPdfViewUrl - baseUrl: https://api.example.com
+[API] getPdfViewUrl - using full proxy URL: https://api.example.com/api/papers/1/pdf-proxy
+[API] getPdfViewUrl - returning final URL: https://api.example.com/api/papers/1/pdf-proxy
+
+ [32m✓[39m tests/citation.test.js [2m ([22m[2m44 tests[22m[2m)[22m[90m 61[2mms[22m[39m
+[90mstdout[2m | tests/controllers/papers/papers-crud.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/papers/papers-crud.test.js [2m ([22m[2m15 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+[90mstdout[2m | tests/controllers/papers/papers-pdf.test.js[22m[39m
+Starting backend unit tests...
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/papers/papers-pdf.test.js [2m ([22m[2m10 tests[22m[2m)[22m[90m 38[2mms[22m[39m
+[90mstdout[2m | tests/controllers/papers/papers-pdf.test.js[22m[39m
+Backend unit tests completed.
+
+ [32m✓[39m tests/sync/api-sync.test.js [2m ([22m[2m31 tests[22m[2m)[22m[90m 40[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/import.test.js [2m ([22m[2m9 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+[90mstdout[2m | tests/controllers/import.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m tests/db/sync-full.test.js [2m ([22m[2m16 tests[22m[2m)[22m[90m 237[2mms[22m[39m
+ [32m✓[39m tests/form-view.test.js [2m ([22m[2m25 tests[22m[2m)[22m[33m 558[2mms[22m[39m
+ [32m✓[39m tests/api.test.js [2m ([22m[2m36 tests[22m[2m)[22m[33m 338[2mms[22m[39m
+[90mstdout[2m | tests/controllers/extension.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/extension.test.js [2m ([22m[2m7 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+[90mstdout[2m | tests/services/citation.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/services/citation.test.js[2m > [22m[2mCitation Service[2m > [22m[2mgenerateNetwork[2m > [22m[2mshould generate connections based on metadata[22m[39m
+Generating network for user 1 with 3 papers
+
+[90mstdout[2m | tests/lib/jwt.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/middleware/auth.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/middleware/auth.test.js [2m ([22m[2m10 tests[22m[2m)[22m[90m 90[2mms[22m[39m
+[90mstdout[2m | tests/lib/email.test.js[22m[39m
+Starting backend unit tests...
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/lib/email.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 51[2mms[22m[39m
+[90mstdout[2m | tests/lib/email.test.js[22m[39m
+Backend unit tests completed.
+
+[90mstdout[2m | tests/lib/s3.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/lib/s3.test.js[2m > [22m[2mS3 Library[2m > [22m[2mgetPresignedUploadUrl[2m > [22m[2mshould use presigned POST for standard S3[22m[39m
+[S3] Generated presigned POST URL and fields for key: key
+
+[90mstdout[2m | tests/lib/s3.test.js[2m > [22m[2mS3 Library[2m > [22m[2mgetPresignedUploadUrl[2m > [22m[2mshould fallback to PUT if POST fails (standard S3)[22m[39m
+[S3] Generated presigned PUT URL (fallback) for key: key
+
+[90mstdout[2m | tests/lib/s3.test.js[2m > [22m[2mS3 Library[2m > [22m[2mgetPresignedUploadUrl[2m > [22m[2mshould force PUT for Cloudflare R2[22m[39m
+[S3] Using presigned PUT for R2 (POST not supported)
+[S3] Generated presigned URL for R2 PUT (signed as GET - known SDK v3 limitation)
+[S3] URL has x-id=PutObject: [33mfalse[39m
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/lib/jwt.test.js [2m ([22m[2m15 tests[22m[2m)[22m[90m 233[2mms[22m[39m
+[90mstdout[2m | tests/lib/jwt.test.js[22m[39m
+Backend unit tests completed.
+
+[90mstdout[2m | tests/lib/s3.test.js[2m > [22m[2mS3 Library[2m > [22m[2muploadFileToS3[2m > [22m[2mshould upload buffer directly[22m[39m
+[S3] Starting upload: {
+  key: [32m'key'[39m,
+  contentType: [32m'text/plain'[39m,
+  bufferType: [32m'Buffer'[39m,
+  bufferLength: [33m12[39m,
+  endpoint: [32m'https://s3.amazonaws.com'[39m,
+  bucket: [32m'test-bucket'[39m
+}
+[S3] Buffer prepared: { bufferLength: [33m12[39m, bufferType: [32m'Buffer'[39m }
+[S3] Sending PutObjectCommand to S3/R2...
+[S3] Successfully uploaded file to S3/R2: key
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/lib/s3.test.js [2m ([22m[2m11 tests[22m[2m)[22m[90m 83[2mms[22m[39m
+[90mstdout[2m | tests/lib/s3.test.js[2m > [22m[2mS3 Library[2m > [22m[2muploadFileToS3[2m > [22m[2mshould throw if upload fails[22m[39m
+[S3] Starting upload: {
+  key: [32m'key'[39m,
+  contentType: [32m'text/plain'[39m,
+  bufferType: [32m'Buffer'[39m,
+  bufferLength: [90mundefined[39m,
+  endpoint: [32m'https://s3.amazonaws.com'[39m,
+  bucket: [32m'test-bucket'[39m
+}
+[S3] Buffer prepared: { bufferLength: [33m0[39m, bufferType: [32m'Buffer'[39m }
+[S3] Sending PutObjectCommand to S3/R2...
+
+[90mstdout[2m | tests/lib/s3.test.js[22m[39m
+Backend unit tests completed.
+
+ [32m✓[39m tests/db/core.test.js [2m ([22m[2m12 tests[22m[2m)[22m[33m 589[2mms[22m[39m
+[90mstdout[2m | tests/lib/password.test.js[22m[39m
+Starting backend unit tests...
+
+ [32m✓[39m tests/core-filters.test.js [2m ([22m[2m46 tests[22m[2m)[22m[90m 24[2mms[22m[39m
+[90mstdout[2m | tests/controllers/papers/papers-batch.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/papers/papers-batch.test.js [2m ([22m[2m4 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/papers/papers-utils.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+[90mstdout[2m | tests/controllers/papers/papers-utils.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m tests/db/adapter.test.js [2m ([22m[2m18 tests[22m[2m)[22m[90m 31[2mms[22m[39m
+ [32m✓[39m tests/ui.test.js [2m ([22m[2m46 tests[22m[2m)[22m[90m 23[2mms[22m[39m
+[90mstdout[2m | tests/services/citation.test.js[2m > [22m[2mCitation Service[2m > [22m[2mgenerateNetwork[2m > [22m[2mshould update existing graph if present[22m[39m
+Generating network for user 1 with 0 papers
+
+[90mstdout[2m | tests/services/citation.test.js[22m[39m
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/services/citation.test.js [2m ([22m[2m6 tests[22m[2m)[22m[33m 1012[2mms[22m[39m
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export empty database[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export empty database[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with metadata only (no PDFs)[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with metadata only (no PDFs)[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with metadata only (no PDFs)[22m[39m
+Retrieved 0 annotations for paper ID 2
+Retrieved 0 annotations for paper ID 1
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with PDF as base64[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with PDF as base64[22m[39m
+Retrieved 0 annotations for paper ID 3
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export collections[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export collections[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export annotations[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export annotations[22m[39m
+Annotation added successfully with ID: [33m1[39m
+Annotation added successfully with ID: [33m2[39m
+Retrieved 2 annotations for paper ID 4
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould convert dates to ISO strings[22m[39m
+Clearing local data...
+Local data cleared successfully
+Retrieved 0 annotations for paper ID 5
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with rating field[22m[39m
+Clearing local data...
+Local data cleared successfully
+Retrieved 0 annotations for paper ID 6
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with null rating[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with null rating[22m[39m
+Retrieved 0 annotations for paper ID 7
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with summary field[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with summary field[22m[39m
+Retrieved 0 annotations for paper ID 8
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with HTML summary[22m[39m
+Clearing local data...
+Local data cleared successfully
+Retrieved 0 annotations for paper ID 9
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with both rating and summary[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers with both rating and summary[22m[39m
+Retrieved 0 annotations for paper ID 10
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mexportAllData[2m > [22m[2mshould export papers, collections, and annotations together[22m[39m
+Clearing local data...
+Local data cleared successfully
+Annotation added successfully with ID: [33m3[39m
+Retrieved 1 annotations for paper ID 11
+Retrieved 0 annotations for paper ID 12
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import old format (array of papers)[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import new format (object with papers, collections, annotations)[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould convert ISO date strings back to Date objects[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import papers with rating field[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import papers with null rating[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+ [32m✓[39m tests/dashboard/tag-manager.test.js [2m ([22m[2m54 tests[22m[2m)[22m[90m 57[2mms[22m[39m
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import papers with summary field[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import papers with HTML summary[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync State Checking[2m > [22m[2mshould not sync when cloud sync disabled[22m[39m
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync State Checking[2m > [22m[2mshould not sync when not authenticated[22m[39m
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync State Checking[2m > [22m[2mshould sync when cloud sync enabled and authenticated[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Sync completed: {
+  success: [33mtrue[39m,
+  hasLocalChanges: [90mundefined[39m,
+  serverChangeCount: {},
+  conflicts: {}
+}
+[Sync Manager] Auto sync completed successfully
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Debounced Sync[2m > [22m[2mshould debounce multiple triggers[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Sync completed: {
+  success: [33mtrue[39m,
+  hasLocalChanges: [90mundefined[39m,
+  serverChangeCount: [90mundefined[39m,
+  conflicts: [90mundefined[39m
+}
+[Sync Manager] Auto sync completed successfully
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Debounced Sync[2m > [22m[2mshould reset debounce timer on new trigger[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Sync completed: {
+  success: [33mtrue[39m,
+  hasLocalChanges: [90mundefined[39m,
+  serverChangeCount: [90mundefined[39m,
+  conflicts: [90mundefined[39m
+}
+[Sync Manager] Auto sync completed successfully
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Debounced Sync[2m > [22m[2mshould not sync if sync already in progress[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Sync already in progress, skipping
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould show notification on manual sync with server changes[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mfalse[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Sync completed: {
+  success: [33mtrue[39m,
+  hasLocalChanges: [90mundefined[39m,
+  serverChangeCount: { papers: [33m2[39m, collections: [33m1[39m, annotations: [33m0[39m },
+  conflicts: {}
+}
+[Sync Manager] Auto sync completed successfully
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould show notification on manual sync with conflicts[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mfalse[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Sync completed: {
+  success: [33mtrue[39m,
+  hasLocalChanges: [90mundefined[39m,
+  serverChangeCount: {},
+  conflicts: { papers: [ [33m1[39m, [33m2[39m ], collections: [], annotations: [ [33m1[39m ] }
+}
+[Sync Manager] Auto sync completed successfully
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould not show notification on silent sync without changes[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Sync completed: {
+  success: [33mtrue[39m,
+  hasLocalChanges: [90mundefined[39m,
+  serverChangeCount: {},
+  conflicts: {}
+}
+[Sync Manager] Auto sync completed successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import papers with both rating and summary[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import papers with both rating and summary[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould preserve rating and summary during export-import cycle[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould preserve rating and summary during export-import cycle[22m[39m
+Retrieved 0 annotations for paper ID 22
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould preserve rating and summary during export-import cycle[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould convert base64 back to Blob for PDFs[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould convert base64 back to Blob for PDFs[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould clear existing data before importing[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould clear existing data before importing[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould throw error for invalid data format[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould throw error for empty import data[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould throw error for empty import data[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould throw error for papers missing title[22m[39m
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould throw error for collections missing name[22m[39m
+Clearing local data...
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould throw error for collections missing name[22m[39m
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mimportData[2m > [22m[2mshould import annotations with papers[22m[39m
+Clearing local data...
+Local data cleared successfully
+Annotation added successfully with ID: [33m1[39m
+Retrieved 1 annotations for paper ID 1
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mclearAllData[2m > [22m[2mshould clear all papers, collections, and annotations[22m[39m
+Clearing local data...
+Local data cleared successfully
+Annotation added successfully with ID: [33m4[39m
+Retrieved 1 annotations for paper ID 26
+Clearing local data...
+Local data cleared successfully
+Retrieved 0 annotations for paper ID 26
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mclearAllData[2m > [22m[2mshould succeed when clearing empty database[22m[39m
+Clearing local data...
+Local data cleared successfully
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db-data.test.js[2m > [22m[2mdb/data.js - Data Management[2m > [22m[2mExport-Import Round Trip[2m > [22m[2mshould successfully export and re-import all data[22m[39m
+Clearing local data...
+Local data cleared successfully
+Annotation added successfully with ID: [33m5[39m
+Retrieved 1 annotations for paper ID 27
+Retrieved 0 annotations for paper ID 28
+Clearing local data...
+Local data cleared successfully
+Annotation added successfully with ID: [33m5[39m
+Retrieved 1 annotations for paper ID 27
+
+ [32m✓[39m tests/db-data.test.js [2m ([22m[2m31 tests[22m[2m)[22m[90m 220[2mms[22m[39m
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould not show notification on silent sync without changes[22m[39m
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould show error on manual sync failure[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mfalse[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould not show error on silent sync failure[22m[39m
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Calling performSync...
+
+ [32m✓[39m tests/dashboard/handlers/batch-operations.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 145[2mms[22m[39m
+ [32m✓[39m tests/core-keyboard-shortcuts.test.js [2m ([22m[2m41 tests[22m[2m)[22m[90m 57[2mms[22m[39m
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | tests/server.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/routes/collections.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/routes/auth.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/routes/auth.test.js[2m > [22m[2mAuth Routes[2m > [22m[2mPOST /api/auth/register[2m > [22m[2mshould register a new user[22m[39m
+
+=== VERIFICATION EMAIL (LOG MODE) ===
+To: new@example.com
+From: Citavers <onboarding@resend.dev>
+Subject: Verify Your Email Address
+
+Verification URL: http://localhost:8080/#/verify-email?token=6fd39fea2dbbc92ff330eb8848a585d7f65729b6de2c8c0f864c784467947c28
+
+--- Email Configuration ---
+   SERVICE_TYPE: log
+   RESEND_API_KEY: NOT SET
+   SMTP_HOST: NOT SET
+
+⚠️  Email service is in LOG MODE - emails will NOT be sent!
+   To enable Resend:
+   1. Set EMAIL_SERVICE_TYPE=resend
+   2. Set RESEND_API_KEY=re_your_api_key
+=====================================
+
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/routes/collections.test.js [2m ([22m[2m6 tests[22m[2m)[22m[90m 57[2mms[22m[39m
+[90mstdout[2m | tests/routes/collections.test.js[22m[39m
+Backend unit tests completed.
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould not show error on silent sync failure[22m[39m
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Auto-Sync Execution[2m > [22m[2mshould throw error when cloud sync not enabled for manual sync[22m[39m
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync Lifecycle[2m > [22m[2mshould initialize auto sync when enabled[22m[39m
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync Lifecycle[2m > [22m[2mshould not initialize when cloud sync disabled[22m[39m
+[Sync Manager] Auto sync disabled (cloud sync off or not authenticated)
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync Lifecycle[2m > [22m[2mshould set up periodic sync after initialization[22m[39m
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/server.test.js[2m > [22m[2mCORS Configuration[2m > [22m[2mshould block disallowed origins in production[22m[39m
+⚠️  CORS: Blocked origin: http://evil.com
+   Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+ [32m✓[39m tests/db/adapter-coverage.test.js [2m ([22m[2m15 tests[22m[2m)[22m[90m 36[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/routes/auth.test.js [2m ([22m[2m4 tests[22m[2m)[22m[90m 167[2mms[22m[39m
+[90mstdout[2m | tests/routes/auth.test.js[22m[39m
+Backend unit tests completed.
+
+[90mstdout[2m | tests/server.test.js[2m > [22m[2mServer Startup Logic[2m > [22m[2mtestDatabaseConnection should log success on connection[22m[39m
+✅ Database: Connected
+
+[90mstdout[2m | tests/server.test.js[22m[39m
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/server.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 166[2mms[22m[39m
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync Lifecycle[2m > [22m[2mshould stop all sync operations[22m[39m
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Performing initial sync on app load
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Calling performSync...
+[Sync Manager] Performing initial sync on app load
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Calling performSync...
+
+ [32m✓[39m tests/core-router.test.js [2m ([22m[2m30 tests[22m[2m)[22m[90m 152[2mms[22m[39m
+[90mstdout[2m | tests/controllers/papers/papers-search.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/controllers/papers/papers-search.test.js [2m ([22m[2m5 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | tests/routes/sync.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync Lifecycle[2m > [22m[2mshould stop all sync operations[22m[39m
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | tests/routes/network.test.js[22m[39m
+Starting backend unit tests...
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/routes/network.test.js [2m ([22m[2m4 tests[22m[2m)[22m[90m 30[2mms[22m[39m
+[90mstdout[2m | tests/routes/network.test.js[22m[39m
+Backend unit tests completed.
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync Lifecycle[2m > [22m[2mshould stop all sync operations[22m[39m
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Sync Lifecycle[2m > [22m[2mshould restart auto sync[22m[39m
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+[Sync Manager] Auto sync stopped
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Network Reconnect[2m > [22m[2mshould set up network reconnect listeners[22m[39m
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+[Sync Manager] Auto sync stopped
+
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Network Reconnect[2m > [22m[2mshould show warning on network offline[22m[39m
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Network offline, sync paused
+[Sync Manager] Network offline, sync paused
+[Sync Manager] Network offline, sync paused
+[Sync Manager] Network offline, sync paused
+[Sync Manager] Network offline, sync paused
+[Sync Manager] Network offline, sync paused
+[Sync Manager] Network offline, sync paused
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+[Sync Manager] Auto sync stopped
+
+ [32m✓[39m tests/sync/sync-manager.test.js [2m ([22m[2m20 tests[22m[2m)[22m[33m 834[2mms[22m[39m
+[90mstdout[2m | tests/routes/sync.test.js[22m[39m
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/routes/sync.test.js [2m ([22m[2m4 tests[22m[2m)[22m[90m 98[2mms[22m[39m
+[90mstdout[2m | tests/sync/sync-manager.test.js[2m > [22m[2mcore/syncManager.js - Network Reconnect[2m > [22m[2mshould not sync on reconnect if sync in progress[22m[39m
+[Sync Manager] Initializing auto sync...
+[Sync Manager] Periodic sync started (every 5 minutes)
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Network reconnected, syncing...
+[Sync Manager] Performing initial sync on app load
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Sync already in progress, skipping
+[Sync Manager] Performing initial sync on app load
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Sync already in progress, skipping
+[Sync Manager] Performing initial sync on app load
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Sync already in progress, skipping
+[Sync Manager] Performing initial sync on app load
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Sync already in progress, skipping
+[Sync Manager] Performing initial sync on app load
+[Sync Manager] performAutoSync called, silent: [33mtrue[39m
+[Sync Manager] Sync already in progress, skipping
+[Sync Manager] Periodic sync stopped
+[Sync Manager] Auto sync stopped
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/middleware/notFound.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+[90mstdout[2m | tests/middleware/notFound.test.js[22m[39m
+Starting backend unit tests...
+Backend unit tests completed.
+
+ [32m✓[39m tests/api-auth.test.js [2m ([22m[2m27 tests[22m[2m)[22m[90m 36[2mms[22m[39m
+[90mstdout[2m | tests/integration.test.js[2m > [22m[2mIntegration Tests[2m > [22m[2mPaper Management Workflow[2m > [22m[2mshould add, retrieve, update, and delete a paper[22m[39m
+Deleted 0 annotations for paper ID 1
+
+ [2m[90m↓[39m[22m tests/debug.test.js [2m ([22m[2m21 tests[22m [2m|[22m [33m21 skipped[39m[2m)[22m
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | tests/routes/annotations.test.js[22m[39m
+Starting backend unit tests...
+
+ [32m✓[39m tests/integration.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 71[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/routes/annotations.test.js [2m ([22m[2m4 tests[22m[2m)[22m[90m 38[2mms[22m[39m
+[90mstdout[2m | tests/routes/annotations.test.js[22m[39m
+Backend unit tests completed.
+
+ [32m✓[39m tests/dashboard/batch-toolbar.test.js [2m ([22m[2m23 tests[22m[2m)[22m[90m 35[2mms[22m[39m
+ [32m✓[39m tests/sync/db-sync.test.js [2m ([22m[2m21 tests[22m[2m)[22m[90m 31[2mms[22m[39m
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | tests/routes/user.test.js[22m[39m
+Starting backend unit tests...
+
+[90mstdout[2m | tests/routes/user.test.js[2m > [22m[2mUser Routes[2m > [22m[2mDELETE /api/user/data[2m > [22m[2mshould clear all user data[22m[39m
+Permanently cleared all data for user 1: 10 papers, 2 collections, 5 annotations
+
+[90mstdout[2m | src\routes\network.js:8:9[22m[39m
+✅ Network routes loaded
+
+[90mstdout[2m | src\server.js:128:9[22m[39m
+✅ CORS: Configured FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:129:9[22m[39m
+✅ CORS: Allowed origins: http://localhost:8080, https://localhost:8080, http://localhost:5500, http://localhost:3000, http://localhost:5173, http://localhost:8081, http://127.0.0.1:8080, http://127.0.0.1:5500, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8081
+
+[90mstdout[2m | src\server.js:307:9[22m[39m
+Registering /api/networks routes...
+
+[90mstdout[2m | src\server.js:319:9[22m[39m
+🔍 Environment Check:
+
+[90mstdout[2m | src\server.js:320:9[22m[39m
+   NODE_ENV: test
+
+[90mstdout[2m | src\server.js:321:9[22m[39m
+   PORT: 3000
+
+[90mstdout[2m | src\server.js:322:9[22m[39m
+   FRONTEND_URL: http://localhost:8080
+
+[90mstdout[2m | src\server.js:323:9[22m[39m
+   DATABASE_URL: SET
+
+[90mstdout[2m | tests/routes/papers.test.js[22m[39m
+Starting backend unit tests...
+
+ [32m✓[39m tests/db/collections.test.js [2m ([22m[2m21 tests[22m[2m)[22m[33m 330[2mms[22m[39m
+[90mstdout[2m | tests/routes/papers.test.js[22m[39m
+Backend unit tests completed.
+
+[90mstdout[2m | tests/routes/user.test.js[22m[39m
+Backend unit tests completed.
+
+ [32m✓[39m [36m|citavers-backend|[39m tests/routes/user.test.js [2m ([22m[2m5 tests[22m[2m)[22m[90m 153[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/routes/papers.test.js [2m ([22m[2m4 tests[22m[2m)[22m[90m 49[2mms[22m[39m
+ [32m✓[39m tests/dashboard/modal-manager.test.js [2m ([22m[2m29 tests[22m[2m)[22m[90m 131[2mms[22m[39m
+ [32m✓[39m tests/dashboard/search-mode.test.js [2m ([22m[2m29 tests[22m[2m)[22m[90m 149[2mms[22m[39m
+ [32m✓[39m tests/db/adapter-full.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 16[2mms[22m[39m
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mmount[2m > [22m[2mshould render "Paper not found" if getPaperById returns null[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mmount[2m > [22m[2mshould render paper details when paper exists[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mmount[2m > [22m[2mshould handle missing optional fields[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mRating Component[2m > [22m[2mshould initialize rating component[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mRating Component[2m > [22m[2mshould update rating successfully[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mRating Component[2m > [22m[2mshould handle rating update failure[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mTab Navigation[2m > [22m[2mshould switch tabs correctly[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mPDF Actions[2m > [22m[2mshould handle local PDF opening[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mPDF Actions[2m > [22m[2mshould handle cloud PDF download[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mReading Progress[2m > [22m[2mshould update reading progress[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mReading Progress[2m > [22m[2mshould validate page numbers[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mCitation Generation[2m > [22m[2mshould open citation modal and generate citations[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mCitation Generation[2m > [22m[2mshould copy citation to clipboard[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mrenderProgressBar[2m > [22m[2mshould handle 0/0 case[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mrenderProgressBar[2m > [22m[2mshould calculate percentage correctly[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mrenderProgressBar[2m > [22m[2mshould cap percentage at 100%[22m[39m
+Details view unmounted.
+
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mManual Save[2m > [22m[2mshould show save button when notes are modified[22m[39m
+Details view unmounted.
+
+ [32m✓[39m tests/details/index.test.js [2m ([22m[2m18 tests[22m[2m)[22m[90m 114[2mms[22m[39m
+[90mstdout[2m | tests/details/index.test.js[2m > [22m[2mDetails View[2m > [22m[2mManual Save[2m > [22m[2mshould save changes when button clicked[22m[39m
+Details view unmounted.
+
+ [32m✓[39m tests/dashboard/quick-add.test.js [2m ([22m[2m13 tests[22m[2m)[22m[90m 22[2mms[22m[39m
+ [32m✓[39m tests/api-arxiv.test.js [2m ([22m[2m17 tests[22m[2m)[22m[90m 45[2mms[22m[39m
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2maddAnnotation[2m > [22m[2mshould add a highlight annotation[22m[39m
+Annotation added successfully with ID: [33m1[39m
+Retrieved 1 annotations for paper ID 1
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2maddAnnotation[2m > [22m[2mshould add a sticky note annotation[22m[39m
+Annotation added successfully with ID: [33m2[39m
+Retrieved 1 annotations for paper ID 1
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2maddAnnotation[2m > [22m[2mshould automatically add createdAt and updatedAt[22m[39m
+Annotation added successfully with ID: [33m3[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2maddAnnotation[2m > [22m[2mshould automatically add createdAt and updatedAt[22m[39m
+Retrieved 1 annotations for paper ID 1
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mgetAnnotationsByPaperId[2m > [22m[2mshould retrieve all annotations for a paper[22m[39m
+Annotation added successfully with ID: [33m4[39m
+Annotation added successfully with ID: [33m5[39m
+Annotation added successfully with ID: [33m6[39m
+Retrieved 2 annotations for paper ID 1
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mgetAnnotationsByPaperId[2m > [22m[2mshould return empty array for paper with no annotations[22m[39m
+Annotation added successfully with ID: [33m7[39m
+Annotation added successfully with ID: [33m8[39m
+Annotation added successfully with ID: [33m9[39m
+Retrieved 0 annotations for paper ID 999
+
+ [32m✓[39m tests/details/related-manager.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 60[2mms[22m[39m
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mgetAnnotationsByPaperId[2m > [22m[2mshould throw error for invalid paperId[22m[39m
+Annotation added successfully with ID: [33m10[39m
+Annotation added successfully with ID: [33m11[39m
+Annotation added successfully with ID: [33m12[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mgetAnnotationById[2m > [22m[2mshould retrieve annotation by ID[22m[39m
+Annotation added successfully with ID: [33m13[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mgetAnnotationById[2m > [22m[2mshould return null for non-existent annotation[22m[39m
+Annotation added successfully with ID: [33m14[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mgetAnnotationById[2m > [22m[2mshould throw error for invalid ID[22m[39m
+Annotation added successfully with ID: [33m15[39m
+
+ [32m✓[39m tests/api/auth.test.js [2m ([22m[2m19 tests[22m[2m)[22m[90m 35[2mms[22m[39m
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mupdateAnnotation[2m > [22m[2mshould update annotation fields[22m[39m
+Annotation added successfully with ID: [33m16[39m
+Annotation updated successfully: [33m16[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mupdateAnnotation[2m > [22m[2mshould update updatedAt timestamp[22m[39m
+Annotation added successfully with ID: [33m17[39m
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2misRateLimited[2m > [22m[2mshould return false when not rate limited[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2misRateLimited[2m > [22m[2mshould return true when rate limited[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2misRateLimited[2m > [22m[2mshould return false when rate limit expires[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mupdateAnnotation[2m > [22m[2mshould update updatedAt timestamp[22m[39m
+Annotation updated successfully: [33m17[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mupdateAnnotation[2m > [22m[2mshould throw error for invalid ID[22m[39m
+Annotation added successfully with ID: [33m18[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mupdateAnnotation[2m > [22m[2mshould throw error for invalid update data[22m[39m
+Annotation added successfully with ID: [33m19[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mdeleteAnnotation[2m > [22m[2mshould delete annotation by ID[22m[39m
+Annotation added successfully with ID: [33m20[39m
+Annotation with ID 20 deleted successfully
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mdeleteAnnotation[2m > [22m[2mshould throw error for invalid ID[22m[39m
+Annotation added successfully with ID: [33m21[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mdeleteAnnotation[2m > [22m[2mshould handle deleting non-existent annotation gracefully[22m[39m
+Annotation added successfully with ID: [33m22[39m
+Annotation with ID 99999 deleted successfully
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mdeleteAnnotationsByPaperId[2m > [22m[2mshould delete all annotations for a paper[22m[39m
+Annotation added successfully with ID: [33m23[39m
+Annotation added successfully with ID: [33m24[39m
+Annotation added successfully with ID: [33m25[39m
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mdeleteAnnotationsByPaperId[2m > [22m[2mshould delete all annotations for a paper[22m[39m
+Deleted 2 annotations for paper ID 1
+Retrieved 0 annotations for paper ID 1
+Retrieved 1 annotations for paper ID 2
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mdeleteAnnotationsByPaperId[2m > [22m[2mshould handle deleting annotations for paper with no annotations[22m[39m
+Annotation added successfully with ID: [33m26[39m
+Annotation added successfully with ID: [33m27[39m
+Annotation added successfully with ID: [33m28[39m
+Deleted 0 annotations for paper ID 999
+
+[90mstdout[2m | tests/db/annotations.test.js[2m > [22m[2mdb/annotations.js[2m > [22m[2mdeleteAnnotationsByPaperId[2m > [22m[2mshould throw error for invalid paperId[22m[39m
+Annotation added successfully with ID: [33m29[39m
+Annotation added successfully with ID: [33m30[39m
+Annotation added successfully with ID: [33m31[39m
+
+ [32m✓[39m tests/db/annotations.test.js [2m ([22m[2m23 tests[22m[2m)[22m[90m 91[2mms[22m[39m
+ [32m✓[39m tests/dashboard/batch-operations-utils.test.js [2m ([22m[2m24 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2misRateLimited[2m > [22m[2mshould return false when rate limit expires[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2msetRateLimit[2m > [22m[2mshould set rate limit state[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2msetRateLimit[2m > [22m[2mshould use retry-after header value when provided[22m[39m
+[Rate Limit] Cleared
+
+ [32m✓[39m tests/config.test.js [2m ([22m[2m32 tests[22m[2m)[22m[90m 32[2mms[22m[39m
+ [32m✓[39m tests/api/auth-coverage.test.js [2m ([22m[2m14 tests[22m[2m)[22m[90m 19[2mms[22m[39m
+ [32m✓[39m tests/integration-batch-operations.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 19[2mms[22m[39m
+ [32m✓[39m tests/sync/db-sync-corruption.test.js [2m ([22m[2m11 tests[22m[2m)[22m[90m 42[2mms[22m[39m
+ [32m✓[39m tests/ui-helpers.test.js [2m ([22m[2m29 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m tests/core-command-palette.test.js [2m ([22m[2m27 tests[22m [2m|[22m [33m2 skipped[39m[2m)[22m[90m 24[2mms[22m[39m
+[90mstdout[2m | tests/graph-view.test.js[2m > [22m[2mgraph.view.js - Network Graph Visualization[2m > [22m[2mmount[2m > [22m[2mshould load papers and render graph[22m[39m
+Rendering graph with [33m2[39m nodes and [33m1[39m edges
+
+ [32m✓[39m tests/dashboard/error-handler.test.js [2m ([22m[2m28 tests[22m[2m)[22m[90m 14[2mms[22m[39m
+ [32m✓[39m tests/dashboard/collections.test.js [2m ([22m[2m20 tests[22m[2m)[22m[90m 55[2mms[22m[39m
+ [32m✓[39m tests/db-papers-rating-summary.test.js [2m ([22m[2m20 tests[22m[2m)[22m[90m 23[2mms[22m[39m
+[90mstdout[2m | tests/graph-view.test.js[2m > [22m[2mgraph.view.js - Network Graph Visualization[2m > [22m[2mFiltering[2m > [22m[2mshould filter nodes based on search query[22m[39m
+Rendering graph with [33m2[39m nodes and [33m1[39m edges
+
+[90mstdout[2m | tests/graph-view.test.js[2m > [22m[2mgraph.view.js - Network Graph Visualization[2m > [22m[2mFiltering[2m > [22m[2mshould filter nodes based on status[22m[39m
+Rendering graph with [33m2[39m nodes and [33m1[39m edges
+
+[90mstdout[2m | tests/graph-view.test.js[2m > [22m[2mgraph.view.js - Network Graph Visualization[2m > [22m[2mInteractions[2m > [22m[2mshould handle node click and open side panel[22m[39m
+Rendering graph with [33m2[39m nodes and [33m1[39m edges
+
+[90mstdout[2m | tests/graph-view.test.js[2m > [22m[2mgraph.view.js - Network Graph Visualization[2m > [22m[2mInteractions[2m > [22m[2mshould handle zoom interactions[22m[39m
+Rendering graph with [33m2[39m nodes and [33m1[39m edges
+
+[90mstdout[2m | tests/graph-view.test.js[2m > [22m[2mgraph.view.js - Network Graph Visualization[2m > [22m[2mNetwork Generation[2m > [22m[2mshould call generate API and reload network[22m[39m
+Rendering graph with [33m0[39m nodes and [33m0[39m edges
+
+ [32m✓[39m tests/graph-view.test.js [2m ([22m[2m10 tests[22m[2m)[22m[33m 739[2mms[22m[39m
+ [32m✓[39m tests/api-network.test.js [2m ([22m[2m14 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+[90mstdout[2m | tests/db-papers.test.js[2m > [22m[2mdb/papers.js[2m > [22m[2mdeletePaper[2m > [22m[2mshould delete existing paper[22m[39m
+Deleted 0 annotations for paper ID 16
+
+[90mstdout[2m | tests/db-papers.test.js[2m > [22m[2mdb/papers.js[2m > [22m[2mdeletePaper[2m > [22m[2mshould not throw when deleting non-existent paper[22m[39m
+Deleted 0 annotations for paper ID 99999
+
+ [32m✓[39m tests/db-papers.test.js [2m ([22m[2m20 tests[22m[2m)[22m[90m 43[2mms[22m[39m
+[90mstdout[2m | tests/db-papers.test.js[2m > [22m[2mdb/papers.js[2m > [22m[2mdeletePaper[2m > [22m[2mshould not affect other papers[22m[39m
+Deleted 0 annotations for paper ID 17
+
+[90mstdout[2m | tests/db/data-coverage.test.js[2m > [22m[2mDB Data Coverage[2m > [22m[2mimportData with Cloud Sync[2m > [22m[2mshould trigger cloud batch import when sync is enabled[22m[39m
+Sending batch import to cloud: 1 papers, 1 collections, 1 annotations
+Batch import to cloud completed: success
+
+[90mstdout[2m | tests/db/data-coverage.test.js[2m > [22m[2mDB Data Coverage[2m > [22m[2mimportData with Cloud Sync[2m > [22m[2mshould handle cloud batch import failure gracefully[22m[39m
+Sending batch import to cloud: 1 papers, 0 collections, 0 annotations
+
+ [32m✓[39m tests/details/summary-manager.test.js [2m ([22m[2m17 tests[22m[2m)[22m[90m 123[2mms[22m[39m
+ [32m✓[39m tests/db/papers-coverage.test.js [2m ([22m[2m11 tests[22m[2m)[22m[90m 182[2mms[22m[39m
+[90mstdout[2m | tests/db/data-coverage.test.js[2m > [22m[2mDB Data Coverage[2m > [22m[2mimportData with Cloud Sync[2m > [22m[2mshould strip PDF data from cloud import payload[22m[39m
+Sending batch import to cloud: 1 papers, 0 collections, 0 annotations
+Batch import to cloud completed: success
+
+[90mstdout[2m | tests/db/data-coverage.test.js[2m > [22m[2mDB Data Coverage[2m > [22m[2mclearAllData with Cloud Sync[2m > [22m[2mshould clear cloud data when sync is enabled[22m[39m
+Clearing cloud data...
+Cloud data cleared successfully: { deleted: { papers: [33m1[39m } }
+  - 1 papers deleted
+  - undefined collections deleted
+  - undefined annotations deleted
+Clearing local data...
+Local data cleared successfully
+
+[90mstdout[2m | tests/db/data-coverage.test.js[2m > [22m[2mDB Data Coverage[2m > [22m[2mclearAllData with Cloud Sync[2m > [22m[2mshould throw if cloud clear fails[22m[39m
+Clearing cloud data...
+
+ [32m✓[39m tests/dashboard/pagination.test.js [2m ([22m[2m19 tests[22m[2m)[22m[90m 44[2mms[22m[39m
+ [32m✓[39m tests/db/data-coverage.test.js [2m ([22m[2m7 tests[22m[2m)[22m[90m 106[2mms[22m[39m
+ [32m✓[39m tests/db/sync-coverage.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 73[2mms[22m[39m
+ [32m✓[39m tests/db-collections.test.js [2m ([22m[2m16 tests[22m[2m)[22m[90m 14[2mms[22m[39m
+ [32m✓[39m tests/components/rating-input.test.js [2m ([22m[2m18 tests[22m[2m)[22m[90m 19[2mms[22m[39m
+ [32m✓[39m tests/api-collections.test.js [2m ([22m[2m9 tests[22m[2m)[22m[90m 23[2mms[22m[39m
+ [32m✓[39m tests/api-import.test.js [2m ([22m[2m10 tests[22m[2m)[22m[90m 19[2mms[22m[39m
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2msetRateLimit[2m > [22m[2mshould use retry-after header value when provided[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2msetRateLimit[2m > [22m[2mshould increment consecutive failures[22m[39m
+[Rate Limit] Cleared
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2mclearRateLimit[2m > [22m[2mshould clear rate limit state[22m[39m
+[Rate Limit] Cleared
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2mgetRateLimitRemainingTime[2m > [22m[2mshould return 0 when not rate limited[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - Rate Limiting[2m > [22m[2mgetRateLimitRemainingTime[2m > [22m[2mshould return remaining time when rate limited[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - withRateLimitCheck[2m > [22m[2mshould execute API function when not rate limited[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - withRateLimitCheck[2m > [22m[2mshould throw error when rate limited[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - withRateLimitCheck[2m > [22m[2mshould clear rate limit on successful API call[22m[39m
+[Rate Limit] Cleared
+
+ [32m✓[39m tests/api-utils.test.js [2m ([22m[2m28 tests[22m[2m)[22m[33m 2345[2mms[22m[39m
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - withRateLimitCheck[2m > [22m[2mshould clear rate limit on successful API call[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - withRateLimitCheck[2m > [22m[2mshould not clear rate limit on rate limit error[22m[39m
+[Rate Limit] Cleared
+
+[90mstdout[2m | tests/api-utils.test.js[2m > [22m[2mapi/utils.js - withRateLimitCheck[2m > [22m[2mshould re-throw non-rate-limit errors[22m[39m
+[Rate Limit] Cleared
+
+ [32m✓[39m tests/db/adapter-edge-cases.test.js [2m ([22m[2m7 tests[22m[2m)[22m[90m 13[2mms[22m[39m
+ [32m✓[39m tests/landing-view-memory-leaks.test.js [2m ([22m[2m7 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m tests/api-annotations.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 60[2mms[22m[39m
+ [32m✓[39m tests/db/adapter-enhanced.test.js [2m ([22m[2m10 tests[22m[2m)[22m[90m 14[2mms[22m[39m
+ [32m✓[39m tests/db/adapter-final.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m tests/db/annotations-coverage.test.js [2m ([22m[2m10 tests[22m[2m)[22m[33m 522[2mms[22m[39m
+ [32m✓[39m tests/dashboard/paper-list.test.js [2m ([22m[2m11 tests[22m[2m)[22m[90m 25[2mms[22m[39m
+ [32m✓[39m tests/details/notes-manager.test.js [2m ([22m[2m14 tests[22m[2m)[22m[90m 102[2mms[22m[39m
+ [32m✓[39m tests/ui-integration.test.js [2m ([22m[2m15 tests[22m[2m)[22m[90m 39[2mms[22m[39m
+ [32m✓[39m tests/sync/sync-corruption-prevention.test.js [2m ([22m[2m15 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m tests/sidebar-filter-preservation.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m tests/rating-sorting.test.js [2m ([22m[2m11 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m tests/dashboard/batch-operations.test.js [2m ([22m[2m7 tests[22m[2m)[22m[90m 13[2mms[22m[39m
+ [32m✓[39m tests/ui-e2e.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 13[2mms[22m[39m
+ [32m✓[39m tests/auth_dedupe.test.js [2m ([22m[2m3 tests[22m[2m)[22m[90m 60[2mms[22m[39m
+ [32m✓[39m tests/ui-components.test.js [2m ([22m[2m6 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m tests/rating-display.test.js [2m ([22m[2m8 tests[22m[2m)[22m[90m 41[2mms[22m[39m
+ [32m✓[39m tests/api-user.test.js [2m ([22m[2m6 tests[22m[2m)[22m[90m 13[2mms[22m[39m
+ [32m✓[39m tests/graph.test.js [2m ([22m[2m5 tests[22m[2m)[22m[90m 12[2mms[22m[39m
+[90mstdout[2m | tests/graph.test.js[2m > [22m[2mGraph View[2m > [22m[2mshould configure physics correctly[22m[39m
+Rendering graph with [33m1[39m nodes and [33m0[39m edges
+
+ [32m✓[39m tests/core-state.test.js [2m ([22m[2m12 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m tests/simple.test.js [2m ([22m[2m3 tests[22m[2m)[22m[90m 2[2mms[22m[39m
+ [32m✓[39m [36m|citavers-backend|[39m tests/lib/password.test.js [2m ([22m[2m15 tests[22m[2m)[22m[33m 12529[2mms[22m[39m
+[90mstdout[2m | tests/lib/password.test.js[22m[39m
+Backend unit tests completed.
+
+
+[2m Test Files [22m [1m[32m105 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (106)[39m
+[2m      Tests [22m [1m[32m1706 passed[39m[22m[2m | [22m[33m23 skipped[39m[90m (1729)[39m
+[2m   Start at [22m 15:51:07
+[2m   Duration [22m 14.64s[2m (transform 1.60s, setup 5.07s, collect 18.76s, tests 24.55s, environment 21.38s, prepare 18.93s)[22m
+

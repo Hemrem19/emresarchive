@@ -659,7 +659,7 @@ tests/
 - **Adapter Edge Cases**: Expanded `db/adapter.js` tests with cloud fallback, rate limiting, and error handling scenarios
 - **Router Tests**: Fixed and expanded `core/router.js` tests with route matching, navigation handling, and error cases
 - **Coverage Improvement**: Increased overall coverage from ~71% to 90.53% statements
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions (using `npm run test` consistently without workspace parsing or `--project` flags to ensure CI stability)
 
 ---
 
@@ -677,6 +677,7 @@ tests/
 - **Database**: PostgreSQL (Railway managed)
 - **Storage**: AWS S3 (for PDFs)
 - **Environment**: Node.js 20+
+- **Build / Run Boundaries**: Database migrations (`npx prisma migrate deploy`) are strictly removed from the `nixpacks.toml` and Railway build phase to prevent database connection failures. Migrations run at startup.
 
 ### Mobile Deployment
 - **Platform**: Capacitor
