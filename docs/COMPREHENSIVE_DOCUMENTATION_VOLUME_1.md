@@ -279,7 +279,7 @@ The application addresses the following research management challenges:
 7. **Repository Pattern**: Database operations abstracted from views
 8. **State Management**: Centralized appState object, not a framework
 9. **Hash Routing**: Uses window.location.hash for client-side routing
-10. **Service Worker**: Caches static assets, doesn't intercept API calls
+10. **Service Worker Strategy**: Employs a Network-First dynamic caching strategy (bumping `CACHE_NAME` on updates) with failover to a local cache to prevent restrictive UI caching while maintaining offline support.
 
 ---
 

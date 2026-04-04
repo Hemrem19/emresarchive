@@ -386,11 +386,11 @@ export default myClass;
 3. **Database Setup**
    - Create PostgreSQL database in Railway
    - Set `DATABASE_URL` environment variable
-   - Migrations run automatically on deploy
+   - Note: Prisma schema migrations must execute at runtime, not build time.
 
 4. **Deploy**
    - Railway auto-deploys on git push
-   - Build command: `npm run db:migrate:deploy && node src/server.js`
+   - Start command (no custom build command): `npm run db:migrate:deploy && node src/server.js`
    - Working directory: `backend/`
 
 **Current Deployment**: https://emresarchive-production.up.railway.app
