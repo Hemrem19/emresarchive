@@ -139,7 +139,7 @@ research/
 - **Frontend:** HTML5, CSS3 (Tailwind), Vanilla JavaScript (ES6+)
 - **Backend:** Node.js, Express.js, PostgreSQL (Prisma ORM)
 - **Storage:** IndexedDB (local), PostgreSQL + S3 (cloud sync)
-- **Authentication:** JWT, bcrypt, email verification
+- **Authentication:** JWT, bcryptjs, email verification
 - **Libraries:** PDF.js, vis-network, Material Symbols
 - **Testing:** Vitest, fake-indexeddb
 - **CI/CD:** GitHub Actions

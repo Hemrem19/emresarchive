@@ -886,7 +886,7 @@ Clear All Data
 4. User clicks "Register"
 5. API call: `api/auth.js (register)` → `POST /api/auth/register`
 6. Backend creates user account:
-   - Password hashed (bcrypt)
+   - Password hashed (bcryptjs)
    - Email verification token generated
    - Verification email sent
 7. Success message shown

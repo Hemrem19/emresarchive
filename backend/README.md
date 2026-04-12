@@ -193,7 +193,7 @@ See `BACKEND_PLAN.md` for deployment strategy and infrastructure setup.
 ## 🔒 Security
 
 - **JWT Authentication**: Access tokens (15min) + Refresh tokens (7 days)
-- **Password Hashing**: bcrypt with cost factor 12
+- **Password Hashing**: bcryptjs with cost factor 12
 - **Rate Limiting**: 100 requests per 15 minutes per IP
 - **CORS**: Configured for frontend origin
 - **Helmet**: Security headers middleware

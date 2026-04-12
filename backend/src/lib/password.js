@@ -1,9 +1,9 @@
 /**
  * Password Utilities
- * Hash and verify passwords using bcrypt
+ * Hash and verify passwords using bcryptjs
  */
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 12;
 

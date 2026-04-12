@@ -146,7 +146,7 @@ emresarchive/
 │   │   └── lib/               # Utilities
 │   │       ├── prisma.js      # Prisma client
 │   │       ├── jwt.js         # JWT token utilities
-│   │       ├── password.js    # Password hashing (bcrypt)
+│   │       ├── password.js    # Password hashing (bcryptjs)
 │   │       ├── email.js       # Email sending (Nodemailer/Resend)
 │   │       ├── s3.js          # AWS S3 utilities
 │   │       ├── validation.js  # Zod validation schemas

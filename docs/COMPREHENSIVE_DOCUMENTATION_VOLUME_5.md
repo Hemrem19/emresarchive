@@ -646,7 +646,7 @@ import { addPaper, getAllPapers } from './db.js';
 
 1. **Authentication**
    - JWT tokens for API access
-   - Password hashing with bcrypt
+   - Password hashing with bcryptjs
 
 2. **CORS Configuration**
    - Only allows frontend origin
