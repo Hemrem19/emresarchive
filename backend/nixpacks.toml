@@ -2,7 +2,7 @@
 nixPkgs = ["nodejs_22", "npm-9_x", "openssl", "python3", "gnumake", "gcc"]
 
 [phases.install]
-cmds = ["pnpm install"]
+cmds = ["npm install -g pnpm", "pnpm install"]
 
 [phases.build]
 cmds = [
