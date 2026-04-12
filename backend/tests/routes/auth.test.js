@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 
 // Mock dependencies
 vi.mock('../../src/lib/prisma.js');
-vi.mock('bcrypt');
+vi.mock('bcryptjs');
 vi.mock('resend'); // Mock email service
 
 // Import app (no need to mock auth middleware for these tests as we want to test the actual auth flow)

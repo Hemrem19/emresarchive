@@ -642,9 +642,9 @@ tests/
 ```
 
 ### Test Coverage
-- **1600+ tests** (100% pass rate)
+- **1700+ tests** (100% pass rate)
 - **Coverage**: 90.53% statements, 85.46% branches, 87.35% functions
-- **Test Files**: 70+ test files organized by module
+- **Test Files**: 105+ test files organized by module
 - **Coverage Areas**:
   - API modules (papers, collections, annotations, sync, import, network, user, utils, arxiv)
   - Database layer (adapter, papers, collections, annotations, sync, core, data)
