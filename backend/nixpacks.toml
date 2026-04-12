@@ -2,13 +2,13 @@
 nixPkgs = ["nodejs_22", "npm-9_x", "openssl", "python3", "gnumake", "gcc"]
 
 [phases.install]
-cmds = ["npm ci"]
+cmds = ["pnpm install"]
 
 [phases.build]
 cmds = [
-  "npm run db:generate"
+  "pnpm run db:generate"
 ]
 
 [start]
-cmd = "npm run start"
+cmd = "pnpm run start"
 
