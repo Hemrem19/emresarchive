@@ -144,6 +144,6 @@ describe('Password Utilities', () => {
                     }
                 }
             }
-        });
+        }, 30000); // Increased timeout for bcrypt integration test
     });
 });
