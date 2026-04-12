@@ -16,20 +16,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        cache: 'pnpm'
+        cache-dependency-path: pnpm-lock.yaml
     
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
     
     - name: Remove root workspace config
       run: rm vitest.workspace.js
     
     - name: Run frontend tests
-      run: npm run test
+      run: pnpm run test
 
   backend-tests:
     runs-on: ubuntu-latest
@@ -40,17 +46,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: backend/package-lock.json
+        cache: 'pnpm'
+        cache-dependency-path: backend/pnpm-lock.yaml
     
     - name: Install backend dependencies
       run: |
         cd backend
-        npm ci
+        pnpm install --frozen-lockfile
     
     - name: Remove root workspace config
       run: rm vitest.workspace.js
@@ -58,12 +69,12 @@ jobs:
     - name: Run backend tests
       run: |
         cd backend
-        npm test
+        pnpm test
     
     - name: Generate coverage report
       run: |
         cd backend
-        npm run test:coverage
+        pnpm run test:coverage
       
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

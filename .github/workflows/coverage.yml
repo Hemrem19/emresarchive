@@ -11,23 +11,28 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
-        cache: 'npm'
+        cache: 'pnpm'
     
     - name: Install root dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
     
     - name: Install backend dependencies
       run: |
         cd backend
-        npm ci
-        npm run db:generate
+        pnpm install --frozen-lockfile
+        pnpm run db:generate
     
     - name: Run tests with coverage
-      run: npm run test:coverage
+      run: pnpm run test:coverage
     
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
