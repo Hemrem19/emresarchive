@@ -8,6 +8,7 @@ import { isAuthenticated, getAccessToken } from '../api/auth.js';
 import { showToast } from '../ui.js';
 import * as Y from 'https://esm.sh/yjs@13.6.14';
 import { WebsocketProvider } from 'https://esm.sh/y-websocket@1.5.0';
+import { upgradeLegacySchemaToYjs } from './schemaUpgrade.js';
 
 let provider = null;
 let yDoc = null;
@@ -69,6 +70,8 @@ export function initializeAutoSync() {
         provider.on('sync', isSynced => {
             if (isSynced) {
                 console.log('[Sync Manager] Initial Yjs state synchronized');
+                // Safely migrate any legacy offline data into the synced YDoc.
+                upgradeLegacySchemaToYjs(yDoc).catch(e => console.error(e));
             }
         });
         
