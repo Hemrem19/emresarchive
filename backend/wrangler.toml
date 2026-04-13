@@ -1,0 +1,13 @@
+name = "citavers-backend"
+main = "src/worker.js"
+compatibility_date = "2024-03-20"
+node_compat = true
+
+# [env.production]
+# name = "citavers-backend-prod"
+
+[[d1_databases]]
+binding = "DB" # Available in Hono as c.env.DB
+database_name = "citavers-db"
+database_id = "YOUR_DATABASE_ID_HERE"
+# migrations_dir = "drizzle/migrations"
