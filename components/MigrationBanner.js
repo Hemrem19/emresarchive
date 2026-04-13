@@ -60,13 +60,15 @@ function renderMigrationBanner() {
  * Checks if the user fits the requirements for seeing the migration banner
  */
 export async function checkAndShowMigrationBanner() {
+    renderMigrationBanner();
+
     // Only show if user is strictly offline and hasn't dismissed the banner
     // if (isAuthenticated()) return;
     // if (localStorage.getItem('citavers_migration_dismissed')) return;
 
     // try {
     //    const papers = await getAllPapers();
-    //    // Only show if the user actively has data in their IndexedDB that needs rescuing
+    // Only show if the user actively has data in their IndexedDB that needs rescuing
     //    if (papers && papers.length > 0) {
     //        renderMigrationBanner();
     //    }
