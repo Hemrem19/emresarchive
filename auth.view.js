@@ -6,6 +6,7 @@
 import { login, register, logout, isAuthenticated, getUser, verifyEmail, resendVerificationEmail } from './api/auth.js';
 import { showToast } from './ui.js';
 import { setCloudSyncEnabled } from './config.js';
+import { restartAutoSync } from './core/syncManager.js';
 
 export const authView = {
     isOpen: false,
@@ -372,17 +373,12 @@ export const authView = {
             const result = await login({ email, password });
 
             // Success
-            this.showSuccess('Login successful!');
             setCloudSyncEnabled(true);
+            restartAutoSync();
+            this.showSuccess('Login successful! Loading your library...');
 
-            // Update UI
-            this.updateUIForAuthenticated(result.user);
-
-            // Close modal after short delay
-            setTimeout(() => {
-                this.close();
-                showToast('Welcome back! Cloud sync is now enabled.', 'success');
-            }, 1000);
+            // Reload the page so the dashboard re-mounts and seeds data from the cloud
+            setTimeout(() => window.location.reload(), 1000);
 
         } catch (error) {
             // Handle field-specific errors

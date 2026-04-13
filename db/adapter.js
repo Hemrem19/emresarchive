@@ -44,6 +44,31 @@ function shouldUseCloudSync() {
     return isCloudSyncEnabled() && isAuthenticated();
 }
 
+// Flag to prevent duplicate seeding within a single page load
+let _localSeededFromCloud = false;
+
+/**
+ * Fetches all papers and collections from the REST API and upserts them into
+ * local IndexedDB. Called once per page load when cloud sync is enabled so
+ * the dashboard always shows up-to-date data even on a fresh device.
+ */
+async function seedLocalFromCloud() {
+    // Fetch all papers (use a high limit to avoid pagination for typical libraries)
+    const { papers: apiPaperList } = await apiPapers.getAllPapers({ limit: 1000 });
+    for (const paper of apiPaperList) {
+        const local = mapPaperDataFromApi(paper);
+        try { await localPapers.updatePaper(paper.id, local); }
+        catch { await localPapers.addPaper(local); }
+    }
+
+    // Fetch all collections
+    const apiCollectionList = await apiCollections.getAllCollections();
+    for (const collection of apiCollectionList) {
+        try { await localCollections.updateCollection(collection.id, collection); }
+        catch { await localCollections.addCollection(collection); }
+    }
+}
+
 
 
 /**
@@ -169,12 +194,18 @@ export const papers = {
     },
 
     async getAllPapers() {
-        // Always read from local storage first for immediate UI feedback
-        // This ensures offline-first experience even when cloud sync is enabled
-
-        // Trigger background sync if needed to keep local data fresh
         if (shouldUseCloudSync() && !isRateLimited()) {
-            triggerDebouncedSync();
+            if (!_localSeededFromCloud) {
+                _localSeededFromCloud = true;
+                try {
+                    await seedLocalFromCloud();
+                } catch (e) {
+                    _localSeededFromCloud = false; // Allow retry on next call
+                    console.warn('[Adapter] Initial cloud seed failed:', e.message);
+                }
+            } else {
+                triggerDebouncedSync();
+            }
         }
 
         return localPapers.getAllPapers();
