@@ -5,7 +5,7 @@
 
 import bcrypt from 'bcryptjs';
 
-const SALT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+const SALT_ROUNDS = 12;
 
 /**
  * Hash a password

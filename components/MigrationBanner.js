@@ -26,7 +26,7 @@ function renderMigrationBanner() {
                 <div>
                     <h4 class="font-extrabold text-lg tracking-tight mb-0.5">Critical Architecture Upgrade</h4>
                     <p class="text-blue-100 text-sm leading-relaxed max-w-2xl font-medium">
-                        Citavers is upgrading to a powerful new real-time collaborative sync engine! To ensure a seamless migration, please temporarily refrain from logging into your account. 
+                        Citavers is upgrading to a powerful new real-time collaborative sync engine! Because you have offline papers, we highly recommend securely syncing them to the cloud to guarantee seamless migration and prevent data loss. 
                     </p>
                 </div>
             </div>
@@ -51,28 +51,28 @@ function renderMigrationBanner() {
         document.getElementById('migration-banner')?.remove();
     });
 
-    //    document.getElementById('migration-banner-login')?.addEventListener('click', () => {
-    //        authView.open('login');
-    //    });
+    document.getElementById('migration-banner-login')?.addEventListener('click', () => {
+        authView.open('login');
+    });
 }
 
 /**
  * Checks if the user fits the requirements for seeing the migration banner
  */
 export async function checkAndShowMigrationBanner() {
-    renderMigrationBanner();
+    //renderMigrationBanner();
 
     // Only show if user is strictly offline and hasn't dismissed the banner
-    // if (isAuthenticated()) return;
-    // if (localStorage.getItem('citavers_migration_dismissed')) return;
+    if (isAuthenticated()) return;
+    if (localStorage.getItem('citavers_migration_dismissed')) return;
 
-    // try {
-    //    const papers = await getAllPapers();
-    // Only show if the user actively has data in their IndexedDB that needs rescuing
-    //    if (papers && papers.length > 0) {
-    //        renderMigrationBanner();
-    //    }
-    // } catch (e) {
-    //    console.error('[Migration Banner] Failed to evaluate local state:', e);
-    //}
+    try {
+        const papers = await getAllPapers();
+        // Only show if the user actively has data in their IndexedDB that needs rescuing
+        if (papers && papers.length > 0) {
+            renderMigrationBanner();
+        }
+    } catch (e) {
+        console.error('[Migration Banner] Failed to evaluate local state:', e);
+    }
 }

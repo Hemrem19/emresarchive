@@ -110,170 +110,30 @@ function _requireCloudSync() {
 }
 
 export async function performFullSync() {
-    _requireCloudSync();
-
-    if (isSyncInProgress()) {
-        throw new Error('Sync already in progress');
-    }
-    _setSyncInProgress(true);
-
-    const { fullSync } = await import('../api/sync.js');
-
-    // Fetch from server FIRST — if it fails, local data is untouched
-    let data;
-    try {
-        data = await fullSync();
-    } catch (err) {
-        _setSyncInProgress(false);
-        throw err;
-    }
-
-    // Apply server papers to local IndexedDB
-    const { addPaper, getAllPapers, deletePaper } = await import('../db/papers.js');
-
-    // Clear local papers and replace with server data
-    const existing = await getAllPapers();
-    for (const p of existing) await deletePaper(p.id).catch(() => {});
-
-    const paperCount = (data.papers || []).length;
-    for (const p of (data.papers || [])) {
-        if (!p.title) continue; // Skip malformed papers without title
-        const mapped = { ...p };
-        if (mapped.status) { mapped.readingStatus = mapped.status; }
-        await addPaper(mapped).catch(() => {});
-    }
-
-    // Clear pending changes after successful full sync
+    // Real-time sync is handled by Yjs WebSocket (WorkspaceDurableObject).
+    // This function is a no-op shim kept for backwards-compatibility with callers and tests.
     clearMockSync();
-    _setSyncInProgress(false);
-    localStorage.setItem('citavers_last_synced_at', data.syncedAt || new Date().toISOString());
-
-    return {
-        success: true,
-        synced: paperCount,
-        counts: {
-            papers: paperCount,
-            collections: (data.collections || []).length,
-            annotations: (data.annotations || []).length,
-        }
-    };
+    localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
+    return { success: true, synced: 0, counts: { papers: 0, collections: 0, annotations: 0 } };
 }
 
 export async function performIncrementalSync() {
-    _requireCloudSync();
-
-    if (isSyncInProgress()) {
-        throw new Error('Sync already in progress');
-    }
-    _setSyncInProgress(true);
-
-    const { incrementalSync } = await import('../api/sync.js');
-    const changes = getPendingChanges();
-    const hasLocalChanges = (
-        changes.papers.created.length > 0 || changes.papers.updated.length > 0 || changes.papers.deleted.length > 0 ||
-        changes.collections.created.length > 0 || changes.collections.updated.length > 0 || changes.collections.deleted.length > 0 ||
-        changes.annotations.created.length > 0 || changes.annotations.updated.length > 0 || changes.annotations.deleted.length > 0
-    );
-
-    let result;
-    try {
-        result = await incrementalSync(changes);
-    } catch (err) {
-        _setSyncInProgress(false);
-        // Preserve pending changes for retry — do NOT clear
-        throw err;
-    }
-
-    const serverChanges = result.serverChanges || {};
-
-    // Apply server changes
-    if (serverChanges.papers?.length) {
-        const { addPaper, updatePaper } = await import('../db/papers.js');
-        for (const p of serverChanges.papers) {
-            const mapped = { ...p };
-            if (mapped.status) { mapped.readingStatus = mapped.status; }
-            await addPaper(mapped).catch(() => updatePaper(p.id, mapped).catch(() => {}));
-        }
-    }
-
-    // Apply server deletions
-    const deleted = serverChanges.deleted || {};
-    if (deleted.papers?.length || deleted.collections?.length || deleted.annotations?.length) {
-        const { deletePaper } = await import('../db/papers.js');
-        const { deleteCollection } = await import('../db/collections.js').catch(() => ({ deleteCollection: async () => {} }));
-        const { deleteAnnotation } = await import('../db/annotations.js').catch(() => ({ deleteAnnotation: async () => {} }));
-        for (const id of (deleted.papers || [])) await deletePaper(id).catch(() => {});
-        for (const id of (deleted.collections || [])) await deleteCollection(id).catch(() => {});
-        for (const id of (deleted.annotations || [])) await deleteAnnotation(id).catch(() => {});
-    }
-
+    // Real-time sync is handled by Yjs WebSocket (WorkspaceDurableObject).
+    // This function is a no-op shim kept for backwards-compatibility with callers and tests.
     clearMockSync();
-    _setSyncInProgress(false);
-    localStorage.setItem('citavers_last_synced_at', result.syncedAt || new Date().toISOString());
-
-    return {
-        success: true,
-        hasLocalChanges,
-        synced: (result.appliedChanges?.papers || []).length,
-        serverChangeCount: {
-            papers: serverChanges.papers?.length || 0,
-            collections: serverChanges.collections?.length || 0,
-            annotations: serverChanges.annotations?.length || 0,
-        },
-        conflicts: result.appliedChanges?.conflicts || {},
-    };
+    localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
+    return { success: true, hasLocalChanges: false, synced: 0, serverChangeCount: { papers: 0, collections: 0, annotations: 0 }, conflicts: {} };
 }
 
 export async function performSync() {
-    _requireCloudSync();
-    const lastSync = localStorage.getItem('citavers_last_synced_at');
-    if (!lastSync) {
-        return performFullSync();
-    }
+    // Real-time sync is handled by Yjs WebSocket (WorkspaceDurableObject).
+    // This function is a no-op shim kept for backwards-compatibility with callers and tests.
     return performIncrementalSync();
 }
 
 export async function getSyncStatusInfo() {
-    // Check rate limiting first — avoid API call if rate limited
-    try {
-        const { isRateLimited } = await import('../api/utils.js');
-        if (isRateLimited && isRateLimited()) {
-            // Return local-only status
-            const pending = getPendingChanges();
-            const hasPendingChanges =
-                pending.papers.created.length > 0 || pending.papers.updated.length > 0 || pending.papers.deleted.length > 0 ||
-                pending.collections.created.length > 0 || pending.collections.updated.length > 0 || pending.collections.deleted.length > 0 ||
-                pending.annotations.created.length > 0 || pending.annotations.updated.length > 0 || pending.annotations.deleted.length > 0;
-
-            return {
-                lastSyncedAt: localStorage.getItem('citavers_last_synced_at') || null,
-                hasPendingChanges,
-                pendingChangeCounts: {
-                    papers: {
-                        created: pending.papers.created.length,
-                        updated: pending.papers.updated.length,
-                        deleted: pending.papers.deleted.length,
-                    },
-                    collections: {
-                        created: pending.collections.created.length,
-                        updated: pending.collections.updated.length,
-                        deleted: pending.collections.deleted.length,
-                    },
-                    annotations: {
-                        created: pending.annotations.created.length,
-                        updated: pending.annotations.updated.length,
-                        deleted: pending.annotations.deleted.length,
-                    },
-                },
-                serverCounts: {},
-                inProgress: isSyncInProgress(),
-            };
-        }
-    } catch (_) { /* api/utils.js may not be available in all environments */ }
-
-    const { getSyncStatus, getClientId } = await import('../api/sync.js');
-    const serverStatus = await getSyncStatus();
-
+    // REST /api/sync/status was removed; status is now derived locally.
+    // Real-time sync state lives in the Yjs WebSocket connection (syncManager.js).
     const pending = getPendingChanges();
     const hasPendingChanges =
         pending.papers.created.length > 0 || pending.papers.updated.length > 0 || pending.papers.deleted.length > 0 ||
@@ -281,7 +141,7 @@ export async function getSyncStatusInfo() {
         pending.annotations.created.length > 0 || pending.annotations.updated.length > 0 || pending.annotations.deleted.length > 0;
 
     return {
-        lastSyncedAt: serverStatus?.lastSyncedAt || null,
+        lastSyncedAt: localStorage.getItem('citavers_last_synced_at') || null,
         hasPendingChanges,
         pendingChangeCounts: {
             papers: {
@@ -300,8 +160,7 @@ export async function getSyncStatusInfo() {
                 deleted: pending.annotations.deleted.length,
             },
         },
-        serverCounts: serverStatus?.counts || {},
-        clientId: getClientId ? getClientId() : null,
+        serverCounts: {},
         inProgress: isSyncInProgress(),
     };
 }
