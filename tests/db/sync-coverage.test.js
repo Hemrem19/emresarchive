@@ -12,9 +12,18 @@ import {
     deduplicateLocalPapers,
     getPendingChanges
 } from '../../db/sync.js';
-import * as coreModule from '../../db/core.js';
+import * as papersModule from '../../db/papers.js';
 
 // Mock dependencies
+vi.mock('../../db/papers.js', () => ({
+    getAllPapers: vi.fn(),
+    deletePaper: vi.fn(),
+    addPaper: vi.fn(),
+    updatePaper: vi.fn(),
+    getPaperById: vi.fn(),
+    getPaperByDoi: vi.fn(),
+}));
+
 vi.mock('../../db/core.js', () => ({
     openDB: vi.fn(),
     STORE_NAME_PAPERS: 'papers'
@@ -32,9 +41,6 @@ vi.mock('../../api/auth.js', () => ({
 
 describe('Sync Module Coverage', () => {
     let mockLocalStorage;
-    let mockDb;
-    let mockTransaction;
-    let mockStore;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -48,22 +54,8 @@ describe('Sync Module Coverage', () => {
             clear: vi.fn(() => { mockLocalStorage = {}; })
         };
 
-        // Mock DB
-        mockStore = {
-            getAll: vi.fn(),
-            delete: vi.fn(),
-            put: vi.fn()
-        };
-
-        mockTransaction = {
-            objectStore: vi.fn().mockReturnValue(mockStore)
-        };
-
-        mockDb = {
-            transaction: vi.fn().mockReturnValue(mockTransaction)
-        };
-
-        coreModule.openDB.mockResolvedValue(mockDb);
+        // Default: deletePaper resolves successfully
+        papersModule.deletePaper.mockResolvedValue(undefined);
     });
 
     describe('Change Tracking Logic', () => {
@@ -149,36 +141,14 @@ describe('Sync Module Coverage', () => {
                 { id: 3, title: 'Unique', doi: '10.5678/unique' }
             ];
 
-            mockStore.getAll.mockReturnValue({
-                onsuccess: null,
-                onerror: null,
-                result: papers
-            });
+            papersModule.getAllPapers.mockResolvedValue(papers);
 
-            mockStore.delete.mockReturnValue({
-                onsuccess: null,
-                onerror: null
-            });
+            const result = await deduplicateLocalPapers();
 
-            const promise = deduplicateLocalPapers();
-
-            await new Promise(resolve => setTimeout(resolve, 0));
-
-            // Trigger getAll success
-            mockStore.getAll.mock.results[0].value.onsuccess({ target: { result: papers } });
-
-            // Wait for delete operations
-            await new Promise(resolve => setTimeout(resolve, 0));
-
-            // Should delete ID 1
-            expect(mockStore.delete).toHaveBeenCalledWith(1);
-            expect(mockStore.delete).not.toHaveBeenCalledWith(2);
-            expect(mockStore.delete).not.toHaveBeenCalledWith(3);
-
-            // Trigger delete success
-            mockStore.delete.mock.results[0].value.onsuccess();
-
-            const result = await promise;
+            // Should delete ID 1 (lower id for duplicate doi)
+            expect(papersModule.deletePaper).toHaveBeenCalledWith(1);
+            expect(papersModule.deletePaper).not.toHaveBeenCalledWith(2);
+            expect(papersModule.deletePaper).not.toHaveBeenCalledWith(3);
             expect(result.duplicatesRemoved).toBe(1);
         });
 
@@ -188,29 +158,13 @@ describe('Sync Module Coverage', () => {
                 { id: 20, title: 'New Arxiv', doi: 'arXiv:2101.12345' } // Should match by extracted ID
             ];
 
-            mockStore.getAll.mockReturnValue({
-                onsuccess: null,
-                onerror: null,
-                result: papers
-            });
+            papersModule.getAllPapers.mockResolvedValue(papers);
 
-            mockStore.delete.mockReturnValue({
-                onsuccess: null,
-                onerror: null
-            });
-
-            const promise = deduplicateLocalPapers();
-
-            await new Promise(resolve => setTimeout(resolve, 0));
-            mockStore.getAll.mock.results[0].value.onsuccess({ target: { result: papers } });
-
-            await new Promise(resolve => setTimeout(resolve, 0));
+            await deduplicateLocalPapers();
 
             // Should delete ID 10 (lower ID)
-            expect(mockStore.delete).toHaveBeenCalledWith(10);
-
-            mockStore.delete.mock.results[0].value.onsuccess();
-            await promise;
+            expect(papersModule.deletePaper).toHaveBeenCalledWith(10);
+            expect(papersModule.deletePaper).not.toHaveBeenCalledWith(20);
         });
 
         it('should handle errors during de-duplication gracefully', async () => {
@@ -219,31 +173,12 @@ describe('Sync Module Coverage', () => {
                 { id: 2, doi: 'duplicate' }
             ];
 
-            mockStore.getAll.mockReturnValue({
-                onsuccess: null,
-                onerror: null,
-                result: papers
-            });
+            papersModule.getAllPapers.mockResolvedValue(papers);
+            papersModule.deletePaper.mockRejectedValueOnce(new Error('Delete failed'));
 
-            mockStore.delete.mockReturnValue({
-                onsuccess: null,
-                onerror: null
-            });
-
-            const promise = deduplicateLocalPapers();
-
-            await new Promise(resolve => setTimeout(resolve, 0));
-            mockStore.getAll.mock.results[0].value.onsuccess({ target: { result: papers } });
-
-            await new Promise(resolve => setTimeout(resolve, 0));
-
-            // Trigger delete error
-            const error = new Error('Delete failed');
-            mockStore.delete.mock.results[0].value.onerror({ target: { error } });
-
-            // Should still resolve, just logging the error
-            const result = await promise;
-            expect(result.duplicatesRemoved).toBe(1); // Counted even if failed? Logic says yes: deletedCount++
+            // Should still resolve, swallowing the delete error
+            const result = await deduplicateLocalPapers();
+            expect(result.duplicatesRemoved).toBe(1);
         });
     });
 });

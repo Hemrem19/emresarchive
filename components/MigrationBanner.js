@@ -1,5 +1,6 @@
-import { isAuthenticated, showAuthModal } from '../api/auth.js';
+import { isAuthenticated } from '../api/auth.js';
 import { getAllPapers } from '../db/papers.js';
+import { authView } from '../auth.view.js';
 
 /**
  * Renders the Migration Banner encouraging offline users to sync their data BEFORE the final stage
@@ -48,7 +49,7 @@ function renderMigrationBanner() {
     });
 
     document.getElementById('migration-banner-login')?.addEventListener('click', () => {
-        showAuthModal();
+        authView.open('login');
     });
 }
 

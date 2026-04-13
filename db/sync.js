@@ -11,6 +11,7 @@
 
 import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
+import { getAllPapers as _getAllPapers, deletePaper as _deletePaper } from './papers.js';
 
 // ---------------------------------------------------------------------------
 // In-memory change tracking (replaces the old localStorage-based queue)
@@ -332,8 +333,7 @@ function _setSyncInProgress(value) {
 }
 
 export async function deduplicateLocalPapers() {
-    const { getAllPapers, deletePaper } = await import('../db/papers.js');
-    const papers = await getAllPapers();
+    const papers = await _getAllPapers();
 
     // Normalise an arXiv ID from formats like "arXiv:2101.12345" → "2101.12345"
     function extractArxivId(str) {
@@ -377,7 +377,7 @@ export async function deduplicateLocalPapers() {
         group.sort((a, b) => b.id - a.id);
         // Delete all but the first (highest id)
         for (let i = 1; i < group.length; i++) {
-            await deletePaper(group[i].id).catch(() => {});
+            await _deletePaper(group[i].id).catch(() => {});
             duplicatesRemoved++;
         }
     }
