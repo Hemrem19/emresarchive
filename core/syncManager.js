@@ -12,7 +12,8 @@ import { showToast } from '../ui.js';
 import * as Y from 'https://esm.sh/yjs@13.6.14';
 import { WebsocketProvider } from 'https://esm.sh/y-websocket@1.5.0';
 import { upgradeLegacySchemaToYjs } from './schemaUpgrade.js';
-import { performSync, isSyncInProgress } from '../db/sync.js';
+import { isSyncInProgress } from '../db/sync.js';
+import { syncFromCloud } from '../db/adapter.js';
 
 let provider = null;
 let yDoc = null;
@@ -24,6 +25,10 @@ const DEBOUNCE_MS = 2000;
 // Network event handlers (stored so we can remove them)
 let _offlineHandler = null;
 let _onlineHandler = null;
+let _focusHandler = null;
+let _pollInterval = null;
+
+const POLL_INTERVAL_MS = 30_000;
 
 /**
  * Checks if sync should run automatically.
@@ -44,15 +49,7 @@ export function triggerDebouncedSync() {
     _debounceTimer = setTimeout(() => {
         _debounceTimer = null;
         if (isSyncInProgress && isSyncInProgress()) return;
-        Promise.resolve(performSync()).then(result => {
-            // Silent sync — no toast unless there are changes
-            const serverCount = result?.serverChangeCount
-                ? Object.values(result.serverChangeCount).reduce((a, b) => a + (b || 0), 0)
-                : 0;
-            if (serverCount > 0) {
-                showToast(`Sync complete. ${serverCount} updates from server.`, 'success', { duration: 3000 });
-            }
-        }).catch(err => {
+        syncFromCloud().catch(err => {
             // Silent — do not surface errors for background debounced syncs
             console.warn('[SyncManager] Background sync failed:', err.message);
         });
@@ -76,13 +73,24 @@ export function initializeAutoSync() {
     _onlineHandler = async () => {
         try {
             if (isSyncInProgress && isSyncInProgress()) return;
-            await performSync();
+            await syncFromCloud();
         } catch (err) {
             console.warn('[SyncManager] Reconnect sync failed:', err.message);
         }
     };
     window.addEventListener('offline', _offlineHandler);
     window.addEventListener('online', _onlineHandler);
+
+    // Pull latest from cloud on tab focus (catches changes made on other devices)
+    _focusHandler = () => {
+        syncFromCloud().catch(e => console.warn('[SyncManager] Focus sync failed:', e.message));
+    };
+    window.addEventListener('focus', _focusHandler);
+
+    // Poll every 30 seconds while the tab is open
+    _pollInterval = setInterval(() => {
+        syncFromCloud().catch(e => console.warn('[SyncManager] Poll sync failed:', e.message));
+    }, POLL_INTERVAL_MS);
 
     if (provider) return; // Already initialized
 
@@ -110,6 +118,7 @@ export function initializeAutoSync() {
                 console.log('[Sync Manager] Initial Yjs state synchronized');
                 upgradeLegacySchemaToYjs(yDoc).catch(e => console.error(e));
                 bindDiscussionDrawer();
+                syncFromCloud().catch(e => console.warn('[SyncManager] WS sync pull failed:', e.message));
             }
         });
 
@@ -133,6 +142,14 @@ export function stopAutoSync() {
     if (_onlineHandler) {
         window.removeEventListener('online', _onlineHandler);
         _onlineHandler = null;
+    }
+    if (_focusHandler) {
+        window.removeEventListener('focus', _focusHandler);
+        _focusHandler = null;
+    }
+    if (_pollInterval) {
+        clearInterval(_pollInterval);
+        _pollInterval = null;
     }
     if (provider) {
         provider.disconnect();
@@ -168,25 +185,8 @@ export async function performManualSync() {
             return;
         }
 
-        const result = await performSync();
-
-        // Count server changes
-        const serverCount = result?.serverChangeCount
-            ? Object.values(result.serverChangeCount).reduce((a, b) => a + (b || 0), 0)
-            : 0;
-
-        // Count conflicts
-        const conflictCount = result?.conflicts
-            ? Object.values(result.conflicts).reduce((a, b) => a + (Array.isArray(b) ? b.length : 0), 0)
-            : 0;
-
-        if (conflictCount > 0) {
-            showToast(`Sync complete. ${conflictCount} conflicts resolved.`, 'success', { duration: 4000 });
-        } else if (serverCount > 0) {
-            showToast(`Sync complete. ${serverCount} updates from server.`, 'success', { duration: 3000 });
-        } else {
-            showToast('Already synchronized (Real-time connection active)', 'success');
-        }
+        await syncFromCloud();
+        showToast('Sync complete.', 'success', { duration: 3000 });
     } catch (err) {
         showToast(`Sync failed: ${err.message}`, 'error', {
             duration: 5000,

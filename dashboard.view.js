@@ -23,6 +23,7 @@ import {
 export const dashboardView = {
     // Store all handlers for cleanup
     handlers: {},
+    _cloudSyncHandler: null,
 
     /**
      * Mount the dashboard view
@@ -88,6 +89,20 @@ export const dashboardView = {
 
         // Initial toolbar update
         updateBatchToolbar(appState);
+
+        // Refresh dashboard when cloud sync pulls new data from another device
+        this._cloudSyncHandler = async () => {
+            try {
+                appState.allPapersCache = await getAllPapers();
+                renderSidebarTags(appState.allPapersCache);
+                appState.collectionsCache = await getAllCollections();
+                renderSidebarCollections(appState.collectionsCache);
+                applyFiltersAndRender(appState);
+            } catch (e) {
+                console.warn('[Dashboard] Cloud sync refresh failed:', e.message);
+            }
+        };
+        window.addEventListener('citavers:cloud-synced', this._cloudSyncHandler);
     },
 
     /**
@@ -105,6 +120,11 @@ export const dashboardView = {
 
         // Clear handlers
         this.handlers = {};
+
+        if (this._cloudSyncHandler) {
+            window.removeEventListener('citavers:cloud-synced', this._cloudSyncHandler);
+            this._cloudSyncHandler = null;
+        }
 
         console.log('Dashboard view unmounted.');
     }

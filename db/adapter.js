@@ -69,6 +69,18 @@ async function seedLocalFromCloud() {
     }
 }
 
+/**
+ * Re-fetches all data from the cloud REST API, upserts into local IndexedDB,
+ * and dispatches 'citavers:cloud-synced' so the UI can refresh.
+ * Called by syncManager on polling/reconnect/focus.
+ */
+export async function syncFromCloud() {
+    if (!shouldUseCloudSync()) return;
+    _localSeededFromCloud = false; // Allow re-seed
+    await seedLocalFromCloud();
+    window.dispatchEvent(new CustomEvent('citavers:cloud-synced'));
+}
+
 
 
 /**
