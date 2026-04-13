@@ -159,8 +159,8 @@ auth.post('/login', async (c) => {
     expiresAt: expiresAt,
   }).returning();
 
-  const refreshToken = generateRefreshToken(user.id, session.id);
-  
+  const refreshToken = generateRefreshToken(user.id, session.id, c.env);
+
   const encoder = new TextEncoder();
   const data = encoder.encode(refreshToken);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -179,7 +179,7 @@ auth.post('/login', async (c) => {
     path: '/'
   });
 
-  const accessToken = generateAccessToken(user.id, user.email);
+  const accessToken = generateAccessToken(user.id, user.email, c.env);
 
   return c.json({
     success: true,
