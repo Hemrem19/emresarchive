@@ -94,7 +94,7 @@ export function initializeAutoSync() {
     try {
         const token = getAccessToken();
         let baseUrl = getApiBaseUrl() || window.location.origin;
-        const wsUrl = baseUrl.replace(/^http/, 'ws') + '/api/sync/workspace/default';
+        const wsUrl = baseUrl.replace(/^http/, 'ws') + '/api/sync/workspace';
 
         provider = new WebsocketProvider(wsUrl, 'default', yDoc, {
             connect: true,
