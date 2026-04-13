@@ -5,7 +5,7 @@
 
 import { API_CONFIG } from '../config.js';
 import { parseJsonResponse } from './utils.js';
-import { getAccessToken, refreshToken } from './auth.js';
+import { apiRequest } from './sync.js';
 
 const API_BASE = `${API_CONFIG.BASE_URL}/api/user`;
 
@@ -15,29 +15,10 @@ const API_BASE = `${API_CONFIG.BASE_URL}/api/user`;
  */
 export async function clearAllUserData() {
     try {
-        let accessToken = getAccessToken();
-        if (!accessToken) throw new Error('Not authenticated. Please log in.');
-
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-        };
-
-        let response = await fetch(`${API_BASE}/data`, {
+        const response = await apiRequest(`${API_BASE}/data`, {
             method: 'DELETE',
-            headers,
             credentials: 'include'
         });
-
-        if (response.status === 401) {
-            accessToken = await refreshToken();
-            headers['Authorization'] = `Bearer ${accessToken}`;
-            response = await fetch(`${API_BASE}/data`, {
-                method: 'DELETE',
-                headers,
-                credentials: 'include'
-            });
-        }
 
         const result = await parseJsonResponse(response);
 
@@ -51,4 +32,3 @@ export async function clearAllUserData() {
         throw new Error(`Failed to clear user data: ${error.message}`);
     }
 }
-

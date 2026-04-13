@@ -177,5 +177,24 @@ export function mapAnnotationFromApi(apiAnnotation) {
     return { ...apiAnnotation };
 }
 
-// Legacy compatibility export used by old tests
-export const apiRequest = authFetch;
+// Authenticated fetch that returns the raw Response (for callers that use parseJsonResponse)
+export async function apiRequest(url, options = {}) {
+    let token = getAccessToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers,
+    };
+
+    let response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401) {
+        token = await refreshToken();
+        headers['Authorization'] = `Bearer ${token}`;
+        response = await fetch(url, { ...options, headers });
+    }
+
+    return response;
+}

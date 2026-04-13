@@ -43,9 +43,15 @@ export function trackPaperCreated(paper) {
 
 export function trackPaperUpdated(id, data) {
     // If the paper was just created locally, update it in place
-    const idx = _pending.papers.created.findIndex(p => p.id === id || p.localId === id);
-    if (idx !== -1) {
-        _pending.papers.created[idx] = { ..._pending.papers.created[idx], ...data };
+    const createdIdx = _pending.papers.created.findIndex(p => p.id === id || p.localId === id);
+    if (createdIdx !== -1) {
+        _pending.papers.created[createdIdx] = { ..._pending.papers.created[createdIdx], ...data };
+        return;
+    }
+    // If already queued as an update, merge to avoid duplicate entries for the same paper
+    const updatedIdx = _pending.papers.updated.findIndex(p => p.id === id);
+    if (updatedIdx !== -1) {
+        _pending.papers.updated[updatedIdx] = { ..._pending.papers.updated[updatedIdx], ...data, id };
         return;
     }
     _pending.papers.updated.push({ id, ...data });
@@ -329,13 +335,39 @@ export async function deduplicateLocalPapers() {
     const { getAllPapers, deletePaper } = await import('../db/papers.js');
     const papers = await getAllPapers();
 
-    // Group by DOI (case-insensitive)
+    // Normalise an arXiv ID from formats like "arXiv:2101.12345" → "2101.12345"
+    function extractArxivId(str) {
+        if (!str) return null;
+        const m = str.trim().match(/^arxiv:(.+)$/i);
+        return m ? m[1].toLowerCase() : null;
+    }
+
+    // Group papers by a canonical dedup key.
+    // Each paper may contribute to one or two keys (doi + arxivId).
     const byKey = new Map();
     for (const paper of papers) {
-        const doi = paper.doi?.toLowerCase();
-        if (!doi) continue; // Papers without DOI are not deduplicated
-        if (!byKey.has(doi)) byKey.set(doi, []);
-        byKey.get(doi).push(paper);
+        const keys = [];
+
+        if (paper.doi) {
+            const arxivFromDoi = extractArxivId(paper.doi);
+            if (arxivFromDoi) {
+                keys.push(`arxiv:${arxivFromDoi}`);
+            } else {
+                keys.push(`doi:${paper.doi.toLowerCase()}`);
+            }
+        }
+
+        if (paper.arxivId) {
+            keys.push(`arxiv:${paper.arxivId.toLowerCase()}`);
+        }
+
+        for (const key of keys) {
+            if (!byKey.has(key)) byKey.set(key, []);
+            // Avoid adding the same paper twice when it matches multiple keys
+            if (!byKey.get(key).find(p => p.id === paper.id)) {
+                byKey.get(key).push(paper);
+            }
+        }
     }
 
     let duplicatesRemoved = 0;

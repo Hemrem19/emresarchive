@@ -2,6 +2,7 @@ import { getPaperById, updatePaper, getAllPapers } from '../db.js';
 import { escapeHtml, showToast } from '../ui.js';
 import { views as templates } from '../views/index.js';
 import { isCloudSyncEnabled } from '../config.js';
+import { performIncrementalSync } from '../db/sync.js';
 
 export const relatedManager = {
     paperId: null,
@@ -105,11 +106,16 @@ export const relatedManager = {
                 await updatePaper(paperId, { relatedPaperIds: newRelatedIds });
                 await updatePaper(linkId, { relatedPaperIds: linkedPaperRelatedIds });
 
-                // Yjs automatically syncs CRDT changes under the hood
-
                 await this.renderRelatedPapers();
                 closeModal();
                 showToast('Papers linked successfully!');
+
+                // Background sync when cloud sync is enabled
+                if (isCloudSyncEnabled()) {
+                    performIncrementalSync().catch(err => {
+                        console.warn('Background sync failed after linking papers:', err);
+                    });
+                }
             }
         };
         modalList.addEventListener('click', linkHandler);
