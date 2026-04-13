@@ -104,14 +104,9 @@ export async function parseJsonResponse(response) {
     }
 
     // Handle session expiration (401)
+    // Do NOT clear auth here — callers that need to refresh (api/sync.js) handle
+    // it themselves. Clearing the token on every 401 prevents any refresh attempt.
     if (response.status === 401) {
-        console.warn('Session expired (401), clearing token and redirecting...');
-        localStorage.removeItem('accessToken');
-        // Optional: Dispatch a custom event if the app needs to react without reloading
-        window.dispatchEvent(new Event('auth:logout'));
-
-        // Redirect to login or reload to trigger auth check
-        // We'll throw an error first so the caller stops processing
         throw new Error('Session expired. Please log in again.');
     }
 

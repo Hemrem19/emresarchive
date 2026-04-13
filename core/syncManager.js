@@ -27,8 +27,14 @@ let _offlineHandler = null;
 let _onlineHandler = null;
 let _focusHandler = null;
 let _pollInterval = null;
+let _keepAliveInterval = null;
+
+// Guard so syncFromCloud only fires once per WebSocket session, not on every reconnect.
+// The 30s poller handles subsequent background syncs.
+let _yjsSyncDoneForSession = false;
 
 const POLL_INTERVAL_MS = 30_000;
+const WS_KEEPALIVE_MS = 25_000; // Under Cloudflare's 30s idle timeout
 
 /**
  * Checks if sync should run automatically.
@@ -100,27 +106,42 @@ export function initializeAutoSync() {
     window.yDoc = yDoc; // Expose globally for UI Data Stores bridging
 
     try {
-        const token = getAccessToken();
         let baseUrl = getApiBaseUrl() || window.location.origin;
         const wsUrl = baseUrl.replace(/^http/, 'ws') + '/api/sync/workspace';
 
+        // Use a getter function for params so each reconnect picks up a fresh token.
+        // The DO force-closes the socket when the JWT expires (15m), so y-websocket
+        // reconnects — without this it would reconnect with the stale expired token.
         provider = new WebsocketProvider(wsUrl, 'default', yDoc, {
             connect: true,
-            params: { token }
+            params: () => ({ token: getAccessToken() })
         });
 
         provider.on('status', event => {
             console.log('[Sync Manager] Websocket status:', event.status);
+            if (event.status === 'connected') {
+                // Reset session guard so we get one syncFromCloud per connection
+                _yjsSyncDoneForSession = false;
+            }
         });
 
         provider.on('sync', isSynced => {
-            if (isSynced) {
+            if (isSynced && !_yjsSyncDoneForSession) {
+                _yjsSyncDoneForSession = true;
                 console.log('[Sync Manager] Initial Yjs state synchronized');
                 upgradeLegacySchemaToYjs(yDoc).catch(e => console.error(e));
                 bindDiscussionDrawer();
                 syncFromCloud().catch(e => console.warn('[SyncManager] WS sync pull failed:', e.message));
             }
         });
+
+        // Keep-alive: send a harmless awareness update every 25s to prevent
+        // Cloudflare's 30s idle WebSocket timeout from closing the connection.
+        _keepAliveInterval = setInterval(() => {
+            if (provider && provider.wsconnected) {
+                provider.awareness.setLocalStateField('_ka', Date.now());
+            }
+        }, WS_KEEPALIVE_MS);
 
     } catch (e) {
         console.error('[Sync Manager] Initialization failed:', e);
@@ -150,6 +171,10 @@ export function stopAutoSync() {
     if (_pollInterval) {
         clearInterval(_pollInterval);
         _pollInterval = null;
+    }
+    if (_keepAliveInterval) {
+        clearInterval(_keepAliveInterval);
+        _keepAliveInterval = null;
     }
     if (provider) {
         provider.disconnect();

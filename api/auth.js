@@ -11,6 +11,43 @@ const AUTH_ENDPOINT = `${API_CONFIG.BASE_URL}/api/auth`;
 // Promise deduplication for token refresh
 let refreshPromise = null;
 
+// Timer for proactive token refresh (refreshes 2 minutes before expiry)
+let _proactiveRefreshTimer = null;
+
+/**
+ * Schedules a proactive refresh 2 minutes before the token expires.
+ * Called whenever a new access token is stored so the token never expires
+ * mid-session, keeping WebSocket connections and API calls from hitting 401s.
+ */
+function _scheduleProactiveRefresh(token) {
+    if (_proactiveRefreshTimer) {
+        clearTimeout(_proactiveRefreshTimer);
+        _proactiveRefreshTimer = null;
+    }
+    if (!token) return;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (!payload.exp) return;
+        const msUntilExpiry = payload.exp * 1000 - Date.now();
+        const refreshIn = msUntilExpiry - 2 * 60 * 1000; // 2 min early
+        if (refreshIn <= 0) {
+            // Already expired or expiring imminently — refresh now
+            refreshToken().catch(e => console.warn('[Auth] Proactive refresh failed:', e.message));
+            return;
+        }
+        _proactiveRefreshTimer = setTimeout(async () => {
+            try {
+                const newToken = await refreshToken();
+                _scheduleProactiveRefresh(newToken); // Schedule next refresh
+            } catch (e) {
+                console.warn('[Auth] Proactive refresh failed:', e.message);
+            }
+        }, refreshIn);
+    } catch (e) {
+        // Malformed token — skip proactive refresh
+    }
+}
+
 /**
  * Gets the stored access token.
  * @returns {string|null} The access token or null if not found.
@@ -18,6 +55,10 @@ let refreshPromise = null;
 export function getAccessToken() {
     return localStorage.getItem(API_CONFIG.ACCESS_TOKEN_KEY);
 }
+
+// On module load: if a token is already stored (page refresh while logged in),
+// schedule its proactive refresh immediately.
+_scheduleProactiveRefresh(localStorage.getItem(API_CONFIG.ACCESS_TOKEN_KEY));
 
 /**
  * Gets the stored user data.
@@ -36,6 +77,7 @@ export function getUser() {
 export function setAuth(accessToken, user) {
     localStorage.setItem(API_CONFIG.ACCESS_TOKEN_KEY, accessToken);
     localStorage.setItem(API_CONFIG.USER_KEY, JSON.stringify(user));
+    _scheduleProactiveRefresh(accessToken);
 }
 
 /**
