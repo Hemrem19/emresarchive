@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
 import { eq } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '../lib/password.js';
-import { generateAccessToken, generateRefreshToken } from '../lib/jwt.js';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
 // Note: We use WebCrypto API compatible equivalents instead of 'crypto' module where possible on Edge
 import { setCookie, deleteCookie } from 'hono/cookie';
 
@@ -193,6 +193,59 @@ auth.post('/login', async (c) => {
       refreshToken
     }
   });
+});
+
+/**
+ * Refresh Access Token
+ * POST /api/auth/refresh
+ */
+auth.post('/refresh', async (c) => {
+  const db = getDb(c);
+  const token = getCookie(c, 'refreshToken');
+
+  if (!token) {
+    return c.json({ success: false, error: { message: 'Refresh token required' } }, 401);
+  }
+
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(token, c.env);
+  } catch (err) {
+    deleteCookie(c, 'refreshToken');
+    return c.json({ success: false, error: { message: err.message } }, 401);
+  }
+
+  // Hash the incoming token for DB comparison (same method as login/register)
+  const encoder = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(token));
+  const tokenHash = Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const session = await db.query.sessions.findFirst({
+    where: eq(schema.sessions.id, decoded.sessionId)
+  });
+
+  if (!session || session.tokenHash !== tokenHash) {
+    deleteCookie(c, 'refreshToken');
+    return c.json({ success: false, error: { message: 'Invalid refresh token' } }, 401);
+  }
+
+  if (new Date(session.expiresAt) < new Date()) {
+    deleteCookie(c, 'refreshToken');
+    return c.json({ success: false, error: { message: 'Session expired. Please log in again.' } }, 401);
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.id, session.userId)
+  });
+
+  if (!user) {
+    return c.json({ success: false, error: { message: 'User not found' } }, 401);
+  }
+
+  const accessToken = generateAccessToken(user.id, user.email, c.env);
+
+  return c.json({ success: true, data: { accessToken } });
 });
 
 /**
