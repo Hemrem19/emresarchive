@@ -758,9 +758,7 @@ Each view module exports an object with:
 
 ### Sync Routes (`/api/sync`)
 
-- `GET /api/sync/full` - Full sync (protected)
-- `POST /api/sync/incremental` - Incremental sync (protected)
-- `GET /api/sync/status` - Get sync status (protected)
+_Note: REST Sync endpoints have been deprecated in favor of Yjs CRDT WebSocket continuous replication. Connection negotiations occur via Upgrade headers to the Durable Object._
 
 ### User Routes (`/api/user`)
 
@@ -792,24 +790,25 @@ Each view module exports an object with:
 
 ## 4.9 Database Schemas
 
-### IndexedDB Schema
+### Cloudflare D1 Schema (Edge - Drizzle ORM)
 
-**Database**: `CitaversDB` (Version 6)
+**Database**: Cloudflare Serverless SQLite (D1)
+**Tooling**: Drizzle ORM
+**Schema Location**: `backend/drizzle/schema.ts`
 
-**Object Store**: `papers`
-- Key: `id` (auto-increment)
-- Indexes: `title`, `authors`, `year`, `tags`, `relatedPaperIds`, `doi`, `rating`
-- Fields: See Volume 3, Section 3.5
-
-**Object Store**: `collections`
-- Key: `id` (auto-increment)
-- Indexes: `name`, `createdAt`
+**Tables**
+- `users`: User profiles and quotas
+- `sessions`: Hashed refresh tokens for JWT
+- `papers`: Core node metrics (DOI, metadata)
+- `collections`: User taxonomy bins
+- `annotations`: PDF interaction state
+- `crdt_documents`: Binary state vectors representing incremental CRDT updates from Yjs
+- `client_sync_states`: Used by Durable Objects to track client awareness, `createdAt`
 - Fields: See Volume 3, Section 3.5
 
 **Object Store**: `annotations`
 - Key: `id` (auto-increment)
 - Indexes: `paperId`, `type`, `pageNumber`, `createdAt`
-- Fields: See Volume 3, Section 3.5
 
 ### PostgreSQL Schema (Prisma)
 

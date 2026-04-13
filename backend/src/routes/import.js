@@ -1,18 +1,8 @@
-/**
- * Import API Routes
- */
-
-import express from 'express';
-import { batchImport } from '../controllers/import.js';
+import { Hono } from 'hono';
 import { authenticate } from '../middleware/auth.js';
 
-const router = express.Router();
+const importRouter = new Hono();
+importRouter.use('*', authenticate);
+importRouter.post('/file', (c) => c.json({ success: false, message: 'Not Implemented' }, 501));
 
-// All import routes require authentication
-router.use(authenticate);
-
-// Batch import endpoint
-router.post('/batch-import', batchImport);
-
-export default router;
-
+export default importRouter;

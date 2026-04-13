@@ -85,13 +85,12 @@ npm run test:coverage
 
 ---
 
-### Backend Build & Run
+#### Backend Build & Run (Edge Worker)
 
 #### Prerequisites
 - Node.js 20+
-- PostgreSQL database
-- AWS S3 bucket (for PDF storage)
-- Environment variables configured
+- Cloudflare API Tokens (Wrangler authenticated)
+- Cloudflare D1 database credentials
 
 #### Development Setup
 
@@ -106,62 +105,42 @@ npm run test:coverage
    ```
 
 3. **Configure Environment Variables**
-   Create `.env` file:
+   Set up `backend/.dev.vars` for local secrets.
+   Example:
    ```env
-   DATABASE_URL=postgresql://user:password@localhost:5432/citavers
    JWT_SECRET=your-secret-key
-   JWT_REFRESH_SECRET=your-refresh-secret
-   FRONTEND_URL=http://localhost:8000
-   AWS_ACCESS_KEY_ID=your-access-key
-   AWS_SECRET_ACCESS_KEY=your-secret-key
-   AWS_REGION=us-east-1
-   AWS_S3_BUCKET=your-bucket-name
-   EMAIL_FROM=noreply@citavers.com
    RESEND_API_KEY=your-resend-key (optional)
-   NODE_ENV=development
-   PORT=3000
+   ENVIRONMENT=development
    ```
 
-4. **Run Database Migrations**
+4. **Run Database Migrations Locally via Miniflare**
    ```bash
-   npm run db:migrate
+   npx wrangler d1 migrations apply DB --local
    ```
 
-5. **Start Development Server**
+5. **Start Edge Simulator (Miniflare)**
    ```bash
    npm run dev
    ```
-   - Server runs on `http://localhost:3000`
-   - Auto-reloads on file changes (--watch)
+   - Server runs on `http://localhost:8787` (Wrangler default)
 
 #### Production Build
 
-1. **No Build Step Required**
-   - Backend runs source files directly
-   - No compilation/transpilation
+1. **Edge Deployment**
+   - Cloudflare compiles source to V8 environments via `esbuild`.
+   - Run: `npm run deploy`
 
-2. **Deploy to Railway/Render**
-   - Platform handles deployment automatically
-   - Runs: `npm run db:migrate:deploy && node src/server.js`
-
-3. **Environment Variables**
-   - Set in Railway/Render dashboard
-   - See `backend/RAILWAY_ENV_VARS.md` for list
-
-#### Database Migrations
+#### Database Migrations (Drizzle + D1)
 
 ```bash
-# Create new migration
-npm run db:migrate
-
-# Deploy migrations (production)
-npm run db:migrate:deploy
-
-# Generate Prisma client
+# Create new migration via Drizzle
 npm run db:generate
 
-# Open Prisma Studio (database GUI)
-npm run db:studio
+# Deploy migrations locally
+npx wrangler d1 migrations apply DB --local
+
+# Deploy migrations to production
+npx wrangler d1 migrations apply DB --remote
 ```
 
 ---
@@ -363,56 +342,25 @@ export default myClass;
 
 ---
 
-### Backend Deployment (Railway)
+### Backend Deployment (Cloudflare Workers + D1)
 
-1. **Connect Repository**
-   - Connect GitHub repository to Railway
-   - Railway detects `backend/` directory
+1. **Authentication**
+   - Run `npx wrangler login` or configure `CLOUDFLARE_API_TOKEN` via CI.
 
-2. **Configure Environment Variables**
-   - Set in Railway dashboard:
-     - `DATABASE_URL`
-     - `JWT_SECRET`
-     - `JWT_REFRESH_SECRET`
-     - `FRONTEND_URL`
-     - `AWS_ACCESS_KEY_ID`
-     - `AWS_SECRET_ACCESS_KEY`
-     - `AWS_REGION`
-     - `AWS_S3_BUCKET`
-     - `EMAIL_FROM`
-     - `RESEND_API_KEY` (optional)
-     - `NODE_ENV=production`
+2. **Infrastructure Hookups (wrangler.toml)**
+   - Define D1 bindings
+   - Define R2 bindings (for PDF BLOB replication)
 
 3. **Database Setup**
-   - Create PostgreSQL database in Railway
-   - Set `DATABASE_URL` environment variable
-   - Note: Prisma schema migrations must execute at runtime, not build time.
+   - Run bindings setup for D1 in Cloudflare Dashboard or CLI:
+   `npx wrangler d1 create DB`
+   - Grab the ID and paste into `backend/wrangler.toml`
 
 4. **Deploy**
-   - Railway auto-deploys on git push
-   - Start command (no custom build command): `npm run db:migrate:deploy && node src/server.js`
-   - Working directory: `backend/`
+   - Uses `npx wrangler deploy`
+   - Push to production pushes automatically to Cloudflare V8 Nodes.
 
-**Current Deployment**: https://emresarchive-production.up.railway.app
-
----
-
-### Backend Deployment (Render - Alternative)
-
-1. **Create Web Service**
-   - Connect GitHub repository
-   - Build command: `cd backend && npm install`
-   - Start command: `cd backend && npm run db:migrate:deploy && node src/server.js`
-   - Environment: Node
-
-2. **Configure Environment Variables**
-   - Same as Railway (see above)
-
-3. **Database**
-   - Create PostgreSQL database in Render
-   - Set `DATABASE_URL`
-
-**Configuration File**: `backend/render.yaml`
+**Current Deployment**: API resolved dynamically via Cloudflare DNS.
 
 ---
 
@@ -527,12 +475,11 @@ import { addPaper, getAllPapers } from './db.js';
 - Verify all source files exist
 
 #### Database Migration Fails
-**Error**: Prisma migration errors
+**Error**: Drizzle migration errors
 **Solution**:
-- Check `DATABASE_URL` is correct
-- Verify database is accessible
-- Run `npm run db:generate` to regenerate Prisma client
-- Check migration files in `backend/prisma/migrations/`
+- Check if Cloudflare D1 local `.wrangler` folder is corrupted. Delete and try again.
+- Run `npm run db:generate` to regenerate Drizzle schema mappings.
+- Check migration files in `backend/drizzle/migrations/`
 
 ---
 
