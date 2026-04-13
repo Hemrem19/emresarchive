@@ -13,7 +13,8 @@ import {
     trackPaperDeleted,
     getPendingChanges,
     isSyncInProgress,
-    deduplicateLocalPapers
+    deduplicateLocalPapers,
+    clearMockSync as resetSyncState
 } from '../../db/sync.js';
 import { getAllPapers, addPaper, deletePaper } from '../../db/papers.js';
 import { openDB, STORE_NAME_PAPERS } from '../../db/core.js';
@@ -34,6 +35,7 @@ describe('Sync Corruption Prevention - Transaction Failures', () => {
     beforeEach(() => {
         resetAllMocks();
         clearMockSync();
+        resetSyncState();
         setMockAuth(true);
         setMockSyncEnabled(true);
     });
@@ -76,6 +78,7 @@ describe('Sync Corruption Prevention - Malformed Data', () => {
     beforeEach(() => {
         resetAllMocks();
         clearMockSync();
+        resetSyncState();
         setMockAuth(true);
         setMockSyncEnabled(true);
     });

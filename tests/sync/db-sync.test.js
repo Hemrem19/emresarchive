@@ -18,7 +18,8 @@ import {
     performFullSync,
     performIncrementalSync,
     performSync,
-    getSyncStatusInfo
+    getSyncStatusInfo,
+    clearMockSync as resetSyncState
 } from '../../db/sync.js';
 // Import local DB functions directly (not through adapter) for testing
 import * as localPapers from '../../db/papers.js';
@@ -43,6 +44,7 @@ describe('db/sync.js - Change Tracking', () => {
     beforeEach(() => {
         resetAllMocks();
         clearMockSync();
+        resetSyncState(); // Reset in-memory pending changes
         setMockAuth(true);
         setMockSyncEnabled(true);
     });
@@ -186,6 +188,7 @@ describe('db/sync.js - Sync Orchestration', () => {
     beforeEach(() => {
         resetAllMocks();
         clearMockSync();
+        resetSyncState(); // Reset in-memory pending changes
         setMockAuth(true);
         setMockSyncEnabled(true);
     });

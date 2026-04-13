@@ -110,7 +110,7 @@ export const setMockSyncEnabled = (enabled = true) => {
 };
 
 /**
- * Clear mock sync state
+ * Clear mock sync state (localStorage only — tests must also call clearMockSync from db/sync.js)
  */
 export const clearMockSync = () => {
   localStorage.removeItem('citavers_sync_mode');

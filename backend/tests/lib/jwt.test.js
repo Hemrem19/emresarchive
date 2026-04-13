@@ -1,5 +1,6 @@
 /**
  * Unit Tests for JWT Token Utilities
+ * Updated to pass the required `env` object (edge-native CRDT refactor)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -10,6 +11,14 @@ import {
     verifyAccessToken,
     verifyRefreshToken
 } from '../../src/lib/jwt.js';
+
+// Mock env object matching Cloudflare Worker bindings
+const mockEnv = {
+    JWT_ACCESS_SECRET: 'test-access-secret-key-minimum-32-chars!!',
+    JWT_ACCESS_EXPIRES_IN: '15m',
+    JWT_REFRESH_SECRET: 'test-refresh-secret-key-minimum-32-chars!!',
+    JWT_REFRESH_EXPIRES_IN: '7d',
+};
 
 describe('JWT Token Utilities', () => {
     const userId = 1;
@@ -22,7 +31,7 @@ describe('JWT Token Utilities', () => {
 
     describe('generateAccessToken', () => {
         it('should generate a valid access token', () => {
-            const token = generateAccessToken(userId, email);
+            const token = generateAccessToken(userId, email, mockEnv);
 
             expect(token).toBeDefined();
             expect(typeof token).toBe('string');
@@ -33,8 +42,8 @@ describe('JWT Token Utilities', () => {
         });
 
         it('should include userId and email in token payload', () => {
-            const token = generateAccessToken(userId, email);
-            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+            const token = generateAccessToken(userId, email, mockEnv);
+            const decoded = jwt.verify(token, mockEnv.JWT_ACCESS_SECRET);
 
             expect(decoded.userId).toBe(userId);
             expect(decoded.email).toBe(email);
@@ -42,8 +51,8 @@ describe('JWT Token Utilities', () => {
         });
 
         it('should set expiration time', () => {
-            const token = generateAccessToken(userId, email);
-            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+            const token = generateAccessToken(userId, email, mockEnv);
+            const decoded = jwt.verify(token, mockEnv.JWT_ACCESS_SECRET);
 
             expect(decoded.exp).toBeDefined();
             expect(decoded.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
@@ -52,7 +61,7 @@ describe('JWT Token Utilities', () => {
 
     describe('generateRefreshToken', () => {
         it('should generate a valid refresh token', () => {
-            const token = generateRefreshToken(userId, sessionId);
+            const token = generateRefreshToken(userId, sessionId, mockEnv);
 
             expect(token).toBeDefined();
             expect(typeof token).toBe('string');
@@ -62,8 +71,8 @@ describe('JWT Token Utilities', () => {
         });
 
         it('should include userId and sessionId in token payload', () => {
-            const token = generateRefreshToken(userId, sessionId);
-            const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+            const token = generateRefreshToken(userId, sessionId, mockEnv);
+            const decoded = jwt.verify(token, mockEnv.JWT_REFRESH_SECRET);
 
             expect(decoded.userId).toBe(userId);
             expect(decoded.sessionId).toBe(sessionId);
@@ -71,11 +80,11 @@ describe('JWT Token Utilities', () => {
         });
 
         it('should set longer expiration time than access token', () => {
-            const accessToken = generateAccessToken(userId, email);
-            const refreshToken = generateRefreshToken(userId, sessionId);
+            const accessToken = generateAccessToken(userId, email, mockEnv);
+            const refreshToken = generateRefreshToken(userId, sessionId, mockEnv);
 
-            const decodedAccess = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
-            const decodedRefresh = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+            const decodedAccess = jwt.verify(accessToken, mockEnv.JWT_ACCESS_SECRET);
+            const decodedRefresh = jwt.verify(refreshToken, mockEnv.JWT_REFRESH_SECRET);
 
             // Refresh token should expire later than access token
             expect(decodedRefresh.exp).toBeGreaterThan(decodedAccess.exp);
@@ -84,8 +93,8 @@ describe('JWT Token Utilities', () => {
 
     describe('verifyAccessToken', () => {
         it('should verify a valid access token', () => {
-            const token = generateAccessToken(userId, email);
-            const decoded = verifyAccessToken(token);
+            const token = generateAccessToken(userId, email, mockEnv);
+            const decoded = verifyAccessToken(token, mockEnv);
 
             expect(decoded).toBeDefined();
             expect(decoded.userId).toBe(userId);
@@ -96,21 +105,21 @@ describe('JWT Token Utilities', () => {
         it('should throw error for invalid token', () => {
             const invalidToken = 'invalid.token.here';
 
-            expect(() => verifyAccessToken(invalidToken)).toThrow('Invalid access token');
+            expect(() => verifyAccessToken(invalidToken, mockEnv)).toThrow('Invalid access token');
         });
 
         it('should throw error for expired token', () => {
             // Create a token that expires immediately
             const expiredToken = jwt.sign(
                 { userId, email, type: 'access' },
-                process.env.JWT_ACCESS_SECRET,
+                mockEnv.JWT_ACCESS_SECRET,
                 { expiresIn: '0s' }
             );
 
             // Wait a bit to ensure it's expired
             return new Promise((resolve) => {
                 setTimeout(() => {
-                    expect(() => verifyAccessToken(expiredToken)).toThrow('Access token expired');
+                    expect(() => verifyAccessToken(expiredToken, mockEnv)).toThrow('Access token expired');
                     resolve();
                 }, 100);
             });
@@ -123,14 +132,14 @@ describe('JWT Token Utilities', () => {
                 { expiresIn: '15m' }
             );
 
-            expect(() => verifyAccessToken(wrongToken)).toThrow('Invalid access token');
+            expect(() => verifyAccessToken(wrongToken, mockEnv)).toThrow('Invalid access token');
         });
     });
 
     describe('verifyRefreshToken', () => {
         it('should verify a valid refresh token', () => {
-            const token = generateRefreshToken(userId, sessionId);
-            const decoded = verifyRefreshToken(token);
+            const token = generateRefreshToken(userId, sessionId, mockEnv);
+            const decoded = verifyRefreshToken(token, mockEnv);
 
             expect(decoded).toBeDefined();
             expect(decoded.userId).toBe(userId);
@@ -141,19 +150,19 @@ describe('JWT Token Utilities', () => {
         it('should throw error for invalid token', () => {
             const invalidToken = 'invalid.token.here';
 
-            expect(() => verifyRefreshToken(invalidToken)).toThrow('Invalid refresh token');
+            expect(() => verifyRefreshToken(invalidToken, mockEnv)).toThrow('Invalid refresh token');
         });
 
         it('should throw error for expired token', () => {
             const expiredToken = jwt.sign(
                 { userId, sessionId, type: 'refresh' },
-                process.env.JWT_REFRESH_SECRET,
+                mockEnv.JWT_REFRESH_SECRET,
                 { expiresIn: '0s' }
             );
 
             return new Promise((resolve) => {
                 setTimeout(() => {
-                    expect(() => verifyRefreshToken(expiredToken)).toThrow('Refresh token expired');
+                    expect(() => verifyRefreshToken(expiredToken, mockEnv)).toThrow('Refresh token expired');
                     resolve();
                 }, 100);
             });
@@ -166,14 +175,14 @@ describe('JWT Token Utilities', () => {
                 { expiresIn: '7d' }
             );
 
-            expect(() => verifyRefreshToken(wrongToken)).toThrow('Invalid refresh token');
+            expect(() => verifyRefreshToken(wrongToken, mockEnv)).toThrow('Invalid refresh token');
         });
 
         it('should not accept access token as refresh token', () => {
-            const accessToken = generateAccessToken(userId, email);
+            const accessToken = generateAccessToken(userId, email, mockEnv);
 
             // This should fail because it's signed with the wrong secret
-            expect(() => verifyRefreshToken(accessToken)).toThrow();
+            expect(() => verifyRefreshToken(accessToken, mockEnv)).toThrow();
         });
     });
 });
