@@ -1,7 +1,6 @@
 import { getPaperById, updatePaper, getAllPapers } from '../db.js';
 import { escapeHtml, showToast } from '../ui.js';
 import { views as templates } from '../views/index.js';
-import { performIncrementalSync } from '../db/sync.js';
 import { isCloudSyncEnabled } from '../config.js';
 
 export const relatedManager = {
@@ -106,12 +105,7 @@ export const relatedManager = {
                 await updatePaper(paperId, { relatedPaperIds: newRelatedIds });
                 await updatePaper(linkId, { relatedPaperIds: linkedPaperRelatedIds });
 
-                // Trigger background cloud sync if enabled
-                if (isCloudSyncEnabled()) {
-                    performIncrementalSync().catch(err =>
-                        console.warn('Background sync failed after linking papers:', err)
-                    );
-                }
+                // Yjs automatically syncs CRDT changes under the hood
 
                 await this.renderRelatedPapers();
                 closeModal();
@@ -159,12 +153,7 @@ export const relatedManager = {
                     await updatePaper(this.paperId, { relatedPaperIds: updatedRelatedIds });
                     await updatePaper(idToRemove, { relatedPaperIds: linkedPaperRelatedIds });
 
-                    // Trigger background cloud sync if enabled
-                    if (isCloudSyncEnabled()) {
-                        performIncrementalSync().catch(err =>
-                            console.warn('Background sync failed after unlinking papers:', err)
-                        );
-                    }
+                    // Yjs automatically syncs CRDT changes under the hood
 
                     await this.renderRelatedPapers();
                     showToast('Paper link removed.');
