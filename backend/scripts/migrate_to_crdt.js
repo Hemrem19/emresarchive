@@ -48,8 +48,8 @@ async function runProductionDataPort() {
         
         const insertBatchFile = path.resolve(outDir, '0000_crdt_migration_batch.sql');
         
-        // Start a massive D1 transaction block
-        let sqlFileContents = '/* D1 CRDT Workspace Inserts */\nBEGIN TRANSACTION;\n\n';
+        // D1 automatically wraps batch file executions in implicit transactions wrapper safely.
+        let sqlFileContents = '/* D1 CRDT Workspace Inserts */\n\n';
 
         console.log('[Staging DB Port] Engineering Yjs vector snapshots for all workspaces...');
 
@@ -97,15 +97,15 @@ async function runProductionDataPort() {
             doc.destroy();
         }
 
-        sqlFileContents += 'COMMIT;\n';
+        // Omit COMMIT wrapper for D1 natively
         fs.writeFileSync(insertBatchFile, sqlFileContents, 'utf8');
 
         console.log(`[Staging DB Port] Successfully compiled D1 transaction blob.`);
         console.log(`[Staging DB Port] Total Data Bytes (HEX): ${sqlFileContents.length}\n`);
         console.log(`✅ To execute against staging database:`);
-        console.log(`    wrangler d1 execute DB --local --file=./.d1-output/0000_crdt_migration_batch.sql`);
+        console.log(`    npx wrangler d1 execute citavers_db --local --file=./.d1-output/0000_crdt_migration_batch.sql`);
         console.log(`\n✅ To execute against production database:`);
-        console.log(`    wrangler d1 execute DB --remote --file=./.d1-output/0000_crdt_migration_batch.sql\n`);
+        console.log(`    npx wrangler d1 execute citavers_db --remote --file=./.d1-output/0000_crdt_migration_batch.sql\n`);
         
     } catch (e) {
         console.error('[Staging DB Port] Failure during migration generation:', e);

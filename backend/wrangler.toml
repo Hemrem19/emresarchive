@@ -1,15 +1,15 @@
 name = "citavers-backend"
 main = "src/worker.js"
 compatibility_date = "2024-03-20"
-node_compat = true
-
+compatibility_flags = [ "nodejs_compat" ]
 # [env.production]
 # name = "citavers-backend-prod"
 
 [[d1_databases]]
-binding = "DB"
+binding = "citavers_db"
 database_name = "citavers-db"
-database_id = "YOUR_DATABASE_ID_HERE"
+database_id = "5b21fd57-2739-41a6-af6e-119daefed72a"
+migrations_dir = "drizzle/migrations"
 
 [durable_objects]
 bindings = [

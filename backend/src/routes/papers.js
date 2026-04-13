@@ -9,11 +9,11 @@ papers.use('*', authenticate);
 // Helper to instantiate R2-compatible S3 SDK
 const getS3Client = (env) => {
     return new S3Client({
-        region: 'auto',
-        endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+        region: env.S3_REGION || 'auto',
+        endpoint: env.S3_ENDPOINT,
         credentials: {
-            accessKeyId: env.R2_ACCESS_KEY_ID,
-            secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+            accessKeyId: env.S3_ACCESS_KEY_ID,
+            secretAccessKey: env.S3_SECRET_ACCESS_KEY,
         },
     });
 };
@@ -26,7 +26,7 @@ papers.get('/:id/pdf/upload-url', async (c) => {
     try {
         const objectKey = `users/${user.id}/papers/${paperId}.pdf`;
         const command = new PutObjectCommand({
-            Bucket: c.env.R2_BUCKET_NAME,
+            Bucket: c.env.S3_BUCKET_NAME,
             Key: objectKey,
             ContentType: 'application/pdf',
         });
@@ -48,7 +48,7 @@ papers.get('/:id/pdf/download-url', async (c) => {
     try {
         const objectKey = `users/${user.id}/papers/${paperId}.pdf`;
         const command = new GetObjectCommand({
-            Bucket: c.env.R2_BUCKET_NAME,
+            Bucket: c.env.S3_BUCKET_NAME,
             Key: objectKey,
         });
         

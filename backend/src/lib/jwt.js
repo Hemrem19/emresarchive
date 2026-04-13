@@ -8,17 +8,17 @@ import jwt from 'jsonwebtoken';
 /**
  * Generate access token (short-lived)
  */
-export const generateAccessToken = (userId, email) => {
-  if (!process.env.JWT_ACCESS_SECRET) console.error('❌ JWT_ACCESS_SECRET is missing!');
+export const generateAccessToken = (userId, email, env) => {
+  if (!env.JWT_ACCESS_SECRET) console.error('❌ JWT_ACCESS_SECRET is missing!');
   return jwt.sign(
     {
       userId,
       email,
       type: 'access'
     },
-    process.env.JWT_ACCESS_SECRET,
+    env.JWT_ACCESS_SECRET,
     {
-      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m'
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN || '15m'
     }
   );
 };
@@ -26,16 +26,16 @@ export const generateAccessToken = (userId, email) => {
 /**
  * Generate refresh token (long-lived)
  */
-export const generateRefreshToken = (userId, sessionId) => {
+export const generateRefreshToken = (userId, sessionId, env) => {
   return jwt.sign(
     {
       userId,
       sessionId,
       type: 'refresh'
     },
-    process.env.JWT_REFRESH_SECRET,
+    env.JWT_REFRESH_SECRET,
     {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+      expiresIn: env.JWT_REFRESH_EXPIRES_IN || '7d'
     }
   );
 };
@@ -43,10 +43,10 @@ export const generateRefreshToken = (userId, sessionId) => {
 /**
  * Verify access token
  */
-export const verifyAccessToken = (token) => {
+export const verifyAccessToken = (token, env) => {
   try {
-    if (!process.env.JWT_ACCESS_SECRET) console.error('❌ JWT_ACCESS_SECRET is missing during verify!');
-    return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    if (!env?.JWT_ACCESS_SECRET) console.error('❌ JWT_ACCESS_SECRET is missing during verify!');
+    return jwt.verify(token, env.JWT_ACCESS_SECRET);
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       throw new Error('Access token expired');
@@ -61,9 +61,9 @@ export const verifyAccessToken = (token) => {
 /**
  * Verify refresh token
  */
-export const verifyRefreshToken = (token) => {
+export const verifyRefreshToken = (token, env) => {
   try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    return jwt.verify(token, env.JWT_REFRESH_SECRET);
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       throw new Error('Refresh token expired');

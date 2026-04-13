@@ -10,7 +10,7 @@ const collections = new Hono();
 collections.use('*', authenticate);
 
 // Helper
-const getDb = (c) => drizzle(c.env.DB, { schema });
+const getDb = (c) => drizzle(c.env.citavers_db, { schema });
 
 /**
  * Get All Collections

@@ -10,7 +10,7 @@ import { setCookie, deleteCookie } from 'hono/cookie';
 const auth = new Hono();
 
 // Helper to get db instance per request
-const getDb = (c) => drizzle(c.env.DB, { schema });
+const getDb = (c) => drizzle(c.env.citavers_db, { schema });
 
 /**
  * User Registration
@@ -64,7 +64,7 @@ auth.post('/register', async (c) => {
       expiresAt: expiresAt,
     }).returning();
 
-    const refreshToken = generateRefreshToken(user.id, session.id);
+    const refreshToken = generateRefreshToken(user.id, session.id, c.env);
     
     // Hash refresh token to store
     // WebCrypto subtle crypto requires buffer logic, keeping simplified for prototype:
@@ -87,7 +87,7 @@ auth.post('/register', async (c) => {
       path: '/'
     });
 
-    const accessToken = generateAccessToken(user.id, user.email);
+    const accessToken = generateAccessToken(user.id, user.email, c.env);
 
     return c.json({
       success: true,

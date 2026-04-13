@@ -21,9 +21,9 @@ export const authenticate = async (c, next) => {
   }
 
   try {
-    const decoded = verifyAccessToken(token);
+    const decoded = verifyAccessToken(token, c.env);
     
-    const db = drizzle(c.env.DB, { schema });
+    const db = drizzle(c.env.citavers_db, { schema });
     
     const user = await db.query.users.findFirst({
       where: eq(schema.users.id, decoded.userId),
