@@ -34,9 +34,11 @@
     "hono": "^4.12.12",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "lib0": "^0.2.88",
     "nodemailer": "^6.9.8",
     "pg": "^8.20.0",
     "resend": "^3.2.0",
+    "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.30",
     "zod": "^3.22.4"

@@ -1,6 +1,6 @@
 name = "citavers-backend"
 main = "src/worker.js"
-compatibility_date = "2024-03-20"
+compatibility_date = "2024-09-23"
 compatibility_flags = [ "nodejs_compat" ]
 # [env.production]
 # name = "citavers-backend-prod"
