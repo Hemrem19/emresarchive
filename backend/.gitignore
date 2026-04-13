@@ -6,6 +6,7 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.dev.vars
 
 # Prisma
 # Note: migrations/ should be committed (not ignored)
