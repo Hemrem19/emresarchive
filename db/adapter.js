@@ -224,46 +224,31 @@ export const papers = {
     },
 
     async updatePaper(id, updateData) {
-        // Optimistic UI: Always update local storage first for immediate feedback
+        // Optimistic UI: update local first for immediate feedback
         const result = await localPapers.updatePaper(id, updateData);
 
-        // If cloud sync is enabled, track the change and trigger sync
         if (shouldUseCloudSync()) {
-            // Get the updated paper to include version for conflict resolution
-            // IMPORTANT: We get the FULL updated paper from IndexedDB to ensure we have all current fields
-            // This prevents losing fields when multiple updates happen before sync
             try {
-                const updatedPaper = await localPapers.getPaperById(id);
-                if (updatedPaper && updatedPaper.version !== undefined) {
-                    // Merge updateData with the full paper to ensure all fields are included
-                    // This way, if multiple fields were updated separately, they're all preserved
-                    const mergedUpdate = { ...updatedPaper, ...updateData, version: updatedPaper.version };
-                    // Remove fields that shouldn't be sent to backend
-                    const { pdfData, pdfFile, hasPdf, createdAt, updatedAt, localId, ...updatePayload } = mergedUpdate;
-                    trackPaperUpdated(id, updatePayload);
-                } else {
-                    // Fallback: track without version (will default to 1 on backend)
-                    trackPaperUpdated(id, updateData);
-                }
+                const { pdfData, pdfFile, hasPdf, createdAt, updatedAt, localId, ...apiPayload } = updateData;
+                await apiPapers.updatePaper(id, mapPaperDataToApi(apiPayload));
             } catch (error) {
-                console.error('[Adapter] Error getting paper for version:', error);
-                // Fallback: track without version
-                trackPaperUpdated(id, updateData);
+                console.error('[Adapter] Cloud update failed, change is local-only:', error);
             }
-            triggerDebouncedSync();
         }
 
         return result;
     },
 
     async deletePaper(id) {
-        // Optimistic UI: Always delete from local storage first
+        // Optimistic UI: delete locally first
         await localPapers.deletePaper(id);
 
-        // If cloud sync is enabled, track the change and trigger sync
         if (shouldUseCloudSync()) {
-            trackPaperDeleted(id);
-            triggerDebouncedSync();
+            try {
+                await apiPapers.deletePaper(id);
+            } catch (error) {
+                console.error('[Adapter] Cloud delete failed, deletion is local-only:', error);
+            }
         }
     },
 
