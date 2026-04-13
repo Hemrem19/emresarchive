@@ -24,6 +24,7 @@ export const dashboardView = {
     // Store all handlers for cleanup
     handlers: {},
     _cloudSyncHandler: null,
+    _mountGeneration: 0,
 
     /**
      * Mount the dashboard view
@@ -31,6 +32,9 @@ export const dashboardView = {
      * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
      */
     async mount(appState, applyFiltersAndRender) {
+        // Capture generation so a stale mount can bail out before registering handlers
+        const mountGeneration = ++this._mountGeneration;
+
         // Load papers
         try {
             appState.allPapersCache = await getAllPapers();
@@ -54,7 +58,7 @@ export const dashboardView = {
             renderSidebarCollections(appState.collectionsCache);
         } catch (error) {
             console.error('Error loading collections:', error);
-            showToast('Failed to load collections. Some features may be unavailable.', 'warning', { 
+            showToast('Failed to load collections. Some features may be unavailable.', 'warning', {
                 duration: 0,
                 actions: [{
                     label: 'Refresh',
@@ -63,6 +67,10 @@ export const dashboardView = {
             });
             appState.collectionsCache = [];
         }
+
+        // If the router navigated away (and possibly back) while we were awaiting,
+        // a newer mount() call has already registered handlers — bail out to avoid duplicates.
+        if (mountGeneration !== this._mountGeneration) return;
 
         // Clear selections when mounting dashboard
         appState.selectedPaperIds.clear();
@@ -109,6 +117,9 @@ export const dashboardView = {
      * Unmount the dashboard view and cleanup event listeners
      */
     unmount() {
+        // Invalidate any in-flight mount() that is still awaiting async DB calls
+        this._mountGeneration++;
+
         // Unregister all event handlers
         unregisterPaginationHandlers(this.handlers);
         unregisterQuickAddHandler(this.handlers);
