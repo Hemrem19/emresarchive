@@ -7,7 +7,15 @@ node_compat = true
 # name = "citavers-backend-prod"
 
 [[d1_databases]]
-binding = "DB" # Available in Hono as c.env.DB
+binding = "DB"
 database_name = "citavers-db"
 database_id = "YOUR_DATABASE_ID_HERE"
-# migrations_dir = "drizzle/migrations"
+
+[durable_objects]
+bindings = [
+  { name = "WORKSPACE_DO", class_name = "WorkspaceDurableObject" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WorkspaceDurableObject"]

@@ -56,6 +56,21 @@ app.route('/api/networks', networkRoutes);
 app.route('/api/import', importRoutes);
 // app.route('/api/extension', extensionRoutes);
 
+// Durable Objects Sync Route
+app.get('/api/sync/workspace/:id', async (c) => {
+  const upgradeHeader = c.req.header('Upgrade');
+  if (!upgradeHeader || upgradeHeader !== 'websocket') {
+    return c.json({ error: 'Expected Upgrade: websocket' }, 426);
+  }
+
+  const workspaceId = c.req.param('id');
+  const id = c.env.WORKSPACE_DO.idFromName(workspaceId);
+  const stub = c.env.WORKSPACE_DO.get(id);
+
+  // Pass the WebSocket upgrade request to the Durable Object
+  return stub.fetch(c.req.raw);
+});
+
 // 404 handler (replaces /middleware/notFound.js)
 app.notFound((c) => {
   return c.json({
@@ -75,5 +90,9 @@ app.onError((err, c) => {
 });
 
 export default {
-  fetch: app.fetch,
+  fetch(request, env, ctx) {
+    return app.fetch(request, env, ctx);
+  }
 };
+
+export { WorkspaceDurableObject } from './WorkspaceDurableObject.js';

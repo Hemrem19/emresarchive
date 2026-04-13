@@ -3,22 +3,16 @@
   "version": "1.0.0",
   "description": "Backend API for citavErs - Research Paper Management",
   "type": "module",
-  "main": "src/server.js",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "pnpm run db:migrate:deploy && node src/server.js",
-    "start:prod": "node src/server.js",
+    "dev": "wrangler dev",
+    "start": "wrangler deploy",
     "db:migrate": "drizzle-kit generate:sqlite",
-    "db:migrate:deploy": "wrangler d1 migrations apply",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:deploy": "wrangler d1 migrations apply DB --remote",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:auth": "node test-auth.js",
-    "test:auth:compat": "node test-auth-compat.js",
-    "test:papers": "node test-papers.js",
-    "test:all": "node test-papers.js",
-    "test:s3": "node test-s3.js"
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "research",
@@ -42,6 +36,8 @@
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.8",
     "resend": "^3.2.0",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.30",
     "zod": "^3.22.4"
   },
   "devDependencies": {
