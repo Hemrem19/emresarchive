@@ -17,18 +17,16 @@ import * as apiPapers from '../api/papers.js';
 import * as apiCollections from '../api/collections.js';
 import * as apiAnnotations from '../api/annotations.js';
 
-// Import sync change tracking
-import {
-    trackPaperCreated,
-    trackPaperUpdated,
-    trackPaperDeleted,
-    trackCollectionCreated,
-    trackCollectionUpdated,
-    trackCollectionDeleted,
-    trackAnnotationCreated,
-    trackAnnotationUpdated,
-    trackAnnotationDeleted
-} from './sync.js';
+// Legacy sync tracking (deprecated in favor of Yjs CRDT real-time sync)
+const trackPaperCreated = () => {};
+const trackPaperUpdated = () => {};
+const trackPaperDeleted = () => {};
+const trackCollectionCreated = () => {};
+const trackCollectionUpdated = () => {};
+const trackCollectionDeleted = () => {};
+const trackAnnotationCreated = () => {};
+const trackAnnotationUpdated = () => {};
+const trackAnnotationDeleted = () => {};
 
 // Import auto-sync manager
 import { triggerDebouncedSync } from '../core/syncManager.js';
