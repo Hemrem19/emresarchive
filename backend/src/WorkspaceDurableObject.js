@@ -78,7 +78,15 @@ export class WorkspaceDurableObject {
     // Accept the WebSocket connection explicitly
     this.state.acceptWebSocket(server);
 
-    this.sessions.set(server, { connectionId: crypto.randomUUID() });
+    // Securely extract User context injected by worker route
+    const userId = request.headers.get('X-User-Id');
+
+    this.sessions.set(server, { 
+      connectionId: crypto.randomUUID(),
+      userId: userId,
+      tokens: 100, // Burst capacity
+      lastRefill: Date.now()
+    });
 
     // Send Step 1 of the Yjs sync protocol (server sends its state vector)
     const encoder = encoding.createEncoder();
@@ -105,6 +113,27 @@ export class WorkspaceDurableObject {
   }
 
   webSocketMessage(ws, message) {
+    const session = this.sessions.get(ws);
+    if (!session) return;
+
+    // Rate limiting (Token Bucket) - Zero-Trust Phase 5
+    const now = Date.now();
+    const elapsedTimeMs = now - session.lastRefill;
+    const tokensToAdd = (elapsedTimeMs / 1000) * 20; // Re-fill at 20 msgs/sec
+    
+    session.tokens = Math.min(100, session.tokens + tokensToAdd);
+    session.lastRefill = now;
+
+    if (session.tokens < 1) {
+      // Active Severing Mechanism
+      console.warn(`[Zero-Trust] Rate limit exceeded by User ${session.userId}. Severing connection.`);
+      ws.close(1008, 'Rate limit exceeded');
+      this.closeSession(ws);
+      return;
+    }
+    
+    session.tokens -= 1;
+
     // Handle incoming messages natively in DO
     try {
       const decoder = decoding.createDecoder(new Uint8Array(message));

@@ -11,6 +11,7 @@ import papersRoutes from './routes/papers.js';
 import annotationsRoutes from './routes/annotations.js';
 import networkRoutes from './routes/network.js';
 import importRoutes from './routes/import.js';
+import { authenticate } from './middleware/auth.js';
 // extension is pending, REST sync was obliviated for Yjs WebSockets
 // import extensionRoutes from './routes/extension.js';
 
@@ -57,18 +58,25 @@ app.route('/api/import', importRoutes);
 // app.route('/api/extension', extensionRoutes);
 
 // Durable Objects Sync Route
-app.get('/api/sync/workspace/:id', async (c) => {
+app.get('/api/sync/workspace/:id', authenticate, async (c) => {
   const upgradeHeader = c.req.header('Upgrade');
   if (!upgradeHeader || upgradeHeader !== 'websocket') {
     return c.json({ error: 'Expected Upgrade: websocket' }, 426);
   }
 
+  const user = c.get('user');
   const workspaceId = c.req.param('id');
   const id = c.env.WORKSPACE_DO.idFromName(workspaceId);
   const stub = c.env.WORKSPACE_DO.get(id);
 
+  // We must clone the incoming request to inject our custom X-User-Id header
+  const headers = new Headers(c.req.raw.headers);
+  headers.set('X-User-Id', user.id.toString());
+  
+  const clonedRequest = new Request(c.req.raw, { headers });
+
   // Pass the WebSocket upgrade request to the Durable Object
-  return stub.fetch(c.req.raw);
+  return stub.fetch(clonedRequest);
 });
 
 // 404 handler (replaces /middleware/notFound.js)

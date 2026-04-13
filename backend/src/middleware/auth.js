@@ -4,16 +4,21 @@ import * as schema from '../../drizzle/schema.js';
 import { eq } from 'drizzle-orm';
 
 export const authenticate = async (c, next) => {
+  let token = null;
   const authHeader = c.req.header('authorization');
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else if (c.req.query('token')) {
+    token = c.req.query('token');
+  }
+
+  if (!token) {
     return c.json({
       success: false,
       error: { message: 'Authentication required' }
     }, 401);
   }
-
-  const token = authHeader.substring(7);
 
   try {
     const decoded = verifyAccessToken(token);
