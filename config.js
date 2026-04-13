@@ -6,14 +6,14 @@
 export const DEFAULT_STATUSES = ['Reading', 'To Read', 'Finished', 'Archived'];
 const STATUS_STORAGE_KEY = 'readingStatusOrder';
 
-const PROD_BACKEND_URL = 'https://emresarchive-production.up.railway.app';
+const PROD_BACKEND_URL = 'citavers-backend.hemrem1919.workers.dev';
 const DEV_BACKEND_URL = 'https://emresarchive-development.up.railway.app';
 
 // Determine which URL to use based on the current website domain
 let currentBaseUrl = PROD_BACKEND_URL;
 
-// Use the DEV backend when local development or Cloudflare Pages
-if (window.location.hostname === 'localhost' || window.location.hostname === 'emresarchive.pages.dev') {
+// Use the local backend when developing on localhost
+if (window.location.hostname === 'localhost') {
     currentBaseUrl = DEV_BACKEND_URL;
 }
 
