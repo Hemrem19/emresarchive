@@ -62,3 +62,4 @@ dist/
 # Business Plan
 idea/
 
+backend/.dev.vars
