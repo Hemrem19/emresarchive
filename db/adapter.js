@@ -97,8 +97,8 @@ async function seedLocalFromCloud() {
  */
 export async function syncFromCloud() {
     if (!shouldUseCloudSync()) return;
-    _localSeededFromCloud = false; // Allow re-seed
     await seedLocalFromCloud();
+    _localSeededFromCloud = true; // Mark seeded — prevents re-seeding when getAllPapers is called from the cloud-synced handler
     window.dispatchEvent(new CustomEvent('citavers:cloud-synced'));
 }
 
@@ -236,9 +236,9 @@ export const papers = {
                     _localSeededFromCloud = false; // Allow retry on next call
                     console.warn('[Adapter] Initial cloud seed failed:', e.message);
                 }
-            } else {
-                triggerDebouncedSync();
             }
+            // No triggerDebouncedSync() here — reads should not trigger sync.
+            // Background sync is handled by the 30s poller in syncManager.
         }
 
         return localPapers.getAllPapers();

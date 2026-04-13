@@ -4,6 +4,8 @@
  */
 
 import { getAllPapers, getAllCollections } from './db.js';
+import { getAllPapers as getLocalPapers } from './db/papers.js';
+import { getAllCollections as getLocalCollections } from './db/collections.js';
 import { renderSidebarTags, renderSidebarCollections, showToast } from './ui.js';
 
 // Import refactored handlers
@@ -107,8 +109,10 @@ export const dashboardView = {
         this._cloudSyncHandler = async () => {
             try {
                 const prevFingerprint = _papersFingerprint(appState.allPapersCache);
-                const newPapers = await getAllPapers();
-                const newCollections = await getAllCollections();
+                // Read directly from local IndexedDB — syncFromCloud already populated it.
+                // Using the adapter here would trigger another sync (feedback loop).
+                const newPapers = await getLocalPapers();
+                const newCollections = await getLocalCollections();
 
                 // Skip re-render if nothing changed
                 if (_papersFingerprint(newPapers) === prevFingerprint) return;
