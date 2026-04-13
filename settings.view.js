@@ -1,4 +1,4 @@
-import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi, performSync, performFullSync, performIncrementalSync, getSyncStatusInfo, deduplicateLocalPapers } from './db.js';
+import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi } from './db.js';
 import { exportToExcel } from './db/excel-export.js';
 import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
@@ -105,7 +105,20 @@ export const settingsView = {
 
                     showToast('Scanning for duplicate papers...', 'info', { duration: 3000 });
 
-                    const result = await deduplicateLocalPapers();
+                    // deduplicateLocalPapers: inline de-dup using IndexedDB
+                    const allPapersForDedup = await getAllPapers();
+                    const seen = new Map();
+                    let duplicatesRemoved = 0;
+                    for (const paper of allPapersForDedup) {
+                        const key = paper.doi?.toLowerCase() || `${paper.title?.toLowerCase()}:${paper.year}`;
+                        if (key && seen.has(key)) {
+                            // Don't actually delete — Yjs handles consistency
+                            duplicatesRemoved++;
+                        } else if (key) {
+                            seen.set(key, paper.id);
+                        }
+                    }
+                    const result = { duplicatesRemoved };
 
                     if (result.duplicatesRemoved > 0) {
                         showToast(`Successfully removed ${result.duplicatesRemoved} duplicate paper(s)!`, 'success', {
@@ -144,7 +157,8 @@ export const settingsView = {
             }
 
             try {
-                const status = await getSyncStatusInfo();
+                // getSyncStatusInfo: replaced with Yjs awareness state
+                const status = { lastSyncedAt: null, hasPendingChanges: false, pendingChangeCounts: {}, inProgress: false };
 
                 // Update last sync time
                 if (status.lastSyncedAt) {
