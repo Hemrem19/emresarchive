@@ -11,6 +11,7 @@ import { createRouter, renderView, handleBeforeUnload, initializeRouter } from '
 import { createCommandPalette } from './core/commandPalette.js';
 import { createKeyboardShortcuts } from './core/keyboardShortcuts.js';
 import { initializeAutoSync } from './core/syncManager.js';
+import { checkAndShowMigrationBanner } from './components/MigrationBanner.js';
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
@@ -377,5 +378,8 @@ openDB().then(() => {
 
     // Initialize automatic sync (if cloud sync enabled and authenticated)
     initializeAutoSync();
+    
+    // Check if we need to show the CRDT Migration Banner
+    checkAndShowMigrationBanner();
 }).catch(console.error);
 

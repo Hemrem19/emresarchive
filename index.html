@@ -659,6 +659,29 @@
         </div>
     </div>
 
+    <!-- CRDT Real-time Discussion Drawer -->
+    <div id="discussion-drawer-overlay" class="fixed inset-0 bg-black/40 z-[45] hidden opacity-0 transition-opacity duration-300 backdrop-blur-sm pointer-events-none"></div>
+    <div id="discussion-drawer" class="fixed right-0 top-0 h-full w-80 max-w-[90vw] glass-sidebar border-l border-white/10 p-4 flex flex-col z-[50] translate-x-[100%] transition-transform duration-300 shadow-2xl">
+        <div class="flex items-center justify-between pb-4 border-b border-white/5">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-400">forum</span>
+                <h2 class="text-white font-bold text-lg">Live Notes</h2>
+            </div>
+            <button id="close-discussion-drawer" class="text-slate-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-white/10">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+        <div class="flex items-center gap-3 py-3 border-b border-white/5 shrink-0">
+            <span class="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Active</span>
+            <div id="discussion-awareness-users" class="flex -space-x-2">
+                <div class="w-6 h-6 rounded-full bg-blue-500 border border-slate-900 flex items-center justify-center text-[10px] text-white font-bold shadow-sm z-10" title="You">U</div>
+            </div>
+        </div>
+        <div class="flex-grow py-4 flex flex-col min-h-0">
+            <textarea id="discussion-crdt-editor" class="flex-grow w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-slate-300 text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 resize-none custom-scrollbar shadow-inner leading-relaxed" placeholder="Type real-time collaborative notes here..."></textarea>
+        </div>
+    </div>
+
     <!-- Global Overlays -->
     <div id="toast-container" class="fixed top-6 right-6 z-[60] space-y-3 pointer-events-none"></div>
     <div id="command-palette-container"></div>

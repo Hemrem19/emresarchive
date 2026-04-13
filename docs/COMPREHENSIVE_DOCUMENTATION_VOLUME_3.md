@@ -116,46 +116,29 @@ emresarchive/
 │   ├── *.test.js              # Test files (1600+ tests total)
 │   └── [subdirectories]/     # Organized test files
 │
-├── backend/                   # Backend server (Node.js + Express)
+├── backend/                   # Backend server (Cloudflare Edge Worker)
 │   ├── src/
-│   │   ├── server.js          # Express server entry point
-│   │   ├── routes/            # API route definitions
+│   │   ├── worker.js          # Cloudflare Worker entry point (Hono)
+│   │   ├── routes/            # API route definitions (Hono Routers)
 │   │   │   ├── auth.js        # Authentication routes
 │   │   │   ├── papers.js      # Papers routes
 │   │   │   ├── collections.js # Collections routes
 │   │   │   ├── annotations.js # Annotations routes
-│   │   │   ├── sync.js        # Sync routes
 │   │   │   ├── user.js        # User routes
 │   │   │   ├── import.js      # Import routes
-│   │   │   ├── extension.js   # Browser extension routes
 │   │   │   └── network.js     # Network graph routes
-│   │   ├── controllers/       # Request handlers
-│   │   │   ├── auth.js
-│   │   │   ├── papers.js
-│   │   │   ├── collections.js
-│   │   │   ├── annotations.js
-│   │   │   ├── sync.js
-│   │   │   ├── user.js
-│   │   │   ├── import.js
-│   │   │   ├── extension.js
-│   │   │   └── network.js
-│   │   ├── middleware/        # Express middleware
-│   │   │   ├── auth.js        # JWT authentication middleware
-│   │   │   ├── errorHandler.js # Error handling middleware
-│   │   │   └── notFound.js    # 404 handler
+│   │   ├── middleware/        # Hono middleware
+│   │   │   └── auth.js        # Built-in JWT architecture via Context
 │   │   └── lib/               # Utilities
-│   │       ├── prisma.js      # Prisma client
 │   │       ├── jwt.js         # JWT token utilities
-│   │       ├── password.js    # Password hashing (bcryptjs)
-│   │       ├── email.js       # Email sending (Nodemailer/Resend)
-│   │       ├── s3.js          # AWS S3 utilities
-│   │       ├── validation.js  # Zod validation schemas
-│   │       └── metadata.js     # DOI/ArXiv metadata fetching
-│   ├── prisma/
-│   │   ├── schema.prisma      # Database schema (Prisma)
-│   │   └── migrations/        # Database migrations
+│   │       ├── password.js    # Password hashing (WebCrypto)
+│   │       └── validation.js  # Zod validation schemas
+│   ├── drizzle/
+│   │   ├── schema.ts          # Database schema (Drizzle ORM for SQLite)
+│   │   └── migrations/        # Cloudflare D1 migrations
 │   ├── package.json           # Backend dependencies
-│   └── [config files]         # Railway, Render, Nixpacks configs
+│   ├── wrangler.toml          # Cloudflare configuration
+│   └── drizzle.config.ts      # Drizzle generation configuration
 │
 ├── extension/                 # Browser extension (Chrome/Firefox)
 │   ├── manifest.json          # Extension manifest
@@ -309,22 +292,9 @@ core/syncManager.js
 #### Production Dependencies
 ```json
 {
-  "@aws-sdk/client-s3": "^3.490.0",              // AWS S3 client
-  "@aws-sdk/s3-presigned-post": "^3.922.0",     // S3 presigned URLs
-  "@aws-sdk/s3-request-presigner": "^3.490.0",  // S3 request signing
-  "@prisma/client": "^5.7.1",                    // Prisma ORM client
-  "bcrypt": "^5.1.1",                            // Password hashing
-  "cookie-parser": "^1.4.7",                     // Cookie parsing
-  "cors": "^2.8.5",                              // CORS middleware
-  "dotenv": "^16.3.1",                           // Environment variables
-  "express": "^4.18.2",                          // Web framework
-  "express-rate-limit": "^7.1.5",               // Rate limiting
-  "helmet": "^7.1.0",                            // Security headers
-  "jsonwebtoken": "^9.0.2",                     // JWT tokens
-  "multer": "^1.4.5-lts.1",                     // File uploads
-  "nodemailer": "^6.9.8",                        // Email sending
-  "resend": "^3.2.0",                           // Email service (alternative)
-  "zod": "^3.22.4"                              // Schema validation
+  "drizzle-orm": "^0.30.10",                     // Drizzle ORM client wrapper (D1)
+  "hono": "^4.2.4",                              // Edge routing framework
+  "zod": "^3.22.4"                               // Schema validation
 }
 ```
 
@@ -333,10 +303,10 @@ core/syncManager.js
 {
   "@types/node": "^20.10.6",              // TypeScript types
   "@vitest/coverage-v8": "^1.6.0",       // Test coverage
-  "patch-package": "^8.0.1",             // Patch node_modules
-  "prisma": "^5.7.1",                    // Prisma CLI
-  "supertest": "^6.1.6",                 // HTTP testing
-  "vitest": "^1.0.4"                     // Test framework
+  "drizzle-kit": "^0.20.14",             // ORM schema generator
+  "miniflare": "^3.2.0",                 // Local Edge Simulator
+  "vitest": "^1.0.4",                    // Test framework
+  "wrangler": "^3.0.0"                   // Cloudflare Worker CLI
 }
 ```
 
@@ -377,8 +347,8 @@ core/syncManager.js
    - Used in: `api/arxiv.js`
 
 3. **Backend API** (when cloud sync enabled)
-   - Base URL: `https://emresarchive-production.up.railway.app` (configurable)
-   - Purpose: Cloud sync, authentication, PDF storage
+   - Base URL: `https://api.citavers.workers.dev` (Configured by Wrangler)
+   - Purpose: Edge API, Vector real-time CRDT sync, R2 storage mapping
    - Used in: All `api/*.js` modules
 
 ---
@@ -548,27 +518,18 @@ unmount() {
      - `createdAt` (non-unique)
    - Fields: `id`, `paperId`, `type`, `pageNumber`, `position` (JSON), `content`, `color`, `createdAt`, `updatedAt`, `version`, `deletedAt`
 
-### PostgreSQL Schema (Cloud - Prisma)
+### Cloudflare D1 Schema (Edge - Drizzle ORM)
 
-**See**: `backend/prisma/schema.prisma`
+**See**: `backend/drizzle/schema.ts`
 
-**Tables**:
-- `users` - User accounts
-- `papers` - Paper records
-- `collections` - Saved filter collections
-- `annotations` - PDF annotations
-- `sessions` - JWT refresh token sessions
-- `sync_logs` - Sync operation logs
-- `paper_connections` - Paper relationship graph
-- `citation_cache` - Cached citation data
-- `network_graphs` - Saved network graphs
-
-**Relationships**:
-- User → Papers (1:N)
-- User → Collections (1:N)
-- User → Annotations (1:N)
-- Paper → Annotations (1:N)
-- Paper → Paper (N:M via `paper_connections`)
+**Tables** (SQLite optimized):
+- `users` - User accounts & usage quotas
+- `sessions` - Hashed JWT refresh authentication states
+- `papers` - Core node metrics / relationships
+- `collections` - User library organization buckets
+- `annotations` - Granular PDF node highlights
+- `crdt_documents` - Real-time sync CRDT state vectors (Yjs chunks)
+- `client_sync_states` - Real-time active connection sync vectors
 
 ---
 
@@ -588,12 +549,9 @@ unmount() {
 **Output**: `dist/` directory ready for static hosting
 
 ### Backend Build
-**No build step** - Node.js runs source files directly
-
-**Deployment**:
-- Railway: Uses `nixpacks.toml` or `railway.json`
-- Render: Uses `render.yaml`
-- Runs: `npm run db:migrate:deploy && node src/server.js`
+**Zero-config Edge compilation**
+- Driven by `wrangler` configuration (esbuild embedded).
+- Deployment natively transpiles and uploads `src/worker.js` to Cloudflare V8 isolates.
 
 ---
 
@@ -659,7 +617,7 @@ tests/
 - **Adapter Edge Cases**: Expanded `db/adapter.js` tests with cloud fallback, rate limiting, and error handling scenarios
 - **Router Tests**: Fixed and expanded `core/router.js` tests with route matching, navigation handling, and error cases
 - **Coverage Improvement**: Increased overall coverage from ~71% to 90.53% statements
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions (using `npm run test` consistently without workspace parsing or `--project` flags to ensure CI stability)
 
 ---
 
@@ -672,11 +630,11 @@ tests/
 - **CDN**: Cloudflare CDN
 
 ### Backend Deployment
-- **Platform**: Railway.app
-- **URL**: https://emresarchive-production.up.railway.app
-- **Database**: PostgreSQL (Railway managed)
-- **Storage**: AWS S3 (for PDFs)
-- **Environment**: Node.js 20+
+- **Platform**: Cloudflare Workers & D1
+- **Command Line**: `npx wrangler deploy`
+- **Database**: Cloudflare D1 (Serverless SQLite via `wrangler.toml` bindings)
+- **Environment**: Cloudflare V8 Edge Isolates
+- **Build / Run Boundaries**: Uses Wrangler CI/CD; automated code push directly executes migration pipelines via `npx wrangler d1 migrations apply`.
 
 ### Mobile Deployment
 - **Platform**: Capacitor

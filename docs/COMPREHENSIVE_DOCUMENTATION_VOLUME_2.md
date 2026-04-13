@@ -631,13 +631,14 @@ PDF Viewer
 3. Network generated:
    - Nodes: Papers
    - Edges: Relationships (relatedPaperIds)
-4. vis-network renders interactive graph
-5. User can:
+4. Active notification banner displays, warning the user about the feature's experimental, work-in-progress state.
+5. vis-network renders interactive graph
+6. User can:
    - Zoom (mouse wheel)
    - Pan (drag)
    - Click node → Navigate to paper details
    - Filter by status/tags
-6. Graph layout auto-calculated (physics simulation)
+7. Graph layout auto-calculated (physics simulation)
 
 **Code Flow**:
 ```

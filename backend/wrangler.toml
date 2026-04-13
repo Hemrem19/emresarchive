@@ -1,0 +1,36 @@
+name = "citavers-backend"
+main = "src/worker.js"
+compatibility_date = "2024-03-20"
+compatibility_flags = [ "nodejs_compat" ]
+# [env.production]
+# name = "citavers-backend-prod"
+
+[[d1_databases]]
+binding = "citavers_db"
+database_name = "citavers-db"
+database_id = "5b21fd57-2739-41a6-af6e-119daefed72a"
+migrations_dir = "drizzle/migrations"
+
+[durable_objects]
+bindings = [
+  { name = "WORKSPACE_DO", class_name = "WorkspaceDurableObject" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WorkspaceDurableObject"]
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1

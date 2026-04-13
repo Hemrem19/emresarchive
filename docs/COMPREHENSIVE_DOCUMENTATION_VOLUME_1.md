@@ -68,10 +68,10 @@
    - User authentication (email/password with JWT)
    - Email verification
    - Automatic background sync
-   - Incremental sync (only changed items)
+   - Incremental real-time sync (State Vectors)
    - Full sync capability
-   - Conflict resolution (last-write-wins with versioning)
-   - PDF storage in S3 (AWS)
+   - Conflict resolution (Yjs CRDT via WebSocket)
+   - PDF storage mapped to Edge (or compatible S3 via Cloudflare R2)
    - Multi-device access
 
 10. **Progressive Web App (PWA)**
@@ -141,7 +141,7 @@ The application addresses the following research management challenges:
 
 ### Deployment
 - **Frontend**: Live at https://citavers.com (Cloudflare Pages)
-- **Backend**: Railway.app (https://emresarchive-production.up.railway.app)
+- **Backend / DB Edge**: Cloudflare Workers & D1 (Wrangler automated execution)
 - **Repository**: https://github.com/Hemrem19/citavers
 
 ### Test Coverage
@@ -172,15 +172,15 @@ The application addresses the following research management challenges:
 - **Storage**: IndexedDB (browser-native)
 - **PWA**: Service Worker API
 
-### Backend (Optional Cloud Sync)
-- **Runtime**: Node.js 20+
-- **Framework**: Express.js
-- **Database**: PostgreSQL (via Prisma ORM)
-- **File Storage**: AWS S3
-- **Authentication**: JWT (access + refresh tokens)
-- **Email**: Nodemailer / Resend
+### Backend (Cloud Sync Edge)
+- **Runtime**: Cloudflare V8 Edge Isolates
+- **Framework**: Hono (Edge-optimized)
+- **Database**: Cloudflare D1 (Serverless SQLite via Drizzle ORM)
+- **File Storage**: Cloudflare R2 / S3
+- **Authentication**: JWT via Edge Context
+- **Email**: Resend
 - **Validation**: Zod
-- **Security**: Helmet, CORS, rate limiting
+- **Security**: CORS, Hono secure-headers
 
 ### Development Tools
 - **Testing**: Vitest, fake-indexeddb, happy-dom
@@ -249,13 +249,13 @@ The application addresses the following research management challenges:
 - `views/components/` - Reusable components
 
 ### Backend (`backend/`)
-- `src/server.js` - Express server
-- `src/routes/` - API route definitions
-- `src/controllers/` - Request handlers
-- `src/middleware/` - Express middleware
-- `src/lib/` - Utilities (auth, email, S3, validation)
-- `prisma/schema.prisma` - Database schema
-- `prisma/migrations/` - Database migrations
+- `src/worker.js` - Cloudflare Hono Entry Point
+- `src/routes/` - Native Edge Router API definitions
+- `src/middleware/` - Context-based middleware
+- `src/lib/` - Utilities (auth, emails)
+- `drizzle/schema.ts` - Drizzle ORM Database schema (SQLite/D1)
+- `drizzle/migrations/` - D1 Migrations
+- `wrangler.toml` - Infrastructure as Code definitions
 
 ### Dead Code / Legacy Files
 - `app.js.backup` - Backup file (not used)
@@ -279,7 +279,7 @@ The application addresses the following research management challenges:
 7. **Repository Pattern**: Database operations abstracted from views
 8. **State Management**: Centralized appState object, not a framework
 9. **Hash Routing**: Uses window.location.hash for client-side routing
-10. **Service Worker**: Caches static assets, doesn't intercept API calls
+10. **Service Worker Strategy**: Employs a Network-First dynamic caching strategy (bumping `CACHE_NAME` on updates) with failover to a local cache to prevent restrictive UI caching while maintaining offline support.
 
 ---
 

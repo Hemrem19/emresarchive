@@ -1,6 +1,25 @@
 import { getStatusOrder } from './config.js';
+import DOMPurify from 'https://esm.sh/dompurify@3.1.3';
 
 export const escapeHtml = (unsafe) => unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+/**
+ * Sanitizes rich text HTML to prevent XSS attacks while preserving safe markup.
+ * Essential for safely rendering raw CRDT payloads from remote collaborators.
+ * @param {string} html - The raw HTML string
+ * @returns {string} Sanitized HTML string
+ */
+export const sanitizeHtml = (html) => {
+    if (!html) return '';
+    return DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: [
+            'b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 
+            'pre', 'span', 'div', 'mark', 'table', 'thead', 'tbody', 'tr', 'th', 'td'
+        ],
+        ALLOWED_ATTR: ['href', 'title', 'target', 'class']
+    });
+};
 
 /**
  * Displays a toast notification with support for different types and actions.
@@ -397,7 +416,7 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                     ${hasNotes ? `
                         <div class="notes-expandable-section hidden mt-3 p-4 bg-slate-800/50 border border-white/5 rounded-lg" data-paper-id="${paper.id}">
                             <div class="prose prose-invert max-w-none text-sm text-slate-300">
-                                <div class="notes-content">${paper.notes}</div>
+                                <div class="notes-content">${sanitizeHtml(paper.notes)}</div>
                             </div>
                         </div>
                     ` : ''}

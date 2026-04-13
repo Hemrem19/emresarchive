@@ -1,67 +1,80 @@
-/**
- * Authentication Middleware
- * Verifies JWT access tokens
- */
-
 import { verifyAccessToken } from '../lib/jwt.js';
-import { prisma } from '../lib/prisma.js';
+import { drizzle } from 'drizzle-orm/d1';
+import * as schema from '../../drizzle/schema.js';
+import { eq } from 'drizzle-orm';
 
-export const authenticate = async (req, res, next) => {
+export const authenticate = async (c, next) => {
+  let token = null;
+  const authHeader = c.req.header('authorization');
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else if (c.req.query('token')) {
+    token = c.req.query('token');
+  }
+
+  if (!token) {
+    return c.json({
+      success: false,
+      error: { message: 'Authentication required' }
+    }, 401);
+  }
+
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
+    const decoded = verifyAccessToken(token, c.env);
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        error: { message: 'Authentication required' }
-      });
-    }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // Verify token
-    const decoded = verifyAccessToken(token);
-
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
+    const db = drizzle(c.env.citavers_db, { schema });
+    
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, decoded.userId),
+      columns: {
         id: true,
         email: true,
         name: true,
         emailVerified: true,
-        createdAt: true
+        createdAt: true,
+        storageUsedBytes: true,
+        storageLimitBytes: true,
+        settings: true
       }
     });
 
     if (!user) {
-      return res.status(401).json({
+      return c.json({
         success: false,
         error: { message: 'User not found' }
-      });
+      }, 401);
     }
 
-    // Attach user to request
-    req.user = user;
-    next();
+    // Attach user to Hono Context
+    c.set('user', user);
+    
+    // Pass expiration for active WebSocket severing
+    if (decoded && decoded.exp) {
+        c.set('jwtExp', decoded.exp);
+    }
+    
+    await next();
 
   } catch (error) {
-    if (error.message.includes('expired')) {
-      return res.status(401).json({
+    if (error.message?.includes('expired')) {
+      return c.json({
         success: false,
         error: { message: 'Token expired' }
-      });
+      }, 401);
     }
 
-    if (error.message.includes('Invalid')) {
-      return res.status(401).json({
+    if (error.message?.includes('Invalid') || error.message?.includes('unexpected')) {
+      return c.json({
         success: false,
         error: { message: 'Invalid token' }
-      });
+      }, 401);
     }
 
-    next(error);
+    console.error('Auth Middleware Error:', error);
+    return c.json({
+      success: false,
+      error: { message: 'Internal Server Error during authentication' }
+    }, 500);
   }
 };
-

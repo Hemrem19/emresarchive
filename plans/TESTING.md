@@ -1,17 +1,17 @@
 # Testing Guide - citavErs
 
 **Version:** 2.1  
-**Status:** ✅ 119/119 tests passing (100%)  
-**Last Updated:** October 30, 2025
+**Status:** ✅ 1706/1706 tests passing (100%)  
+**Last Updated:** April 4, 2026
 
 ---
 
 ## 📊 Quick Status
 
 ```
-✅ 119 tests passing (100% pass rate)
-⏱️  ~2 seconds execution time
-📁  7 test files
+✅ 1706 tests passing (100% pass rate)
+⏱️  ~15 seconds execution time
+📁  105 test files
 🎯  Core modules fully covered
 ```
 
@@ -68,39 +68,56 @@ npm run test:coverage
 ### Expected Output
 
 ```
- RUN  v1.6.1 C:/Users/hasan/Python Projects/research
+ RUN  v1.6.1 C:/Users/PC/Python_Projects/emresarchive
 
- ✓ tests/core-state.test.js (12)
- ✓ tests/simple.test.js (3)
- ✓ tests/db-papers.test.js (20)
- ✓ tests/db-collections.test.js (16)
- ✓ tests/core-filters.test.js (30)
- ✓ tests/ui-helpers.test.js (26)
- ✓ tests/integration.test.js (12)
+ ✓ tests/core-state.test.js
+ ✓ tests/db-papers.test.js 
+ ✓ tests/api/api-networks.test.js
+ ✓ tests/db/adapter.test.js
+ ✓ backend/tests/routes/papers.test.js
+ ✓ backend/tests/lib/password.test.js
+ ...
 
- Test Files  7 passed (7)
-      Tests  119 passed (119)
-   Duration  2.08s
+ Test Files  105 passed | 1 skipped (106)
+      Tests  1706 passed | 23 skipped (1729)
+   Duration  14.95s
 ```
 
 ---
 
 ## 📁 Test Structure
 
+The test suite is divided between the unified frontend and backend directories:
+
+### Frontend Tests (`tests/`)
+
 ```
 tests/
+├── api/                     # Cloud/API interface tests
+├── components/              # UI Component tests
+├── dashboard/               # Dashboard handlers & services
+├── db/                      # Database & adapter tests
+├── details/                 # Paper details view managers
+├── sync/                    # Sync logic and managers
+├── *.test.js                # Core/State/Integration tests
 ├── setup.js                 # Global test setup (mocks, environment)
-├── helpers.js               # Test utilities (createMockPaper, etc.)
-├── simple.test.js           # Vitest verification tests (3)
-├── core-state.test.js       # Application state tests (12)
-├── core-filters.test.js     # Filtering & search tests (30)
-├── ui-helpers.test.js       # UI helper function tests (26)
-├── db-papers.test.js        # Paper CRUD tests (20)
-├── db-collections.test.js   # Collection CRUD tests (16)
-└── integration.test.js      # End-to-end workflow tests (12)
+└── helpers.js               # Test utilities (createMockPaper, etc.)
 ```
 
-**Total: 119 tests across 7 files**
+### Backend Tests (`backend/tests/`)
+
+```
+backend/tests/
+├── controllers/             # Request handler tests
+├── lib/                     # Library/Utilities (auth, s3, emailing)
+├── middleware/              # Express middleware tests
+├── routes/                  # API routing tests
+├── services/                # Business services
+├── server.test.js           # Server startup logic
+└── setup.js                 # Backend global test setup
+```
+
+**Total: 1706 tests across 105 files**
 
 ---
 
@@ -109,61 +126,31 @@ tests/
 ### What's Tested ✅
 
 #### Core Application Logic
-- ✅ **State Management** (`core/state.js`) - 12 tests
-  - Initial state creation with defaults
-  - Active filters (status, tags)
-  - Search term and mode
-  - Pagination state
-  - Current view tracking
-
-- ✅ **Filtering & Search** (`core/filters.js`) - 30 tests
-  - Filter by status (Reading, To Read, Finished)
-  - Filter by single tag
-  - Filter by multiple tags
-  - Search in all fields (title, authors, notes, DOI)
-  - Search in notes only
-  - Case-insensitive search
-  - Combined filters (status + tags + search)
+- ✅ **State Management** (`core-state.test.js`, `core-filters.test.js`)
+  - Initial state creation with defaults, active filters, search functionality
+- ✅ **UI Helpers & Components** (`ui.test.js`, `ui-helpers.test.js`, `ui-components.test.js`)
+  - HTML escaping for XSS prevention, Array normalization, Error handling
+- ✅ **Keyboard Shortcuts & Command Palette** (`core-keyboard-shortcuts.test.js`, `core-command-palette.test.js`)
+- ✅ **Router Operations** (`core-router.test.js`)
   - URL hash generation and parsing
-  - Pagination calculations
-  - Edge cases (empty results, no filters)
 
-- ✅ **UI Helpers** (`ui.js`) - 26 tests
-  - HTML escaping for XSS prevention
-  - Relative time formatting (all units)
-  - Paper sorting (all sort options)
-  - Array normalization
-  - Edge cases (null, undefined, empty strings)
+#### Database Layer & Application Core
+- ✅ **Local Document Operations** (`db-papers.test.js`, `db-papers-rating-summary.test.js`, `db-collections.test.js`, `db-data.test.js`)
+  - Edit papers with validation, collections structure mappings, missing value fallbacks
+- ✅ **Platform Syncing & API Managers** (`api/*.test.js`, `sync/*.test.js`)
+  - Request configurations, API utilities rate limiting, auto-sync event queuing 
+- ✅ **Adapter Abstraction Layer** (`db/adapter.test.js`, `db/adapter-coverage.test.js`)
 
-#### Database Layer
-- ✅ **Paper Operations** (`db/papers.js`) - 20 tests
-  - Add paper with validation
-  - Get all papers (sorted by creation date)
-  - Get paper by ID
-  - Get paper by DOI
-  - Update paper
-  - Delete paper
-  - Default value initialization (`createdAt`, `readingProgress`)
-  - Computed fields (`hasPdf` flag)
-  - Error handling
+#### Backend Verification
+- ✅ **Data Processing & Restful Endpoints** (`routes/`, `controllers/`)
+  - JWT integration flows, connection creations, PDF routes
+- ✅ **Middlewares & Security Configurations** (`middleware/`)
+- ✅ **Library Utilities** (`lib/validation.test.js`, `lib/password.test.js`)
 
-- ✅ **Collection Operations** (`db/collections.js`) - 16 tests
-  - Add collection
-  - Get all collections
-  - Get collection by ID
-  - Update collection
-  - Delete collection
-  - Default values (`icon`, `color`)
-  - Filter structure validation
-
-#### Integration Workflows
-- ✅ **End-to-End Tests** (`integration.test.js`) - 12 tests
-  - Complete paper lifecycle (add → update → delete)
-  - Filter combinations
-  - Search workflows
-  - Collection management
-  - Pagination navigation
-  - Multi-tag filtering
+#### End-to-End & Application Views
+- ✅ **Integration Workflows** (`integration.test.js`, `integration-batch-operations.test.js`, `ui-e2e.test.js`)
+  - Complete document lifecycle tracking
+- ✅ **View memory safety** (`landing-view-memory-leaks.test.js`)
 
 ### What's NOT Tested ⚠️
 
@@ -489,7 +476,7 @@ jobs:
 - ✅ Fixed test data (2 tests)
 
 **Total effort:** ~2 hours  
-**Final result:** 119/119 passing ✅
+**Final result:** 1706/1706 passing ✅
 
 ---
 

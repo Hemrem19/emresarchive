@@ -1,28 +1,10 @@
-/**
- * Annotations Routes
- * Handles annotation update and delete operations
- * 
- * Note: GET and POST for annotations are nested under /api/papers/:id/annotations
- * This router only handles PUT and DELETE operations on individual annotations
- */
-
-import express from 'express';
-import {
-  getAnnotation,
-  updateAnnotation,
-  deleteAnnotation
-} from '../controllers/annotations.js';
+import { Hono } from 'hono';
 import { authenticate } from '../middleware/auth.js';
-import { validate, annotationUpdateSchema } from '../lib/validation.js';
 
-const router = express.Router();
+const annotations = new Hono();
+annotations.use('*', authenticate);
 
-// All routes require authentication
-router.use(authenticate);
+annotations.get('/', (c) => c.json({ success: true, message: 'Annotations Edge API' }));
+annotations.post('/', (c) => c.json({ success: false, message: 'Not Implemented - Migrating to CRDT' }, 501));
 
-router.get('/:id', getAnnotation);
-router.put('/:id', validate(annotationUpdateSchema), updateAnnotation);
-router.delete('/:id', deleteAnnotation);
-
-export default router;
-
+export default annotations;
