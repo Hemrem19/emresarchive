@@ -80,13 +80,36 @@ export class WorkspaceDurableObject {
 
     // Securely extract User context injected by worker route
     const userId = request.headers.get('X-User-Id');
+    const jwtExpSecs = request.headers.get('X-JWT-Exp');
 
-    this.sessions.set(server, { 
+    const sessionData = { 
       connectionId: crypto.randomUUID(),
       userId: userId,
       tokens: 100, // Burst capacity
-      lastRefill: Date.now()
-    });
+      lastRefill: Date.now(),
+      timeoutId: null
+    };
+
+    // Active JWT Expiry Severing Logic
+    if (jwtExpSecs) {
+      const expMs = parseInt(jwtExpSecs, 10) * 1000;
+      const ttl = expMs - Date.now();
+      
+      if (ttl <= 0) {
+        return new Response('Token already expired', { status: 401 });
+      }
+      
+      // Forcefully terminate this connection when the token natively expires
+      sessionData.timeoutId = setTimeout(() => {
+        console.warn(`[Zero-Trust] Token natively expired for User ${userId}. Force closing socket.`);
+        try {
+          server.close(1008, 'Token expired natively during session');
+        } catch (e) {}
+        this.closeSession(server);
+      }, ttl);
+    }
+
+    this.sessions.set(server, sessionData);
 
     // Send Step 1 of the Yjs sync protocol (server sends its state vector)
     const encoder = encoding.createEncoder();
@@ -174,6 +197,10 @@ export class WorkspaceDurableObject {
   closeSession(ws) {
     const session = this.sessions.get(ws);
     if (session) {
+      // Clear security timeouts to prevent memory leaks
+      if (session.timeoutId) {
+         clearTimeout(session.timeoutId);
+      }
       // Remove awareness from disconnected standard users
       awarenessProtocol.removeAwarenessStates(this.awareness, Array.from(this.awareness.getStates().keys()), this);
     }

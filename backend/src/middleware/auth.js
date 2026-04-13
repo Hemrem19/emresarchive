@@ -48,6 +48,12 @@ export const authenticate = async (c, next) => {
 
     // Attach user to Hono Context
     c.set('user', user);
+    
+    // Pass expiration for active WebSocket severing
+    if (decoded && decoded.exp) {
+        c.set('jwtExp', decoded.exp);
+    }
+    
     await next();
 
   } catch (error) {

@@ -70,8 +70,10 @@ export function initializeAutoSync() {
         provider.on('sync', isSynced => {
             if (isSynced) {
                 console.log('[Sync Manager] Initial Yjs state synchronized');
-                // Safely migrate any legacy offline data into the synced YDoc.
+                // Safely migrate any legacy offline data into the synced YDoc
                 upgradeLegacySchemaToYjs(yDoc).catch(e => console.error(e));
+                // Wire up the live UI
+                bindDiscussionDrawer();
             }
         });
         
@@ -121,5 +123,40 @@ export async function performManualSync() {
             showToast('Already synchronized (Real-time connection active)', 'success');
         }
     }
+}
+
+/**
+ * Binds the Discussion Drawer <textarea> UI to the active Yjs Document
+ * This effectively activates real-time collaborative note-taking natively.
+ */
+function bindDiscussionDrawer() {
+    if (!yDoc) return;
+    const textArea = document.getElementById('discussion-crdt-editor');
+    if (!textArea) return;
+    
+    // Provision a top-level shared Text object
+    const yText = yDoc.getText('liveNotes');
+    
+    // Downstream: CRDT ➔ UI
+    yText.observe(() => {
+        const text = yText.toString();
+        // Prevent recursive bouncing
+        if (textArea.value !== text) {
+             textArea.value = text;
+        }
+    });
+
+    // Upstream: UI ➔ CRDT
+    textArea.addEventListener('input', (e) => {
+        const val = e.target.value;
+        const old = yText.toString();
+        
+        if (val !== old) {
+            yDoc.transact(() => {
+                yText.delete(0, yText.length);
+                yText.insert(0, val);
+            }, 'local_ui_edit');
+        }
+    });
 }
 

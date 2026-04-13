@@ -73,6 +73,11 @@ app.get('/api/sync/workspace/:id', authenticate, async (c) => {
   const headers = new Headers(c.req.raw.headers);
   headers.set('X-User-Id', user.id.toString());
   
+  const exp = c.get('jwtExp');
+  if (exp) {
+    headers.set('X-JWT-Exp', String(exp));
+  }
+  
   const clonedRequest = new Request(c.req.raw, { headers });
 
   // Pass the WebSocket upgrade request to the Durable Object
