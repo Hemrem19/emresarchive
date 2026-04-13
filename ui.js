@@ -432,7 +432,9 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
         `;
     }).join('');
 
+    const scrollTop = paperListContainer.scrollTop;
     paperListContainer.innerHTML = paperItemsHtml;
+    paperListContainer.scrollTop = scrollTop;
 };
 
 /**

@@ -20,6 +20,11 @@ import {
     unregisterBatchToolbarHandlers 
 } from './dashboard/ui/batch-toolbar.js';
 
+function _papersFingerprint(papers) {
+    if (!papers) return '';
+    return papers.map(p => `${p.id}:${p.updatedAt || ''}`).sort().join('|');
+}
+
 export const dashboardView = {
     // Store all handlers for cleanup
     handlers: {},
@@ -101,10 +106,25 @@ export const dashboardView = {
         // Refresh dashboard when cloud sync pulls new data from another device
         this._cloudSyncHandler = async () => {
             try {
-                appState.allPapersCache = await getAllPapers();
+                const prevFingerprint = _papersFingerprint(appState.allPapersCache);
+                const newPapers = await getAllPapers();
+                const newCollections = await getAllCollections();
+
+                // Skip re-render if nothing changed
+                if (_papersFingerprint(newPapers) === prevFingerprint) return;
+
+                appState.allPapersCache = newPapers;
                 renderSidebarTags(appState.allPapersCache);
-                appState.collectionsCache = await getAllCollections();
+                appState.collectionsCache = newCollections;
                 renderSidebarCollections(appState.collectionsCache);
+
+                // Defer re-render if user is actively interacting with the paper list
+                const paperList = document.getElementById('paper-list');
+                if (paperList && paperList.contains(document.activeElement)) {
+                    paperList.addEventListener('focusout', () => applyFiltersAndRender(appState), { once: true });
+                    return;
+                }
+
                 applyFiltersAndRender(appState);
             } catch (e) {
                 console.warn('[Dashboard] Cloud sync refresh failed:', e.message);
