@@ -18,7 +18,7 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["WorkspaceDurableObject"]
+new_sqlite_classes = ["WorkspaceDurableObject"]
 
 [observability]
 enabled = false

@@ -32,6 +32,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
+      lib0:
+        specifier: ^0.2.88
+        version: 0.2.117
       multer:
         specifier: ^1.4.5-lts.1
         version: 1.4.5-lts.2
@@ -44,6 +47,9 @@ importers:
       resend:
         specifier: ^3.2.0
         version: 3.5.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      y-protocols:
+        specifier: ^1.0.6
+        version: 1.0.7(yjs@13.6.30)
       y-websocket:
         specifier: ^3.0.0
         version: 3.0.0(yjs@13.6.30)
