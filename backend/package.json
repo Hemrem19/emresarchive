@@ -4,6 +4,7 @@
   "description": "Backend API for citavErs - Research Paper Management",
   "type": "module",
   "scripts": {
+    "build": "echo 'No build required for pure JS worker'",
     "dev": "npx wrangler dev",
     "start": "npx wrangler deploy",
     "db:migrate": "npx drizzle-kit generate:sqlite",
