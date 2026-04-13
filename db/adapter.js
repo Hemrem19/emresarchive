@@ -55,17 +55,38 @@ let _localSeededFromCloud = false;
 async function seedLocalFromCloud() {
     // Fetch all papers (use a high limit to avoid pagination for typical libraries)
     const { papers: apiPaperList } = await apiPapers.getAllPapers({ limit: 1000 });
+    const serverPaperIds = new Set(apiPaperList.map(p => p.id));
+
+    // Upsert all papers from server
     for (const paper of apiPaperList) {
         const local = mapPaperDataFromApi(paper);
         try { await localPapers.updatePaper(paper.id, local); }
         catch { await localPapers.addPaper(local); }
     }
 
+    // Delete local papers that no longer exist on the server (deleted from another device)
+    const allLocal = await localPapers.getAllPapers();
+    for (const local of allLocal) {
+        if (!serverPaperIds.has(local.id)) {
+            await localPapers.deletePaper(local.id).catch(() => {});
+        }
+    }
+
     // Fetch all collections
     const apiCollectionList = await apiCollections.getAllCollections();
+    const serverCollectionIds = new Set(apiCollectionList.map(c => c.id));
+
     for (const collection of apiCollectionList) {
         try { await localCollections.updateCollection(collection.id, collection); }
         catch { await localCollections.addCollection(collection); }
+    }
+
+    // Delete local collections that no longer exist on the server
+    const allLocalCollections = await localCollections.getAllCollections();
+    for (const local of allLocalCollections) {
+        if (!serverCollectionIds.has(local.id)) {
+            await localCollections.deleteCollection(local.id).catch(() => {});
+        }
     }
 }
 

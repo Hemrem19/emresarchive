@@ -15,6 +15,7 @@ import { relatedManager } from './related.manager.js';
 export const detailsView = {
     paperId: null,
     hasUnsavedChanges: false,
+    _cloudSyncHandler: null,
 
     async mount(paperId, appState) {
         this.paperId = paperId;
@@ -31,6 +32,20 @@ export const detailsView = {
 
         this.render(paper);
         this.setupEventListeners(paper, appState);
+
+        // Refresh details when cloud sync pulls new data from another device
+        this._cloudSyncHandler = async () => {
+            if (!this.paperId) return;
+            const updated = await getPaperById(this.paperId);
+            if (!updated) {
+                // Paper was deleted on another device — go back to dashboard
+                window.location.hash = '#/app';
+                return;
+            }
+            this.render(updated);
+            this.setupEventListeners(updated, appState);
+        };
+        window.addEventListener('citavers:cloud-synced', this._cloudSyncHandler);
     },
 
     unmount() {
@@ -43,6 +58,11 @@ export const detailsView = {
         // Clean up citation modal if open
         const citationModal = document.getElementById('citation-modal');
         if (citationModal) citationModal.remove();
+
+        if (this._cloudSyncHandler) {
+            window.removeEventListener('citavers:cloud-synced', this._cloudSyncHandler);
+            this._cloudSyncHandler = null;
+        }
 
         console.log('Details view unmounted.');
         this.paperId = null;
