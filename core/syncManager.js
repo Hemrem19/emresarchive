@@ -9,8 +9,8 @@
 import { isCloudSyncEnabled, getApiBaseUrl } from '../config.js';
 import { isAuthenticated, getAccessToken } from '../api/auth.js';
 import { showToast } from '../ui.js';
-import * as Y from 'https://esm.sh/yjs@13.6.14';
-import { WebsocketProvider } from 'https://esm.sh/y-websocket@1.5.0';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
 import { upgradeLegacySchemaToYjs } from './schemaUpgrade.js';
 import { isSyncInProgress } from '../db/sync.js';
 import { syncFromCloud } from '../db/adapter.js';
@@ -93,8 +93,10 @@ export function initializeAutoSync() {
     };
     window.addEventListener('focus', _focusHandler);
 
-    // Poll every 30 seconds while the tab is open
+    // Poll every 30 seconds while the tab is open — WS is the source of truth;
+    // REST polling is a fallback for when the socket is not connected.
     _pollInterval = setInterval(() => {
+        if (provider?.wsconnected) return;
         syncFromCloud().catch(e => console.warn('[SyncManager] Poll sync failed:', e.message));
     }, POLL_INTERVAL_MS);
 
@@ -114,7 +116,12 @@ export function initializeAutoSync() {
         // reconnects — without this it would reconnect with the stale expired token.
         provider = new WebsocketProvider(wsUrl, 'default', yDoc, {
             connect: true,
-            params: () => ({ token: getAccessToken() })
+            params: () => ({ token: getAccessToken() }),
+            maxBackoffTime: 30_000
+        });
+
+        provider.on('connection-error', err => {
+            console.warn('[Sync Manager] WebSocket connection error:', err?.message ?? err);
         });
 
         provider.on('status', event => {

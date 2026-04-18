@@ -734,6 +734,19 @@
         // The hashchange event listener will handle routing for all links
     </script>
 
+      <!-- Import map: pin Yjs to a single version matching the backend lock.
+           Bare specifiers in ES modules resolve through this map, preventing
+           the duplicate-constructor warning from two different Yjs instances. -->
+      <script type="importmap">
+      {
+        "imports": {
+          "yjs": "https://esm.sh/yjs@13.6.30",
+          "y-websocket": "https://esm.sh/y-websocket@3.0.0",
+          "lib0/": "https://esm.sh/lib0@0.2.97/"
+        }
+      }
+      </script>
+
       <!-- Core App Script -->
       <script type="module" src="app.js"></script>
 

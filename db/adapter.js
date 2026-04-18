@@ -112,11 +112,21 @@ async function seedLocalFromCloud() {
  * and dispatches 'citavers:cloud-synced' so the UI can refresh.
  * Called by syncManager on polling/reconnect/focus.
  */
-export async function syncFromCloud() {
-    if (!shouldUseCloudSync()) return;
-    await seedLocalFromCloud();
-    _localSeededFromCloud = true; // Mark seeded — prevents re-seeding when getAllPapers is called from the cloud-synced handler
-    window.dispatchEvent(new CustomEvent('citavers:cloud-synced'));
+let _syncInFlight = null;
+
+export function syncFromCloud() {
+    if (!shouldUseCloudSync()) return Promise.resolve();
+    if (_syncInFlight) return _syncInFlight;
+    _syncInFlight = (async () => {
+        try {
+            await seedLocalFromCloud();
+            _localSeededFromCloud = true;
+            window.dispatchEvent(new CustomEvent('citavers:cloud-synced'));
+        } finally {
+            _syncInFlight = null;
+        }
+    })();
+    return _syncInFlight;
 }
 
 
@@ -250,7 +260,7 @@ export const papers = {
                 try {
                     await seedLocalFromCloud();
                 } catch (e) {
-                    _localSeededFromCloud = false; // Allow retry on next call
+                    // Do not reset _localSeededFromCloud — the 30s poller will catch up
                     console.warn('[Adapter] Initial cloud seed failed:', e.message);
                 }
             }
@@ -462,9 +472,6 @@ export const folders = {
     },
 
     async getAllFolders() {
-        if (shouldUseCloudSync() && !isRateLimited()) {
-            triggerDebouncedSync();
-        }
         return localFolders.getAllFolders();
     },
 
