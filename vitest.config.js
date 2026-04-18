@@ -5,8 +5,8 @@ export default defineConfig({
     resolve: {
         alias: {
             // Stub https:// CDN imports — these work in browsers but not in Node/vitest
-            'https://esm.sh/yjs@13.6.14': resolve('./tests/__mocks__/yjs.js'),
-            'https://esm.sh/y-websocket@1.5.0': resolve('./tests/__mocks__/y-websocket.js'),
+            'https://esm.sh/yjs@13.6.30': resolve('./tests/__mocks__/yjs.js'),
+            'https://esm.sh/y-websocket@3.0.0?deps=yjs@13.6.30': resolve('./tests/__mocks__/y-websocket.js'),
             'https://esm.sh/dompurify@3.1.3': resolve('./tests/__mocks__/dompurify.js'),
         }
     },

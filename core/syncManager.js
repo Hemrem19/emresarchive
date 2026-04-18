@@ -9,8 +9,10 @@
 import { isCloudSyncEnabled, getApiBaseUrl } from '../config.js';
 import { isAuthenticated, getAccessToken } from '../api/auth.js';
 import { showToast } from '../ui.js';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+// Both imports point to the same esm.sh URL for yjs via ?deps= so the browser
+// module cache returns one Y.Doc constructor — prevents "Yjs was already imported" warning.
+import * as Y from 'https://esm.sh/yjs@13.6.30';
+import { WebsocketProvider } from 'https://esm.sh/y-websocket@3.0.0?deps=yjs@13.6.30';
 import { upgradeLegacySchemaToYjs } from './schemaUpgrade.js';
 import { isSyncInProgress } from '../db/sync.js';
 import { syncFromCloud } from '../db/adapter.js';
