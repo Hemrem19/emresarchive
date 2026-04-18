@@ -127,14 +127,18 @@ export function initializeAutoSync() {
 
         provider.on('connection-error', err => {
             console.warn('[Sync Manager] WebSocket connection error:', err?.message ?? err);
+            // If the backoff timer is already running, ignore further errors — letting the
+            // timer reset here is what caused the 30s countdown to never complete.
+            if (_wsBackoffTimer !== null) return;
             _wsFailureCount++;
-            // After 3 consecutive failures, stop the provider's internal reconnect loop
-            // and schedule a single retry after 30s to avoid a reconnect storm.
-            if (_wsFailureCount >= 3 && provider) {
-                provider.disconnect();
+            if (_wsFailureCount >= 3) {
+                // Set shouldConnect = false directly so y-websocket's already-queued
+                // retry timers see the flag and stop without calling disconnect() (which
+                // fires ws.close() → another onclose → another retry timer).
+                provider.shouldConnect = false;
                 console.warn('[Sync Manager] WebSocket repeatedly refused — pausing 30s before retry');
-                if (_wsBackoffTimer) clearTimeout(_wsBackoffTimer);
                 _wsBackoffTimer = setTimeout(() => {
+                    _wsBackoffTimer = null;
                     _wsFailureCount = 0;
                     if (provider) provider.connect();
                 }, 30_000);
