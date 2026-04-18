@@ -39,52 +39,69 @@ function handleCreateFolder(appState, applyFiltersAndRender) {
     if (containers[0].querySelector('input')) return;
 
     const inputHtml = `
-        <div class="px-3 py-1">
-            <input type="text" class="folder-name-input w-full bg-slate-800 border border-blue-500/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50" placeholder="Folder name..." autofocus>
+        <div class="px-3 py-1 flex gap-1">
+            <input type="text" class="folder-name-input flex-1 bg-slate-800 border border-blue-500/50 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50" placeholder="Folder name...">
+            <button class="folder-create-confirm-btn p-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors flex-shrink-0" title="Create folder">
+                <span class="material-symbols-outlined text-sm">check</span>
+            </button>
         </div>
     `;
 
     containers.forEach(c => { c.innerHTML = inputHtml; });
 
-    // Focus the first visible input
-    const input = document.querySelector('.folder-name-input');
-    if (input) {
-        input.focus();
+    let submitted = false;
 
-        const handleSubmit = async () => {
-            const name = input.value.trim();
-            containers.forEach(c => { c.innerHTML = ''; });
+    const handleSubmit = async (sourceInput) => {
+        if (submitted) return;
+        submitted = true;
 
-            if (!name) return;
+        const name = (sourceInput || document.querySelector('.folder-name-input'))?.value.trim();
+        containers.forEach(c => { c.innerHTML = ''; });
 
-            try {
-                await addFolder({ name });
-                await refreshFoldersSidebar(appState);
-                showToast(`Folder "${name}" created`, 'success', { duration: 2000 });
-            } catch (error) {
-                console.error('Error creating folder:', error);
-                showToast(error.message || 'Failed to create folder.', 'error', { duration: 4000 });
-            }
-        };
+        if (!name) return;
 
-        input.addEventListener('keydown', (e) => {
+        try {
+            await addFolder({ name });
+            await refreshFoldersSidebar(appState);
+            showToast(`Folder "${name}" created`, 'success', { duration: 2000 });
+        } catch (error) {
+            console.error('Error creating folder:', error);
+            showToast(error.message || 'Failed to create folder.', 'error', { duration: 4000 });
+        }
+    };
+
+    // Attach handlers to all inputs (desktop + mobile sidebars both render one)
+    document.querySelectorAll('.folder-name-input').forEach(inp => {
+        inp.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                handleSubmit();
+                handleSubmit(inp);
             } else if (e.key === 'Escape') {
                 containers.forEach(c => { c.innerHTML = ''; });
             }
         });
 
-        input.addEventListener('blur', () => {
-            // Small delay to allow Enter to fire first
+        inp.addEventListener('blur', () => {
             setTimeout(() => {
-                if (document.querySelector('.folder-name-input')) {
+                if (!submitted && document.querySelector('.folder-name-input')) {
                     containers.forEach(c => { c.innerHTML = ''; });
                 }
-            }, 150);
+            }, 200);
         });
-    }
+    });
+
+    // Confirm button handler
+    document.querySelectorAll('.folder-create-confirm-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const inp = btn.closest('div').querySelector('.folder-name-input');
+            handleSubmit(inp);
+        });
+    });
+
+    // Focus the first visible input
+    const firstInput = document.querySelector('.folder-name-input');
+    if (firstInput) firstInput.focus();
 }
 
 /**

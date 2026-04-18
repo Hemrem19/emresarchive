@@ -29,7 +29,7 @@ jobs:
       run: |
         cd backend
         pnpm install --frozen-lockfile
-        pnpm run db:generate
+        pnpm run db:migrate
     
     - name: Run tests with coverage
       run: pnpm run test:coverage
