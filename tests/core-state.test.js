@@ -13,7 +13,9 @@ describe('core/state.js', () => {
 
       expect(state).toBeDefined();
       expect(state.allPapersCache).toEqual([]);
-      expect(state.collectionsCache).toEqual([]);
+      expect(state.foldersCache).toEqual([]);
+      expect(state.activeFolderId).toBeNull();
+      expect(state.paperFoldersMap).toEqual({});
       expect(state.hasUnsavedChanges).toBe(false);
       expect(state.currentSearchTerm).toBe('');
       expect(state.currentView).toBeNull();

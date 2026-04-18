@@ -25,7 +25,7 @@
 export { openDB } from './db/core.js';
 
 // Dual-mode operations (routed via adapter)
-import { papers as papersAdapter, collections as collectionsAdapter, annotations as annotationsAdapter } from './db/adapter.js';
+import { papers as papersAdapter, folders as foldersAdapter, paperFoldersAdapter, annotations as annotationsAdapter } from './db/adapter.js';
 
 // Paper operations (with cloud sync support)
 export const addPaper = papersAdapter.addPaper.bind(papersAdapter);
@@ -42,12 +42,21 @@ export const getUploadUrl = papersAdapter.getUploadUrl.bind(papersAdapter);
 export const uploadPdf = papersAdapter.uploadPdf.bind(papersAdapter);
 export const getPdfDownloadUrl = papersAdapter.getPdfDownloadUrl.bind(papersAdapter);
 
-// Collection operations (with cloud sync support)
-export const addCollection = collectionsAdapter.addCollection.bind(collectionsAdapter);
-export const getAllCollections = collectionsAdapter.getAllCollections.bind(collectionsAdapter);
-export const getCollectionById = collectionsAdapter.getCollectionById.bind(collectionsAdapter);
-export const updateCollection = collectionsAdapter.updateCollection.bind(collectionsAdapter);
-export const deleteCollection = collectionsAdapter.deleteCollection.bind(collectionsAdapter);
+// Folder operations (with cloud sync support)
+export const addFolder = foldersAdapter.addFolder.bind(foldersAdapter);
+export const getAllFolders = foldersAdapter.getAllFolders.bind(foldersAdapter);
+export const getFolderById = foldersAdapter.getFolderById.bind(foldersAdapter);
+export const updateFolder = foldersAdapter.updateFolder.bind(foldersAdapter);
+export const deleteFolder = foldersAdapter.deleteFolder.bind(foldersAdapter);
+
+// Paper-folder association operations
+export const addPaperToFolder = paperFoldersAdapter.addPaperToFolder.bind(paperFoldersAdapter);
+export const removePaperFromFolder = paperFoldersAdapter.removePaperFromFolder.bind(paperFoldersAdapter);
+export const getFolderIdsByPaperId = paperFoldersAdapter.getFolderIdsByPaperId.bind(paperFoldersAdapter);
+export const getPaperIdsByFolderId = paperFoldersAdapter.getPaperIdsByFolderId.bind(paperFoldersAdapter);
+export const getAllPaperFolders = paperFoldersAdapter.getAllPaperFolders.bind(paperFoldersAdapter);
+export const removeAllPaperFoldersForFolder = paperFoldersAdapter.removeAllForFolder.bind(paperFoldersAdapter);
+export const removeAllPaperFoldersForPaper = paperFoldersAdapter.removeAllForPaper.bind(paperFoldersAdapter);
 
 // Annotation operations (with cloud sync support)
 export const addAnnotation = annotationsAdapter.addAnnotation.bind(annotationsAdapter);

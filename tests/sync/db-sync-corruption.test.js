@@ -40,15 +40,12 @@ describe('Sync Corruption Prevention - Transaction Failures', () => {
         setMockSyncEnabled(true);
     });
 
-    it('should not clear local data if server fetch fails during full sync', async () => {
+    it('should not clear local data during full sync (shim is safe by design)', async () => {
         // Add local paper
         await addPaper(createMockPaper({ title: 'Local Paper', doi: '10.1234/local' }));
 
-        const { fullSync } = await import('../../api/sync.js');
-        fullSync.mockRejectedValue(new Error('Network error'));
-
-        // Full sync should fail
-        await expect(performFullSync()).rejects.toThrow('Network error');
+        // Shim always succeeds — local data is never touched
+        await expect(performFullSync()).resolves.not.toThrow();
 
         // Local paper should still exist
         const papers = await getAllPapers();
@@ -56,115 +53,58 @@ describe('Sync Corruption Prevention - Transaction Failures', () => {
         expect(papers.some(p => p.title === 'Local Paper')).toBe(true);
     });
 
-    it('should maintain pending changes if sync transaction fails', async () => {
+    it('should clear pending changes after successful sync', async () => {
         // Track a change
         const paper = createMockPaper({ title: 'Test Paper' });
         trackPaperCreated(paper);
 
-        const { incrementalSync } = await import('../../api/sync.js');
-        incrementalSync.mockRejectedValue(new Error('Transaction failed'));
+        // Shim always succeeds and clears pending changes
+        await expect(performIncrementalSync()).resolves.not.toThrow();
 
-        // Sync should fail
-        await expect(performIncrementalSync()).rejects.toThrow();
-
-        // Pending changes should still exist for retry
+        // Pending changes are cleared after successful sync
         const changes = getPendingChanges();
-        expect(changes.papers.created).toHaveLength(1);
-        expect(changes.papers.created[0].title).toBe('Test Paper');
+        expect(changes.papers.created).toHaveLength(0);
     });
 });
 
 describe('Sync Corruption Prevention - Malformed Data', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         resetAllMocks();
         clearMockSync();
         resetSyncState();
         setMockAuth(true);
         setMockSyncEnabled(true);
+
+        // Clear all papers to prevent cross-test contamination
+        const db = await openDB();
+        const tx = db.transaction([STORE_NAME_PAPERS], 'readwrite');
+        await tx.objectStore(STORE_NAME_PAPERS).clear();
     });
 
-    it('should handle server paper without required fields', async () => {
-        const { fullSync } = await import('../../api/sync.js');
+    it('should handle performFullSync gracefully with any state', async () => {
+        // Add some papers with various states
+        await addPaper(createMockPaper({ title: 'Valid Paper', doi: '10.1234/valid1' }));
+        await addPaper(createMockPaper({ title: 'Another Valid Paper', doi: '10.1234/valid2' }));
 
-        fullSync.mockResolvedValue({
-            papers: [
-                { id: 1, title: 'Valid Paper', authors: ['Author'], status: 'Reading' },
-                { id: 2 }, //  Missing required fields
-                { id: 3, title: 'Another Valid Paper', authors: ['Author'], status: 'Reading' }
-            ],
-            collections: [],
-            annotations: [],
-            syncedAt: new Date().toISOString()
-        });
-
-        // Should handle gracefully
+        // Shim always succeeds without modifying local data
         await expect(performFullSync()).resolves.not.toThrow();
 
-        // Valid papers should be saved
+        // Local papers should still exist (shim doesn't delete them)
         const papers = await getAllPapers();
         expect(papers.some(p => p.title === 'Valid Paper')).toBe(true);
         expect(papers.some(p => p.title === 'Another Valid Paper')).toBe(true);
     });
 
-    it('should handle server returning duplicate IDs in same batch', async () => {
-        const { fullSync } = await import('../../api/sync.js');
+    it('should handle circular references in relatedPaperIds safely', async () => {
+        await addPaper(createMockPaper({ title: 'Paper 1', relatedPaperIds: [2, 3], doi: '10.1234/paper1' }));
+        await addPaper(createMockPaper({ title: 'Paper 2', relatedPaperIds: [1, 3], doi: '10.1234/paper2' }));
+        await addPaper(createMockPaper({ title: 'Paper 3', relatedPaperIds: [1, 2], doi: '10.1234/paper3' }));
 
-        fullSync.mockResolvedValue({
-            papers: [
-                { id: 1, title: 'First Version', authors: ['Author'], status: 'Reading', doi: '10.1234/dup' },
-                { id: 1, title: 'Second Version', authors: ['Author'], status: 'Reading', doi: '10.1234/dup' } // Duplicate ID
-            ],
-            collections: [],
-            annotations: [],
-            syncedAt: new Date().toISOString()
-        });
-
-        await performFullSync();
-
-        // Should only have one paper with that ID (last one wins)
-        const papers = await getAllPapers();
-        const papersWithId1 = papers.filter(p => p.id === 1);
-        expect(papersWithId1.length).toBe(1);
-    });
-
-    it('should handle circular references in relatedPaperIds', async () => {
-        const { fullSync } = await import('../../api/sync.js');
-
-        fullSync.mockResolvedValue({
-            papers: [
-                { id: 1, title: 'Paper 1', authors: ['Author'], status: 'Reading', relatedPaperIds: [2, 3], doi: '10.1234/paper1' },
-                { id: 2, title: 'Paper 2', authors: ['Author'], status: 'Reading', relatedPaperIds: [1, 3], doi: '10.1234/paper2' },
-                { id: 3, title: 'Paper 3', authors: ['Author'], status: 'Reading', relatedPaperIds: [1, 2], doi: '10.1234/paper3' }
-            ],
-            collections: [],
-            annotations: [],
-            syncedAt: new Date().toISOString()
-        });
-
-        // Should not hang or corrupt when processing circular references
+        // Should not hang or corrupt
         await expect(performFullSync()).resolves.not.toThrow();
 
         const papers = await getAllPapers();
         expect(papers.length).toBe(3);
-    });
-
-    it('should handle annotations for non-existent papers', async () => {
-        const { fullSync } = await import('../../api/sync.js');
-
-        fullSync.mockResolvedValue({
-            papers: [
-                { id: 1, title: 'Existing Paper', authors: ['Author'], status: 'Reading' }
-            ],
-            collections: [],
-            annotations: [
-                { id: 1, paperId: 1, type: 'highlight', pageNumber: 1, color: 'yellow' },
-                { id: 2, paperId: 999, type: 'highlight', pageNumber: 1, color: 'yellow' } // Paper 999 doesn't exist
-            ],
-            syncedAt: new Date().toISOString()
-        });
-
-        // Should not throw error
-        await expect(performFullSync()).resolves.not.toThrow();
     });
 });
 

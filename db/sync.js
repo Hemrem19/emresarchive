@@ -20,9 +20,10 @@ let _pending = _emptyPending();
 
 function _emptyPending() {
     return {
-        papers:      { created: [], updated: [], deleted: [] },
-        collections: { created: [], updated: [], deleted: [] },
-        annotations: { created: [], updated: [], deleted: [] },
+        papers:       { created: [], updated: [], deleted: [] },
+        folders:      { created: [], updated: [], deleted: [] },
+        paperFolders: { created: [], deleted: [] },
+        annotations:  { created: [], updated: [], deleted: [] },
     };
 }
 
@@ -66,20 +67,34 @@ export function trackPaperDeleted(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Collection tracking
+// Folder tracking
 // ---------------------------------------------------------------------------
-export function trackCollectionCreated(collection) {
-    _pending.collections.created.push({ ...collection });
+export function trackFolderCreated(folder) {
+    _pending.folders.created.push({ ...folder });
 }
 
-export function trackCollectionUpdated(id, data) {
-    _pending.collections.updated.push({ id, ...data });
+export function trackFolderUpdated(id, data) {
+    _pending.folders.updated.push({ id, ...data });
 }
 
-export function trackCollectionDeleted(id) {
-    _pending.collections.created = _pending.collections.created.filter(c => c.id !== id);
-    _pending.collections.updated = _pending.collections.updated.filter(c => c.id !== id);
-    _pending.collections.deleted.push(id);
+export function trackFolderDeleted(id) {
+    _pending.folders.created = _pending.folders.created.filter(f => f.id !== id);
+    _pending.folders.updated = _pending.folders.updated.filter(f => f.id !== id);
+    _pending.folders.deleted.push(id);
+}
+
+// ---------------------------------------------------------------------------
+// Paper-folder association tracking
+// ---------------------------------------------------------------------------
+export function trackPaperFolderCreated(paperId, folderId) {
+    _pending.paperFolders.created.push({ paperId, folderId });
+}
+
+export function trackPaperFolderDeleted(paperId, folderId) {
+    _pending.paperFolders.created = _pending.paperFolders.created.filter(
+        pf => !(pf.paperId === paperId && pf.folderId === folderId)
+    );
+    _pending.paperFolders.deleted.push({ paperId, folderId });
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +129,7 @@ export async function performFullSync() {
     // This function is a no-op shim kept for backwards-compatibility with callers and tests.
     clearMockSync();
     localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
-    return { success: true, synced: 0, counts: { papers: 0, collections: 0, annotations: 0 } };
+    return { success: true, synced: 0, counts: { papers: 0, folders: 0, paperFolders: 0, annotations: 0 } };
 }
 
 export async function performIncrementalSync() {
@@ -122,7 +137,7 @@ export async function performIncrementalSync() {
     // This function is a no-op shim kept for backwards-compatibility with callers and tests.
     clearMockSync();
     localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
-    return { success: true, hasLocalChanges: false, synced: 0, serverChangeCount: { papers: 0, collections: 0, annotations: 0 }, conflicts: {} };
+    return { success: true, hasLocalChanges: false, synced: 0, serverChangeCount: { papers: 0, folders: 0, paperFolders: 0, annotations: 0 }, conflicts: {} };
 }
 
 export async function performSync() {
@@ -137,7 +152,8 @@ export async function getSyncStatusInfo() {
     const pending = getPendingChanges();
     const hasPendingChanges =
         pending.papers.created.length > 0 || pending.papers.updated.length > 0 || pending.papers.deleted.length > 0 ||
-        pending.collections.created.length > 0 || pending.collections.updated.length > 0 || pending.collections.deleted.length > 0 ||
+        pending.folders.created.length > 0 || pending.folders.updated.length > 0 || pending.folders.deleted.length > 0 ||
+        pending.paperFolders.created.length > 0 || pending.paperFolders.deleted.length > 0 ||
         pending.annotations.created.length > 0 || pending.annotations.updated.length > 0 || pending.annotations.deleted.length > 0;
 
     return {
@@ -149,10 +165,14 @@ export async function getSyncStatusInfo() {
                 updated: pending.papers.updated.length,
                 deleted: pending.papers.deleted.length,
             },
-            collections: {
-                created: pending.collections.created.length,
-                updated: pending.collections.updated.length,
-                deleted: pending.collections.deleted.length,
+            folders: {
+                created: pending.folders.created.length,
+                updated: pending.folders.updated.length,
+                deleted: pending.folders.deleted.length,
+            },
+            paperFolders: {
+                created: pending.paperFolders.created.length,
+                deleted: pending.paperFolders.deleted.length,
             },
             annotations: {
                 created: pending.annotations.created.length,

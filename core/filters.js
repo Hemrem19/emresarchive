@@ -13,6 +13,17 @@ import { sortPapers, renderPaperList, highlightActiveSidebarLink, escapeHtml } f
 export function getFilteredPapers(papers, appState) {
     let filtered = [...papers];
 
+    // Apply folder filter
+    if (appState.activeFolderId) {
+        const folderPaperIds = new Set();
+        for (const [paperId, folderIds] of Object.entries(appState.paperFoldersMap)) {
+            if (folderIds && folderIds.has(appState.activeFolderId)) {
+                folderPaperIds.add(Number(paperId));
+            }
+        }
+        filtered = filtered.filter(p => folderPaperIds.has(p.id));
+    }
+
     // Apply status filter
     if (appState.activeFilters.status) {
         filtered = filtered.filter(p => p.readingStatus === appState.activeFilters.status);
@@ -111,6 +122,16 @@ export function parseUrlHash(appState) {
     // Reset filters
     appState.activeFilters.status = null;
     appState.activeFilters.tags = [];
+    appState.activeFolderId = null;
+
+    // Parse folder route: #/app/folder/123
+    if (path.startsWith('#/app/folder/')) {
+        const folderId = parseInt(path.split('/')[3], 10);
+        if (!isNaN(folderId)) {
+            appState.activeFolderId = folderId;
+        }
+        return;
+    }
 
     // Parse compound filter format: #/app/filter/status:Reading/tag:ml/tag:ai or #/filter/... (legacy)
     if (path.startsWith('#/app/filter/')) {
@@ -162,6 +183,22 @@ export function renderFilterChips(appState, applyFiltersAndRender) {
     if (!container) return;
 
     const chips = [];
+
+    // Folder chip
+    if (appState.activeFolderId) {
+        const folder = appState.foldersCache.find(f => f.id === appState.activeFolderId);
+        if (folder) {
+            chips.push(`
+                <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-200 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm backdrop-blur">
+                    <span class="material-symbols-outlined text-sm">folder</span>
+                    <span>Folder: ${escapeHtml(folder.name)}</span>
+                    <button class="remove-filter-btn hover:bg-white/10 rounded-full p-0.5 transition-colors" data-filter-type="folder" aria-label="Remove folder filter">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                </div>
+            `);
+        }
+    }
 
     // Search term chip
     if (appState.currentSearchTerm) {
@@ -224,6 +261,8 @@ export function renderFilterChips(appState, applyFiltersAndRender) {
                     appState.currentSearchTerm = '';
                     const searchInput = document.getElementById('search-input');
                     if (searchInput) searchInput.value = '';
+                } else if (filterType === 'folder') {
+                    appState.activeFolderId = null;
                 } else {
                     appState.activeFilters[filterType] = null;
                 }
@@ -256,6 +295,7 @@ export function renderFilterChips(appState, applyFiltersAndRender) {
             clearAllBtn.addEventListener('click', () => {
                 appState.activeFilters.status = null;
                 appState.activeFilters.tags = [];
+                appState.activeFolderId = null;
                 appState.currentSearchTerm = '';
                 // Clear search input
                 const searchInput = document.getElementById('search-input');

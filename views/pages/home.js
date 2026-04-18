@@ -39,6 +39,10 @@ export const homeView = `
                                 <button id="batch-add-tags-btn" class="h-9 px-3 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-500 transition-colors whitespace-nowrap">Add</button>
                                 <button id="batch-remove-tags-btn" class="h-9 px-3 bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg hover:bg-slate-600 transition-colors whitespace-nowrap">Remove</button>
                             </div>
+                            <button id="batch-add-to-folder-btn" class="h-9 px-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold rounded-lg hover:bg-amber-500/30 transition-colors whitespace-nowrap flex items-center gap-1.5 flex-shrink-0">
+                                <span class="material-symbols-outlined text-sm">folder_copy</span>
+                                <span>Add to Folder</span>
+                            </button>
                             <button id="batch-delete-btn" class="h-9 px-3 bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-lg hover:bg-red-500/30 transition-colors whitespace-nowrap flex items-center gap-1 flex-shrink-0">
                                 <span class="material-symbols-outlined text-sm">delete</span>
                                 <span>Delete</span>

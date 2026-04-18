@@ -259,7 +259,7 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                     </div>
                 `);
             }
-        } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/')) {
+        } else if (requestedPath === '/app' || requestedPath.startsWith('/app/tag/') || requestedPath.startsWith('/app/status/') || requestedPath.startsWith('/app/filter/') || requestedPath.startsWith('/app/folder/')) {
             // Parse URL hash to update filters (this reads from the URL and updates appState)
             parseUrlHash(appState);
 

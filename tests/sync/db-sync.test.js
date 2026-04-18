@@ -9,9 +9,9 @@ import {
     trackPaperCreated,
     trackPaperUpdated,
     trackPaperDeleted,
-    trackCollectionCreated,
-    trackCollectionUpdated,
-    trackCollectionDeleted,
+    trackFolderCreated,
+    trackFolderUpdated,
+    trackFolderDeleted,
     trackAnnotationCreated,
     trackAnnotationUpdated,
     trackAnnotationDeleted,
@@ -21,12 +21,7 @@ import {
     getSyncStatusInfo,
     clearMockSync as resetSyncState
 } from '../../db/sync.js';
-// Import local DB functions directly (not through adapter) for testing
-import * as localPapers from '../../db/papers.js';
-import * as localCollections from '../../db/collections.js';
-import * as localAnnotations from '../../db/annotations.js';
-import { createMockPaper, createMockCollection, createMockAnnotation, resetAllMocks, setMockAuth, setMockSyncEnabled, clearMockSync } from '../helpers.js';
-import { openDB } from '../../db/core.js';
+import { createMockPaper, createMockFolder, createMockAnnotation, resetAllMocks, setMockAuth, setMockSyncEnabled, clearMockSync } from '../helpers.js';
 
 // Mock the sync API functions - need to include mapping functions
 vi.mock('../../api/sync.js', async (importOriginal) => {
@@ -54,7 +49,8 @@ describe('db/sync.js - Change Tracking', () => {
             const changes = getPendingChanges();
             expect(changes).toEqual({
                 papers: { created: [], updated: [], deleted: [] },
-                collections: { created: [], updated: [], deleted: [] },
+                folders: { created: [], updated: [], deleted: [] },
+                paperFolders: { created: [], deleted: [] },
                 annotations: { created: [], updated: [], deleted: [] }
             });
         });
@@ -130,28 +126,28 @@ describe('db/sync.js - Change Tracking', () => {
         });
     });
 
-    describe('Collection change tracking', () => {
-        it('should track collection creation', () => {
-            const collection = createMockCollection({ id: 1, name: 'New Collection' });
-            trackCollectionCreated(collection);
-            
+    describe('Folder change tracking', () => {
+        it('should track folder creation', () => {
+            const folder = createMockFolder({ id: 1, name: 'New Folder' });
+            trackFolderCreated(folder);
+
             const changes = getPendingChanges();
-            expect(changes.collections.created).toHaveLength(1);
-            expect(changes.collections.created[0].id).toBe(1);
+            expect(changes.folders.created).toHaveLength(1);
+            expect(changes.folders.created[0].id).toBe(1);
         });
 
-        it('should track collection update', () => {
-            trackCollectionUpdated(1, { name: 'Updated Name' });
-            
+        it('should track folder update', () => {
+            trackFolderUpdated(1, { name: 'Updated Name' });
+
             const changes = getPendingChanges();
-            expect(changes.collections.updated).toHaveLength(1);
+            expect(changes.folders.updated).toHaveLength(1);
         });
 
-        it('should track collection deletion', () => {
-            trackCollectionDeleted(1);
-            
+        it('should track folder deletion', () => {
+            trackFolderDeleted(1);
+
             const changes = getPendingChanges();
-            expect(changes.collections.deleted).toContain(1);
+            expect(changes.folders.deleted).toContain(1);
         });
     });
 
@@ -193,103 +189,42 @@ describe('db/sync.js - Sync Orchestration', () => {
         setMockSyncEnabled(true);
     });
 
-    describe('performSync', () => {
-        it('should perform full sync when never synced before', async () => {
-            const { fullSync } = await import('../../api/sync.js');
-            fullSync.mockResolvedValue({
-                papers: [],
-                collections: [],
-                annotations: [],
-                deleted: { papers: [], collections: [], annotations: [] }
-            });
-
-            await performSync();
-
-            expect(fullSync).toHaveBeenCalled();
+    describe('performSync (shim)', () => {
+        it('should resolve successfully', async () => {
+            await expect(performSync()).resolves.not.toThrow();
         });
 
-        it('should perform incremental sync when synced before', async () => {
-            localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
-            
-            const { incrementalSync } = await import('../../api/sync.js');
-            incrementalSync.mockResolvedValue({
-                serverChanges: { papers: [], collections: [], annotations: [] },
-                appliedChanges: { papers: [], collections: [], annotations: [] },
-                syncedAt: new Date().toISOString()
-            });
-
+        it('should set lastSyncedAt', async () => {
             await performSync();
-
-            expect(incrementalSync).toHaveBeenCalled();
+            expect(localStorage.getItem('citavers_last_synced_at')).toBeTruthy();
         });
     });
 
-    describe('performFullSync', () => {
-        it('should perform full sync and apply server data', async () => {
-            const { fullSync } = await import('../../api/sync.js');
-            fullSync.mockResolvedValue({
-                papers: [
-                    { id: 1, title: 'Server Paper', authors: ['Author'], status: 'Reading' }
-                ],
-                collections: [],
-                annotations: [],
-                deleted: { papers: [], collections: [], annotations: [] }
-            });
-
+    describe('performFullSync (shim)', () => {
+        it('should return success', async () => {
             const result = await performFullSync();
-
-            expect(fullSync).toHaveBeenCalled();
             expect(result.success).toBe(true);
-            
-            // Verify server data was applied
-            const papers = await localPapers.getAllPapers();
-            expect(papers).toHaveLength(1);
-            expect(papers[0].title).toBe('Server Paper');
-            expect(papers[0].readingStatus).toBe('Reading'); // status mapped to readingStatus
         });
 
-        it('should throw error when cloud sync not enabled', async () => {
-            setMockSyncEnabled(false);
-
-            await expect(performFullSync()).rejects.toThrow('Cloud sync is not enabled');
-        });
-
-        it('should throw error when not authenticated', async () => {
-            setMockAuth(false);
-            setMockSyncEnabled(true);
-
-            await expect(performFullSync()).rejects.toThrow('Cloud sync is not enabled');
+        it('should clear pending changes', async () => {
+            trackPaperCreated(createMockPaper({ id: 1 }));
+            await performFullSync();
+            const changes = getPendingChanges();
+            expect(changes.papers.created).toHaveLength(0);
         });
     });
 
-    describe('performIncrementalSync', () => {
-        it('should send local changes and apply server changes', async () => {
-            // Track local changes
-            trackPaperCreated(createMockPaper({ id: 1, title: 'Local Paper' }));
-            
-            const { incrementalSync } = await import('../../api/sync.js');
-            incrementalSync.mockResolvedValue({
-                serverChanges: {
-                    papers: [{ id: 2, title: 'Server Paper', authors: ['Author'], status: 'Reading' }],
-                    collections: [],
-                    annotations: []
-                },
-                appliedChanges: {
-                    papers: [{ id: 1 }],
-                    collections: [],
-                    annotations: []
-                },
-                syncedAt: new Date().toISOString()
-            });
-
+    describe('performIncrementalSync (shim)', () => {
+        it('should return success', async () => {
             const result = await performIncrementalSync();
-
-            expect(incrementalSync).toHaveBeenCalled();
             expect(result.success).toBe(true);
-            
-            // Verify server changes were applied
-            const papers = await localPapers.getAllPapers();
-            expect(papers.some(p => p.title === 'Server Paper')).toBe(true);
+        });
+
+        it('should clear pending changes', async () => {
+            trackPaperCreated(createMockPaper({ id: 1, title: 'Local Paper' }));
+            await performIncrementalSync();
+            const changes = getPendingChanges();
+            expect(changes.papers.created).toHaveLength(0);
         });
     });
 
@@ -298,31 +233,23 @@ describe('db/sync.js - Sync Orchestration', () => {
             trackPaperCreated(createMockPaper());
             trackPaperUpdated(1, { title: 'Updated' });
 
-            const { getSyncStatus } = await import('../../api/sync.js');
-            getSyncStatus.mockResolvedValue({
-                lastSyncedAt: new Date().toISOString(),
-                counts: { papers: 10, collections: 2, annotations: 5 }
-            });
-
             const status = await getSyncStatusInfo();
 
             expect(status.hasPendingChanges).toBe(true);
             expect(status.pendingChangeCounts.papers.created).toBe(1);
             expect(status.pendingChangeCounts.papers.updated).toBe(1);
-            expect(status.serverCounts.papers).toBe(10);
         });
 
         it('should return sync status without pending changes', async () => {
-            const { getSyncStatus } = await import('../../api/sync.js');
-            getSyncStatus.mockResolvedValue({
-                lastSyncedAt: new Date().toISOString(),
-                counts: { papers: 10 }
-            });
-
             const status = await getSyncStatusInfo();
 
             expect(status.hasPendingChanges).toBe(false);
             expect(status.pendingChangeCounts.papers.created).toBe(0);
+        });
+
+        it('should return serverCounts as empty object (shim)', async () => {
+            const status = await getSyncStatusInfo();
+            expect(status.serverCounts).toEqual({});
         });
     });
 });

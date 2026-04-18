@@ -361,6 +361,9 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                                 ${statusOrder.map(status => `<option value="${status}" ${paper.readingStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
                             </select>
 
+                            <button class="assign-folder-btn p-2 hover:bg-amber-500/20 rounded-lg text-slate-400 hover:text-amber-400 transition-colors" data-paper-id="${paper.id}" title="Add to folder">
+                                <span class="material-symbols-outlined text-[20px]">folder_copy</span>
+                            </button>
                             <a href="#/edit/${paper.id}" class="p-2 hover:bg-blue-500/20 rounded-lg text-slate-400 hover:text-blue-400 transition-colors" title="Edit">
                                 <span class="material-symbols-outlined text-[20px]">edit</span>
                             </a>
@@ -508,52 +511,71 @@ export const renderSidebarTags = (papers) => {
 };
 
 /**
- * Renders collections in the sidebar.
- * @param {Array<Object>} collections - Array of collection objects.
+ * Renders folders in the sidebar.
+ * @param {Array<Object>} folders - Array of folder objects.
+ * @param {Object} paperFoldersMap - Map of paperId -> Set of folderIds.
+ * @param {number|null} activeFolderId - Currently active folder ID.
  */
-export const renderSidebarCollections = (collections) => {
-    const collectionsSection = document.getElementById('sidebar-collections-section');
-    const mobileCollectionsSection = document.getElementById('mobile-sidebar-collections-section');
+export const renderSidebarFolders = (folders, paperFoldersMap = {}, activeFolderId = null) => {
+    const foldersSection = document.getElementById('sidebar-folders-section');
+    const mobileFoldersSection = document.getElementById('mobile-sidebar-folders-section');
 
-    if (!collectionsSection || !mobileCollectionsSection) return;
+    if (!foldersSection && !mobileFoldersSection) return;
 
-    // Always show the Collections header and + button, even if no collections exist
-    const collectionsHtml = `
+    // Count papers per folder
+    const folderCounts = {};
+    for (const [, folderIds] of Object.entries(paperFoldersMap)) {
+        if (folderIds) {
+            for (const folderId of folderIds) {
+                folderCounts[folderId] = (folderCounts[folderId] || 0) + 1;
+            }
+        }
+    }
+
+    const foldersHtml = `
         <div class="flex items-center justify-between px-3 mb-2">
-            <h3 class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Collections</h3>
-            <button id="save-collection-btn" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors" title="Save current filters as collection">
+            <h3 class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Folders</h3>
+            <button id="create-folder-btn" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors" title="Create new folder">
                 <span class="material-symbols-outlined text-sm">add_circle</span>
             </button>
         </div>
-        ${(!collections || collections.length === 0) ? `
+        <div id="folder-create-input-container"></div>
+        ${(!folders || folders.length === 0) ? `
             <div class="px-3 py-4 text-center">
-                <p class="text-xs text-slate-500">No saved collections yet.</p>
-                <p class="text-xs text-slate-600 mt-1">Apply filters and click + to save</p>
+                <p class="text-xs text-slate-500">No folders yet.</p>
+                <p class="text-xs text-slate-600 mt-1">Click + to create one</p>
             </div>
         ` : `
             <div class="space-y-1">
-                ${collections.map(collection => `
-                    <div class="collection-item group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors" data-collection-id="${collection.id}">
-                        <span class="material-symbols-outlined text-lg ${collection.color || 'text-blue-400'} opacity-70 group-hover:opacity-100">${collection.icon || 'folder'}</span>
-                        <span class="flex-1 text-sm font-medium text-slate-400 group-hover:text-white collection-name transition-colors">${escapeHtml(collection.name)}</span>
-                        <button class="edit-collection-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-700 transition-all" data-collection-id="${collection.id}" title="Edit collection">
+                ${folders.map(folder => {
+                    const count = folderCounts[folder.id] || 0;
+                    const isActive = activeFolderId === folder.id;
+                    return `
+                    <a href="#/app/folder/${folder.id}" class="folder-item group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors ${isActive ? 'text-blue-400 bg-blue-500/10 border-blue-500/10' : 'text-slate-400 hover:text-white'}" data-folder-id="${folder.id}">
+                        <span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100">folder</span>
+                        <span class="flex-1 text-sm font-medium folder-name transition-colors truncate">${escapeHtml(folder.name)}</span>
+                        <span class="text-xs ${isActive ? 'text-blue-400/60' : 'text-slate-600'} tabular-nums">${count}</span>
+                        <button class="rename-folder-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-700 transition-all" data-folder-id="${folder.id}" title="Rename folder">
                             <span class="material-symbols-outlined text-sm text-slate-400 hover:text-white">edit</span>
                         </button>
-                    </div>
-                `).join('')}
+                        <button class="delete-folder-btn opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 transition-all" data-folder-id="${folder.id}" title="Delete folder">
+                            <span class="material-symbols-outlined text-sm text-slate-400 hover:text-red-400">delete</span>
+                        </button>
+                    </a>`;
+                }).join('')}
             </div>
         `}
     `;
 
-    collectionsSection.innerHTML = collectionsHtml;
-    mobileCollectionsSection.innerHTML = collectionsHtml;
+    if (foldersSection) foldersSection.innerHTML = foldersHtml;
+    if (mobileFoldersSection) mobileFoldersSection.innerHTML = foldersHtml;
 };
 
 export const highlightActiveSidebarLink = () => {
     const path = window.location.hash;
 
     // Reset all links to inactive state
-    document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .sidebar-docs-link, .collection-item').forEach(el => {
+    document.querySelectorAll('.sidebar-status-link, .sidebar-tag, .sidebar-all-papers-link, .sidebar-docs-link, .folder-item').forEach(el => {
         el.classList.remove('text-blue-400', 'bg-blue-500/10', 'border-blue-500/10', 'ring-2', 'ring-blue-400/50', 'ring-offset-2', 'ring-offset-slate-900', 'scale-110');
         el.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-white/5');
         // Remove specific classes added by setActive for tags
@@ -587,10 +609,10 @@ export const highlightActiveSidebarLink = () => {
         });
     };
 
-    // Handle collection: #/collection/123
-    if (path.startsWith('#/collection/')) {
-        const collectionId = decodeURIComponent(path.split('/')[2]);
-        setActive(`.collection-item[data-collection-id="${collectionId}"]`);
+    // Handle folder: #/app/folder/123
+    if (path.startsWith('#/app/folder/')) {
+        const folderId = decodeURIComponent(path.split('/')[3]);
+        setActive(`.folder-item[data-folder-id="${folderId}"]`);
     }
     // Handle compound filters
     else if (path.startsWith('#/app/filter/')) {

@@ -5,13 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers, collections, annotations } from '../../db/adapter.js';
+import { papers, folders, annotations } from '../../db/adapter.js';
 import * as configModule from '../../config.js';
 import * as authModule from '../../api/auth.js';
 import * as localPapers from '../../db/papers.js';
 import * as apiPapers from '../../api/papers.js';
-import * as localCollections from '../../db/collections.js';
-import * as apiCollections from '../../api/collections.js';
+import * as localFolders from '../../db/folders.js';
+import * as apiFolders from '../../api/folders.js';
 import * as localAnnotations from '../../db/annotations.js';
 import * as apiAnnotations from '../../api/annotations.js';
 import * as syncModule from '../../db/sync.js';
@@ -41,17 +41,33 @@ vi.mock('../../api/papers.js', () => ({
     uploadPdf: vi.fn()
 }));
 
-vi.mock('../../db/collections.js', () => ({
-    addCollection: vi.fn(),
-    updateCollection: vi.fn(),
-    deleteCollection: vi.fn(),
-    getAllCollections: vi.fn()
+vi.mock('../../db/folders.js', () => ({
+    addFolder: vi.fn(),
+    updateFolder: vi.fn(),
+    deleteFolder: vi.fn(),
+    getAllFolders: vi.fn()
 }));
 
-vi.mock('../../api/collections.js', () => ({
-    createCollection: vi.fn(),
-    updateCollection: vi.fn(),
-    deleteCollection: vi.fn()
+vi.mock('../../db/paperFolders.js', () => ({
+    addPaperToFolder: vi.fn(),
+    removePaperFromFolder: vi.fn(),
+    removeAllForFolder: vi.fn(),
+    removeAllForPaper: vi.fn(),
+    getFolderIdsByPaperId: vi.fn(() => Promise.resolve([])),
+    getPaperIdsByFolderId: vi.fn(() => Promise.resolve([])),
+    getAllPaperFolders: vi.fn(() => Promise.resolve([]))
+}));
+
+vi.mock('../../api/folders.js', () => ({
+    createFolder: vi.fn(),
+    updateFolder: vi.fn(),
+    deleteFolder: vi.fn()
+}));
+
+vi.mock('../../api/paperFolders.js', () => ({
+    addPaperToFolder: vi.fn(),
+    removePaperFromFolder: vi.fn(),
+    getPapersInFolder: vi.fn(() => Promise.resolve([]))
 }));
 
 vi.mock('../../db/annotations.js', () => ({
@@ -71,9 +87,11 @@ vi.mock('../../db/sync.js', () => ({
     trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
     trackPaperDeleted: vi.fn(),
-    trackCollectionCreated: vi.fn(),
-    trackCollectionUpdated: vi.fn(),
-    trackCollectionDeleted: vi.fn(),
+    trackFolderCreated: vi.fn(),
+    trackFolderUpdated: vi.fn(),
+    trackFolderDeleted: vi.fn(),
+    trackPaperFolderCreated: vi.fn(),
+    trackPaperFolderDeleted: vi.fn(),
     trackAnnotationCreated: vi.fn(),
     trackAnnotationUpdated: vi.fn(),
     trackAnnotationDeleted: vi.fn()
@@ -136,18 +154,18 @@ describe('Adapter Full Coverage', () => {
         });
     });
 
-    describe('Collection Cloud Fallbacks', () => {
+    describe('Folder Cloud Fallbacks', () => {
         it('should fallback to local add and track when cloud fails', async () => {
-            const collectionData = { name: 'Test Col' };
+            const folderData = { name: 'Test Folder' };
             const localId = 10;
 
-            apiCollections.createCollection.mockRejectedValue(new Error('API Error'));
-            localCollections.addCollection.mockResolvedValue(localId);
+            apiFolders.createFolder.mockRejectedValue(new Error('API Error'));
+            localFolders.addFolder.mockResolvedValue(localId);
 
-            const result = await collections.addCollection(collectionData);
+            const result = await folders.addFolder(folderData);
 
             expect(result).toBe(localId);
-            expect(syncModule.trackCollectionCreated).toHaveBeenCalledWith({ ...collectionData, localId });
+            expect(syncModule.trackFolderCreated).toHaveBeenCalledWith({ ...folderData, localId });
             expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
         });
 
@@ -155,26 +173,28 @@ describe('Adapter Full Coverage', () => {
             const id = 10;
             const updateData = { name: 'Updated' };
 
-            apiCollections.updateCollection.mockRejectedValue(new Error('API Error'));
-            localCollections.updateCollection.mockResolvedValue(id);
+            apiFolders.updateFolder.mockRejectedValue(new Error('API Error'));
+            localFolders.updateFolder.mockResolvedValue(id);
 
-            const result = await collections.updateCollection(id, updateData);
+            const result = await folders.updateFolder(id, updateData);
 
             expect(result).toBe(id);
-            expect(syncModule.trackCollectionUpdated).toHaveBeenCalledWith(id, updateData);
+            expect(syncModule.trackFolderUpdated).toHaveBeenCalledWith(id, updateData);
             expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
         });
 
         it('should fallback to local delete and track when cloud fails', async () => {
             const id = 10;
+            const { removeAllForFolder } = await import('../../db/paperFolders.js');
 
-            apiCollections.deleteCollection.mockRejectedValue(new Error('API Error'));
-            localCollections.deleteCollection.mockResolvedValue();
+            apiFolders.deleteFolder.mockRejectedValue(new Error('API Error'));
+            localFolders.deleteFolder.mockResolvedValue();
+            removeAllForFolder.mockResolvedValue();
 
-            await collections.deleteCollection(id);
+            await folders.deleteFolder(id);
 
-            expect(localCollections.deleteCollection).toHaveBeenCalledWith(id);
-            expect(syncModule.trackCollectionDeleted).toHaveBeenCalledWith(id);
+            expect(localFolders.deleteFolder).toHaveBeenCalledWith(id);
+            expect(syncModule.trackFolderDeleted).toHaveBeenCalledWith(id);
             expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
         });
     });

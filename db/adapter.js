@@ -9,12 +9,14 @@ import { getApiBaseUrl } from '../config.js';
 
 // Import IndexedDB functions
 import * as localPapers from './papers.js';
-import * as localCollections from './collections.js';
+import * as localFolders from './folders.js';
+import * as localPaperFolders from './paperFolders.js';
 import * as localAnnotations from './annotations.js';
 
 // Import API functions
 import * as apiPapers from '../api/papers.js';
-import * as apiCollections from '../api/collections.js';
+import * as apiFolders from '../api/folders.js';
+import * as apiPaperFoldersApi from '../api/paperFolders.js';
 import * as apiAnnotations from '../api/annotations.js';
 
 // Sync tracking (delegates to db/sync.js in-memory change queue for offline-first support)
@@ -22,9 +24,11 @@ import {
     trackPaperCreated,
     trackPaperUpdated,
     trackPaperDeleted,
-    trackCollectionCreated,
-    trackCollectionUpdated,
-    trackCollectionDeleted,
+    trackFolderCreated,
+    trackFolderUpdated,
+    trackFolderDeleted,
+    trackPaperFolderCreated,
+    trackPaperFolderDeleted,
     trackAnnotationCreated,
     trackAnnotationUpdated,
     trackAnnotationDeleted
@@ -72,20 +76,33 @@ async function seedLocalFromCloud() {
         }
     }
 
-    // Fetch all collections
-    const apiCollectionList = await apiCollections.getAllCollections();
-    const serverCollectionIds = new Set(apiCollectionList.map(c => c.id));
+    // Fetch all folders
+    const apiFolderList = await apiFolders.getAllFolders();
+    const serverFolderIds = new Set(apiFolderList.map(f => f.id));
 
-    for (const collection of apiCollectionList) {
-        try { await localCollections.updateCollection(collection.id, collection); }
-        catch { await localCollections.addCollection(collection); }
+    for (const folder of apiFolderList) {
+        try { await localFolders.updateFolder(folder.id, folder); }
+        catch { await localFolders.addFolder(folder); }
     }
 
-    // Delete local collections that no longer exist on the server
-    const allLocalCollections = await localCollections.getAllCollections();
-    for (const local of allLocalCollections) {
-        if (!serverCollectionIds.has(local.id)) {
-            await localCollections.deleteCollection(local.id).catch(() => {});
+    // Delete local folders that no longer exist on the server
+    const allLocalFoldersList = await localFolders.getAllFolders();
+    for (const local of allLocalFoldersList) {
+        if (!serverFolderIds.has(local.id)) {
+            await localFolders.deleteFolder(local.id).catch(() => {});
+            await localPaperFolders.removeAllForFolder(local.id).catch(() => {});
+        }
+    }
+
+    // Seed paper-folder associations for each folder
+    for (const folder of apiFolderList) {
+        try {
+            const paperIds = await apiPaperFoldersApi.getPapersInFolder(folder.id);
+            for (const paperId of paperIds) {
+                await localPaperFolders.addPaperToFolder(paperId, folder.id);
+            }
+        } catch (e) {
+            console.warn(`[Adapter] Failed to seed paper-folder associations for folder ${folder.id}:`, e.message);
         }
     }
 }
@@ -412,124 +429,165 @@ export const papers = {
 };
 
 /**
- * Collection operations adapter
+ * Folder operations adapter
  */
-export const collections = {
-    async addCollection(collectionData) {
+export const folders = {
+    async addFolder(folderData) {
         if (shouldUseCloudSync()) {
             try {
-                const collection = await apiCollections.createCollection(collectionData);
-                // Also save to local
+                const folder = await apiFolders.createFolder(folderData);
                 try {
-                    await localCollections.addCollection(collection);
+                    await localFolders.addFolder(folder);
                 } catch (localError) {
                     // Ignore local save errors
                 }
-                // Trigger debounced sync after successful cloud operation
                 triggerDebouncedSync();
-                return collection.id;
+                return folder.id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                const localId = await localCollections.addCollection(collectionData);
-                // Track change for later sync
+                const localId = await localFolders.addFolder(folderData);
                 if (shouldUseCloudSync()) {
-                    trackCollectionCreated({ ...collectionData, localId });
-                    // Trigger debounced sync after local fallback
+                    trackFolderCreated({ ...folderData, localId });
                     triggerDebouncedSync();
                 }
                 return localId;
             }
         }
-        // Local-only mode: add and track for potential future sync
-        const localId = await localCollections.addCollection(collectionData);
+        const localId = await localFolders.addFolder(folderData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
-            trackCollectionCreated({ ...collectionData, localId });
-            // Trigger debounced sync for local-only changes
+            trackFolderCreated({ ...folderData, localId });
             triggerDebouncedSync();
         }
         return localId;
     },
 
-    async getAllCollections() {
-        // Always read from local storage first for immediate UI feedback
+    async getAllFolders() {
         if (shouldUseCloudSync() && !isRateLimited()) {
             triggerDebouncedSync();
         }
-        return localCollections.getAllCollections();
+        return localFolders.getAllFolders();
     },
 
-    async getCollectionById(id) {
-        // Always read from local storage first
-        return localCollections.getCollectionById(id);
+    async getFolderById(id) {
+        return localFolders.getFolderById(id);
     },
 
-    async updateCollection(id, updateData) {
+    async updateFolder(id, updateData) {
         if (shouldUseCloudSync()) {
             try {
-                const collection = await apiCollections.updateCollection(id, updateData);
-                // Also update local
+                const folder = await apiFolders.updateFolder(id, updateData);
                 try {
-                    await localCollections.updateCollection(id, collection);
+                    await localFolders.updateFolder(id, folder);
                 } catch (localError) {
                     // Ignore local update errors
                 }
-                // Trigger debounced sync after successful cloud operation
                 triggerDebouncedSync();
-                return collection.id || id;
+                return folder.id || id;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                const result = await localCollections.updateCollection(id, updateData);
-                // Track change for later sync
+                const result = await localFolders.updateFolder(id, updateData);
                 if (shouldUseCloudSync()) {
-                    trackCollectionUpdated(id, updateData);
-                    // Trigger debounced sync after local fallback
+                    trackFolderUpdated(id, updateData);
                     triggerDebouncedSync();
                 }
                 return result;
             }
         }
-        // Local-only mode: update and track for potential future sync
-        const result = await localCollections.updateCollection(id, updateData);
+        const result = await localFolders.updateFolder(id, updateData);
         if (isCloudSyncEnabled() && isAuthenticated()) {
-            trackCollectionUpdated(id, updateData);
-            // Trigger debounced sync for local-only changes
+            trackFolderUpdated(id, updateData);
             triggerDebouncedSync();
         }
         return result;
     },
 
-    async deleteCollection(id) {
+    async deleteFolder(id) {
         if (shouldUseCloudSync()) {
             try {
-                await apiCollections.deleteCollection(id);
-                // Also delete from local
+                await apiFolders.deleteFolder(id);
                 try {
-                    await localCollections.deleteCollection(id);
+                    await localPaperFolders.removeAllForFolder(id);
+                    await localFolders.deleteFolder(id);
                 } catch (localError) {
                     // Ignore local delete errors
                 }
-                // Trigger debounced sync after successful cloud operation
                 triggerDebouncedSync();
                 return;
             } catch (error) {
                 console.error('Cloud sync failed, falling back to local:', error);
-                await localCollections.deleteCollection(id);
-                // Track deletion for later sync
+                await localPaperFolders.removeAllForFolder(id);
+                await localFolders.deleteFolder(id);
                 if (shouldUseCloudSync()) {
-                    trackCollectionDeleted(id);
-                    // Trigger debounced sync after local fallback
+                    trackFolderDeleted(id);
                     triggerDebouncedSync();
                 }
                 return;
             }
         }
-        // Local-only mode: delete and track for potential future sync
-        await localCollections.deleteCollection(id);
+        await localPaperFolders.removeAllForFolder(id);
+        await localFolders.deleteFolder(id);
         if (isCloudSyncEnabled() && isAuthenticated()) {
-            trackCollectionDeleted(id);
-            // Trigger debounced sync for local-only changes
+            trackFolderDeleted(id);
             triggerDebouncedSync();
         }
+    }
+};
+
+/**
+ * Paper-folder association operations adapter
+ */
+export const paperFoldersAdapter = {
+    async addPaperToFolder(paperId, folderId) {
+        const result = await localPaperFolders.addPaperToFolder(paperId, folderId);
+        if (shouldUseCloudSync()) {
+            try {
+                await apiPaperFoldersApi.addPaperToFolder(folderId, paperId);
+            } catch (error) {
+                console.error('[Adapter] Cloud paper-folder add failed:', error);
+                trackPaperFolderCreated(paperId, folderId);
+            }
+            triggerDebouncedSync();
+        } else if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackPaperFolderCreated(paperId, folderId);
+            triggerDebouncedSync();
+        }
+        return result;
+    },
+
+    async removePaperFromFolder(paperId, folderId) {
+        await localPaperFolders.removePaperFromFolder(paperId, folderId);
+        if (shouldUseCloudSync()) {
+            try {
+                await apiPaperFoldersApi.removePaperFromFolder(folderId, paperId);
+            } catch (error) {
+                console.error('[Adapter] Cloud paper-folder remove failed:', error);
+                trackPaperFolderDeleted(paperId, folderId);
+            }
+            triggerDebouncedSync();
+        } else if (isCloudSyncEnabled() && isAuthenticated()) {
+            trackPaperFolderDeleted(paperId, folderId);
+            triggerDebouncedSync();
+        }
+    },
+
+    async getFolderIdsByPaperId(paperId) {
+        return localPaperFolders.getFolderIdsByPaperId(paperId);
+    },
+
+    async getPaperIdsByFolderId(folderId) {
+        return localPaperFolders.getPaperIdsByFolderId(folderId);
+    },
+
+    async getAllPaperFolders() {
+        return localPaperFolders.getAllPaperFolders();
+    },
+
+    async removeAllForFolder(folderId) {
+        return localPaperFolders.removeAllForFolder(folderId);
+    },
+
+    async removeAllForPaper(paperId) {
+        return localPaperFolders.removeAllForPaper(paperId);
     }
 };
 

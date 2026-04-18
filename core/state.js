@@ -10,7 +10,9 @@
 export const createAppState = () => {
     return {
         allPapersCache: [],
-        collectionsCache: [], // Saved filter collections
+        foldersCache: [],
+        activeFolderId: null,
+        paperFoldersMap: {}, // { [paperId]: Set([folderId, ...]) }
         // Initialize hasUnsavedChanges to false. It will be set to true by formView if changes are made.
         // This flag is managed by the formView module.
         hasUnsavedChanges: false, 

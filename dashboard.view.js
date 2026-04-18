@@ -3,15 +3,16 @@
  * Main orchestrator for the dashboard view, delegating to specialized handlers
  */
 
-import { getAllPapers, getAllCollections } from './db.js';
+import { getAllPapers, getAllFolders, getAllPaperFolders } from './db.js';
 import { getAllPapers as getLocalPapers } from './db/papers.js';
-import { getAllCollections as getLocalCollections } from './db/collections.js';
-import { renderSidebarTags, renderSidebarCollections, showToast } from './ui.js';
+import { getAllFolders as getLocalFolders } from './db/folders.js';
+import { getAllPaperFolders as getLocalPaperFolders } from './db/paperFolders.js';
+import { renderSidebarTags, renderSidebarFolders, showToast } from './ui.js';
 
 // Import refactored handlers
 import { registerBatchOperationHandlers, unregisterBatchOperationHandlers } from './dashboard/handlers/batch-operations.js';
 import { registerSearchModeHandlers, unregisterSearchModeHandlers } from './dashboard/handlers/search-mode.js';
-import { registerCollectionHandlers, unregisterCollectionHandlers } from './dashboard/handlers/collections.js';
+import { registerFolderHandlers, unregisterFolderHandlers } from './dashboard/handlers/folders.js';
 import { registerQuickAddHandler, unregisterQuickAddHandler } from './dashboard/handlers/quick-add.js';
 import { registerPaperListHandlers, unregisterPaperListHandlers } from './dashboard/handlers/paper-list.js';
 import { registerPaginationHandlers, unregisterPaginationHandlers } from './dashboard/handlers/pagination.js';
@@ -59,20 +60,28 @@ export const dashboardView = {
             return; // Early exit if papers can't be loaded
         }
 
-        // Load collections
+        // Load folders and paper-folder associations
         try {
-            appState.collectionsCache = await getAllCollections();
-            renderSidebarCollections(appState.collectionsCache);
+            appState.foldersCache = await getAllFolders();
+            const pfRecords = await getAllPaperFolders();
+            const map = {};
+            for (const r of pfRecords) {
+                if (!map[r.paperId]) map[r.paperId] = new Set();
+                map[r.paperId].add(r.folderId);
+            }
+            appState.paperFoldersMap = map;
+            renderSidebarFolders(appState.foldersCache, appState.paperFoldersMap, appState.activeFolderId);
         } catch (error) {
-            console.error('Error loading collections:', error);
-            showToast('Failed to load collections. Some features may be unavailable.', 'warning', {
+            console.error('Error loading folders:', error);
+            showToast('Failed to load folders. Some features may be unavailable.', 'warning', {
                 duration: 0,
                 actions: [{
                     label: 'Refresh',
                     onClick: () => window.location.reload()
                 }]
             });
-            appState.collectionsCache = [];
+            appState.foldersCache = [];
+            appState.paperFoldersMap = {};
         }
 
         // If the router navigated away (and possibly back) while we were awaiting,
@@ -99,7 +108,7 @@ export const dashboardView = {
             ...registerBatchOperationHandlers(appState, applyFiltersAndRender, updateBatchToolbar),
             ...registerPaperListHandlers(appState, applyFiltersAndRender, updateBatchToolbar),
             ...registerSearchModeHandlers(appState, applyFiltersAndRender),
-            ...registerCollectionHandlers(appState, applyFiltersAndRender)
+            ...registerFolderHandlers(appState, applyFiltersAndRender)
         };
 
         // Initial toolbar update
@@ -112,15 +121,22 @@ export const dashboardView = {
                 // Read directly from local IndexedDB — syncFromCloud already populated it.
                 // Using the adapter here would trigger another sync (feedback loop).
                 const newPapers = await getLocalPapers();
-                const newCollections = await getLocalCollections();
+                const newFolders = await getLocalFolders();
+                const newPfRecords = await getLocalPaperFolders();
 
                 // Skip re-render if nothing changed
                 if (_papersFingerprint(newPapers) === prevFingerprint) return;
 
                 appState.allPapersCache = newPapers;
                 renderSidebarTags(appState.allPapersCache);
-                appState.collectionsCache = newCollections;
-                renderSidebarCollections(appState.collectionsCache);
+                appState.foldersCache = newFolders;
+                const map = {};
+                for (const r of newPfRecords) {
+                    if (!map[r.paperId]) map[r.paperId] = new Set();
+                    map[r.paperId].add(r.folderId);
+                }
+                appState.paperFoldersMap = map;
+                renderSidebarFolders(appState.foldersCache, appState.paperFoldersMap, appState.activeFolderId);
 
                 // Defer re-render if user is actively interacting with the paper list
                 const paperList = document.getElementById('paper-list');
@@ -151,7 +167,7 @@ export const dashboardView = {
         unregisterBatchOperationHandlers(this.handlers);
         unregisterPaperListHandlers(this.handlers);
         unregisterSearchModeHandlers(this.handlers);
-        unregisterCollectionHandlers(this.handlers);
+        unregisterFolderHandlers(this.handlers);
 
         // Clear handlers
         this.handlers = {};

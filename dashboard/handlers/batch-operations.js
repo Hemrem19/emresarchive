@@ -3,7 +3,8 @@
  * Handles batch actions on selected papers: status change, tag management, delete, and export
  */
 
-import { renderSidebarTags, showToast } from '../../ui.js';
+import { renderSidebarTags, renderSidebarFolders, showToast, escapeHtml } from '../../ui.js';
+import { addPaperToFolder, getAllFolders, getAllPaperFolders, addFolder } from '../../db.js';
 import { generateBibliography, exportBibliographyToFile, copyBibliographyToClipboard } from '../../citation.js';
 import { views as templates } from '../../views/index.js';
 import { 
@@ -289,6 +290,69 @@ function updateBibliographyPreview(selectedPapers) {
 }
 
 /**
+ * Creates batch add to folder handler
+ * @param {Object} appState - Application state
+ * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
+ * @returns {Function} Event handler for batch add to folder
+ */
+export function createBatchAddToFolderHandler(appState, applyFiltersAndRender) {
+    return async () => {
+        if (appState.selectedPaperIds.size === 0) return;
+
+        const folders = appState.foldersCache;
+        let folderName;
+
+        if (folders.length === 0) {
+            folderName = prompt('No folders yet. Enter a name to create one:');
+            if (!folderName || !folderName.trim()) return;
+        } else {
+            const options = folders.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
+            const choice = prompt(`Select a folder (enter number) or type a new name:\n\n${options}`);
+            if (!choice || !choice.trim()) return;
+
+            const num = parseInt(choice, 10);
+            if (!isNaN(num) && num >= 1 && num <= folders.length) {
+                // Selected existing folder
+                const folder = folders[num - 1];
+                const selectedIds = Array.from(appState.selectedPaperIds);
+                let addedCount = 0;
+                for (const paperId of selectedIds) {
+                    try {
+                        await addPaperToFolder(paperId, folder.id);
+                        if (!appState.paperFoldersMap[paperId]) appState.paperFoldersMap[paperId] = new Set();
+                        appState.paperFoldersMap[paperId].add(folder.id);
+                        addedCount++;
+                    } catch (e) {
+                        console.error(`Failed to add paper ${paperId} to folder:`, e);
+                    }
+                }
+                renderSidebarFolders(appState.foldersCache, appState.paperFoldersMap, appState.activeFolderId);
+                showToast(`Added ${addedCount} paper(s) to "${folder.name}"`, 'success', { duration: 3000 });
+                if (appState.activeFolderId) applyFiltersAndRender();
+                return;
+            }
+            folderName = choice.trim();
+        }
+
+        // Create new folder and add papers
+        try {
+            const folderId = await addFolder({ name: folderName });
+            const selectedIds = Array.from(appState.selectedPaperIds);
+            for (const paperId of selectedIds) {
+                await addPaperToFolder(paperId, folderId);
+                if (!appState.paperFoldersMap[paperId]) appState.paperFoldersMap[paperId] = new Set();
+                appState.paperFoldersMap[paperId].add(folderId);
+            }
+            appState.foldersCache = await getAllFolders();
+            renderSidebarFolders(appState.foldersCache, appState.paperFoldersMap, appState.activeFolderId);
+            showToast(`Created "${folderName}" and added ${selectedIds.length} paper(s)`, 'success', { duration: 3000 });
+        } catch (error) {
+            handleOperationError(error, 'batch add to folder');
+        }
+    };
+}
+
+/**
  * Registers all batch operation event listeners
  * @param {Object} appState - Application state
  * @param {Function} applyFiltersAndRender - Function to re-render the dashboard
@@ -326,6 +390,13 @@ export function registerBatchOperationHandlers(appState, applyFiltersAndRender, 
         batchDeleteBtn.addEventListener('click', handlers.batchDeleteHandler);
     }
 
+    // Batch Add to Folder
+    const batchAddToFolderBtn = document.getElementById('batch-add-to-folder-btn');
+    if (batchAddToFolderBtn) {
+        handlers.batchAddToFolderHandler = createBatchAddToFolderHandler(appState, applyFiltersAndRender);
+        batchAddToFolderBtn.addEventListener('click', handlers.batchAddToFolderHandler);
+    }
+
     // Batch Export Bibliography
     const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');
     if (batchExportBibliographyBtn) {
@@ -359,6 +430,11 @@ export function unregisterBatchOperationHandlers(handlers) {
     const batchDeleteBtn = document.getElementById('batch-delete-btn');
     if (batchDeleteBtn && handlers.batchDeleteHandler) {
         batchDeleteBtn.removeEventListener('click', handlers.batchDeleteHandler);
+    }
+
+    const batchAddToFolderBtn = document.getElementById('batch-add-to-folder-btn');
+    if (batchAddToFolderBtn && handlers.batchAddToFolderHandler) {
+        batchAddToFolderBtn.removeEventListener('click', handlers.batchAddToFolderHandler);
     }
 
     const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');

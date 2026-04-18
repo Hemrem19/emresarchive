@@ -17,7 +17,7 @@ import {
     showToast,
     renderPaperList,
     renderSidebarTags,
-    renderSidebarCollections
+    renderSidebarFolders
 } from '../ui.js';
 
 // Mock config.js since sortPapers uses getStatusOrder
@@ -425,33 +425,32 @@ describe('UI Utilities', () => {
         });
     });
 
-    describe('renderSidebarCollections', () => {
-        let collectionsSection;
-        let mobileCollectionsSection;
+    describe('renderSidebarFolders', () => {
+        let foldersSection;
+        let mobileFoldersSection;
 
         beforeEach(() => {
             document.body.innerHTML = `
-                <div id="sidebar-collections-section"></div>
-                <div id="mobile-sidebar-collections-section"></div>
+                <div id="sidebar-folders-section"></div>
+                <div id="mobile-sidebar-folders-section"></div>
             `;
-            collectionsSection = document.getElementById('sidebar-collections-section');
-            mobileCollectionsSection = document.getElementById('mobile-sidebar-collections-section');
+            foldersSection = document.getElementById('sidebar-folders-section');
+            mobileFoldersSection = document.getElementById('mobile-sidebar-folders-section');
         });
 
-        it('should render collections list', () => {
-            const collections = [
-                { id: '1', name: 'My Collection', icon: 'star', color: 'text-yellow-500' }
+        it('should render folders list', () => {
+            const folders = [
+                { id: 1, name: 'ML Papers', color: null }
             ];
-            renderSidebarCollections(collections);
+            renderSidebarFolders(folders, {}, null);
 
-            expect(collectionsSection.textContent).toContain('My Collection');
-            expect(collectionsSection.innerHTML).toContain('star');
-            expect(collectionsSection.innerHTML).toContain('text-yellow-500');
+            expect(foldersSection.textContent).toContain('ML Papers');
+            expect(foldersSection.innerHTML).toContain('folder');
         });
 
-        it('should show empty state when no collections', () => {
-            renderSidebarCollections([]);
-            expect(collectionsSection.textContent).toContain('No saved collections yet');
+        it('should show empty state when no folders', () => {
+            renderSidebarFolders([], {}, null);
+            expect(foldersSection.textContent).toContain('No folders yet');
         });
     });
 });

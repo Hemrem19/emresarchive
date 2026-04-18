@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers, collections, annotations } from '../../db/adapter.js';
+import { papers, folders, annotations } from '../../db/adapter.js';
 import { resetAllMocks } from '../helpers.js';
 
 // Mock dependencies
@@ -38,20 +38,36 @@ vi.mock('../../api/papers.js', () => ({
     getPdfDownloadUrl: vi.fn()
 }));
 
-vi.mock('../../db/collections.js', () => ({
-    addCollection: vi.fn(),
-    getAllCollections: vi.fn(() => Promise.resolve([])),
-    getCollectionById: vi.fn(),
-    updateCollection: vi.fn(),
-    deleteCollection: vi.fn()
+vi.mock('../../db/folders.js', () => ({
+    addFolder: vi.fn(),
+    getAllFolders: vi.fn(() => Promise.resolve([])),
+    getFolderById: vi.fn(),
+    updateFolder: vi.fn(),
+    deleteFolder: vi.fn()
 }));
 
-vi.mock('../../api/collections.js', () => ({
-    createCollection: vi.fn(),
-    getAllCollections: vi.fn(() => Promise.resolve({ collections: [] })),
-    getCollection: vi.fn(),
-    updateCollection: vi.fn(),
-    deleteCollection: vi.fn()
+vi.mock('../../db/paperFolders.js', () => ({
+    addPaperToFolder: vi.fn(),
+    removePaperFromFolder: vi.fn(),
+    getFolderIdsByPaperId: vi.fn(() => Promise.resolve([])),
+    getPaperIdsByFolderId: vi.fn(() => Promise.resolve([])),
+    removeAllForFolder: vi.fn(),
+    removeAllForPaper: vi.fn(),
+    getAllPaperFolders: vi.fn(() => Promise.resolve([]))
+}));
+
+vi.mock('../../api/folders.js', () => ({
+    createFolder: vi.fn(),
+    getAllFolders: vi.fn(() => Promise.resolve([])),
+    getFolder: vi.fn(),
+    updateFolder: vi.fn(),
+    deleteFolder: vi.fn()
+}));
+
+vi.mock('../../api/paperFolders.js', () => ({
+    addPaperToFolder: vi.fn(),
+    removePaperFromFolder: vi.fn(),
+    getPapersInFolder: vi.fn(() => Promise.resolve([]))
 }));
 
 vi.mock('../../db/annotations.js', () => ({
@@ -75,9 +91,11 @@ vi.mock('../../db/sync.js', () => ({
     trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
     trackPaperDeleted: vi.fn(),
-    trackCollectionCreated: vi.fn(),
-    trackCollectionUpdated: vi.fn(),
-    trackCollectionDeleted: vi.fn(),
+    trackFolderCreated: vi.fn(),
+    trackFolderUpdated: vi.fn(),
+    trackFolderDeleted: vi.fn(),
+    trackPaperFolderCreated: vi.fn(),
+    trackPaperFolderDeleted: vi.fn(),
     trackAnnotationCreated: vi.fn(),
     trackAnnotationUpdated: vi.fn(),
     trackAnnotationDeleted: vi.fn()
@@ -282,42 +300,44 @@ describe('DB Adapter Coverage', () => {
         });
     });
 
-    describe('Collections Adapter Coverage', () => {
-        it('should handle local save error during addCollection', async () => {
-            const apiCollections = await import('../../api/collections.js');
-            const localCollections = await import('../../db/collections.js');
+    describe('Folders Adapter Coverage', () => {
+        it('should handle local save error during addFolder', async () => {
+            const apiFolders = await import('../../api/folders.js');
+            const localFolders = await import('../../db/folders.js');
 
-            apiCollections.createCollection.mockResolvedValue({ id: 1, name: 'Test' });
-            localCollections.addCollection.mockRejectedValue(new Error('Local Error'));
+            apiFolders.createFolder.mockResolvedValue({ id: 1, name: 'Test' });
+            localFolders.addFolder.mockRejectedValue(new Error('Local Error'));
 
             // Should not throw, just log error
-            await collections.addCollection({ name: 'Test' });
+            await folders.addFolder({ name: 'Test' });
 
-            expect(apiCollections.createCollection).toHaveBeenCalled();
+            expect(apiFolders.createFolder).toHaveBeenCalled();
         });
 
-        it('should handle local update error during updateCollection', async () => {
-            const apiCollections = await import('../../api/collections.js');
-            const localCollections = await import('../../db/collections.js');
+        it('should handle local update error during updateFolder', async () => {
+            const apiFolders = await import('../../api/folders.js');
+            const localFolders = await import('../../db/folders.js');
 
-            apiCollections.updateCollection.mockResolvedValue({ id: 1, name: 'Updated' });
-            localCollections.updateCollection.mockRejectedValue(new Error('Local Error'));
+            apiFolders.updateFolder.mockResolvedValue({ id: 1, name: 'Updated' });
+            localFolders.updateFolder.mockRejectedValue(new Error('Local Error'));
 
-            await collections.updateCollection(1, { name: 'Updated' });
+            await folders.updateFolder(1, { name: 'Updated' });
 
-            expect(apiCollections.updateCollection).toHaveBeenCalled();
+            expect(apiFolders.updateFolder).toHaveBeenCalled();
         });
 
-        it('should handle local delete error during deleteCollection', async () => {
-            const apiCollections = await import('../../api/collections.js');
-            const localCollections = await import('../../db/collections.js');
+        it('should handle local delete error during deleteFolder', async () => {
+            const apiFolders = await import('../../api/folders.js');
+            const localFolders = await import('../../db/folders.js');
+            const localPaperFolders = await import('../../db/paperFolders.js');
 
-            apiCollections.deleteCollection.mockResolvedValue();
-            localCollections.deleteCollection.mockRejectedValue(new Error('Local Error'));
+            apiFolders.deleteFolder.mockResolvedValue();
+            localFolders.deleteFolder.mockRejectedValue(new Error('Local Error'));
+            localPaperFolders.removeAllForFolder.mockResolvedValue();
 
-            await collections.deleteCollection(1);
+            await folders.deleteFolder(1);
 
-            expect(apiCollections.deleteCollection).toHaveBeenCalled();
+            expect(apiFolders.deleteFolder).toHaveBeenCalled();
         });
     });
 

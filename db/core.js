@@ -4,10 +4,12 @@
  */
 
 const DB_NAME = 'CitaversDB';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 const STORE_NAME_PAPERS = 'papers';
 const STORE_NAME_COLLECTIONS = 'collections';
 const STORE_NAME_ANNOTATIONS = 'annotations';
+const STORE_NAME_FOLDERS = 'folders';
+const STORE_NAME_PAPER_FOLDERS = 'paper_folders';
 
 let db = null;
 
@@ -208,6 +210,20 @@ function setupRequestHandlers(request, resolve, reject) {
                     // Don't fail the upgrade, just log the error
                 };
             }
+
+            // Create 'folders' and 'paper_folders' object stores for version 7
+            if (!dbInstance.objectStoreNames.contains(STORE_NAME_FOLDERS)) {
+                const folderStore = dbInstance.createObjectStore(STORE_NAME_FOLDERS, { keyPath: 'id', autoIncrement: true });
+                folderStore.createIndex('name', 'name', { unique: false });
+                folderStore.createIndex('createdAt', 'createdAt', { unique: false });
+            }
+
+            if (!dbInstance.objectStoreNames.contains(STORE_NAME_PAPER_FOLDERS)) {
+                const paperFolderStore = dbInstance.createObjectStore(STORE_NAME_PAPER_FOLDERS, { keyPath: 'id', autoIncrement: true });
+                paperFolderStore.createIndex('paperId', 'paperId', { unique: false });
+                paperFolderStore.createIndex('folderId', 'folderId', { unique: false });
+                paperFolderStore.createIndex('paperFolder', ['paperId', 'folderId'], { unique: false });
+            }
         } catch (error) {
             console.error('Error during database upgrade:', error);
             transaction.abort();
@@ -264,6 +280,8 @@ export {
     DB_VERSION,
     STORE_NAME_PAPERS,
     STORE_NAME_COLLECTIONS,
-    STORE_NAME_ANNOTATIONS
+    STORE_NAME_ANNOTATIONS,
+    STORE_NAME_FOLDERS,
+    STORE_NAME_PAPER_FOLDERS
 };
 

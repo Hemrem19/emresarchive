@@ -11,7 +11,8 @@ import * as authModule from '../../api/auth.js';
 import * as userApiModule from '../../api/user.js';
 import * as importApiModule from '../../api/import.js';
 import * as papersModule from '../../db/papers.js';
-import * as collectionsModule from '../../db/collections.js';
+import * as foldersModule from '../../db/folders.js';
+import * as paperFoldersModule from '../../db/paperFolders.js';
 import * as annotationsModule from '../../db/annotations.js';
 import * as coreModule from '../../db/core.js';
 
@@ -21,7 +22,8 @@ vi.mock('../../api/auth.js');
 vi.mock('../../api/user.js');
 vi.mock('../../api/import.js');
 vi.mock('../../db/papers.js');
-vi.mock('../../db/collections.js');
+vi.mock('../../db/folders.js');
+vi.mock('../../db/paperFolders.js');
 vi.mock('../../db/annotations.js');
 vi.mock('../../db/core.js');
 
@@ -54,12 +56,13 @@ describe('DB Data Coverage', () => {
 
         // Mock add functions
         papersModule.addPaper.mockResolvedValue(1);
-        collectionsModule.addCollection.mockResolvedValue(1);
+        foldersModule.addFolder.mockResolvedValue(1);
         annotationsModule.addAnnotation.mockResolvedValue(1);
 
         // Mock get functions
         papersModule.getAllPapers.mockResolvedValue([]);
-        collectionsModule.getAllCollections.mockResolvedValue([]);
+        foldersModule.getAllFolders.mockResolvedValue([]);
+        paperFoldersModule.getAllPaperFolders.mockResolvedValue([]);
         annotationsModule.getAnnotationsByPaperId.mockResolvedValue([]);
     });
 
@@ -75,12 +78,13 @@ describe('DB Data Coverage', () => {
                 oncomplete: null
             };
             coreModule.openDB.mockResolvedValue({
-                transaction: vi.fn().mockReturnValue(mockTransaction)
+                transaction: vi.fn().mockReturnValue(mockTransaction),
+                objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
             });
 
             const dataToImport = {
                 papers: [{ title: 'Paper 1', authors: ['Author 1'] }],
-                collections: [{ name: 'Collection 1' }],
+                folders: [{ name: 'Folder 1' }],
                 annotations: [{ content: 'Note 1', paperId: 1 }]
             };
 
@@ -94,7 +98,7 @@ describe('DB Data Coverage', () => {
             expect(importApiModule.batchImport).toHaveBeenCalled();
             const callArgs = importApiModule.batchImport.mock.calls[0][0];
             expect(callArgs.papers).toHaveLength(1);
-            expect(callArgs.collections).toHaveLength(1);
+            expect(callArgs.folders).toHaveLength(1);
             expect(callArgs.annotations).toHaveLength(1);
         });
 
@@ -109,7 +113,8 @@ describe('DB Data Coverage', () => {
                 oncomplete: null
             };
             coreModule.openDB.mockResolvedValue({
-                transaction: vi.fn().mockReturnValue(mockTransaction)
+                transaction: vi.fn().mockReturnValue(mockTransaction),
+                objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
             });
 
             setTimeout(() => {
@@ -135,7 +140,8 @@ describe('DB Data Coverage', () => {
                 oncomplete: null
             };
             coreModule.openDB.mockResolvedValue({
-                transaction: vi.fn().mockReturnValue(mockTransaction)
+                transaction: vi.fn().mockReturnValue(mockTransaction),
+                objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
             });
 
             setTimeout(() => {
@@ -163,28 +169,19 @@ describe('DB Data Coverage', () => {
             authModule.isAuthenticated.mockReturnValue(true);
             userApiModule.clearAllUserData.mockResolvedValue({ deleted: { papers: 1 } });
 
-            // Mock local clear success with unique requests
-            const mockPapersClear = { onsuccess: null };
-            const mockCollectionsClear = { onsuccess: null };
-            const mockAnnotationsClear = { onsuccess: null };
-
             const mockTransaction = {
-                objectStore: vi.fn().mockReturnValue({
-                    clear: vi.fn()
-                        .mockReturnValueOnce(mockPapersClear)
-                        .mockReturnValueOnce(mockCollectionsClear)
-                        .mockReturnValueOnce(mockAnnotationsClear)
-                })
+                objectStore: vi.fn().mockReturnValue({ clear: vi.fn() }),
+                oncomplete: null,
+                onerror: null
             };
             coreModule.openDB.mockResolvedValue({
-                transaction: vi.fn().mockReturnValue(mockTransaction)
+                transaction: vi.fn().mockReturnValue(mockTransaction),
+                objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
             });
 
-            // Trigger local clear success
+            // Trigger transaction complete manually
             setTimeout(() => {
-                if (mockPapersClear.onsuccess) mockPapersClear.onsuccess();
-                if (mockCollectionsClear.onsuccess) mockCollectionsClear.onsuccess();
-                if (mockAnnotationsClear.onsuccess) mockAnnotationsClear.onsuccess();
+                if (mockTransaction.oncomplete) mockTransaction.oncomplete();
             }, 0);
 
             await clearAllData();

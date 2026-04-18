@@ -5,7 +5,7 @@ import { logger } from 'hono/logger';
 
 // Routing Hooks
 import authRoutes from './routes/auth.js';
-import collectionsRoutes from './routes/collections.js';
+import foldersRoutes from './routes/folders.js';
 import userRoutes from './routes/user.js';
 import papersRoutes from './routes/papers.js';
 import annotationsRoutes from './routes/annotations.js';
@@ -50,7 +50,7 @@ app.get('/health', (c) => {
 // API routes Hookups
 app.route('/api/auth', authRoutes);
 app.route('/api/user', userRoutes);
-app.route('/api/collections', collectionsRoutes);
+app.route('/api/folders', foldersRoutes);
 app.route('/api/papers', papersRoutes);
 app.route('/api/annotations', annotationsRoutes);
 app.route('/api/networks', networkRoutes);

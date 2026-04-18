@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers, collections, annotations, isCloudSyncAvailable } from '../../db/adapter.js';
+import { papers, folders, annotations, isCloudSyncAvailable } from '../../db/adapter.js';
 import { resetAllMocks, setMockAuth, clearMockAuth, setMockSyncEnabled, clearMockSync } from '../helpers.js';
 
 // Mock dependencies
@@ -27,12 +27,22 @@ vi.mock('../../db/papers.js', () => ({
     deletePaper: vi.fn()
 }));
 
-vi.mock('../../db/collections.js', () => ({
-    addCollection: vi.fn(),
-    getAllCollections: vi.fn(() => Promise.resolve([])),
-    getCollectionById: vi.fn(),
-    updateCollection: vi.fn(),
-    deleteCollection: vi.fn()
+vi.mock('../../db/folders.js', () => ({
+    addFolder: vi.fn(),
+    getAllFolders: vi.fn(() => Promise.resolve([])),
+    getFolderById: vi.fn(),
+    updateFolder: vi.fn(),
+    deleteFolder: vi.fn()
+}));
+
+vi.mock('../../db/paperFolders.js', () => ({
+    addPaperToFolder: vi.fn(),
+    removePaperFromFolder: vi.fn(),
+    removeAllForFolder: vi.fn(),
+    removeAllForPaper: vi.fn(),
+    getFolderIdsByPaperId: vi.fn(() => Promise.resolve([])),
+    getPaperIdsByFolderId: vi.fn(() => Promise.resolve([])),
+    getAllPaperFolders: vi.fn(() => Promise.resolve([]))
 }));
 
 vi.mock('../../db/annotations.js', () => ({
@@ -56,12 +66,18 @@ vi.mock('../../api/papers.js', () => ({
     batchOperations: vi.fn(() => Promise.resolve([]))
 }));
 
-vi.mock('../../api/collections.js', () => ({
-    createCollection: vi.fn(),
-    getAllCollections: vi.fn(() => Promise.resolve({ collections: [] })),
-    getCollection: vi.fn(),
-    updateCollection: vi.fn(),
-    deleteCollection: vi.fn()
+vi.mock('../../api/folders.js', () => ({
+    createFolder: vi.fn(),
+    getAllFolders: vi.fn(() => Promise.resolve([])),
+    getFolder: vi.fn(),
+    updateFolder: vi.fn(),
+    deleteFolder: vi.fn()
+}));
+
+vi.mock('../../api/paperFolders.js', () => ({
+    addPaperToFolder: vi.fn(),
+    removePaperFromFolder: vi.fn(),
+    getPapersInFolder: vi.fn(() => Promise.resolve([]))
 }));
 
 vi.mock('../../api/annotations.js', () => ({
@@ -76,9 +92,11 @@ vi.mock('../../db/sync.js', () => ({
     trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
     trackPaperDeleted: vi.fn(),
-    trackCollectionCreated: vi.fn(),
-    trackCollectionUpdated: vi.fn(),
-    trackCollectionDeleted: vi.fn(),
+    trackFolderCreated: vi.fn(),
+    trackFolderUpdated: vi.fn(),
+    trackFolderDeleted: vi.fn(),
+    trackPaperFolderCreated: vi.fn(),
+    trackPaperFolderDeleted: vi.fn(),
     trackAnnotationCreated: vi.fn(),
     trackAnnotationUpdated: vi.fn(),
     trackAnnotationDeleted: vi.fn()
@@ -181,10 +199,8 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
     });
 
     describe('getAllPapers', () => {
-        it('should return local papers and trigger sync in cloud mode', async () => {
-            const apiPapers = await import('../../api/papers.js');
+        it('should return local papers in cloud mode', async () => {
             const localPapers = await import('../../db/papers.js');
-            const { triggerDebouncedSync } = await import('../../core/syncManager.js');
 
             const localPapersList = [
                 { id: 1, title: 'Local Paper', status: 'Reading' }
@@ -195,8 +211,6 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
             const result = await papers.getAllPapers();
 
             expect(localPapers.getAllPapers).toHaveBeenCalled();
-            expect(triggerDebouncedSync).toHaveBeenCalled();
-            expect(apiPapers.getAllPapers).not.toHaveBeenCalled();
             expect(result).toHaveLength(1);
             expect(result[0]).toHaveProperty('title', 'Local Paper');
         });
@@ -216,45 +230,36 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
     });
 
     describe('updatePaper', () => {
-        it('should update paper via API in cloud mode', async () => {
+        it('should update paper locally and via API in cloud mode', async () => {
             const apiPapers = await import('../../api/papers.js');
             const localPapers = await import('../../db/papers.js');
-            const { trackPaperUpdated } = await import('../../db/sync.js');
-            const { triggerDebouncedSync } = await import('../../core/syncManager.js');
 
             apiPapers.updatePaper.mockResolvedValue({ id: 1, title: 'Updated', status: 'Reading' });
             localPapers.updatePaper.mockResolvedValue(1);
-            localPapers.getPaperById.mockResolvedValue({ id: 1, title: 'Updated' });
 
             await papers.updatePaper(1, { title: 'Updated', readingStatus: 'Reading' });
 
             expect(localPapers.updatePaper).toHaveBeenCalled();
-            expect(trackPaperUpdated).toHaveBeenCalledWith(1, { title: 'Updated', readingStatus: 'Reading' });
-            expect(triggerDebouncedSync).toHaveBeenCalled();
+            expect(apiPapers.updatePaper).toHaveBeenCalled();
         });
 
         it('should fallback to local on cloud error', async () => {
             const apiPapers = await import('../../api/papers.js');
             const localPapers = await import('../../db/papers.js');
-            const { trackPaperUpdated } = await import('../../db/sync.js');
 
             apiPapers.updatePaper.mockRejectedValue(new Error('Cloud error'));
             localPapers.updatePaper.mockResolvedValue(1);
-            localPapers.getPaperById.mockResolvedValue({ id: 1, title: 'Updated' });
 
-            await papers.updatePaper(1, { title: 'Updated' });
-
+            // Should not throw
+            await expect(papers.updatePaper(1, { title: 'Updated' })).resolves.toBeDefined();
             expect(localPapers.updatePaper).toHaveBeenCalled();
-            expect(trackPaperUpdated).toHaveBeenCalledWith(1, { title: 'Updated' });
         });
     });
 
     describe('deletePaper', () => {
-        it('should delete paper via API in cloud mode', async () => {
+        it('should delete paper locally and via API in cloud mode', async () => {
             const apiPapers = await import('../../api/papers.js');
             const localPapers = await import('../../db/papers.js');
-            const { trackPaperDeleted } = await import('../../db/sync.js');
-            const { triggerDebouncedSync } = await import('../../core/syncManager.js');
 
             apiPapers.deletePaper.mockResolvedValue();
             localPapers.deletePaper.mockResolvedValue();
@@ -262,8 +267,7 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
             await papers.deletePaper(1);
 
             expect(localPapers.deletePaper).toHaveBeenCalled();
-            expect(trackPaperDeleted).toHaveBeenCalledWith(1);
-            expect(triggerDebouncedSync).toHaveBeenCalled();
+            expect(apiPapers.deletePaper).toHaveBeenCalled();
         });
 
         it('should handle 404 errors gracefully', async () => {
@@ -278,10 +282,9 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
             expect(localPapers.deletePaper).toHaveBeenCalledWith(1);
         });
 
-        it('should fallback to local on cloud error', async () => {
+        it('should still delete locally on cloud error', async () => {
             const apiPapers = await import('../../api/papers.js');
             const localPapers = await import('../../db/papers.js');
-            const { trackPaperDeleted } = await import('../../db/sync.js');
 
             apiPapers.deletePaper.mockRejectedValue(new Error('Cloud error'));
             localPapers.deletePaper.mockResolvedValue();
@@ -289,7 +292,6 @@ describe('db/adapter.js - Paper Operations - Cloud Mode', () => {
             await papers.deletePaper(1);
 
             expect(localPapers.deletePaper).toHaveBeenCalled();
-            expect(trackPaperDeleted).toHaveBeenCalledWith(1);
         });
     });
 });
@@ -339,7 +341,7 @@ describe('db/adapter.js - Paper Operations - Local Mode', () => {
     });
 });
 
-describe('db/adapter.js - Collection Operations', () => {
+describe('db/adapter.js - Folder Operations', () => {
     beforeEach(async () => {
         resetAllMocks();
         clearMockSync();
@@ -352,34 +354,34 @@ describe('db/adapter.js - Collection Operations', () => {
         isAuthenticated.mockReturnValue(true);
     });
 
-    it('should create collection via API in cloud mode', async () => {
-        const apiCollections = await import('../../api/collections.js');
-        const localCollections = await import('../../db/collections.js');
+    it('should create folder via API in cloud mode', async () => {
+        const apiFoldersModule = await import('../../api/folders.js');
+        const localFoldersModule = await import('../../db/folders.js');
         const { triggerDebouncedSync } = await import('../../core/syncManager.js');
 
-        apiCollections.createCollection.mockResolvedValue({ id: 1, name: 'Test Collection' });
-        localCollections.addCollection.mockResolvedValue(1);
+        apiFoldersModule.createFolder.mockResolvedValue({ id: 1, name: 'Test Folder' });
+        localFoldersModule.addFolder.mockResolvedValue(1);
 
-        const result = await collections.addCollection({ name: 'Test Collection' });
+        const result = await folders.addFolder({ name: 'Test Folder' });
 
-        expect(apiCollections.createCollection).toHaveBeenCalled();
-        expect(localCollections.addCollection).toHaveBeenCalled();
+        expect(apiFoldersModule.createFolder).toHaveBeenCalled();
+        expect(localFoldersModule.addFolder).toHaveBeenCalled();
         expect(triggerDebouncedSync).toHaveBeenCalled();
         expect(result).toBe(1);
     });
 
     it('should fallback to local on cloud error', async () => {
-        const apiCollections = await import('../../api/collections.js');
-        const localCollections = await import('../../db/collections.js');
-        const { trackCollectionCreated } = await import('../../db/sync.js');
+        const apiFoldersModule = await import('../../api/folders.js');
+        const localFoldersModule = await import('../../db/folders.js');
+        const { trackFolderCreated } = await import('../../db/sync.js');
 
-        apiCollections.createCollection.mockRejectedValue(new Error('Cloud error'));
-        localCollections.addCollection.mockResolvedValue(2);
+        apiFoldersModule.createFolder.mockRejectedValue(new Error('Cloud error'));
+        localFoldersModule.addFolder.mockResolvedValue(2);
 
-        const result = await collections.addCollection({ name: 'Test' });
+        const result = await folders.addFolder({ name: 'Test' });
 
-        expect(localCollections.addCollection).toHaveBeenCalled();
-        expect(trackCollectionCreated).toHaveBeenCalled();
+        expect(localFoldersModule.addFolder).toHaveBeenCalled();
+        expect(trackFolderCreated).toHaveBeenCalled();
         expect(result).toBe(2);
     });
 });

@@ -69,18 +69,30 @@ export const papers = sqliteTable('papers', {
   deletedAt: text('deleted_at'),
 });
 
-// Collections Table
-export const collections = sqliteTable('collections', {
+// Folders Table (replaces Collections)
+export const folders = sqliteTable('folders', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
-  icon: text('icon').default('folder').notNull(),
-  color: text('color').default('text-primary').notNull(),
-  filters: text('filters', { mode: 'json' }).notNull(),
+  icon: text('icon').default('folder'),
+  color: text('color'),
+  position: integer('position').default(0).notNull(),
+  workspaceId: text('workspace_id'),  // Future: shared workspace support
+  isShared: integer('is_shared', { mode: 'boolean' }).default(false).notNull(),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   deletedAt: text('deleted_at'),
   version: integer('version').default(1).notNull(),
+});
+
+// Paper-Folders Junction Table
+export const paperFolders = sqliteTable('paper_folders', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  paperId: integer('paper_id').notNull().references(() => papers.id, { onDelete: 'cascade' }),
+  folderId: integer('folder_id').notNull().references(() => folders.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  addedAt: text('added_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: text('deleted_at'),
 });
 
 // Annotations Table
@@ -163,7 +175,7 @@ export const paperConnections = sqliteTable('paper_connections', {
 
 export const usersRelations = relations(users, ({ many }) => ({
   papers: many(papers),
-  collections: many(collections),
+  folders: many(folders),
   annotations: many(annotations),
   sessions: many(sessions),
   syncLogs: many(syncLogs),
@@ -173,6 +185,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const papersRelations = relations(papers, ({ one, many }) => ({
   user: one(users, { fields: [papers.userId], references: [users.id] }),
   annotations: many(annotations),
+  paperFolders: many(paperFolders),
   citingPapers: many(paperConnections, { relationName: 'CitingPapers' }),
   citedPapers: many(paperConnections, { relationName: 'CitedPapers' }),
 }));
@@ -182,8 +195,15 @@ export const paperConnectionsRelations = relations(paperConnections, ({ one }) =
   toPaper: one(papers, { fields: [paperConnections.toPaperId], references: [papers.id], relationName: 'CitedPapers' }),
 }));
 
-export const collectionsRelations = relations(collections, ({ one }) => ({
-  user: one(users, { fields: [collections.userId], references: [users.id] }),
+export const foldersRelations = relations(folders, ({ one, many }) => ({
+  user: one(users, { fields: [folders.userId], references: [users.id] }),
+  paperFolders: many(paperFolders),
+}));
+
+export const paperFoldersRelations = relations(paperFolders, ({ one }) => ({
+  paper: one(papers, { fields: [paperFolders.paperId], references: [papers.id] }),
+  folder: one(folders, { fields: [paperFolders.folderId], references: [folders.id] }),
+  user: one(users, { fields: [paperFolders.userId], references: [users.id] }),
 }));
 
 export const annotationsRelations = relations(annotations, ({ one }) => ({

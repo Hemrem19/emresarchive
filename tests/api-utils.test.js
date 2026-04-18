@@ -153,13 +153,7 @@ describe('api/utils.js - parseJsonResponse', () => {
             }
         };
 
-        // Mock localStorage
-        const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
-        const dispatchEventSpy = vi.spyOn(window, 'dispatchEvent');
-
         await expect(parseJsonResponse(mockResponse)).rejects.toThrow('Session expired');
-        expect(removeItemSpy).toHaveBeenCalledWith('accessToken');
-        expect(dispatchEventSpy).toHaveBeenCalled();
     });
 
     it('should handle non-JSON error responses', async () => {

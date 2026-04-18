@@ -3,21 +3,22 @@
  * Handles export, import, and clear operations for all database data
  */
 
-import { openDB, STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS } from './core.js';
+import { openDB, STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS, STORE_NAME_FOLDERS, STORE_NAME_PAPER_FOLDERS } from './core.js';
 import { getAllPapers } from './papers.js';
-import { getAllCollections } from './collections.js';
+import { getAllFolders } from './folders.js';
+import { getAllPaperFolders } from './paperFolders.js';
 import { getAnnotationsByPaperId } from './annotations.js';
 import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
 // Removed adapter imports - using local-first approach for imports
 // Import function now saves directly to local storage and tracks changes for later sync
 import { deletePaper as deletePaperViaAdapter } from '../db.js';
-import { deleteCollection as deleteCollectionViaAdapter } from '../db.js';
+import { deleteFolder as deleteFolderViaAdapter } from '../db.js';
 import { deleteAnnotation as deleteAnnotationViaAdapter } from '../db.js';
 import { getAllPapers as getAllPapersViaAdapter } from '../db.js';
-import { getAllCollections as getAllCollectionsViaAdapter } from '../db.js';
+import { getAllFolders as getAllFoldersViaAdapter } from '../db.js';
 import * as apiPapers from '../api/papers.js';
-import * as apiCollections from '../api/collections.js';
+import * as apiFolders from '../api/folders.js';
 import * as apiAnnotations from '../api/annotations.js';
 import { clearAllUserData } from '../api/user.js';
 
@@ -31,8 +32,9 @@ import { clearAllUserData } from '../api/user.js';
 async function exportAllData() {
     try {
         const papers = await getAllPapers();
-        const collections = await getAllCollections();
-        
+        const folders = await getAllFolders();
+        const paperFolders = await getAllPaperFolders();
+
         // Get all annotations for all papers
         const allAnnotations = [];
         for (const paper of papers) {
@@ -43,10 +45,10 @@ async function exportAllData() {
                 console.warn(`Could not export annotations for paper ${paper.id}:`, error);
             }
         }
-        
-        if ((!papers || papers.length === 0) && (!collections || collections.length === 0) && allAnnotations.length === 0) {
+
+        if ((!papers || papers.length === 0) && (!folders || folders.length === 0) && allAnnotations.length === 0) {
             console.warn('No data to export');
-            return { papers: [], collections: [], annotations: [] };
+            return { papers: [], folders: [], paperFolders: [], annotations: [] };
         }
 
         const serializablePapers = [];
@@ -94,12 +96,23 @@ async function exportAllData() {
             }
         }
 
-        // Process collections
-        const serializableCollections = collections.map(collection => {
-            const serializable = { ...collection };
-            // Convert dates to ISO strings
+        // Process folders
+        const serializableFolders = folders.map(folder => {
+            const serializable = { ...folder };
             if (serializable.createdAt instanceof Date) {
                 serializable.createdAt = serializable.createdAt.toISOString();
+            }
+            if (serializable.updatedAt instanceof Date) {
+                serializable.updatedAt = serializable.updatedAt.toISOString();
+            }
+            return serializable;
+        });
+
+        // Process paper-folder associations
+        const serializablePaperFolders = paperFolders.map(pf => {
+            const serializable = { ...pf };
+            if (serializable.addedAt instanceof Date) {
+                serializable.addedAt = serializable.addedAt.toISOString();
             }
             return serializable;
         });
@@ -119,7 +132,8 @@ async function exportAllData() {
 
         return {
             papers: serializablePapers,
-            collections: serializableCollections,
+            folders: serializableFolders,
+            paperFolders: serializablePaperFolders,
             annotations: serializableAnnotations
         };
     } catch (error) {
@@ -141,23 +155,25 @@ async function exportAllData() {
 async function importData(dataToImport) {
     // Handle multiple formats
     let papersToImport = [];
-    let collectionsToImport = [];
+    let foldersToImport = [];
+    let paperFoldersToImport = [];
     let annotationsToImport = [];
-    
+
     if (Array.isArray(dataToImport)) {
         // Old format: just an array of papers
         papersToImport = dataToImport;
     } else if (dataToImport && typeof dataToImport === 'object') {
-        // New format: object with papers, collections, and annotations
         papersToImport = dataToImport.papers || [];
-        collectionsToImport = dataToImport.collections || [];
+        // Support new folders format and ignore old collections
+        foldersToImport = dataToImport.folders || [];
+        paperFoldersToImport = dataToImport.paperFolders || [];
         annotationsToImport = dataToImport.annotations || [];
     } else {
-        throw new Error('Invalid import data: Data must be an array of papers or an object with papers, collections, and annotations.');
+        throw new Error('Invalid import data: Data must be an array of papers or an object with papers, folders, and annotations.');
     }
 
-    if (papersToImport.length === 0 && collectionsToImport.length === 0 && annotationsToImport.length === 0) {
-        throw new Error('Invalid import data: No papers, collections, or annotations found in import file.');
+    if (papersToImport.length === 0 && foldersToImport.length === 0 && annotationsToImport.length === 0) {
+        throw new Error('Invalid import data: No papers, folders, or annotations found in import file.');
     }
 
     // Validate paper structure
@@ -170,36 +186,34 @@ async function importData(dataToImport) {
             throw new Error(`Invalid import data: Paper at index ${i} is missing required title field.`);
         }
     }
-    
-    // Validate collection structure
-    for (let i = 0; i < collectionsToImport.length; i++) {
-        const collection = collectionsToImport[i];
-        if (!collection || typeof collection !== 'object') {
-            throw new Error(`Invalid import data: Collection at index ${i} is not a valid object.`);
+
+    // Validate folder structure
+    for (let i = 0; i < foldersToImport.length; i++) {
+        const folder = foldersToImport[i];
+        if (!folder || typeof folder !== 'object') {
+            throw new Error(`Invalid import data: Folder at index ${i} is not a valid object.`);
         }
-        if (!collection.name) {
-            throw new Error(`Invalid import data: Collection at index ${i} is missing required name field.`);
+        if (!folder.name) {
+            throw new Error(`Invalid import data: Folder at index ${i} is missing required name field.`);
         }
     }
 
     try {
         // Phase 1: Clear all existing data
         const database = await openDB();
-        await new Promise((resolve, reject) => {
-            const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
-            const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
-            const collectionsStore = transaction.objectStore(STORE_NAME_COLLECTIONS);
-            const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
+        const storeNames = [STORE_NAME_PAPERS, STORE_NAME_ANNOTATIONS];
+        if (database.objectStoreNames.contains(STORE_NAME_FOLDERS)) storeNames.push(STORE_NAME_FOLDERS);
+        if (database.objectStoreNames.contains(STORE_NAME_PAPER_FOLDERS)) storeNames.push(STORE_NAME_PAPER_FOLDERS);
+        if (database.objectStoreNames.contains(STORE_NAME_COLLECTIONS)) storeNames.push(STORE_NAME_COLLECTIONS);
 
-            // Clear all stores
-            papersStore.clear();
-            collectionsStore.clear();
-            annotationsStore.clear();
-            
+        await new Promise((resolve, reject) => {
+            const transaction = database.transaction(storeNames, 'readwrite');
+            for (const name of storeNames) {
+                transaction.objectStore(name).clear();
+            }
             transaction.oncomplete = () => resolve();
             transaction.onerror = (event) => {
-                const error = event.target.error;
-                console.error('Error clearing stores for import:', error);
+                console.error('Error clearing stores for import:', event.target.error);
                 reject(new Error('Import failed: Unable to clear existing data. Please try again.'));
             };
         });
@@ -208,8 +222,8 @@ async function importData(dataToImport) {
         // This ensures all items are properly added with their own transactions
         let paperSuccessCount = 0;
         let paperErrorCount = 0;
-        let collectionSuccessCount = 0;
-        let collectionErrorCount = 0;
+        let folderSuccessCount = 0;
+        let folderErrorCount = 0;
         let annotationSuccessCount = 0;
         let annotationErrorCount = 0;
         
@@ -302,34 +316,42 @@ async function importData(dataToImport) {
             }
         }
 
-        // Import collections
-        const { addCollection: addCollectionLocal } = await import('./collections.js');
-        const collectionsForCloudImport = [];
-        
-        for (let i = 0; i < collectionsToImport.length; i++) {
-            const collection = collectionsToImport[i];
+        // Import folders
+        const { addFolder: addFolderLocal } = await import('./folders.js');
+        const { addPaperToFolder: addPaperToFolderLocal } = await import('./paperFolders.js');
+        const foldersForCloudImport = [];
+
+        for (let i = 0; i < foldersToImport.length; i++) {
+            const folder = foldersToImport[i];
             try {
-                const collectionToStore = { ...collection };
-                
-                // Convert ISO date strings back to Date objects
-                if (collectionToStore.createdAt && typeof collectionToStore.createdAt === 'string') {
-                    collectionToStore.createdAt = new Date(collectionToStore.createdAt);
+                const folderToStore = { ...folder };
+                if (folderToStore.createdAt && typeof folderToStore.createdAt === 'string') {
+                    folderToStore.createdAt = new Date(folderToStore.createdAt);
                 }
-                
-                // Local-first: Save directly to IndexedDB
-                await addCollectionLocal(collectionToStore);
-                collectionSuccessCount++;
-                
-                // Prepare for batch cloud import
+                if (folderToStore.updatedAt && typeof folderToStore.updatedAt === 'string') {
+                    folderToStore.updatedAt = new Date(folderToStore.updatedAt);
+                }
+                await addFolderLocal(folderToStore);
+                folderSuccessCount++;
+
                 if (useCloudSync) {
-                    const collectionForSync = { ...collectionToStore };
-                    delete collectionForSync.id;
-                    delete collectionForSync.localId;
-                    collectionsForCloudImport.push(collectionForSync);
+                    const folderForSync = { ...folderToStore };
+                    delete folderForSync.id;
+                    delete folderForSync.localId;
+                    foldersForCloudImport.push(folderForSync);
                 }
-            } catch (collectionError) {
-                console.error(`Error importing collection "${collection.name}":`, collectionError);
-                collectionErrorCount++;
+            } catch (folderError) {
+                console.error(`Error importing folder "${folder.name}":`, folderError);
+                folderErrorCount++;
+            }
+        }
+
+        // Import paper-folder associations
+        for (const pf of paperFoldersToImport) {
+            try {
+                await addPaperToFolderLocal(pf.paperId, pf.folderId);
+            } catch (e) {
+                console.warn('Error importing paper-folder association:', e);
             }
         }
 
@@ -368,17 +390,17 @@ async function importData(dataToImport) {
         }
 
         // Send batch import to cloud if enabled
-        if (useCloudSync && (papersForCloudImport.length > 0 || collectionsForCloudImport.length > 0 || annotationsForCloudImport.length > 0)) {
+        if (useCloudSync && (papersForCloudImport.length > 0 || foldersForCloudImport.length > 0 || annotationsForCloudImport.length > 0)) {
             try {
                 const { batchImport } = await import('../api/import.js');
-                console.log(`Sending batch import to cloud: ${papersForCloudImport.length} papers, ${collectionsForCloudImport.length} collections, ${annotationsForCloudImport.length} annotations`);
-                
+                console.log(`Sending batch import to cloud: ${papersForCloudImport.length} papers, ${foldersForCloudImport.length} folders, ${annotationsForCloudImport.length} annotations`);
+
                 const result = await batchImport({
                     papers: papersForCloudImport,
-                    collections: collectionsForCloudImport,
+                    folders: foldersForCloudImport,
                     annotations: annotationsForCloudImport
                 });
-                
+
                 console.log('Batch import to cloud completed:', result.data.summary);
             } catch (cloudError) {
                 console.error('Cloud batch import failed:', cloudError);
@@ -390,8 +412,8 @@ async function importData(dataToImport) {
         // Check results
         if (paperSuccessCount === 0 && papersToImport.length > 0) {
             throw new Error('Import failed: Unable to import any papers. Please check the file format and try again.');
-        } else if (paperErrorCount > 0 || collectionErrorCount > 0 || annotationErrorCount > 0) {
-            console.warn(`Import completed with ${paperErrorCount} paper errors, ${collectionErrorCount} collection errors, and ${annotationErrorCount} annotation errors`);
+        } else if (paperErrorCount > 0 || folderErrorCount > 0 || annotationErrorCount > 0) {
+            console.warn(`Import completed with ${paperErrorCount} paper errors, ${folderErrorCount} folder errors, and ${annotationErrorCount} annotation errors`);
         }
     } catch (error) {
         console.error('Error in importData:', error);
@@ -428,45 +450,21 @@ async function clearAllData() {
     // Clear local IndexedDB
     console.log('Clearing local data...');
     const database = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = database.transaction([STORE_NAME_PAPERS, STORE_NAME_COLLECTIONS, STORE_NAME_ANNOTATIONS], 'readwrite');
-        const papersStore = transaction.objectStore(STORE_NAME_PAPERS);
-        const collectionsStore = transaction.objectStore(STORE_NAME_COLLECTIONS);
-        const annotationsStore = transaction.objectStore(STORE_NAME_ANNOTATIONS);
-        
-        const clearPapersRequest = papersStore.clear();
-        const clearCollectionsRequest = collectionsStore.clear();
-        const clearAnnotationsRequest = annotationsStore.clear();
+    const storeNames = [STORE_NAME_PAPERS, STORE_NAME_ANNOTATIONS];
+    if (database.objectStoreNames.contains(STORE_NAME_FOLDERS)) storeNames.push(STORE_NAME_FOLDERS);
+    if (database.objectStoreNames.contains(STORE_NAME_PAPER_FOLDERS)) storeNames.push(STORE_NAME_PAPER_FOLDERS);
+    if (database.objectStoreNames.contains(STORE_NAME_COLLECTIONS)) storeNames.push(STORE_NAME_COLLECTIONS);
 
-        let papersCleared = false;
-        let collectionsCleared = false;
-        let annotationsCleared = false;
-        
-        clearPapersRequest.onsuccess = () => {
-            papersCleared = true;
-            if (collectionsCleared && annotationsCleared) {
-                console.log('Local data cleared successfully');
-                resolve();
-            }
+    return new Promise((resolve, reject) => {
+        const transaction = database.transaction(storeNames, 'readwrite');
+        for (const name of storeNames) {
+            transaction.objectStore(name).clear();
+        }
+        transaction.oncomplete = () => {
+            console.log('Local data cleared successfully');
+            resolve();
         };
-        
-        clearCollectionsRequest.onsuccess = () => {
-            collectionsCleared = true;
-            if (papersCleared && annotationsCleared) {
-                console.log('Local data cleared successfully');
-                resolve();
-            }
-        };
-        
-        clearAnnotationsRequest.onsuccess = () => {
-            annotationsCleared = true;
-            if (papersCleared && collectionsCleared) {
-                console.log('Local data cleared successfully');
-                resolve();
-            }
-        };
-        
-        clearPapersRequest.onerror = clearCollectionsRequest.onerror = clearAnnotationsRequest.onerror = (event) => {
+        transaction.onerror = (event) => {
             console.error('Error clearing local data:', event.target.error);
             reject(event.target.error);
         };
