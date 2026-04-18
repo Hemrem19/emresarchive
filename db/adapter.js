@@ -50,13 +50,22 @@ function shouldUseCloudSync() {
 
 // Flag to prevent duplicate seeding within a single page load
 let _localSeededFromCloud = false;
+// Singleflight for seedLocalFromCloud — both syncFromCloud() and getAllPapers()
+// funnel through here, so only one REST pass runs at a time regardless of caller.
+let _seedInFlight = null;
+
+function seedLocalFromCloud() {
+    if (_seedInFlight) return _seedInFlight;
+    _seedInFlight = _doSeedLocalFromCloud().finally(() => { _seedInFlight = null; });
+    return _seedInFlight;
+}
 
 /**
  * Fetches all papers and collections from the REST API and upserts them into
  * local IndexedDB. Called once per page load when cloud sync is enabled so
  * the dashboard always shows up-to-date data even on a fresh device.
  */
-async function seedLocalFromCloud() {
+async function _doSeedLocalFromCloud() {
     // Fetch all papers (use a high limit to avoid pagination for typical libraries)
     const { papers: apiPaperList } = await apiPapers.getAllPapers({ limit: 1000 });
     const serverPaperIds = new Set(apiPaperList.map(p => p.id));
@@ -117,15 +126,10 @@ let _syncInFlight = null;
 export function syncFromCloud() {
     if (!shouldUseCloudSync()) return Promise.resolve();
     if (_syncInFlight) return _syncInFlight;
-    _syncInFlight = (async () => {
-        try {
-            await seedLocalFromCloud();
-            _localSeededFromCloud = true;
-            window.dispatchEvent(new CustomEvent('citavers:cloud-synced'));
-        } finally {
-            _syncInFlight = null;
-        }
-    })();
+    _syncInFlight = seedLocalFromCloud().then(() => {
+        _localSeededFromCloud = true;
+        window.dispatchEvent(new CustomEvent('citavers:cloud-synced'));
+    }).finally(() => { _syncInFlight = null; });
     return _syncInFlight;
 }
 
@@ -254,18 +258,15 @@ export const papers = {
     },
 
     async getAllPapers() {
-        if (shouldUseCloudSync() && !isRateLimited()) {
-            if (!_localSeededFromCloud) {
+        if (shouldUseCloudSync() && !isRateLimited() && !_localSeededFromCloud) {
+            // Route through seedLocalFromCloud() (singleflight) so this can't
+            // race with a concurrent syncFromCloud() call.
+            try {
+                await seedLocalFromCloud();
                 _localSeededFromCloud = true;
-                try {
-                    await seedLocalFromCloud();
-                } catch (e) {
-                    // Do not reset _localSeededFromCloud — the 30s poller will catch up
-                    console.warn('[Adapter] Initial cloud seed failed:', e.message);
-                }
+            } catch (e) {
+                console.warn('[Adapter] Initial cloud seed failed:', e.message);
             }
-            // No triggerDebouncedSync() here — reads should not trigger sync.
-            // Background sync is handled by the 30s poller in syncManager.
         }
 
         return localPapers.getAllPapers();

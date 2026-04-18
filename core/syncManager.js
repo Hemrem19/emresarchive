@@ -114,6 +114,9 @@ export function initializeAutoSync() {
         // Use a getter function for params so each reconnect picks up a fresh token.
         // The DO force-closes the socket when the JWT expires (15m), so y-websocket
         // reconnects — without this it would reconnect with the stale expired token.
+        let _wsFailureCount = 0;
+        let _wsBackoffTimer = null;
+
         provider = new WebsocketProvider(wsUrl, 'default', yDoc, {
             connect: true,
             params: () => ({ token: getAccessToken() }),
@@ -122,11 +125,25 @@ export function initializeAutoSync() {
 
         provider.on('connection-error', err => {
             console.warn('[Sync Manager] WebSocket connection error:', err?.message ?? err);
+            _wsFailureCount++;
+            // After 3 consecutive failures, stop the provider's internal reconnect loop
+            // and schedule a single retry after 30s to avoid a reconnect storm.
+            if (_wsFailureCount >= 3 && provider) {
+                provider.disconnect();
+                console.warn('[Sync Manager] WebSocket repeatedly refused — pausing 30s before retry');
+                if (_wsBackoffTimer) clearTimeout(_wsBackoffTimer);
+                _wsBackoffTimer = setTimeout(() => {
+                    _wsFailureCount = 0;
+                    if (provider) provider.connect();
+                }, 30_000);
+            }
         });
 
         provider.on('status', event => {
             console.log('[Sync Manager] Websocket status:', event.status);
             if (event.status === 'connected') {
+                _wsFailureCount = 0;
+                if (_wsBackoffTimer) { clearTimeout(_wsBackoffTimer); _wsBackoffTimer = null; }
                 // Reset session guard so we get one syncFromCloud per connection
                 _yjsSyncDoneForSession = false;
             }
