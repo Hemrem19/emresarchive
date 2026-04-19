@@ -119,15 +119,22 @@ async function _doSeedLocalFromCloud() {
 /**
  * Re-fetches all data from the cloud REST API, upserts into local IndexedDB,
  * and dispatches 'citavers:cloud-synced' so the UI can refresh.
- * Called by syncManager on polling/reconnect/focus.
+ * Called by syncManager on reconnect/focus. Enforces a cooldown so rapid
+ * focus/online events don't trigger back-to-back N-folder REST passes.
  */
 let _syncInFlight = null;
+let _lastSyncAt = 0;
+const SYNC_COOLDOWN_MS = 60_000;
 
-export function syncFromCloud() {
+export function syncFromCloud({ force = false } = {}) {
     if (!shouldUseCloudSync()) return Promise.resolve();
     if (_syncInFlight) return _syncInFlight;
+    if (!force && _localSeededFromCloud && (Date.now() - _lastSyncAt) < SYNC_COOLDOWN_MS) {
+        return Promise.resolve();
+    }
     _syncInFlight = seedLocalFromCloud().then(() => {
         _localSeededFromCloud = true;
+        _lastSyncAt = Date.now();
         window.dispatchEvent(new CustomEvent('citavers:cloud-synced'));
     }).finally(() => { _syncInFlight = null; });
     return _syncInFlight;

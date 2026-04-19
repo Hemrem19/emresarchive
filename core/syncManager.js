@@ -7,7 +7,7 @@
  */
 
 import { isCloudSyncEnabled, getApiBaseUrl } from '../config.js';
-import { isAuthenticated, getAccessToken } from '../api/auth.js';
+import { isAuthenticated, getAccessToken, refreshToken } from '../api/auth.js';
 import { showToast } from '../ui.js';
 // Both imports point to the same esm.sh URL for yjs via ?deps= so the browser
 // module cache returns one Y.Doc constructor — prevents "Yjs was already imported" warning.
@@ -28,21 +28,56 @@ const DEBOUNCE_MS = 2000;
 let _offlineHandler = null;
 let _onlineHandler = null;
 let _focusHandler = null;
-let _pollInterval = null;
 let _keepAliveInterval = null;
 
 // Guard so syncFromCloud only fires once per WebSocket session, not on every reconnect.
-// The 30s poller handles subsequent background syncs.
 let _yjsSyncDoneForSession = false;
 
-const POLL_INTERVAL_MS = 30_000;
 const WS_KEEPALIVE_MS = 25_000; // Under Cloudflare's 30s idle timeout
+const TOKEN_REFRESH_THRESHOLD_MS = 60_000; // Refresh if <60s of life remains
 
 /**
  * Checks if sync should run automatically.
  */
 function shouldAutoSync() {
     return isCloudSyncEnabled() && isAuthenticated();
+}
+
+/**
+ * Returns the current access token, refreshing it first if it's expired or
+ * about to expire. The WS handshake puts the token in a query param, so a
+ * stale token causes a 401 upgrade and an infinite reconnect loop — this
+ * avoids that by guaranteeing a fresh token at connect time.
+ */
+async function ensureFreshToken() {
+    const token = getAccessToken();
+    if (!token) return null;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (!payload.exp) return token;
+        const msLeft = payload.exp * 1000 - Date.now();
+        if (msLeft > TOKEN_REFRESH_THRESHOLD_MS) return token;
+    } catch (_) {
+        // Malformed token — fall through to refresh attempt
+    }
+    try {
+        return await refreshToken();
+    } catch (e) {
+        console.warn('[Sync Manager] Token refresh before WS connect failed:', e.message);
+        return null;
+    }
+}
+
+/**
+ * Refreshes the token if needed, then calls provider.connect(). Exposed as a
+ * helper so both the initial connect and each backoff retry use fresh creds.
+ */
+async function connectWithFreshToken() {
+    if (!provider) return;
+    await ensureFreshToken();
+    try { provider.connect(); } catch (e) {
+        console.warn('[Sync Manager] provider.connect() threw:', e.message);
+    }
 }
 
 /**
@@ -89,18 +124,16 @@ export function initializeAutoSync() {
     window.addEventListener('offline', _offlineHandler);
     window.addEventListener('online', _onlineHandler);
 
-    // Pull latest from cloud on tab focus (catches changes made on other devices)
+    // Pull latest from cloud on tab focus (catches changes made on other devices).
+    // syncFromCloud() internally enforces a cooldown so rapid focus switches don't flood.
     _focusHandler = () => {
         syncFromCloud().catch(e => console.warn('[SyncManager] Focus sync failed:', e.message));
     };
     window.addEventListener('focus', _focusHandler);
 
-    // Poll every 30 seconds while the tab is open — WS is the source of truth;
-    // REST polling is a fallback for when the socket is not connected.
-    _pollInterval = setInterval(() => {
-        if (provider?.wsconnected) return;
-        syncFromCloud().catch(e => console.warn('[SyncManager] Poll sync failed:', e.message));
-    }, POLL_INTERVAL_MS);
+    // NOTE: No REST polling interval. The WebSocket is the live channel; if it's
+    // down, REST seed runs once per page load and on explicit user action only —
+    // polling every 30s was flooding the API (N requests per folder per poll).
 
     if (provider) return; // Already initialized
 
@@ -139,7 +172,9 @@ export function initializeAutoSync() {
             }
             _wsBackoffTimer = setTimeout(() => {
                 _wsBackoffTimer = null;
-                if (provider) provider.connect(); // sets shouldConnect=true + setupWS
+                // Refresh the token before reconnecting — 401s from stale tokens
+                // are the most common cause of repeated connection-errors.
+                connectWithFreshToken();
             }, delay);
         });
 
@@ -153,8 +188,8 @@ export function initializeAutoSync() {
             }
         });
 
-        // Kick off the first connection attempt ourselves.
-        provider.connect();
+        // Kick off the first connection attempt with a fresh token.
+        connectWithFreshToken();
 
         provider.on('sync', isSynced => {
             if (isSynced && !_yjsSyncDoneForSession) {
@@ -199,10 +234,6 @@ export function stopAutoSync() {
         window.removeEventListener('focus', _focusHandler);
         _focusHandler = null;
     }
-    if (_pollInterval) {
-        clearInterval(_pollInterval);
-        _pollInterval = null;
-    }
     if (_keepAliveInterval) {
         clearInterval(_keepAliveInterval);
         _keepAliveInterval = null;
@@ -241,7 +272,7 @@ export async function performManualSync() {
             return;
         }
 
-        await syncFromCloud();
+        await syncFromCloud({ force: true });
         showToast('Sync complete.', 'success', { duration: 3000 });
     } catch (err) {
         showToast(`Sync failed: ${err.message}`, 'error', {

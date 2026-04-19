@@ -52,11 +52,37 @@ export class WorkspaceDurableObject {
       }
     });
 
-    // Load initial state asynchronously
+    // Load initial state and rebuild session map from hibernated sockets.
+    // If the snapshot is corrupt/incompatible, we log and continue with a fresh
+    // doc rather than letting the constructor throw — an unhandled throw here
+    // would reset the DO on every incoming request and cause WS handshake refusals.
     this.state.blockConcurrencyWhile(async () => {
-      const storedUpdate = await this.state.storage.get("yjs_doc_snapshot");
-      if (storedUpdate) {
-        Y.applyUpdate(this.doc, storedUpdate);
+      try {
+        const storedUpdate = await this.state.storage.get("yjs_doc_snapshot");
+        if (storedUpdate) Y.applyUpdate(this.doc, storedUpdate);
+      } catch (err) {
+        console.error('[DO] Failed to apply stored snapshot, starting fresh:', err);
+      }
+
+      // Re-register hibernation-wake sockets in the in-memory session map so
+      // webSocketMessage/webSocketClose can find them.
+      try {
+        for (const ws of this.state.getWebSockets()) {
+          if (!this.sessions.has(ws)) {
+            const attached = (typeof ws.deserializeAttachment === 'function')
+              ? (ws.deserializeAttachment() || {})
+              : {};
+            this.sessions.set(ws, {
+              connectionId: attached.connectionId || crypto.randomUUID(),
+              userId: attached.userId || null,
+              tokens: 100,
+              lastRefill: Date.now(),
+              timeoutId: null
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[DO] Failed to rebuild session map from hibernated sockets:', err);
       }
     });
   }
@@ -110,6 +136,18 @@ export class WorkspaceDurableObject {
     }
 
     this.sessions.set(server, sessionData);
+
+    // Persist minimal metadata across hibernation so we can rebuild the map.
+    try {
+      if (typeof server.serializeAttachment === 'function') {
+        server.serializeAttachment({
+          connectionId: sessionData.connectionId,
+          userId: sessionData.userId
+        });
+      }
+    } catch (e) {
+      // Non-fatal — hibernation just won't carry attachment.
+    }
 
     // Send Step 1 of the Yjs sync protocol (server sends its state vector)
     const encoder = encoding.createEncoder();
@@ -197,15 +235,16 @@ export class WorkspaceDurableObject {
   closeSession(ws) {
     const session = this.sessions.get(ws);
     if (session) {
-      // Clear security timeouts to prevent memory leaks
-      if (session.timeoutId) {
-         clearTimeout(session.timeoutId);
+      if (session.timeoutId) clearTimeout(session.timeoutId);
+      // Only remove awareness states originating from *this* client. The previous
+      // code nuked every peer's awareness on any disconnect, which made shared
+      // sessions flicker and lose presence.
+      if (session.awarenessClientId != null) {
+        awarenessProtocol.removeAwarenessStates(this.awareness, [session.awarenessClientId], this);
       }
-      // Remove awareness from disconnected standard users
-      awarenessProtocol.removeAwarenessStates(this.awareness, Array.from(this.awareness.getStates().keys()), this);
     }
     this.sessions.delete(ws);
-    ws.close();
+    try { ws.close(); } catch (_) { /* already closed */ }
   }
 
   broadcastToAll(message) {
