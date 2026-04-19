@@ -69,12 +69,17 @@ async function ensureFreshToken() {
 }
 
 /**
- * Refreshes the token if needed, then calls provider.connect(). Exposed as a
- * helper so both the initial connect and each backoff retry use fresh creds.
+ * Refreshes the token if needed, writes it onto provider.params (y-websocket
+ * v3 reads params as a plain object at URL-build time — passing a function
+ * silently serializes nothing, which was the original 401 cause), then calls
+ * provider.connect(). Used for both the initial connect and each retry.
  */
 async function connectWithFreshToken() {
     if (!provider) return;
-    await ensureFreshToken();
+    const token = await ensureFreshToken();
+    if (token) {
+        provider.params = { token };
+    }
     try { provider.connect(); } catch (e) {
         console.warn('[Sync Manager] provider.connect() threw:', e.message);
     }
@@ -152,9 +157,12 @@ export function initializeAutoSync() {
         let _wsFailureCount = 0;
         let _wsBackoffTimer = null;
 
+        // params must be a plain object — y-websocket v3 does not call it if it's
+        // a function. The actual token is written in connectWithFreshToken()
+        // immediately before every connect() so refreshed tokens are used.
         provider = new WebsocketProvider(wsUrl, 'default', yDoc, {
             connect: false,
-            params: () => ({ token: getAccessToken() }),
+            params: {},
             maxBackoffTime: 30_000
         });
 
