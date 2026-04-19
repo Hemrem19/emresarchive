@@ -113,36 +113,34 @@ export function initializeAutoSync() {
         let baseUrl = getApiBaseUrl() || window.location.origin;
         const wsUrl = baseUrl.replace(/^http/, 'ws') + '/api/sync/workspace';
 
-        // Use a getter function for params so each reconnect picks up a fresh token.
-        // The DO force-closes the socket when the JWT expires (15m), so y-websocket
-        // reconnects — without this it would reconnect with the stale expired token.
+        // Pass connect:false so y-websocket does NOT auto-reconnect. Its built-in
+        // retry loop fires regardless of connection-error handlers and couldn't be
+        // stopped cleanly mid-flight, so we drive reconnection ourselves.
         let _wsFailureCount = 0;
         let _wsBackoffTimer = null;
 
         provider = new WebsocketProvider(wsUrl, 'default', yDoc, {
-            connect: true,
+            connect: false,
             params: () => ({ token: getAccessToken() }),
             maxBackoffTime: 30_000
         });
 
         provider.on('connection-error', err => {
             console.warn('[Sync Manager] WebSocket connection error:', err?.message ?? err);
-            // If the backoff timer is already running, ignore further errors — letting the
-            // timer reset here is what caused the 30s countdown to never complete.
-            if (_wsBackoffTimer !== null) return;
+            if (_wsBackoffTimer !== null) return; // Already waiting — ignore further errors
+            // Stop y-websocket's internal retry by flipping the flag and cancelling the
+            // onclose-scheduled setupWS by nulling its timeoutId isn't exposed, so rely
+            // on shouldConnect=false being checked inside setupWS before creating a WS.
+            provider.shouldConnect = false;
             _wsFailureCount++;
-            if (_wsFailureCount >= 3) {
-                // Set shouldConnect = false directly so y-websocket's already-queued
-                // retry timers see the flag and stop without calling disconnect() (which
-                // fires ws.close() → another onclose → another retry timer).
-                provider.shouldConnect = false;
+            const delay = _wsFailureCount < 3 ? 2_000 * _wsFailureCount : 30_000;
+            if (delay === 30_000) {
                 console.warn('[Sync Manager] WebSocket repeatedly refused — pausing 30s before retry');
-                _wsBackoffTimer = setTimeout(() => {
-                    _wsBackoffTimer = null;
-                    _wsFailureCount = 0;
-                    if (provider) provider.connect();
-                }, 30_000);
             }
+            _wsBackoffTimer = setTimeout(() => {
+                _wsBackoffTimer = null;
+                if (provider) provider.connect(); // sets shouldConnect=true + setupWS
+            }, delay);
         });
 
         provider.on('status', event => {
@@ -154,6 +152,9 @@ export function initializeAutoSync() {
                 _yjsSyncDoneForSession = false;
             }
         });
+
+        // Kick off the first connection attempt ourselves.
+        provider.connect();
 
         provider.on('sync', isSynced => {
             if (isSynced && !_yjsSyncDoneForSession) {
