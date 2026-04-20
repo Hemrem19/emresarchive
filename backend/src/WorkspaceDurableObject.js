@@ -20,6 +20,12 @@ export class WorkspaceDurableObject {
     // Track active WebSocket connections
     this.sessions = new Map();
 
+    // Debounce persistence — every keystroke fires an update; storing the
+    // full snapshot each time is wasteful and any unhandled rejection from
+    // state.storage.put leaks as an unhandled error with binary bytes in the
+    // message (looks like JSON syntax errors).
+    this._persistTimer = null;
+
     // Bind awareness update events to broadcast to all clients
     this.awareness.on('update', ({ added, updated, removed }) => {
       const changedClients = added.concat(updated, removed);
@@ -32,16 +38,14 @@ export class WorkspaceDurableObject {
 
     // Listen to document updates to sync across connected clients
     this.doc.on('update', (update, origin) => {
-      // Store incrementals onto DO Storage
-      this.saveStateToStorage();
+      this.schedulePersist();
 
       const encoder = encoding.createEncoder();
       encoding.writeVarUint(encoder, messageSync);
       syncProtocol.writeUpdate(encoder, update);
       const message = encoding.toUint8Array(encoder);
-      
-      // Broadcast update to all clients except the sender
-      for (const [ws, session] of this.sessions.entries()) {
+
+      for (const [ws, _session] of this.sessions.entries()) {
         if (ws !== origin) {
           try {
             ws.send(message);
@@ -59,9 +63,15 @@ export class WorkspaceDurableObject {
     this.state.blockConcurrencyWhile(async () => {
       try {
         const storedUpdate = await this.state.storage.get("yjs_doc_snapshot");
-        if (storedUpdate) Y.applyUpdate(this.doc, storedUpdate);
+        if (storedUpdate) {
+          // Accept both the new Array<number> format and the legacy Uint8Array.
+          const bytes = storedUpdate instanceof Uint8Array
+            ? storedUpdate
+            : (Array.isArray(storedUpdate) ? new Uint8Array(storedUpdate) : null);
+          if (bytes) Y.applyUpdate(this.doc, bytes);
+        }
       } catch (err) {
-        console.error('[DO] Failed to apply stored snapshot, starting fresh:', err);
+        console.error('[DO] Failed to apply stored snapshot, starting fresh:', err && err.message);
       }
 
       // Re-register hibernation-wake sockets in the in-memory session map so
@@ -87,10 +97,25 @@ export class WorkspaceDurableObject {
     });
   }
 
+  schedulePersist() {
+    if (this._persistTimer) return;
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this.saveStateToStorage().catch(err => {
+        // Swallow so it never becomes an unhandled rejection; bytes in the
+        // snapshot can produce JSON-like error messages that are misleading.
+        console.error('[DO] saveStateToStorage failed:', err && err.message);
+      });
+    }, 2000);
+  }
+
   async saveStateToStorage() {
-    // Encodes the entire document as a single Uint8Array
     const snapshot = Y.encodeStateAsUpdate(this.doc);
-    await this.state.storage.put("yjs_doc_snapshot", snapshot);
+    // DO storage supports Uint8Array via structured clone on SQLite-backed
+    // classes, but some runtimes round-trip it through JSON which corrupts
+    // binary data. Store as Array<number> to be safe — ~2x size, worth it for
+    // correctness.
+    await this.state.storage.put("yjs_doc_snapshot", Array.from(snapshot));
   }
 
   async fetch(request) {
@@ -195,9 +220,23 @@ export class WorkspaceDurableObject {
     
     session.tokens -= 1;
 
-    // Handle incoming messages natively in DO
+    // Normalize incoming frame to Uint8Array. Binary Yjs messages arrive as
+    // ArrayBuffer; text frames (shouldn't happen, but guard anyway) as strings.
+    let bytes;
+    if (message instanceof ArrayBuffer) {
+      bytes = new Uint8Array(message);
+    } else if (message instanceof Uint8Array) {
+      bytes = message;
+    } else if (typeof message === 'string') {
+      console.warn('[DO] Ignoring unexpected text frame on Yjs socket');
+      return;
+    } else {
+      console.warn('[DO] Ignoring unknown message type:', typeof message);
+      return;
+    }
+
     try {
-      const decoder = decoding.createDecoder(new Uint8Array(message));
+      const decoder = decoding.createDecoder(bytes);
       const messageType = decoding.readVarUint(decoder);
       const encoder = encoding.createEncoder();
 
@@ -205,7 +244,6 @@ export class WorkspaceDurableObject {
         case messageSync:
           encoding.writeVarUint(encoder, messageSync);
           syncProtocol.readSyncMessage(decoder, encoder, this.doc, ws);
-          // If the server has a response step (e.g. step 2 responding to step 1)
           if (encoding.length(encoder) > 1) {
             ws.send(encoding.toUint8Array(encoder));
           }
@@ -213,9 +251,16 @@ export class WorkspaceDurableObject {
         case messageAwareness:
           awarenessProtocol.applyAwarenessUpdate(this.awareness, decoding.readUint8Array(decoder), ws);
           break;
+        default:
+          console.warn('[DO] Unknown Yjs message type:', messageType);
       }
     } catch (err) {
-      console.error('Do webSocketMessage error:', err);
+      // err.message can contain raw binary bytes from protocol decoding or
+      // awareness JSON.parse — log name + a hex prefix of the frame so we can
+      // actually diagnose rather than print control characters.
+      const hexPrefix = Array.from(bytes.slice(0, 16))
+        .map(b => b.toString(16).padStart(2, '0')).join(' ');
+      console.error(`[DO] webSocketMessage error: ${err && err.name}: ${err && err.message} | first16=[${hexPrefix}]`);
     }
   }
 
