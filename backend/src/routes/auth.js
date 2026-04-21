@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '../lib/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
 // Note: We use WebCrypto API compatible equivalents instead of 'crypto' module where possible on Edge
-import { setCookie, deleteCookie } from 'hono/cookie';
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 
 const auth = new Hono();
 
