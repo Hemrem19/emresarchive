@@ -77,7 +77,8 @@ export async function getAllPapers(options = {}) {
         status,
         tag,
         sortBy = 'updatedAt',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
+        since
     } = options;
 
     const params = new URLSearchParams({
@@ -89,6 +90,7 @@ export async function getAllPapers(options = {}) {
 
     if (status) params.append('status', status);
     if (tag) params.append('tag', tag);
+    if (since) params.append('since', since);
 
     try {
         const response = await apiRequest(`${API_BASE}?${params.toString()}`, {

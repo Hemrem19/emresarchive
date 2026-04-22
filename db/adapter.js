@@ -60,60 +60,87 @@ function seedLocalFromCloud() {
     return _seedInFlight;
 }
 
-/**
- * Fetches all papers and collections from the REST API and upserts them into
- * local IndexedDB. Called once per page load when cloud sync is enabled so
- * the dashboard always shows up-to-date data even on a fresh device.
- */
+const LAST_SYNCED_KEY = 'citavers:lastSyncedAt';
+
 async function _doSeedLocalFromCloud() {
-    // Fetch all papers (use a high limit to avoid pagination for typical libraries)
-    const { papers: apiPaperList } = await apiPapers.getAllPapers({ limit: 1000 });
-    const serverPaperIds = new Set(apiPaperList.map(p => p.id));
+    const lastSyncedAt = localStorage.getItem(LAST_SYNCED_KEY);
+    const syncStart = new Date().toISOString();
+    const isDelta = !!lastSyncedAt;
 
-    // Upsert all papers from server
-    for (const paper of apiPaperList) {
-        const local = mapPaperDataFromApi(paper);
-        try { await localPapers.updatePaper(paper.id, local); }
-        catch { await localPapers.addPaper(local); }
-    }
+    // --- Papers ---
+    const { papers: apiPaperList } = await apiPapers.getAllPapers({
+        limit: 1000,
+        since: lastSyncedAt || undefined,
+    });
 
-    // Delete local papers that no longer exist on the server (deleted from another device)
-    const allLocal = await localPapers.getAllPapers();
-    for (const local of allLocal) {
-        if (!serverPaperIds.has(local.id)) {
-            await localPapers.deletePaper(local.id).catch(() => {});
+    if (isDelta) {
+        // Upsert changed papers; delete tombstones (deletedAt is set).
+        for (const paper of apiPaperList) {
+            if (paper.deletedAt) {
+                await localPapers.deletePaper(paper.id).catch(() => {});
+            } else {
+                const local = mapPaperDataFromApi(paper);
+                try { await localPapers.updatePaper(paper.id, local); }
+                catch { await localPapers.addPaper(local); }
+            }
+        }
+    } else {
+        // Full seed: upsert all, remove orphans not on server.
+        const serverPaperIds = new Set(apiPaperList.map(p => p.id));
+        for (const paper of apiPaperList) {
+            const local = mapPaperDataFromApi(paper);
+            try { await localPapers.updatePaper(paper.id, local); }
+            catch { await localPapers.addPaper(local); }
+        }
+        const allLocal = await localPapers.getAllPapers();
+        for (const local of allLocal) {
+            if (!serverPaperIds.has(local.id)) {
+                await localPapers.deletePaper(local.id).catch(() => {});
+            }
         }
     }
 
-    // Fetch all folders
-    const apiFolderList = await apiFolders.getAllFolders();
-    const serverFolderIds = new Set(apiFolderList.map(f => f.id));
+    // --- Folders + paper-folder associations ---
+    // Server now embeds paperIds in each folder, eliminating the N+1 per-folder call.
+    const apiFolderList = await apiFolders.getAllFolders({ since: lastSyncedAt || undefined });
 
-    for (const folder of apiFolderList) {
-        try { await localFolders.updateFolder(folder.id, folder); }
-        catch { await localFolders.addFolder(folder); }
-    }
-
-    // Delete local folders that no longer exist on the server
-    const allLocalFoldersList = await localFolders.getAllFolders();
-    for (const local of allLocalFoldersList) {
-        if (!serverFolderIds.has(local.id)) {
-            await localFolders.deleteFolder(local.id).catch(() => {});
-            await localPaperFolders.removeAllForFolder(local.id).catch(() => {});
+    if (isDelta) {
+        // Upsert changed folders; delete tombstones; reconcile paperIds for changed folders.
+        for (const folder of apiFolderList) {
+            if (folder.deletedAt) {
+                await localFolders.deleteFolder(folder.id).catch(() => {});
+                await localPaperFolders.removeAllForFolder(folder.id).catch(() => {});
+            } else {
+                try { await localFolders.updateFolder(folder.id, folder); }
+                catch { await localFolders.addFolder(folder); }
+                // Replace associations for this folder (handles adds AND removes).
+                await localPaperFolders.removeAllForFolder(folder.id).catch(() => {});
+                for (const paperId of (folder.paperIds ?? [])) {
+                    await localPaperFolders.addPaperToFolder(paperId, folder.id);
+                }
+            }
         }
-    }
-
-    // Seed paper-folder associations for each folder
-    for (const folder of apiFolderList) {
-        try {
-            const paperIds = await apiPaperFoldersApi.getPapersInFolder(folder.id);
-            for (const paperId of paperIds) {
+    } else {
+        // Full seed: sync all folders, then remove orphans.
+        const serverFolderIds = new Set(apiFolderList.map(f => f.id));
+        for (const folder of apiFolderList) {
+            try { await localFolders.updateFolder(folder.id, folder); }
+            catch { await localFolders.addFolder(folder); }
+            await localPaperFolders.removeAllForFolder(folder.id).catch(() => {});
+            for (const paperId of (folder.paperIds ?? [])) {
                 await localPaperFolders.addPaperToFolder(paperId, folder.id);
             }
-        } catch (e) {
-            console.warn(`[Adapter] Failed to seed paper-folder associations for folder ${folder.id}:`, e.message);
+        }
+        const allLocalFoldersList = await localFolders.getAllFolders();
+        for (const local of allLocalFoldersList) {
+            if (!serverFolderIds.has(local.id)) {
+                await localFolders.deleteFolder(local.id).catch(() => {});
+                await localPaperFolders.removeAllForFolder(local.id).catch(() => {});
+            }
         }
     }
+
+    localStorage.setItem(LAST_SYNCED_KEY, syncStart);
 }
 
 /**

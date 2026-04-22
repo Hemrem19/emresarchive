@@ -45,9 +45,11 @@ async function apiRequest(url, options = {}) {
     return response;
 }
 
-export async function getAllFolders() {
+export async function getAllFolders(options = {}) {
+    const { since } = options;
+    const url = since ? `${API_BASE}?since=${encodeURIComponent(since)}` : API_BASE;
     try {
-        const response = await apiRequest(`${API_BASE}`, { method: 'GET' });
+        const response = await apiRequest(url, { method: 'GET' });
         const result = await parseJsonResponse(response);
 
         if (result.success && result.data && Array.isArray(result.data.folders)) {

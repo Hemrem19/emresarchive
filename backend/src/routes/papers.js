@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
-import { eq, and, isNull, desc, asc } from 'drizzle-orm';
+import { eq, and, isNull, desc, asc, gt, or } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -44,6 +44,7 @@ const PAPER_COLUMNS = {
     readingProgress: true,
     createdAt: true,
     updatedAt: true,
+    deletedAt: true,
     clientId: true,
     version: true,
 };
@@ -143,32 +144,39 @@ papers.get('/', async (c) => {
     const limit = Math.min(1000, Math.max(1, parseInt(c.req.query('limit') || '25', 10)));
     const sortBy = c.req.query('sortBy') || 'updatedAt';
     const sortOrder = c.req.query('sortOrder') || 'desc';
+    const since = c.req.query('since') || null;
     const offset = (page - 1) * limit;
 
     const sortColumn = schema.papers[sortBy] || schema.papers.updatedAt;
     const orderFn = sortOrder === 'asc' ? asc : desc;
 
+    // Delta mode: include tombstones so clients can detect remote deletions.
+    // Full mode: exclude deleted rows as before.
+    const whereClause = since
+        ? and(
+            eq(schema.papers.userId, authUser.id),
+            or(gt(schema.papers.updatedAt, since), gt(schema.papers.deletedAt, since))
+          )
+        : and(eq(schema.papers.userId, authUser.id), isNull(schema.papers.deletedAt));
+
     try {
         const allPapers = await db.query.papers.findMany({
-            where: and(
-                eq(schema.papers.userId, authUser.id),
-                isNull(schema.papers.deletedAt)
-            ),
+            where: whereClause,
             orderBy: [orderFn(sortColumn)],
             columns: PAPER_COLUMNS,
             limit,
             offset,
         });
 
-        // Get total count for pagination
-        const allCount = await db.query.papers.findMany({
-            where: and(
-                eq(schema.papers.userId, authUser.id),
-                isNull(schema.papers.deletedAt)
-            ),
-            columns: { id: true },
-        });
-        const total = allCount.length;
+        // Skip the count query in delta mode — pagination is less useful there.
+        let total = allPapers.length;
+        if (!since) {
+            const allCount = await db.query.papers.findMany({
+                where: and(eq(schema.papers.userId, authUser.id), isNull(schema.papers.deletedAt)),
+                columns: { id: true },
+            });
+            total = allCount.length;
+        }
 
         return c.json({
             success: true,

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
-import { eq, and, isNull, asc, sql } from 'drizzle-orm';
+import { eq, and, isNull, asc, sql, gt, or } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
 
 const foldersRouter = new Hono();
@@ -17,13 +17,22 @@ const getDb = (c) => drizzle(c.env.citavers_db, { schema });
 foldersRouter.get('/', async (c) => {
   const db = getDb(c);
   const authUser = c.get('user');
+  const since = c.req.query('since') || null;
 
   try {
+    // Delta mode: include tombstones so clients can detect remote deletions.
+    const whereClause = since
+      ? and(
+          eq(schema.folders.userId, authUser.id),
+          or(gt(schema.folders.updatedAt, since), gt(schema.folders.deletedAt, since))
+        )
+      : and(
+          eq(schema.folders.userId, authUser.id),
+          isNull(schema.folders.deletedAt)
+        );
+
     const userFolders = await db.query.folders.findMany({
-      where: and(
-        eq(schema.folders.userId, authUser.id),
-        isNull(schema.folders.deletedAt)
-      ),
+      where: whereClause,
       orderBy: [asc(schema.folders.position), asc(schema.folders.createdAt)],
       columns: {
         id: true,
@@ -35,13 +44,31 @@ foldersRouter.get('/', async (c) => {
         isShared: true,
         createdAt: true,
         updatedAt: true,
+        deletedAt: true,
         version: true
       }
     });
 
+    // Attach paperIds to each folder in one extra query (replaces N per-folder REST calls).
+    const assocRows = await db
+      .select({ folderId: schema.paperFolders.folderId, paperId: schema.paperFolders.paperId })
+      .from(schema.paperFolders)
+      .where(and(
+        eq(schema.paperFolders.userId, authUser.id),
+        isNull(schema.paperFolders.deletedAt)
+      ));
+
+    const byFolder = new Map();
+    for (const r of assocRows) {
+      if (!byFolder.has(r.folderId)) byFolder.set(r.folderId, []);
+      byFolder.get(r.folderId).push(r.paperId);
+    }
+
+    const foldersWithPapers = userFolders.map(f => ({ ...f, paperIds: byFolder.get(f.id) ?? [] }));
+
     return c.json({
       success: true,
-      data: { folders: userFolders }
+      data: { folders: foldersWithPapers }
     });
   } catch (err) {
     return c.json({ success: false, error: err.message }, 500);
@@ -308,6 +335,11 @@ foldersRouter.post('/:id/papers', async (c) => {
       addedAt: schema.paperFolders.addedAt
     });
 
+    // Bump folder's updatedAt so ?since= delta queries capture membership changes.
+    await db.update(schema.folders)
+      .set({ updatedAt: new Date().toISOString() })
+      .where(and(eq(schema.folders.id, folderId), eq(schema.folders.userId, authUser.id)));
+
     return c.json({
       success: true,
       data: record
@@ -328,14 +360,21 @@ foldersRouter.delete('/:id/papers/:paperId', async (c) => {
   const paperId = parseInt(c.req.param('paperId'), 10);
 
   try {
+    const now = new Date().toISOString();
+
     await db.update(schema.paperFolders)
-      .set({ deletedAt: new Date().toISOString() })
+      .set({ deletedAt: now })
       .where(and(
         eq(schema.paperFolders.paperId, paperId),
         eq(schema.paperFolders.folderId, folderId),
         eq(schema.paperFolders.userId, authUser.id),
         isNull(schema.paperFolders.deletedAt)
       ));
+
+    // Bump folder's updatedAt so ?since= delta queries capture membership changes.
+    await db.update(schema.folders)
+      .set({ updatedAt: now })
+      .where(and(eq(schema.folders.id, folderId), eq(schema.folders.userId, authUser.id)));
 
     return c.json({
       success: true,

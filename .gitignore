@@ -55,6 +55,7 @@ PROJECT_SUMMARY.md
 ENHANCEMENT_PLAN.md
 CLOUDFLARE_DEPLOY_FIX.md
 DEPLOYMENT_PLAN.md
+fix_stage_0.md
 
 # Build artifacts
 dist/

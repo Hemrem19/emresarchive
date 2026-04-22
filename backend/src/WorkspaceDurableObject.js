@@ -26,12 +26,15 @@ export class WorkspaceDurableObject {
     // message (looks like JSON syntax errors).
     this._persistTimer = null;
 
-    // Bind awareness update events to broadcast to all clients
+    // Bind awareness update events to broadcast to all clients.
+    // Must use writeVarUint8Array (length-prefixed): y-websocket clients read
+    // awareness payloads with readVarUint8Array, so omitting the prefix
+    // desyncs their decoder and throws "Unexpected end of array" / JSON errors.
     this.awareness.on('update', ({ added, updated, removed }) => {
       const changedClients = added.concat(updated, removed);
       const encoder = encoding.createEncoder();
       encoding.writeVarUint(encoder, messageAwareness);
-      encoding.writeUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients));
+      encoding.writeVarUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients));
       const buff = encoding.toUint8Array(encoder);
       this.broadcastToAll(buff);
     });
@@ -185,7 +188,7 @@ export class WorkspaceDurableObject {
     if (awarenessStates.size > 0) {
       const encoderAwareness = encoding.createEncoder();
       encoding.writeVarUint(encoderAwareness, messageAwareness);
-      encoding.writeUint8Array(
+      encoding.writeVarUint8Array(
         encoderAwareness,
         awarenessProtocol.encodeAwarenessUpdate(this.awareness, Array.from(awarenessStates.keys()))
       );
@@ -249,7 +252,7 @@ export class WorkspaceDurableObject {
           }
           break;
         case messageAwareness:
-          awarenessProtocol.applyAwarenessUpdate(this.awareness, decoding.readUint8Array(decoder), ws);
+          awarenessProtocol.applyAwarenessUpdate(this.awareness, decoding.readVarUint8Array(decoder), ws);
           break;
         default:
           console.warn('[DO] Unknown Yjs message type:', messageType);
