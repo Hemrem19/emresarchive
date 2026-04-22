@@ -62,6 +62,12 @@ function seedLocalFromCloud() {
 
 const LAST_SYNCED_KEY = 'citavers:lastSyncedAt';
 
+function _stripApiFieldsFromFolder(folder) {
+    // Remove API-specific fields that shouldn't be stored locally
+    const { paperIds, version, deletedAt, ...local } = folder;
+    return local;
+}
+
 async function _doSeedLocalFromCloud() {
     const lastSyncedAt = localStorage.getItem(LAST_SYNCED_KEY);
     const syncStart = new Date().toISOString();
@@ -111,8 +117,10 @@ async function _doSeedLocalFromCloud() {
                 await localFolders.deleteFolder(folder.id).catch(() => {});
                 await localPaperFolders.removeAllForFolder(folder.id).catch(() => {});
             } else {
-                try { await localFolders.updateFolder(folder.id, folder); }
-                catch { await localFolders.addFolder(folder); }
+                // Strip API-specific fields before storing locally
+                const localFolder = _stripApiFieldsFromFolder(folder);
+                try { await localFolders.updateFolder(folder.id, localFolder); }
+                catch { await localFolders.addFolder(localFolder); }
                 // Replace associations for this folder (handles adds AND removes).
                 await localPaperFolders.removeAllForFolder(folder.id).catch(() => {});
                 for (const paperId of (folder.paperIds ?? [])) {
@@ -124,8 +132,10 @@ async function _doSeedLocalFromCloud() {
         // Full seed: sync all folders, then remove orphans.
         const serverFolderIds = new Set(apiFolderList.map(f => f.id));
         for (const folder of apiFolderList) {
-            try { await localFolders.updateFolder(folder.id, folder); }
-            catch { await localFolders.addFolder(folder); }
+            // Strip API-specific fields before storing locally
+            const localFolder = _stripApiFieldsFromFolder(folder);
+            try { await localFolders.updateFolder(folder.id, localFolder); }
+            catch { await localFolders.addFolder(localFolder); }
             await localPaperFolders.removeAllForFolder(folder.id).catch(() => {});
             for (const paperId of (folder.paperIds ?? [])) {
                 await localPaperFolders.addPaperToFolder(paperId, folder.id);
@@ -482,7 +492,9 @@ export const folders = {
             try {
                 const folder = await apiFolders.createFolder(folderData);
                 try {
-                    await localFolders.addFolder(folder);
+                    // Strip API-specific fields before storing locally
+                    const localFolder = _stripApiFieldsFromFolder(folder);
+                    await localFolders.addFolder(localFolder);
                 } catch (localError) {
                     // Ignore local save errors
                 }
@@ -519,7 +531,9 @@ export const folders = {
             try {
                 const folder = await apiFolders.updateFolder(id, updateData);
                 try {
-                    await localFolders.updateFolder(id, folder);
+                    // Strip API-specific fields before storing locally
+                    const localFolder = _stripApiFieldsFromFolder(folder);
+                    await localFolders.updateFolder(id, localFolder);
                 } catch (localError) {
                     // Ignore local update errors
                 }
