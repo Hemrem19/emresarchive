@@ -91,4 +91,4 @@ Backend tests are in `backend/tests/` with fixtures and mocks for email and S3 i
 
 - Frontend → Cloudflare Pages (static, git-deployed from `main`)
 - Backend → Cloudflare Workers (`wrangler.toml` configures D1 bindings and Durable Objects)
-- CI runs frontend + backend tests on Node 18 and 20 via `.github/workflows/test.yml`
+- CI runs frontend + backend tests on Node 20 and 22 via `.github/workflows/test.yml`
