@@ -6,11 +6,26 @@ import { hashPassword, verifyPassword } from '../lib/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
 // Note: We use WebCrypto API compatible equivalents instead of 'crypto' module where possible on Edge
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import { authenticate } from '../middleware/auth.js';
+import { generateVerificationToken, sendVerificationEmail, VERIFICATION_TOKEN_TTL_MS } from '../lib/mailer.js';
 
 const auth = new Hono();
 
 // Helper to get db instance per request
 const getDb = (c) => drizzle(c.env.citavers_db, { schema });
+
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
+// Send without delaying the response; failures are logged, never surfaced
+const sendVerificationInBackground = (c, user, token) => {
+  const job = sendVerificationEmail(c.env, { email: user.email, token, name: user.name })
+    .catch((err) => console.error('[auth] verification email failed:', err.message));
+  try {
+    c.executionCtx.waitUntil(job);
+  } catch {
+    return job; // no execution context (tests)
+  }
+};
 
 /**
  * User Registration
@@ -44,12 +59,17 @@ auth.post('/register', async (c) => {
   const passwordHash = await hashPassword(password);
 
   try {
+    const verificationToken = generateVerificationToken();
     const [user] = await db.insert(schema.users).values({
       email: email.toLowerCase().trim(),
       passwordHash,
       name: name || null,
       emailVerified: false,
+      verificationToken,
+      verificationTokenExpiry: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS).toISOString(),
     }).returning();
+
+    await sendVerificationInBackground(c, user, verificationToken);
 
     // Session temp hash
     const tempTokenHash = crypto.randomUUID();
@@ -188,6 +208,8 @@ auth.post('/login', async (c) => {
         id: user.id,
         email: user.email,
         name: user.name,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt
       },
       accessToken,
       refreshToken
@@ -255,6 +277,112 @@ auth.post('/refresh', async (c) => {
 auth.post('/logout', async (c) => {
   deleteCookie(c, 'refreshToken');
   return c.json({ success: true, message: 'Logged out successfully' });
+});
+
+/**
+ * Current User
+ * GET /api/auth/me
+ */
+auth.get('/me', authenticate, (c) => {
+  return c.json({ success: true, data: { user: c.get('user') } });
+});
+
+/**
+ * Verify Email
+ * POST /api/auth/verify-email
+ * Body: { token }
+ */
+auth.post('/verify-email', async (c) => {
+  const db = getDb(c);
+  const body = await c.req.json().catch(() => ({}));
+  const token = typeof body.token === 'string' ? body.token.trim() : '';
+
+  if (!token) {
+    return c.json({ success: false, error: { message: 'Verification token is required' } }, 400);
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.verificationToken, token),
+    columns: { id: true, emailVerified: true, verificationTokenExpiry: true }
+  });
+
+  if (!user) {
+    return c.json({
+      success: false,
+      error: { message: 'Invalid verification token. Please check your email for the correct link or request a new verification email.' }
+    }, 400);
+  }
+
+  if (user.emailVerified) {
+    return c.json({ success: true, message: 'Email is already verified' });
+  }
+
+  if (!user.verificationTokenExpiry || new Date(user.verificationTokenExpiry) < new Date()) {
+    return c.json({
+      success: false,
+      error: { message: 'Verification token has expired. Please request a new verification email.' }
+    }, 400);
+  }
+
+  await db.update(schema.users)
+    .set({
+      emailVerified: true,
+      verificationToken: null,
+      verificationTokenExpiry: null,
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(schema.users.id, user.id));
+
+  return c.json({ success: true, message: 'Email verified successfully' });
+});
+
+/**
+ * Resend Verification Email
+ * POST /api/auth/resend-verification
+ */
+auth.post('/resend-verification', authenticate, async (c) => {
+  const db = getDb(c);
+  const authUser = c.get('user');
+
+  if (authUser.emailVerified) {
+    return c.json({ success: false, error: { message: 'Email is already verified' } }, 400);
+  }
+
+  const current = await db.query.users.findFirst({
+    where: eq(schema.users.id, authUser.id),
+    columns: { verificationTokenExpiry: true }
+  });
+  const issuedAt = current?.verificationTokenExpiry
+    ? new Date(current.verificationTokenExpiry).getTime() - VERIFICATION_TOKEN_TTL_MS
+    : 0;
+  const waitMs = issuedAt + RESEND_COOLDOWN_MS - Date.now();
+  if (waitMs > 0) {
+    c.header('Retry-After', String(Math.ceil(waitMs / 1000)));
+    return c.json({
+      success: false,
+      error: { message: 'Please wait a minute before requesting another verification email.' }
+    }, 429);
+  }
+
+  const token = generateVerificationToken();
+  await db.update(schema.users)
+    .set({
+      verificationToken: token,
+      verificationTokenExpiry: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS).toISOString()
+    })
+    .where(eq(schema.users.id, authUser.id));
+
+  try {
+    const { sent } = await sendVerificationEmail(c.env, { email: authUser.email, token, name: authUser.name });
+    if (!sent) {
+      return c.json({ success: false, error: { message: 'Email sending is not configured on the server.' } }, 503);
+    }
+  } catch (err) {
+    console.error('[auth] resend verification failed:', err.message);
+    return c.json({ success: false, error: { message: 'Failed to send verification email. Please try again later.' } }, 502);
+  }
+
+  return c.json({ success: true, message: 'Verification email sent successfully' });
 });
 
 export default auth;

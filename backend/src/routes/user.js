@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
-import { eq, count } from 'drizzle-orm';
+import { eq, and, isNull, count } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
 
 const user = new Hono();
@@ -21,17 +21,25 @@ user.get('/stats', async (c) => {
   const authUser = c.get('user');
 
   try {
-    const papersResult = await db.select({ value: count() }).from(schema.papers).where(eq(schema.papers.userId, authUser.id));
-    const collectionsResult = await db.select({ value: count() }).from(schema.collections).where(eq(schema.collections.userId, authUser.id));
-    const annotationsResult = await db.select({ value: count() }).from(schema.annotations).where(eq(schema.annotations.userId, authUser.id));
+    const countLive = async (table) => {
+      const [row] = await db.select({ value: count() }).from(table)
+        .where(and(eq(table.userId, authUser.id), isNull(table.deletedAt)));
+      return row.value;
+    };
+    const [papers, folders, annotations] = await Promise.all([
+      countLive(schema.papers),
+      countLive(schema.folders),
+      countLive(schema.annotations),
+    ]);
 
     return c.json({
       success: true,
       data: {
         stats: {
-          papers: papersResult[0].value,
-          collections: collectionsResult[0].value,
-          annotations: annotationsResult[0].value,
+          papers,
+          folders,
+          collections: folders, // legacy key; collections became folders
+          annotations,
           storageUsedBytes: authUser.storageUsedBytes?.toString() || '0'
         }
       }

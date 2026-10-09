@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
-import { eq, and, isNull, desc, asc, gt, or } from 'drizzle-orm';
+import { eq, and, isNull, desc, asc, gt, or, sql, count } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
 import {
     PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, generatePdfKey, extractKey,
@@ -182,6 +182,57 @@ papers.get('/', async (c) => {
         });
     } catch (err) {
         return c.json({ success: false, error: err.message }, 500);
+    }
+});
+
+/**
+ * Search Papers
+ * GET /api/papers/search?q=&status=&tag=&page=&limit=
+ * Must be registered before GET /:id.
+ */
+papers.get('/search', async (c) => {
+    const db = getDb(c);
+    const authUser = c.get('user');
+
+    const q = (c.req.query('q') || '').trim();
+    const status = c.req.query('status');
+    const tag = c.req.query('tag');
+    const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '25', 10)));
+
+    const conditions = [eq(schema.papers.userId, authUser.id), isNull(schema.papers.deletedAt)];
+    if (status) conditions.push(eq(schema.papers.status, status));
+    if (tag) {
+        conditions.push(sql`EXISTS (SELECT 1 FROM json_each(${schema.papers.tags}) WHERE lower(value) = lower(${tag}))`);
+    }
+    if (q) {
+        // LIKE is case-insensitive for ASCII in SQLite; escape wildcards in user input
+        const pattern = `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+        const fields = [schema.papers.title, schema.papers.abstract, schema.papers.notes, schema.papers.authors, schema.papers.journal];
+        conditions.push(or(...fields.map((field) => sql`${field} LIKE ${pattern} ESCAPE '\\'`)));
+    }
+    const where = and(...conditions);
+
+    try {
+        const [{ total }] = await db.select({ total: count() }).from(schema.papers).where(where);
+        const results = await db.query.papers.findMany({
+            where,
+            orderBy: [desc(schema.papers.updatedAt)],
+            columns: PAPER_COLUMNS,
+            limit,
+            offset: (page - 1) * limit,
+        });
+
+        return c.json({
+            success: true,
+            data: {
+                papers: results,
+                pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+            },
+        });
+    } catch (err) {
+        console.error('[Paper search]', err);
+        return c.json({ success: false, error: { message: 'Search failed' } }, 500);
     }
 });
 
