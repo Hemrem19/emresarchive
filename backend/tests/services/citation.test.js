@@ -1,157 +1,105 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { citationService } from '../../src/services/citation.js';
-import { prisma } from '../../src/lib/prisma.js';
+import { buildConnections, fetchCitations, normalizeDoi } from '../../src/services/citation.js';
 
-// Mock dependencies
-vi.mock('../../src/lib/prisma.js');
-
-// Mock global fetch
 const fetchMock = vi.fn();
-vi.stubGlobal('fetch', fetchMock);
+
+const jsonResponse = (body, status = 200) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+});
 
 describe('Citation Service', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.stubGlobal('fetch', fetchMock);
+        fetchMock.mockReset();
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    describe('normalizeDoi', () => {
+        it('strips URL/prefix and lowercases', () => {
+            expect(normalizeDoi('https://doi.org/10.1000/ABC')).toBe('10.1000/abc');
+            expect(normalizeDoi('doi:10.1000/x ')).toBe('10.1000/x');
+            expect(normalizeDoi(null)).toBeNull();
+        });
     });
 
     describe('fetchCitations', () => {
-        const doi = '10.1234/test';
+        it('uses OpenAlex when available', async () => {
+            fetchMock.mockResolvedValueOnce(jsonResponse({
+                id: 'https://openalex.org/W1', title: 'T', cited_by_count: 3,
+                referenced_works: ['https://openalex.org/W2'],
+            }));
 
-        it('should return cached data if valid', async () => {
-            const cachedData = { title: 'Cached Title', citationCount: 10 };
-            prisma.citationCache.findUnique.mockResolvedValue({
-                lastFetched: new Date(),
-                rawData: cachedData
-            });
+            const data = await fetchCitations('10.1/a');
 
-            const result = await citationService.fetchCitations(doi);
-            expect(result).toEqual(cachedData);
-            expect(prisma.citationCache.findUnique).toHaveBeenCalledWith({ where: { doi } });
-            expect(fetchMock).not.toHaveBeenCalled();
+            expect(data).toMatchObject({ source: 'openalex', openAlexId: 'https://openalex.org/W1', references: ['https://openalex.org/W2'] });
+            expect(fetchMock).toHaveBeenCalledTimes(1);
         });
 
-        it('should fetch from OpenAlex if cache miss', async () => {
-            prisma.citationCache.findUnique.mockResolvedValue(null);
+        it('falls back to Semantic Scholar when OpenAlex fails', async () => {
+            fetchMock
+                .mockResolvedValueOnce(jsonResponse({}, 500))
+                .mockResolvedValueOnce(jsonResponse({
+                    title: 'T', citationCount: 1,
+                    references: [{ externalIds: { DOI: '10.1/B' } }, { externalIds: {} }],
+                }));
 
-            const openAlexData = {
-                title: 'OpenAlex Title',
-                doi: 'https://doi.org/10.1234/test',
-                cited_by_count: 5,
-                referenced_works: ['https://openalex.org/W123']
-            };
+            const data = await fetchCitations('10.1/a');
 
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => openAlexData
-            });
-
-            // Mock upsert for cache
-            prisma.citationCache.upsert.mockResolvedValue({});
-
-            const result = await citationService.fetchCitations(doi);
-
-            expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api.openalex.org'));
-            expect(result).toEqual({
-                title: 'OpenAlex Title',
-                doi: '10.1234/test',
-                citationCount: 5,
-                references: ['https://openalex.org/W123'],
-                source: 'openalex'
-            });
-            expect(prisma.citationCache.upsert).toHaveBeenCalled();
+            expect(data).toMatchObject({ source: 'semantic_scholar', references: ['10.1/b'] });
         });
 
-        it('should fallback to Semantic Scholar if OpenAlex fails', async () => {
-            prisma.citationCache.findUnique.mockResolvedValue(null);
-
-            // OpenAlex fails
-            fetchMock.mockResolvedValueOnce({ ok: false, status: 404 });
-
-            // Semantic Scholar succeeds
-            const semanticData = {
-                title: 'Semantic Title',
-                citationCount: 8,
-                references: [{ doi: '10.5678/ref', title: 'Ref Title' }]
-            };
-
-            fetchMock.mockResolvedValueOnce({
-                ok: true,
-                json: async () => semanticData
-            });
-
-            prisma.citationCache.upsert.mockResolvedValue({});
-
-            const result = await citationService.fetchCitations(doi);
-
-            expect(fetchMock).toHaveBeenCalledTimes(2);
-            expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining('api.semanticscholar.org'));
-            expect(result).toEqual({
-                title: 'Semantic Title',
-                doi: doi,
-                citationCount: 8,
-                references: [{ doi: '10.5678/ref', title: 'Ref Title' }],
-                source: 'semantic_scholar'
-            });
-        });
-
-        it('should return null if both APIs fail', async () => {
-            prisma.citationCache.findUnique.mockResolvedValue(null);
-            fetchMock.mockResolvedValue({ ok: false, status: 404 }); // Both calls fail
-
-            const result = await citationService.fetchCitations(doi);
-            expect(result).toBeNull();
+        it('returns null when neither source knows the DOI', async () => {
+            fetchMock.mockResolvedValue(jsonResponse({}, 404));
+            expect(await fetchCitations('10.1/missing')).toBeNull();
         });
     });
 
-    describe('generateNetwork', () => {
-        const userId = 1;
-        const papers = [
-            { id: 1, doi: '10.1111/a', title: 'Paper A', authors: ['Author 1'], tags: ['tag1'] },
-            { id: 2, doi: '10.2222/b', title: 'Paper B', authors: ['Author 1'], tags: ['tag2'] }, // Common author
-            { id: 3, doi: '10.3333/c', title: 'Paper C', authors: ['Author 2'], tags: ['tag1'] }  // Common tag
-        ];
+    describe('buildConnections', () => {
+        it('links papers sharing tags or authors once per pair', () => {
+            const papers = [
+                { id: 1, tags: ['ML', 'nlp'], authors: ['Ada'] },
+                { id: 2, tags: ['ml', 'NLP'], authors: ['ada'] },
+                { id: 3, tags: '["other"]', authors: '[]' },
+            ];
 
-        it('should generate connections based on metadata', async () => {
-            prisma.paper.findMany.mockResolvedValue(papers);
-            prisma.paperConnection.createMany.mockResolvedValue({ count: 2 });
-            prisma.networkGraph.findFirst.mockResolvedValue(null);
-            prisma.networkGraph.create.mockResolvedValue({ id: 1 });
+            const edges = buildConnections(papers, new Map());
 
-            // Mock fetchCitations to return null to skip external matching logic for this test
-            // We can spy on the service method itself
-            const fetchSpy = vi.spyOn(citationService, 'fetchCitations').mockResolvedValue(null);
-
-            const result = await citationService.generateNetwork(userId);
-
-            expect(prisma.paper.findMany).toHaveBeenCalledWith(expect.objectContaining({
-                where: expect.objectContaining({ userId })
-            }));
-
-            // Should find 2 connections:
-            // 1-2 (Common Author 1)
-            // 1-3 (Common Tag tag1)
-            expect(prisma.paperConnection.createMany).toHaveBeenCalledWith(expect.objectContaining({
-                data: expect.arrayContaining([
-                    expect.objectContaining({ fromPaperId: 1, toPaperId: 2, connectionType: 'common_author' }),
-                    expect.objectContaining({ fromPaperId: 1, toPaperId: 3, connectionType: 'common_tag' })
-                ])
-            }));
-
-            expect(result.edgeCount).toBe(2);
-            fetchSpy.mockRestore();
+            expect(edges).toEqual([
+                { fromPaperId: 1, toPaperId: 2, connectionType: 'common_tag' },
+                { fromPaperId: 1, toPaperId: 2, connectionType: 'common_author' },
+            ]);
         });
 
-        it('should update existing graph if present', async () => {
-            prisma.paper.findMany.mockResolvedValue([]);
-            prisma.networkGraph.findFirst.mockResolvedValue({ id: 100 });
-            prisma.networkGraph.update.mockResolvedValue({ id: 100 });
+        it('skips overly common tags', () => {
+            const papers = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, tags: ['everything'], authors: [] }));
+            expect(buildConnections(papers, new Map())).toEqual([]);
+        });
 
-            await citationService.generateNetwork(userId);
+        it('links citations within the library for both sources', () => {
+            const papers = [
+                { id: 1, doi: '10.1/A', tags: [], authors: [] },
+                { id: 2, doi: '10.1/b', tags: [], authors: [] },
+                { id: 3, doi: '10.1/c', tags: [], authors: [] },
+            ];
+            const citations = new Map([
+                ['10.1/a', { source: 'semantic_scholar', references: ['10.1/B', '10.9/outside'] }],
+                ['10.1/b', { source: 'openalex', openAlexId: 'W2', references: ['W3'] }],
+                ['10.1/c', { source: 'openalex', openAlexId: 'W3', references: [] }],
+            ]);
 
-            expect(prisma.networkGraph.update).toHaveBeenCalledWith({
-                where: { id: 100 },
-                data: expect.any(Object)
-            });
+            const edges = buildConnections(papers, citations);
+
+            expect(edges).toEqual([
+                { fromPaperId: 1, toPaperId: 2, connectionType: 'cites' },
+                { fromPaperId: 2, toPaperId: 3, connectionType: 'cites' },
+            ]);
         });
     });
 });

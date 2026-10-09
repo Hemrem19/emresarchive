@@ -11,6 +11,10 @@ database_name = "citavers-db"
 database_id = "5b21fd57-2739-41a6-af6e-119daefed72a"
 migrations_dir = "drizzle/migrations"
 
+[[r2_buckets]]
+binding = "PDF_BUCKET"
+bucket_name = "citaversa-pdfs"
+
 [durable_objects]
 bindings = [
   { name = "WORKSPACE_DO", class_name = "WorkspaceDurableObject" }

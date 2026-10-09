@@ -3,25 +3,15 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
 import { eq, and, isNull, desc, asc, gt, or } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
+    PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, generatePdfKey, extractKey,
+    isStoredObject, putObject, getObject, presignUpload, presignDownload,
+} from '../lib/storage.js';
 
 const papers = new Hono();
 papers.use('*', authenticate);
 
 const getDb = (c) => drizzle(c.env.citavers_db, { schema });
-
-// Helper to instantiate R2-compatible S3 SDK
-const getS3Client = (env) => {
-    return new S3Client({
-        region: env.S3_REGION || 'auto',
-        endpoint: env.S3_ENDPOINT,
-        credentials: {
-            accessKeyId: env.S3_ACCESS_KEY_ID,
-            secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-        },
-    });
-};
 
 // Paper columns for findMany/findFirst (excludes userId for privacy)
 const PAPER_COLUMNS = {
@@ -343,53 +333,144 @@ papers.delete('/:id', async (c) => {
     }
 });
 
+const findOwnedPaper = (c, paperId) => getDb(c).query.papers.findFirst({
+    where: and(
+        eq(schema.papers.id, paperId),
+        eq(schema.papers.userId, c.get('user').id),
+        isNull(schema.papers.deletedAt)
+    ),
+    columns: { id: true, pdfUrl: true },
+});
+
+const storageNotConfigured = (c) => c.json({
+    success: false,
+    error: { message: 'PDF storage is not configured on the server.' }
+}, 503);
+
 /**
- * PDF Upload URL
- * GET /api/papers/:id/pdf/upload-url
+ * Upload PDF through the Worker
+ * POST /api/papers/upload?paperId=
+ * Body: multipart/form-data with 'file' field
  */
-papers.get('/:id/pdf/upload-url', async (c) => {
-    const paperId = c.req.param('id');
-    const user = c.get('user');
-    const s3 = getS3Client(c.env);
+papers.post('/upload', async (c) => {
+    if (!isStorageConfigured(c.env)) return storageNotConfigured(c);
+
+    const body = await c.req.parseBody().catch(() => ({}));
+    const file = body.file;
+    if (!file || typeof file === 'string') {
+        return c.json({ success: false, error: { message: 'No file uploaded. Please include a PDF file in the request.' } }, 400);
+    }
+    if (file.type !== 'application/pdf') {
+        return c.json({ success: false, error: { message: 'Only PDF files are allowed' } }, 400);
+    }
 
     try {
-        const objectKey = `users/${user.id}/papers/${paperId}.pdf`;
-        const command = new PutObjectCommand({
-            Bucket: c.env.S3_BUCKET_NAME,
-            Key: objectKey,
-            ContentType: 'application/pdf',
-        });
+        const paperId = c.req.query('paperId') || `temp-${Date.now()}`;
+        const s3Key = generatePdfKey(c.get('user').id, paperId, file.name);
+        await putObject(c.env, s3Key, await file.arrayBuffer(), file.type);
 
-        const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
-
-        return c.json({ success: true, uploadUrl, objectKey });
-    } catch (error) {
-        console.error('[R2 Presigner Error]:', error);
-        return c.json({ success: false, message: 'Failed to generate secure Edge upload URL.' }, 500);
+        return c.json({ success: true, data: { s3Key, pdfSizeBytes: file.size, filename: file.name } });
+    } catch (err) {
+        console.error('[PDF upload]', err);
+        return c.json({ success: false, error: { message: 'Failed to store PDF' } }, 500);
     }
 });
 
 /**
- * PDF Download URL
- * GET /api/papers/:id/pdf/download-url
+ * Presigned PDF upload URL
+ * POST /api/papers/upload-url
+ * Body: { filename, size, contentType, paperId? }
  */
-papers.get('/:id/pdf/download-url', async (c) => {
-    const paperId = c.req.param('id');
-    const user = c.get('user');
-    const s3 = getS3Client(c.env);
+papers.post('/upload-url', async (c) => {
+    const { filename, size, contentType, paperId } = await c.req.json().catch(() => ({}));
+    if (!filename || !size || !contentType) {
+        return c.json({ success: false, error: { message: 'filename, size, and contentType are required' } }, 400);
+    }
+    if (contentType !== 'application/pdf') {
+        return c.json({ success: false, error: { message: 'Only PDF files are allowed' } }, 400);
+    }
+    if (!canPresign(c.env)) return storageNotConfigured(c);
 
     try {
-        const objectKey = `users/${user.id}/papers/${paperId}.pdf`;
-        const command = new GetObjectCommand({
-            Bucket: c.env.S3_BUCKET_NAME,
-            Key: objectKey,
-        });
+        const s3Key = generatePdfKey(c.get('user').id, paperId || `temp-${Date.now()}`, filename);
+        const uploadUrl = await presignUpload(c.env, s3Key, contentType);
+        return c.json({ success: true, data: { uploadUrl, s3Key, expiresIn: PRESIGNED_URL_EXPIRY } });
+    } catch (err) {
+        console.error('[PDF presign upload]', err);
+        return c.json({ success: false, error: { message: 'Failed to generate upload URL' } }, 500);
+    }
+});
 
-        const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
-        return c.json({ success: true, downloadUrl });
-    } catch (error) {
-        console.error('[R2 Presigner Error]:', error);
-        return c.json({ success: false, message: 'Failed to generate secure Edge download URL.' }, 500);
+/**
+ * PDF download info
+ * GET /api/papers/:id/pdf
+ */
+papers.get('/:id/pdf', async (c) => {
+    const paperId = parseInt(c.req.param('id'), 10);
+    const paper = await findOwnedPaper(c, paperId);
+    if (!paper) return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
+    if (!paper.pdfUrl) return c.json({ success: false, error: { message: 'PDF not found for this paper' } }, 404);
+
+    const proxyUrl = `/api/papers/${paperId}/pdf-proxy`;
+
+    if (!isStoredObject(paper.pdfUrl)) {
+        // External link (e.g. arXiv) stored as pdfUrl
+        return c.json({ success: true, data: { pdfUrl: paper.pdfUrl, downloadUrl: paper.pdfUrl, proxyUrl } });
+    }
+
+    let downloadUrl;
+    if (canPresign(c.env)) {
+        try {
+            downloadUrl = await presignDownload(c.env, extractKey(paper.pdfUrl));
+        } catch (err) {
+            console.error('[PDF presign download]', err);
+        }
+    }
+    if (!downloadUrl) {
+        // Plain links can't send an Authorization header, so authenticate via ?token=
+        const token = c.req.header('authorization')?.substring(7) || c.req.query('token');
+        const origin = new URL(c.req.url).origin;
+        downloadUrl = `${origin}${proxyUrl}?download=1&token=${encodeURIComponent(token)}`;
+    }
+
+    return c.json({
+        success: true,
+        data: { pdfUrl: paper.pdfUrl, downloadUrl, proxyUrl, expiresIn: PRESIGNED_URL_EXPIRY }
+    });
+});
+
+/**
+ * Stream PDF through the Worker (avoids R2 CORS)
+ * GET /api/papers/:id/pdf-proxy[?download=1]
+ */
+papers.get('/:id/pdf-proxy', async (c) => {
+    const paperId = parseInt(c.req.param('id'), 10);
+    const paper = await findOwnedPaper(c, paperId);
+    if (!paper) return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
+    if (!paper.pdfUrl) return c.json({ success: false, error: { message: 'PDF not found for this paper' } }, 404);
+
+    const disposition = c.req.query('download') ? 'attachment' : 'inline';
+    const headers = {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `${disposition}; filename="paper-${paperId}.pdf"`,
+        'Cache-Control': 'private, max-age=3600',
+    };
+
+    try {
+        if (isStoredObject(paper.pdfUrl)) {
+            if (!isStorageConfigured(c.env)) return storageNotConfigured(c);
+            const obj = await getObject(c.env, extractKey(paper.pdfUrl));
+            if (!obj) return c.json({ success: false, error: { message: 'PDF file missing from storage' } }, 404);
+            if (obj.size) headers['Content-Length'] = String(obj.size);
+            return new Response(obj.body, { headers });
+        }
+
+        const upstream = await fetch(paper.pdfUrl);
+        if (!upstream.ok) throw new Error(`Upstream responded ${upstream.status}`);
+        return new Response(upstream.body, { headers });
+    } catch (err) {
+        console.error('[PDF proxy]', err);
+        return c.json({ success: false, error: { message: 'Failed to fetch PDF' } }, 500);
     }
 });
 
