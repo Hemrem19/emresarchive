@@ -66,8 +66,11 @@ app.get('/api/sync/workspace/:id', authenticate, async (c) => {
   }
 
   const user = c.get('user');
-  const workspaceId = c.req.param('id');
-  const id = c.env.WORKSPACE_DO.idFromName(workspaceId);
+  // The client-supplied :id is ignored on purpose: there is no workspace
+  // membership model yet, so trusting it let every user join the same room
+  // (the frontend always sends "default") and receive each other's data.
+  // Replace with a membership check when shared workspaces are built.
+  const id = c.env.WORKSPACE_DO.idFromName(`user:${user.id}`);
   const stub = c.env.WORKSPACE_DO.get(id);
 
   // We must clone the incoming request to inject our custom X-User-Id header
