@@ -4,6 +4,12 @@
  */
 
 import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
+
+// Workers expose Web Crypto as a global; Node 18 (still in the CI matrix) does not.
+if (!globalThis.crypto) {
+  globalThis.crypto = webcrypto;
+}
 
 // Set test environment variables
 process.env.NODE_ENV = 'test';
