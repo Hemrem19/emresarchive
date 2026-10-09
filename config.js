@@ -6,7 +6,7 @@
 export const DEFAULT_STATUSES = ['Reading', 'To Read', 'Finished', 'Archived'];
 const STATUS_STORAGE_KEY = 'readingStatusOrder';
 
-const PROD_BACKEND_URL = 'https://citavers-backend.hemrem1919.workers.dev';
+const PROD_BACKEND_URL = 'https://api.citavers.com';
 const DEV_BACKEND_URL = 'http://127.0.0.1:8787';
 
 // Determine which URL to use based on the current website domain

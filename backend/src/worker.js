@@ -12,6 +12,7 @@ import annotationsRoutes from './routes/annotations.js';
 import networkRoutes from './routes/network.js';
 import importRoutes from './routes/import.js';
 import { authenticate } from './middleware/auth.js';
+import { isAllowedOrigin } from './lib/origins.js';
 // extension is pending, REST sync was obliviated for Yjs WebSockets
 // import extensionRoutes from './routes/extension.js';
 
@@ -23,16 +24,9 @@ app.use('*', secureHeaders());
 
 // CORS configuration (replaces Express CORS setup)
 app.use('*', cors({
-  origin: (origin, c) => {
-    const baseOrigins = ['http://localhost:8080', 'http://127.0.0.1:8080'];
-    if (!origin || baseOrigins.includes(origin) || origin.includes('localhost')) {
-      return origin;
-    }
-    if (origin.includes('pages.dev') || origin.includes('cloudflarepages.com') || origin.includes('citavers')) {
-      return origin;
-    }
-    return null;
-  },
+  // Exact matches only: credentials are allowed, so substring checks like
+  // includes('citavers') would let e.g. citavers.evil.com make logged-in calls.
+  origin: (origin) => isAllowedOrigin(origin) ? origin : null,
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Debug-Mode'],
