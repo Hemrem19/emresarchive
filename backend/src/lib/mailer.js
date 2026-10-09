@@ -49,13 +49,31 @@ ${fromName}`;
     return { subject: 'Verify Your Email Address', text, html };
 }
 
+const EMAIL_RE = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+
+/**
+ * Accepts EMAIL_FROM as "a@b.c" or "Name <a@b.c>", tolerating quotes and
+ * stray whitespace from secret entry. Returns { name?, email }.
+ */
+export function parseFromAddress(raw) {
+    const value = String(raw || '').trim().replace(/^["']+|["']+$/g, '').trim();
+    const match = value.match(/^(.*?)\s*<\s*([^>]+?)\s*>$/);
+    const name = match?.[1].replace(/["']/g, '').trim() || undefined;
+    const email = (match ? match[2] : value).trim();
+    if (!EMAIL_RE.test(email)) {
+        throw new Error('EMAIL_FROM must look like "noreply@example.com" or "Name <noreply@example.com>"');
+    }
+    return { name, email };
+}
+
 /**
  * @returns {Promise<{ sent: boolean }>} sent=false when no RESEND_API_KEY (log mode)
  */
 export async function sendVerificationEmail(env, { email, token, name }) {
-    const frontendUrl = (env.FRONTEND_URL || 'https://citavers.com').replace(/\/$/, '');
-    const fromName = (env.EMAIL_FROM_NAME || 'Citavers').replace(/[<>"]/g, '');
-    const fromEmail = env.EMAIL_FROM || 'onboarding@resend.dev';
+    const frontendUrl = (env.FRONTEND_URL || 'https://citavers.com').trim().replace(/\/$/, '');
+    const sender = parseFromAddress(env.EMAIL_FROM || 'onboarding@resend.dev');
+    const fromName = (env.EMAIL_FROM_NAME || sender.name || 'Citavers').replace(/[<>"]/g, '').trim();
+    const fromEmail = sender.email;
     const url = `${frontendUrl}/#/verify-email?token=${token}`;
     const message = verificationEmail(name, url, fromName);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generateVerificationToken, sendVerificationEmail } from '../../src/lib/mailer.js';
+import { generateVerificationToken, sendVerificationEmail, parseFromAddress } from '../../src/lib/mailer.js';
 
 const fetchMock = vi.fn();
 
@@ -41,6 +41,20 @@ describe('mailer', () => {
         expect(body.from).toBe('Citavers <noreply@citavers.com>');
         expect(body.to).toBe('a@b.c');
         expect(body.text).toContain('https://citavers.com/#/verify-email?token=abc');
+    });
+
+    it('normalizes EMAIL_FROM variants', () => {
+        expect(parseFromAddress('noreply@citavers.com')).toEqual({ name: undefined, email: 'noreply@citavers.com' });
+        expect(parseFromAddress(' "noreply@citavers.com"\n')).toEqual({ name: undefined, email: 'noreply@citavers.com' });
+        expect(parseFromAddress('Citavers <noreply@citavers.com>')).toEqual({ name: 'Citavers', email: 'noreply@citavers.com' });
+        expect(parseFromAddress('"Citavers" <noreply@citavers.com>')).toEqual({ name: 'Citavers', email: 'noreply@citavers.com' });
+        expect(() => parseFromAddress('noreply.citavers.com')).toThrow('EMAIL_FROM must look like');
+    });
+
+    it('does not double-wrap a named EMAIL_FROM', async () => {
+        fetchMock.mockResolvedValue({ ok: true, status: 200 });
+        await sendVerificationEmail({ RESEND_API_KEY: 'k', EMAIL_FROM: 'Citavers Team <hi@citavers.com>' }, { email: 'a@b.c', token: 't' });
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body).from).toBe('Citavers Team <hi@citavers.com>');
     });
 
     it('throws when Resend rejects', async () => {
