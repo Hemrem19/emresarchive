@@ -1,4 +1,4 @@
-const CACHE_NAME = 'citavers-v1.2';
+const CACHE_NAME = 'citavers-v1.3';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -40,54 +40,29 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch event - Network-First for dynamic, Cache-First for static
+// Fetch event - Network-First, cache as offline fallback
 self.addEventListener('fetch', (event) => {
-    // Skip cross-origin requests and API requests
-    if (!event.request.url.startsWith(self.location.origin) || event.request.url.includes('/api/')) {
-        return;
-    }
+    // Skip cross-origin requests (the backend lives on api.citavers.com).
+    // Same-origin /api/*.js are the frontend's own API client modules and must
+    // stay cacheable for offline use; anything else under /api/ is a server call.
+    const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) return;
+    if (url.pathname.startsWith('/api/') && !url.pathname.endsWith('.js')) return;
 
     // Skip non-GET requests
     if (event.request.method !== 'GET') {
         return;
     }
 
-    const url = new URL(event.request.url);
-    const isStaticAsset = ASSETS_TO_CACHE.some(asset => {
-        const normalizedAsset = asset.replace('./', '/');
-        if (normalizedAsset === '/') return url.pathname === '/';
-        return url.pathname === normalizedAsset || url.pathname.endsWith(normalizedAsset);
-    });
-
-    if (isStaticAsset) {
-        // Cache-First strategy for static assets
-        event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-                return fetch(event.request).then((networkResponse) => {
-                    if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-                        const responseToCache = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-                    }
-                    return networkResponse;
-                });
-            })
-        );
-    } else {
-        // Network-First strategy for dynamic requests (e.g. templates, plugins)
-        event.respondWith(
-            fetch(event.request).then((networkResponse) => {
-                if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-                    const responseToCache = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-                }
-                return networkResponse;
-            }).catch(() => {
-                // If offline, fallback to the cache
-                return caches.match(event.request);
-            })
-        );
-    }
+    // Network-first for everything: a cache-first app shell would keep serving
+    // the previous deploy's code. The cache is only an offline fallback.
+    event.respondWith(
+        fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+            }
+            return networkResponse;
+        }).catch(() => caches.match(event.request))
+    );
 });
