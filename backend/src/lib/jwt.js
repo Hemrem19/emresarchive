@@ -75,3 +75,21 @@ export const verifyRefreshToken = (token, env) => {
   }
 };
 
+
+/**
+ * Short-lived token that lets a plain link download one paper's PDF.
+ * Signed with the access secret, so every verifier must check `type`.
+ */
+export const generateFileToken = (userId, paperId, env) =>
+  jwt.sign({ userId, paperId, type: 'file' }, env.JWT_ACCESS_SECRET, { expiresIn: '5m' });
+
+/** Returns { userId, paperId } for a valid file token, otherwise null. */
+export const verifyFileToken = (token, env) => {
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+    return decoded.type === 'file' ? { userId: decoded.userId, paperId: decoded.paperId } : null;
+  } catch {
+    return null;
+  }
+};

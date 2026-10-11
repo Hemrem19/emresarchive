@@ -3,7 +3,10 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
 import { eq, and, isNull, asc, sql, gt, or } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
-import { findOwned, liveOwnedBy, ownedBy } from '../lib/access.js';
+import {
+  READ, WRITE, accessible, accessibleWithDeleted, findAccessible, inLibrary, libraryFields, libraryOf,
+  personalLibrary, sameLibrary,
+} from '../lib/access.js';
 
 const foldersRouter = new Hono();
 
@@ -24,12 +27,10 @@ foldersRouter.get('/', async (c) => {
     // Delta mode: include tombstones so clients can detect remote deletions.
     const whereClause = since
       ? and(
-          ownedBy(schema.folders, authUser),
+          accessibleWithDeleted(schema.folders, authUser, READ),
           or(gt(schema.folders.updatedAt, since), gt(schema.folders.deletedAt, since))
         )
-      : and(
-          liveOwnedBy(schema.folders, authUser)
-        );
+      : accessible(schema.folders, authUser, READ);
 
     const userFolders = await db.query.folders.findMany({
       where: whereClause,
@@ -53,9 +54,7 @@ foldersRouter.get('/', async (c) => {
     const assocRows = await db
       .select({ folderId: schema.paperFolders.folderId, paperId: schema.paperFolders.paperId })
       .from(schema.paperFolders)
-      .where(and(
-        liveOwnedBy(schema.paperFolders, authUser)
-      ));
+      .where(accessible(schema.paperFolders, authUser, READ));
 
     const byFolder = new Map();
     for (const r of assocRows) {
@@ -84,12 +83,7 @@ foldersRouter.get('/:id', async (c) => {
   const folderId = parseInt(c.req.param('id'), 10);
 
   try {
-    const folder = await db.query.folders.findFirst({
-      where: and(
-        eq(schema.folders.id, folderId),
-        liveOwnedBy(schema.folders, authUser)
-      ),
-      columns: {
+    const folder = await findAccessible(db.query.folders, schema.folders, authUser, folderId, READ, {
         id: true,
         name: true,
         icon: true,
@@ -100,7 +94,6 @@ foldersRouter.get('/:id', async (c) => {
         createdAt: true,
         updatedAt: true,
         version: true
-      }
     });
 
     if (!folder) {
@@ -130,8 +123,9 @@ foldersRouter.post('/', async (c) => {
   }
 
   try {
+    // New folders go to the caller's personal library (groups will pass a library id)
     const [folder] = await db.insert(schema.folders).values({
-      userId: authUser.id,
+      ...libraryFields(personalLibrary(authUser)),
       name: body.name.trim(),
       icon: body.icon || 'folder',
       color: body.color || null,
@@ -170,12 +164,7 @@ foldersRouter.put('/:id', async (c) => {
   const updates = await c.req.json().catch(() => ({}));
 
   try {
-    const existing = await db.query.folders.findFirst({
-      where: and(
-        eq(schema.folders.id, folderId),
-        liveOwnedBy(schema.folders, authUser)
-      )
-    });
+    const existing = await findAccessible(db.query.folders, schema.folders, authUser, folderId, WRITE);
 
     if (!existing) {
       return c.json({ success: false, error: { message: 'Folder not found' } }, 404);
@@ -223,12 +212,7 @@ foldersRouter.delete('/:id', async (c) => {
   const folderId = parseInt(c.req.param('id'), 10);
 
   try {
-    const existing = await db.query.folders.findFirst({
-      where: and(
-        eq(schema.folders.id, folderId),
-        liveOwnedBy(schema.folders, authUser)
-      )
-    });
+    const existing = await findAccessible(db.query.folders, schema.folders, authUser, folderId, WRITE);
 
     if (!existing) {
       return c.json({ success: false, error: { message: 'Folder not found' } }, 404);
@@ -261,6 +245,8 @@ foldersRouter.delete('/:id', async (c) => {
   }
 });
 
+const FOLDER_LIBRARY_COLUMNS = { id: true, userId: true };
+
 /**
  * Get Papers in Folder
  * GET /api/folders/:id/papers
@@ -271,10 +257,16 @@ foldersRouter.get('/:id/papers', async (c) => {
   const folderId = parseInt(c.req.param('id'), 10);
 
   try {
+    const folder = await findAccessible(db.query.folders, schema.folders, authUser, folderId, READ, FOLDER_LIBRARY_COLUMNS);
+    if (!folder) {
+      return c.json({ success: false, error: { message: 'Folder not found' } }, 404);
+    }
+
     const records = await db.query.paperFolders.findMany({
       where: and(
-        eq(schema.paperFolders.folderId, folderId),
-        liveOwnedBy(schema.paperFolders, authUser)
+        eq(schema.paperFolders.folderId, folder.id),
+        inLibrary(schema.paperFolders, libraryOf(folder)),
+        isNull(schema.paperFolders.deletedAt)
       ),
       columns: {
         paperId: true
@@ -305,21 +297,24 @@ foldersRouter.post('/:id/papers', async (c) => {
   }
 
   try {
-    // Both ends must belong to the caller
+    // Filing changes the folder; the paper only has to be visible. Both must
+    // live in the same library: items are never linked across libraries.
     const [folder, paper] = await Promise.all([
-      findOwned(db.query.folders, schema.folders, authUser, folderId, { id: true }),
-      findOwned(db.query.papers, schema.papers, authUser, parseInt(body.paperId, 10), { id: true }),
+      findAccessible(db.query.folders, schema.folders, authUser, folderId, WRITE, FOLDER_LIBRARY_COLUMNS),
+      findAccessible(db.query.papers, schema.papers, authUser, parseInt(body.paperId, 10), READ, FOLDER_LIBRARY_COLUMNS),
     ]);
-    if (!folder || !paper) {
+    if (!folder || !paper || !sameLibrary(libraryOf(folder), libraryOf(paper))) {
       return c.json({ success: false, error: { message: 'Folder or paper not found' } }, 404);
     }
+    const library = libraryOf(folder);
 
     // Check if association already exists
     const existing = await db.query.paperFolders.findFirst({
       where: and(
         eq(schema.paperFolders.paperId, paper.id),
-        eq(schema.paperFolders.folderId, folderId),
-        liveOwnedBy(schema.paperFolders, authUser)
+        eq(schema.paperFolders.folderId, folder.id),
+        inLibrary(schema.paperFolders, library),
+        isNull(schema.paperFolders.deletedAt)
       )
     });
 
@@ -329,8 +324,8 @@ foldersRouter.post('/:id/papers', async (c) => {
 
     const [record] = await db.insert(schema.paperFolders).values({
       paperId: paper.id,
-      folderId,
-      userId: authUser.id
+      folderId: folder.id,
+      ...libraryFields(library)
     }).returning({
       id: schema.paperFolders.id,
       paperId: schema.paperFolders.paperId,
@@ -341,7 +336,7 @@ foldersRouter.post('/:id/papers', async (c) => {
     // Bump folder's updatedAt so ?since= delta queries capture membership changes.
     await db.update(schema.folders)
       .set({ updatedAt: new Date().toISOString() })
-      .where(and(eq(schema.folders.id, folderId), ownedBy(schema.folders, authUser)));
+      .where(eq(schema.folders.id, folder.id));
 
     return c.json({
       success: true,
@@ -363,20 +358,25 @@ foldersRouter.delete('/:id/papers/:paperId', async (c) => {
   const paperId = parseInt(c.req.param('paperId'), 10);
 
   try {
-    const now = new Date().toISOString();
+    const folder = await findAccessible(db.query.folders, schema.folders, authUser, folderId, WRITE, FOLDER_LIBRARY_COLUMNS);
+    // Removing from a folder the caller cannot change is a no-op, as before
+    if (folder) {
+      const now = new Date().toISOString();
 
-    await db.update(schema.paperFolders)
-      .set({ deletedAt: now })
-      .where(and(
-        eq(schema.paperFolders.paperId, paperId),
-        eq(schema.paperFolders.folderId, folderId),
-        liveOwnedBy(schema.paperFolders, authUser)
-      ));
+      await db.update(schema.paperFolders)
+        .set({ deletedAt: now })
+        .where(and(
+          eq(schema.paperFolders.paperId, paperId),
+          eq(schema.paperFolders.folderId, folder.id),
+          inLibrary(schema.paperFolders, libraryOf(folder)),
+          isNull(schema.paperFolders.deletedAt)
+        ));
 
-    // Bump folder's updatedAt so ?since= delta queries capture membership changes.
-    await db.update(schema.folders)
-      .set({ updatedAt: now })
-      .where(and(eq(schema.folders.id, folderId), ownedBy(schema.folders, authUser)));
+      // Bump folder's updatedAt so ?since= delta queries capture membership changes.
+      await db.update(schema.folders)
+        .set({ updatedAt: now })
+        .where(eq(schema.folders.id, folder.id));
+    }
 
     return c.json({
       success: true,

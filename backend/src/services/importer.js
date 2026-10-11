@@ -12,7 +12,7 @@
  * from the same formula inside the transaction, and the response returns the
  * client's old ids mapped to the new ones.
  */
-import { pdfUrlError } from '../lib/access.js';
+import { pdfUrlError, personalLibrary, storagePrefix } from '../lib/access.js';
 
 export const MAX_IMPORT_PAPERS = 10000;
 const CHUNK_BYTES = 512 * 1024;
@@ -61,7 +61,7 @@ export function normalizeImport(body, user, now = new Date().toISOString()) {
             return;
         }
         let pdfUrl = str(p.pdfUrl) ?? str(p.s3Key);
-        if (pdfUrl && pdfUrlError(user, pdfUrl)) {
+        if (pdfUrl && pdfUrlError(personalLibrary(user), pdfUrl)) {
             droppedPdfRefs.push(refOf(p));
             warnings.push(`PDF reference for "${title}" belongs to another account and was dropped`);
             pdfUrl = null;
@@ -283,7 +283,7 @@ export async function sweepUnreferencedPdfs(env, d1, user, startedAt) {
     let removed = 0;
     let cursor;
     do {
-        const page = await env.PDF_BUCKET.list({ prefix: `papers/${user.id}/`, cursor, limit: 1000 });
+        const page = await env.PDF_BUCKET.list({ prefix: storagePrefix(personalLibrary(user)), cursor, limit: 1000 });
         const stale = page.objects
             .filter((o) => !keep.has(o.key) && new Date(o.uploaded) < new Date(startedAt))
             .map((o) => o.key);

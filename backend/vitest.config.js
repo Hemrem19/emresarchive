@@ -1,6 +1,11 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    resolve: {
+        // Routes import the Drizzle schema as schema.js; wrangler's bundler maps
+        // that to schema.ts, Vite needs to be told.
+        alias: [{ find: /^(.*\/drizzle\/schema)\.js$/, replacement: '$1.ts' }],
+    },
     // Explicitly disable workspace mode to prevent searching parent directories
     workspace: false,
     test: {

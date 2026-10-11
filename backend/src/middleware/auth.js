@@ -3,28 +3,33 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
 import { eq } from 'drizzle-orm';
 
-export const authenticate = async (c, next) => {
-  let token = null;
-  const authHeader = c.req.header('authorization');
-  
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring(7);
-  } else if (c.req.query('token')) {
-    token = c.req.query('token');
-  }
+const unauthorized = (c, message) => c.json({ success: false, error: { message } }, 401);
 
-  if (!token) {
-    return c.json({
-      success: false,
-      error: { message: 'Authentication required' }
-    }, 401);
-  }
+const bearerToken = (c) => {
+  const header = c.req.header('authorization');
+  return header?.startsWith('Bearer ') ? header.substring(7) : null;
+};
 
-  try {
-    const decoded = verifyAccessToken(token, c.env);
-    
+function createAuthenticate({ allowQueryToken }) {
+  return async (c, next) => {
+    // Tokens in URLs end up in logs, history and Referer headers, so only the
+    // WebSocket upgrade (where browsers cannot set headers) may use ?token=.
+    const token = bearerToken(c) || (allowQueryToken ? c.req.query('token') : null);
+    if (!token) return unauthorized(c, 'Authentication required');
+
+    let decoded;
+    try {
+      decoded = verifyAccessToken(token, c.env);
+    } catch (error) {
+      if (error.message?.includes('expired')) return unauthorized(c, 'Token expired');
+      if (error.message?.includes('Invalid') || error.message?.includes('unexpected')) return unauthorized(c, 'Invalid token');
+      console.error('Auth Middleware Error:', error);
+      return c.json({ success: false, error: { message: 'Internal Server Error during authentication' } }, 500);
+    }
+    // Other tokens (e.g. PDF download links) share the signing secret
+    if (decoded?.type !== 'access') return unauthorized(c, 'Invalid token');
+
     const db = drizzle(c.env.citavers_db, { schema });
-    
     const user = await db.query.users.findFirst({
       where: eq(schema.users.id, decoded.userId),
       columns: {
@@ -38,43 +43,18 @@ export const authenticate = async (c, next) => {
         settings: true
       }
     });
+    if (!user) return unauthorized(c, 'User not found');
 
-    if (!user) {
-      return c.json({
-        success: false,
-        error: { message: 'User not found' }
-      }, 401);
-    }
-
-    // Attach user to Hono Context
     c.set('user', user);
-    
     // Pass expiration for active WebSocket severing
-    if (decoded && decoded.exp) {
-        c.set('jwtExp', decoded.exp);
-    }
-    
+    if (decoded.exp) c.set('jwtExp', decoded.exp);
+
     await next();
+  };
+}
 
-  } catch (error) {
-    if (error.message?.includes('expired')) {
-      return c.json({
-        success: false,
-        error: { message: 'Token expired' }
-      }, 401);
-    }
+/** REST routes: Authorization: Bearer <access token> only. */
+export const authenticate = createAuthenticate({ allowQueryToken: false });
 
-    if (error.message?.includes('Invalid') || error.message?.includes('unexpected')) {
-      return c.json({
-        success: false,
-        error: { message: 'Invalid token' }
-      }, 401);
-    }
-
-    console.error('Auth Middleware Error:', error);
-    return c.json({
-      success: false,
-      error: { message: 'Internal Server Error during authentication' }
-    }, 500);
-  }
-};
+/** WebSocket upgrade: also accepts ?token=, since browsers cannot send headers there. */
+export const authenticateSocket = createAuthenticate({ allowQueryToken: true });

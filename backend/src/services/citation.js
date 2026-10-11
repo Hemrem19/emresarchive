@@ -6,7 +6,9 @@
  * external DOI lookups are capped per run. Uncached DOIs left over are
  * picked up by the next run (results are cached for 90 days).
  */
-import { sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import * as schema from '../../drizzle/schema.js';
+import { inLibrary, libraryFields } from '../lib/access.js';
 
 const CACHE_TTL = 90 * 24 * 60 * 60 * 1000;
 // Each lookup may cost two fetches (OpenAlex, then Semantic Scholar)
@@ -200,15 +202,16 @@ export function buildConnections(papers, citations) {
 }
 
 /**
- * Regenerate the auto network for a user.
+ * Regenerate the auto network of a library. The caller must have checked that
+ * the user may write to it.
  * @param {import('drizzle-orm/d1').DrizzleD1Database} db
- * @param {number} userId
+ * @param {{ ownerId: number }} library
  */
-export async function generateNetwork(db, userId, { maxLookups = MAX_LOOKUPS_PER_RUN } = {}) {
-    const papers = await db.all(sql`
-        SELECT id, doi, authors, tags FROM papers
-        WHERE user_id = ${userId} AND deleted_at IS NULL
-    `);
+export async function generateNetwork(db, library, { maxLookups = MAX_LOOKUPS_PER_RUN } = {}) {
+    const { papers: P, paperConnections: PC, networkGraphs: G } = schema;
+    const papers = await db.select({ id: P.id, doi: P.doi, authors: P.authors, tags: P.tags })
+        .from(P)
+        .where(and(inLibrary(P, library), isNull(P.deletedAt)));
 
     const dois = [...new Set(papers.map(p => normalizeDoi(p.doi)).filter(Boolean))];
     const citations = await loadCache(db, dois);
@@ -227,12 +230,11 @@ export async function generateNetwork(db, userId, { maxLookups = MAX_LOOKUPS_PER
 
     const connections = buildConnections(papers, citations);
 
-    // Replace previous auto connections for this user's papers
-    await db.run(sql`
-        DELETE FROM paper_connections
-        WHERE source = 'auto'
-          AND from_paper_id IN (SELECT id FROM papers WHERE user_id = ${userId})
-    `);
+    // Replace previous auto connections of this library's papers
+    await db.delete(PC).where(and(
+        eq(PC.source, 'auto'),
+        inArray(PC.fromPaperId, db.select({ id: P.id }).from(P).where(inLibrary(P, library)))
+    ));
     for (let i = 0; i < connections.length; i += INSERT_CHUNK) {
         const chunk = connections.slice(i, i + INSERT_CHUNK)
             .map(c => [c.fromPaperId, c.toPaperId, c.connectionType]);
@@ -245,21 +247,17 @@ export async function generateNetwork(db, userId, { maxLookups = MAX_LOOKUPS_PER
     }
 
     const now = new Date().toISOString();
-    const [existing] = await db.all(sql`
-        SELECT id FROM network_graphs WHERE user_id = ${userId} AND is_auto = 1 LIMIT 1
-    `);
+    const [existing] = await db.select({ id: G.id }).from(G)
+        .where(and(inLibrary(G, library), eq(G.isAuto, true)))
+        .limit(1);
     const graphId = existing?.id || crypto.randomUUID();
+    const counts = { nodeCount: papers.length, edgeCount: connections.length, updatedAt: now };
     if (existing) {
-        await db.run(sql`
-            UPDATE network_graphs
-            SET node_count = ${papers.length}, edge_count = ${connections.length}, updated_at = ${now}
-            WHERE id = ${graphId}
-        `);
+        await db.update(G).set(counts).where(eq(G.id, graphId));
     } else {
-        await db.run(sql`
-            INSERT INTO network_graphs (id, user_id, name, is_auto, node_count, edge_count, created_at, updated_at)
-            VALUES (${graphId}, ${userId}, 'Auto-Generated Network', 1, ${papers.length}, ${connections.length}, ${now}, ${now})
-        `);
+        await db.insert(G).values({
+            id: graphId, ...libraryFields(library), name: 'Auto-Generated Network', isAuto: true, createdAt: now, ...counts,
+        });
     }
 
     return {

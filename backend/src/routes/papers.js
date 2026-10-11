@@ -1,13 +1,17 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
-import { eq, and, isNull, desc, asc, gt, or, sql, count } from 'drizzle-orm';
+import { eq, and, desc, asc, gt, or, sql, count } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
-import { findOwned, liveOwnedBy, ownedBy, ownsStorageKey, pdfUrlError, isHttpUrl } from '../lib/access.js';
 import {
-    PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, generatePdfKey, extractKey,
-    isStoredObject, putObject, getObject, presignUpload, presignDownload,
+    READ, WRITE, READ_FILES, WRITE_FILES, accessible, accessibleWithDeleted, allows, findAccessible,
+    libraryFields, libraryOf, pdfKey, pdfUrlError, personalLibrary,
+} from '../lib/access.js';
+import {
+    PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, putObject, presignUpload, presignDownload,
 } from '../lib/storage.js';
+import { generateFileToken } from '../lib/jwt.js';
+import { PDF_COLUMNS, pdfResponse, resolvePdfSource } from '../services/pdf.js';
 
 const papers = new Hono();
 papers.use('*', authenticate);
@@ -84,9 +88,7 @@ papers.post('/batch', async (c) => {
     for (const op of operations) {
         try {
             if (op.type === 'delete') {
-                const existing = await db.query.papers.findFirst({
-                    where: and(eq(schema.papers.id, op.id), liveOwnedBy(schema.papers, authUser)),
-                });
+                const existing = await findAccessible(db.query.papers, schema.papers, authUser, op.id, WRITE);
                 if (!existing) { results.push({ id: op.id, success: false, error: 'Not found', type: 'delete' }); continue; }
                 await db.update(schema.papers)
                     .set({ deletedAt: new Date().toISOString(), version: existing.version + 1 })
@@ -94,12 +96,10 @@ papers.post('/batch', async (c) => {
                 results.push({ id: op.id, success: true, type: 'delete' });
 
             } else if (op.type === 'update' && op.data) {
-                const pdfError = pdfUrlError(authUser, op.data.pdfUrl);
-                if (pdfError) { results.push({ id: op.id, success: false, error: pdfError, type: 'update' }); continue; }
-                const existing = await db.query.papers.findFirst({
-                    where: and(eq(schema.papers.id, op.id), liveOwnedBy(schema.papers, authUser)),
-                });
+                const existing = await findAccessible(db.query.papers, schema.papers, authUser, op.id, WRITE);
                 if (!existing) { results.push({ id: op.id, success: false, error: 'Not found', type: 'update' }); continue; }
+                const pdfError = pdfChangeError(authUser, existing, op.data);
+                if (pdfError) { results.push({ id: op.id, success: false, error: pdfError, type: 'update' }); continue; }
 
                 const updateData = { updatedAt: new Date().toISOString(), version: existing.version + 1 };
                 const fields = ['title', 'authors', 'year', 'journal', 'doi', 'url', 'abstract',
@@ -147,10 +147,10 @@ papers.get('/', async (c) => {
     // Full mode: exclude deleted rows as before.
     const whereClause = since
         ? and(
-            ownedBy(schema.papers, authUser),
+            accessibleWithDeleted(schema.papers, authUser, READ),
             or(gt(schema.papers.updatedAt, since), gt(schema.papers.deletedAt, since))
           )
-        : and(liveOwnedBy(schema.papers, authUser));
+        : accessible(schema.papers, authUser, READ);
 
     try {
         const allPapers = await db.query.papers.findMany({
@@ -165,7 +165,7 @@ papers.get('/', async (c) => {
         let total = allPapers.length;
         if (!since) {
             const allCount = await db.query.papers.findMany({
-                where: and(liveOwnedBy(schema.papers, authUser)),
+                where: accessible(schema.papers, authUser, READ),
                 columns: { id: true },
             });
             total = allCount.length;
@@ -203,7 +203,7 @@ papers.get('/search', async (c) => {
     const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '25', 10)));
 
-    const conditions = [liveOwnedBy(schema.papers, authUser)];
+    const conditions = [accessible(schema.papers, authUser, READ)];
     if (status) conditions.push(eq(schema.papers.status, status));
     if (tag) {
         conditions.push(sql`EXISTS (SELECT 1 FROM json_each(${schema.papers.tags}) WHERE lower(value) = lower(${tag}))`);
@@ -249,13 +249,7 @@ papers.get('/:id', async (c) => {
     const paperId = parseInt(c.req.param('id'), 10);
 
     try {
-        const paper = await db.query.papers.findFirst({
-            where: and(
-                eq(schema.papers.id, paperId),
-                liveOwnedBy(schema.papers, authUser)
-            ),
-            columns: PAPER_COLUMNS,
-        });
+        const paper = await findAccessible(db.query.papers, schema.papers, authUser, paperId, READ, PAPER_COLUMNS);
 
         if (!paper) {
             return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
@@ -279,7 +273,9 @@ papers.post('/', async (c) => {
     if (!body.title) {
         return c.json({ success: false, error: { message: 'Title is required' } }, 400);
     }
-    const pdfError = pdfUrlError(authUser, body.pdfUrl);
+    // New papers go to the caller's personal library (groups will pass a library id)
+    const library = personalLibrary(authUser);
+    const pdfError = pdfUrlError(library, body.pdfUrl);
     if (pdfError) {
         return c.json({ success: false, error: { message: pdfError } }, 400);
     }
@@ -287,7 +283,7 @@ papers.post('/', async (c) => {
     try {
         const now = new Date().toISOString();
         const [paper] = await db.insert(schema.papers).values({
-            userId: authUser.id,
+            ...libraryFields(library),
             title: body.title,
             authors: body.authors || [],
             year: body.year || null,
@@ -325,21 +321,16 @@ papers.put('/:id', async (c) => {
     const authUser = c.get('user');
     const paperId = parseInt(c.req.param('id'), 10);
     const updates = await c.req.json().catch(() => ({}));
-    const pdfError = pdfUrlError(authUser, updates.pdfUrl);
-    if (pdfError) {
-        return c.json({ success: false, error: { message: pdfError } }, 400);
-    }
 
     try {
-        const existing = await db.query.papers.findFirst({
-            where: and(
-                eq(schema.papers.id, paperId),
-                liveOwnedBy(schema.papers, authUser)
-            ),
-        });
+        const existing = await findAccessible(db.query.papers, schema.papers, authUser, paperId, WRITE);
 
         if (!existing) {
             return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
+        }
+        const pdfError = pdfChangeError(authUser, existing, updates);
+        if (pdfError) {
+            return c.json({ success: false, error: { message: pdfError } }, 400);
         }
 
         const updateData = { updatedAt: new Date().toISOString(), version: existing.version + 1 };
@@ -371,12 +362,7 @@ papers.delete('/:id', async (c) => {
     const paperId = parseInt(c.req.param('id'), 10);
 
     try {
-        const existing = await db.query.papers.findFirst({
-            where: and(
-                eq(schema.papers.id, paperId),
-                liveOwnedBy(schema.papers, authUser)
-            ),
-        });
+        const existing = await findAccessible(db.query.papers, schema.papers, authUser, paperId, WRITE);
 
         if (!existing) {
             return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
@@ -392,20 +378,16 @@ papers.delete('/:id', async (c) => {
     }
 });
 
-const findOwnedPaper = (c, paperId) =>
-    findOwned(getDb(c).query.papers, schema.papers, c.get('user'), paperId, { id: true, pdfUrl: true });
+const findPaperFiles = (c, paperId) =>
+    findAccessible(getDb(c).query.papers, schema.papers, c.get('user'), paperId, READ_FILES, PDF_COLUMNS);
 
-// Resolves where a paper's PDF may be read from, or null when the stored
-// pdfUrl is not something this user may read (another user's key, or not
-// an http(s) link).
-const resolvePdfSource = (user, pdfUrl) => {
-    if (isStoredObject(pdfUrl)) {
-        const key = extractKey(pdfUrl);
-        return ownsStorageKey(user, key) ? { kind: 'storage', key } : null;
-    }
-    return isHttpUrl(pdfUrl) ? { kind: 'external', url: pdfUrl } : null;
-};
-
+// Changing a paper's PDF needs file rights on it, and the new key must sit in
+// the paper's own library.
+function pdfChangeError(user, paper, changes) {
+    if (changes.pdfUrl === undefined || changes.pdfUrl === paper.pdfUrl) return null;
+    if (!allows(user, WRITE_FILES, paper)) return 'You may not change this paper\'s PDF';
+    return pdfUrlError(libraryOf(paper), changes.pdfUrl);
+}
 
 const storageNotConfigured = (c) => c.json({
     success: false,
@@ -430,8 +412,7 @@ papers.post('/upload', async (c) => {
     }
 
     try {
-        const paperId = c.req.query('paperId') || `temp-${Date.now()}`;
-        const s3Key = generatePdfKey(c.get('user').id, paperId, file.name);
+        const s3Key = pdfKey(personalLibrary(c.get('user')), c.req.query('paperId'), file.name);
         await putObject(c.env, s3Key, await file.arrayBuffer(), file.type);
 
         return c.json({ success: true, data: { s3Key, pdfSizeBytes: file.size, filename: file.name } });
@@ -457,7 +438,7 @@ papers.post('/upload-url', async (c) => {
     if (!canPresign(c.env)) return storageNotConfigured(c);
 
     try {
-        const s3Key = generatePdfKey(c.get('user').id, paperId || `temp-${Date.now()}`, filename);
+        const s3Key = pdfKey(personalLibrary(c.get('user')), paperId, filename);
         const uploadUrl = await presignUpload(c.env, s3Key, contentType);
         return c.json({ success: true, data: { uploadUrl, s3Key, expiresIn: PRESIGNED_URL_EXPIRY } });
     } catch (err) {
@@ -472,11 +453,10 @@ papers.post('/upload-url', async (c) => {
  */
 papers.get('/:id/pdf', async (c) => {
     const paperId = parseInt(c.req.param('id'), 10);
-    const paper = await findOwnedPaper(c, paperId);
+    const paper = await findPaperFiles(c, paperId);
     if (!paper) return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
-    if (!paper.pdfUrl) return c.json({ success: false, error: { message: 'PDF not found for this paper' } }, 404);
 
-    const source = resolvePdfSource(c.get('user'), paper.pdfUrl);
+    const source = resolvePdfSource(paper);
     if (!source) return c.json({ success: false, error: { message: 'PDF not found for this paper' } }, 404);
 
     const proxyUrl = `/api/papers/${paperId}/pdf-proxy`;
@@ -495,10 +475,10 @@ papers.get('/:id/pdf', async (c) => {
         }
     }
     if (!downloadUrl) {
-        // Plain links can't send an Authorization header, so authenticate via ?token=
-        const token = c.req.header('authorization')?.substring(7) || c.req.query('token');
-        const origin = new URL(c.req.url).origin;
-        downloadUrl = `${origin}${proxyUrl}?download=1&token=${encodeURIComponent(token)}`;
+        // Plain links can't send an Authorization header: hand out a short-lived
+        // token that only downloads this one paper, never the login token.
+        const token = generateFileToken(c.get('user').id, paper.id, c.env);
+        downloadUrl = `${new URL(c.req.url).origin}/api/files/pdf?t=${encodeURIComponent(token)}`;
     }
 
     return c.json({
@@ -512,37 +492,9 @@ papers.get('/:id/pdf', async (c) => {
  * GET /api/papers/:id/pdf-proxy[?download=1]
  */
 papers.get('/:id/pdf-proxy', async (c) => {
-    const paperId = parseInt(c.req.param('id'), 10);
-    const paper = await findOwnedPaper(c, paperId);
+    const paper = await findPaperFiles(c, parseInt(c.req.param('id'), 10));
     if (!paper) return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
-    if (!paper.pdfUrl) return c.json({ success: false, error: { message: 'PDF not found for this paper' } }, 404);
-
-    const disposition = c.req.query('download') ? 'attachment' : 'inline';
-    const headers = {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `${disposition}; filename="paper-${paperId}.pdf"`,
-        'Cache-Control': 'private, max-age=3600',
-    };
-
-    try {
-        const source = resolvePdfSource(c.get('user'), paper.pdfUrl);
-        if (!source) return c.json({ success: false, error: { message: 'PDF not found for this paper' } }, 404);
-
-        if (source.kind === 'storage') {
-            if (!isStorageConfigured(c.env)) return storageNotConfigured(c);
-            const obj = await getObject(c.env, source.key);
-            if (!obj) return c.json({ success: false, error: { message: 'PDF file missing from storage' } }, 404);
-            if (obj.size) headers['Content-Length'] = String(obj.size);
-            return new Response(obj.body, { headers });
-        }
-
-        const upstream = await fetch(source.url);
-        if (!upstream.ok) throw new Error(`Upstream responded ${upstream.status}`);
-        return new Response(upstream.body, { headers });
-    } catch (err) {
-        console.error('[PDF proxy]', err);
-        return c.json({ success: false, error: { message: 'Failed to fetch PDF' } }, 500);
-    }
+    return pdfResponse(c, paper, c.req.query('download') ? 'attachment' : 'inline');
 });
 
 export default papers;

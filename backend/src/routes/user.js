@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
-import { eq, and, or, inArray, isNull, count } from 'drizzle-orm';
+import { eq, or, inArray, count } from 'drizzle-orm';
+import { liveOwnedBy, ownedBy, personalLibrary, storagePrefix } from '../lib/access.js';
 import { authenticate } from '../middleware/auth.js';
 
 const user = new Hono();
@@ -23,7 +24,7 @@ user.get('/stats', async (c) => {
   try {
     const countLive = async (table) => {
       const [row] = await db.select({ value: count() }).from(table)
-        .where(and(eq(table.userId, authUser.id), isNull(table.deletedAt)));
+        .where(liveOwnedBy(table, authUser));
       return row.value;
     };
     const [papers, folders, annotations] = await Promise.all([
@@ -102,26 +103,26 @@ user.put('/settings', async (c) => {
 user.delete('/data', async (c) => {
   const db = getDb(c);
   const authUser = c.get('user');
-  const userId = authUser.id;
 
   try {
-    const userPaperIds = db.select({ id: schema.papers.id }).from(schema.papers).where(eq(schema.papers.userId, userId));
+    // Ownership operation: wipes the caller's personal library only
+    const userPaperIds = db.select({ id: schema.papers.id }).from(schema.papers).where(ownedBy(schema.papers, authUser));
     const deleted = await db.batch([
-      db.delete(schema.paperFolders).where(eq(schema.paperFolders.userId, userId)).returning({ id: schema.paperFolders.id }),
-      db.delete(schema.annotations).where(eq(schema.annotations.userId, userId)).returning({ id: schema.annotations.id }),
+      db.delete(schema.paperFolders).where(ownedBy(schema.paperFolders, authUser)).returning({ id: schema.paperFolders.id }),
+      db.delete(schema.annotations).where(ownedBy(schema.annotations, authUser)).returning({ id: schema.annotations.id }),
       db.delete(schema.paperConnections)
         .where(or(inArray(schema.paperConnections.fromPaperId, userPaperIds), inArray(schema.paperConnections.toPaperId, userPaperIds)))
         .returning({ id: schema.paperConnections.id }),
-      db.delete(schema.networkGraphs).where(eq(schema.networkGraphs.userId, userId)).returning({ id: schema.networkGraphs.id }),
-      db.delete(schema.papers).where(eq(schema.papers.userId, userId)).returning({ id: schema.papers.id }),
-      db.delete(schema.folders).where(eq(schema.folders.userId, userId)).returning({ id: schema.folders.id }),
-      db.update(schema.users).set({ storageUsedBytes: 0 }).where(eq(schema.users.id, userId)),
+      db.delete(schema.networkGraphs).where(ownedBy(schema.networkGraphs, authUser)).returning({ id: schema.networkGraphs.id }),
+      db.delete(schema.papers).where(ownedBy(schema.papers, authUser)).returning({ id: schema.papers.id }),
+      db.delete(schema.folders).where(ownedBy(schema.folders, authUser)).returning({ id: schema.folders.id }),
+      db.update(schema.users).set({ storageUsedBytes: 0 }).where(eq(schema.users.id, authUser.id)),
     ]);
     const [paperFolders, annotations, , , papers, folders] = deleted.map((rows) => rows?.length ?? 0);
 
     let pdfs = 0;
     try {
-      pdfs = await deleteUserPdfs(c.env, userId);
+      pdfs = await deleteUserPdfs(c.env, authUser);
     } catch (err) {
       console.error('[user] PDF cleanup failed:', err.message);
     }
@@ -146,13 +147,13 @@ user.delete('/data', async (c) => {
   }
 });
 
-// Removes every object under papers/{userId}/ (the key layout used for uploads)
-async function deleteUserPdfs(env, userId) {
+// Removes every object in the user's personal library storage
+async function deleteUserPdfs(env, user) {
   if (!env.PDF_BUCKET) return 0;
   let removed = 0;
   let cursor;
   do {
-    const page = await env.PDF_BUCKET.list({ prefix: `papers/${userId}/`, cursor, limit: 1000 });
+    const page = await env.PDF_BUCKET.list({ prefix: storagePrefix(personalLibrary(user)), cursor, limit: 1000 });
     const keys = page.objects.map((o) => o.key);
     if (keys.length) {
       await env.PDF_BUCKET.delete(keys);

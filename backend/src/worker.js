@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
-import { logger } from 'hono/logger';
 
 // Routing Hooks
 import authRoutes from './routes/auth.js';
@@ -11,15 +10,20 @@ import papersRoutes from './routes/papers.js';
 import annotationsRoutes from './routes/annotations.js';
 import networkRoutes from './routes/network.js';
 import importRoutes from './routes/import.js';
-import { authenticate } from './middleware/auth.js';
+import filesRoutes from './routes/files.js';
+import { authenticateSocket } from './middleware/auth.js';
 import { isAllowedOrigin } from './lib/origins.js';
-// extension is pending, REST sync was obliviated for Yjs WebSockets
-// import extensionRoutes from './routes/extension.js';
 
 const app = new Hono();
 
 // Global Middlewares
-app.use('*', logger());
+// Request log without the query string: the WebSocket upgrade and PDF
+// download links carry tokens there (hono/logger prints the full URL).
+app.use('*', async (c, next) => {
+  const started = Date.now();
+  await next();
+  console.log(`${c.req.method} ${new URL(c.req.url).pathname} ${c.res.status} ${Date.now() - started}ms`);
+});
 app.use('*', secureHeaders());
 
 // CORS configuration (replaces Express CORS setup)
@@ -50,10 +54,10 @@ app.route('/api/papers', papersRoutes);
 app.route('/api/annotations', annotationsRoutes);
 app.route('/api/networks', networkRoutes);
 app.route('/api/import', importRoutes);
-// app.route('/api/extension', extensionRoutes);
+app.route('/api/files', filesRoutes);
 
 // Durable Objects Sync Route
-app.get('/api/sync/workspace/:id', authenticate, async (c) => {
+app.get('/api/sync/workspace/:id', authenticateSocket, async (c) => {
   const upgradeHeader = c.req.header('Upgrade');
   if (!upgradeHeader || upgradeHeader !== 'websocket') {
     return c.json({ error: 'Expected Upgrade: websocket' }, 426);

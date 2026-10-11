@@ -34,8 +34,8 @@
     "drizzle-orm": "^0.29.3",
     "hono": "^4.12.12",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
     "lib0": "^0.2.88",
+    "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.8",
     "pg": "^8.20.0",
     "resend": "^3.2.0",
@@ -47,6 +47,7 @@
   "devDependencies": {
     "@types/node": "^20.10.6",
     "@vitest/coverage-v8": "^1.6.0",
+    "better-sqlite3": "^12.11.1",
     "drizzle-kit": "^0.20.14",
     "patch-package": "^8.0.1",
     "supertest": "^6.1.6",
@@ -55,5 +56,10 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }
