@@ -10,7 +10,7 @@ import * as utilsApi from '../api/utils.js';
 // Mock dependencies
 vi.mock('../api/auth.js', () => ({
     getAccessToken: vi.fn(() => 'mock-token'),
-    refreshAccessToken: vi.fn(() => Promise.resolve('new-token'))
+    refreshToken: vi.fn(() => Promise.resolve('new-token'))
 }));
 
 vi.mock('../config.js', () => ({
@@ -93,7 +93,7 @@ describe('api/import.js - Batch Import', () => {
 
             const result = await batchImport(importData);
 
-            expect(authApi.refreshAccessToken).toHaveBeenCalled();
+            expect(authApi.refreshToken).toHaveBeenCalled();
             expect(mockFetch).toHaveBeenCalledTimes(2);
             // Second call should use new token
             expect(mockFetch.mock.calls[1][1].headers['Authorization']).toBe('Bearer new-token');
@@ -108,10 +108,10 @@ describe('api/import.js - Batch Import', () => {
             };
 
             mockFetch.mockResolvedValueOnce(firstResponse);
-            authApi.refreshAccessToken.mockResolvedValueOnce(null);
+            authApi.refreshToken.mockResolvedValueOnce(null);
 
             await expect(batchImport(importData)).rejects.toThrow('Session expired. Please log in again.');
-            expect(authApi.refreshAccessToken).toHaveBeenCalled();
+            expect(authApi.refreshToken).toHaveBeenCalled();
         });
 
         it('should handle API errors with error message', async () => {

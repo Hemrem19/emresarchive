@@ -4,7 +4,7 @@
  */
 
 import { getApiBaseUrl } from '../config.js';
-import { getAccessToken, refreshAccessToken } from './auth.js';
+import { getAccessToken, refreshToken } from './auth.js';
 
 /**
  * Batch import papers, collections, and annotations
@@ -19,7 +19,7 @@ export async function batchImport(data) {
         throw new Error('Not authenticated. Please log in.');
     }
 
-    const makeRequest = async (token) => {
+    const makeRequest = async (token, retried = false) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -30,13 +30,16 @@ export async function batchImport(data) {
         });
 
         if (response.status === 401) {
-            // Token expired, try to refresh
-            const newToken = await refreshAccessToken();
-            if (newToken) {
-                // Retry with new token
-                return makeRequest(newToken);
+            // Token expired: refresh once and retry (refreshToken throws if the session is gone)
+            if (retried) throw new Error('Session expired. Please log in again.');
+            let newToken;
+            try {
+                newToken = await refreshToken();
+            } catch {
+                throw new Error('Session expired. Please log in again.');
             }
-            throw new Error('Session expired. Please log in again.');
+            if (!newToken) throw new Error('Session expired. Please log in again.');
+            return makeRequest(newToken, true);
         }
 
         if (!response.ok) {
