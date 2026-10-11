@@ -230,8 +230,10 @@ async function importData(dataToImport) {
         const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
         const { addPaper: addPaperLocal } = await import('./papers.js');
         
-        // Prepare data for batch cloud import
+        // Prepare data for batch cloud import. Each item keeps the id it was
+        // stored under locally as `ref`, so the server can map it to a new id.
         const papersForCloudImport = [];
+        const importedPapers = [];
         
         // Import papers locally first
         for (let i = 0; i < papersToImport.length; i++) {
@@ -277,7 +279,8 @@ async function importData(dataToImport) {
                 }
                 
                 // Local-first: Save directly to IndexedDB (guaranteed to work)
-                await addPaperLocal(paperToStore);
+                const storedPaperId = await addPaperLocal(paperToStore);
+                importedPapers.push({ ref: storedPaperId, record: { ...paperToStore, id: storedPaperId } });
                 paperSuccessCount++;
                 
                 // Prepare for batch cloud import if cloud sync is enabled
@@ -286,6 +289,7 @@ async function importData(dataToImport) {
                     delete paperForSync.pdfData; // PDF data stays local
                     delete paperForSync.id; // API will generate new ID
                     delete paperForSync.localId;
+                    paperForSync.ref = storedPaperId;
                     
                     // Ensure arrays are arrays
                     if (!Array.isArray(paperForSync.authors)) {
@@ -320,6 +324,7 @@ async function importData(dataToImport) {
         const { addFolder: addFolderLocal } = await import('./folders.js');
         const { addPaperToFolder: addPaperToFolderLocal } = await import('./paperFolders.js');
         const foldersForCloudImport = [];
+        const importedFolders = [];
 
         for (let i = 0; i < foldersToImport.length; i++) {
             const folder = foldersToImport[i];
@@ -331,13 +336,15 @@ async function importData(dataToImport) {
                 if (folderToStore.updatedAt && typeof folderToStore.updatedAt === 'string') {
                     folderToStore.updatedAt = new Date(folderToStore.updatedAt);
                 }
-                await addFolderLocal(folderToStore);
+                const storedFolderId = await addFolderLocal(folderToStore);
+                importedFolders.push({ ref: storedFolderId, record: { ...folderToStore, id: storedFolderId } });
                 folderSuccessCount++;
 
                 if (useCloudSync) {
                     const folderForSync = { ...folderToStore };
                     delete folderForSync.id;
                     delete folderForSync.localId;
+                    folderForSync.ref = storedFolderId;
                     foldersForCloudImport.push(folderForSync);
                 }
             } catch (folderError) {
@@ -358,6 +365,7 @@ async function importData(dataToImport) {
         // Import annotations
         const { addAnnotation: addAnnotationLocal } = await import('./annotations.js');
         const annotationsForCloudImport = [];
+        const importedAnnotations = [];
         
         for (let i = 0; i < annotationsToImport.length; i++) {
             const annotation = annotationsToImport[i];
@@ -374,6 +382,7 @@ async function importData(dataToImport) {
                 
                 // Local-first: Save directly to IndexedDB
                 await addAnnotationLocal(annotationToStore);
+                importedAnnotations.push(annotationToStore);
                 annotationSuccessCount++;
                 
                 // Prepare for batch cloud import
@@ -381,6 +390,7 @@ async function importData(dataToImport) {
                     const annotationForSync = { ...annotationToStore };
                     delete annotationForSync.id;
                     delete annotationForSync.localId;
+                    annotationForSync.paperRef = annotationToStore.paperId;
                     annotationsForCloudImport.push(annotationForSync);
                 }
             } catch (annotationError) {
@@ -389,23 +399,34 @@ async function importData(dataToImport) {
             }
         }
 
-        // Send batch import to cloud if enabled
-        if (useCloudSync && (papersForCloudImport.length > 0 || foldersForCloudImport.length > 0 || annotationsForCloudImport.length > 0)) {
+        // Replace the cloud library in one atomic request, then re-key the
+        // local records to the server's ids so sync doesn't duplicate them.
+        let cloud = useCloudSync ? 'failed' : 'local-only';
+        let cloudWarnings = [];
+        if (useCloudSync) {
             try {
                 const { batchImport } = await import('../api/import.js');
-                console.log(`Sending batch import to cloud: ${papersForCloudImport.length} papers, ${foldersForCloudImport.length} folders, ${annotationsForCloudImport.length} annotations`);
-
                 const result = await batchImport({
+                    mode: 'replace',
                     papers: papersForCloudImport,
                     folders: foldersForCloudImport,
+                    paperFolders: paperFoldersToImport.map(pf => ({ paperRef: pf.paperId, folderRef: pf.folderId })),
                     annotations: annotationsForCloudImport
                 });
-
                 console.log('Batch import to cloud completed:', result.data.summary);
+                await rekeyImportedLocalData({
+                    importedPapers,
+                    importedFolders,
+                    paperFolders: paperFoldersToImport,
+                    annotations: importedAnnotations,
+                    idMap: result.data.idMap,
+                    droppedPdfRefs: result.data.droppedPdfRefs || []
+                });
+                cloud = 'synced';
+                cloudWarnings = result.data.warnings || [];
             } catch (cloudError) {
                 console.error('Cloud batch import failed:', cloudError);
-                // Don't throw - local import succeeded, cloud sync can be retried later
-                console.warn('Data imported locally but cloud sync failed. You can sync manually from settings.');
+                // Local import succeeded; the cloud library was left unchanged.
             }
         }
 
@@ -415,9 +436,66 @@ async function importData(dataToImport) {
         } else if (paperErrorCount > 0 || folderErrorCount > 0 || annotationErrorCount > 0) {
             console.warn(`Import completed with ${paperErrorCount} paper errors, ${folderErrorCount} folder errors, and ${annotationErrorCount} annotation errors`);
         }
+
+        return { cloud, warnings: cloudWarnings };
     } catch (error) {
         console.error('Error in importData:', error);
         throw error;
+    }
+}
+
+/**
+ * Rewrites the just-imported local records under the ids the server assigned.
+ * The stores hold only the import at this point, so they are cleared and
+ * refilled; PDFs embedded in the backup (pdfData) are kept.
+ */
+async function rekeyImportedLocalData({ importedPapers, importedFolders, paperFolders, annotations, idMap, droppedPdfRefs }) {
+    const database = await openDB();
+    const storeNames = [STORE_NAME_PAPERS, STORE_NAME_ANNOTATIONS];
+    if (database.objectStoreNames.contains(STORE_NAME_FOLDERS)) storeNames.push(STORE_NAME_FOLDERS);
+    if (database.objectStoreNames.contains(STORE_NAME_PAPER_FOLDERS)) storeNames.push(STORE_NAME_PAPER_FOLDERS);
+    await new Promise((resolve, reject) => {
+        const transaction = database.transaction(storeNames, 'readwrite');
+        for (const name of storeNames) transaction.objectStore(name).clear();
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = (event) => reject(event.target.error);
+    });
+
+    const { addPaper } = await import('./papers.js');
+    const { addFolder } = await import('./folders.js');
+    const { addPaperToFolder } = await import('./paperFolders.js');
+    const { addAnnotation } = await import('./annotations.js');
+    const paperIds = idMap?.papers || {};
+    const folderIds = idMap?.folders || {};
+    const dropped = new Set(droppedPdfRefs.map(String));
+
+    for (const { ref, record } of importedPapers) {
+        const id = paperIds[ref];
+        if (id === undefined) continue;
+        const paper = { ...record, id };
+        if (dropped.has(String(ref))) {
+            delete paper.s3Key;
+            delete paper.pdfUrl;
+            paper.hasPdf = !!paper.pdfData;
+        }
+        await addPaper(paper);
+    }
+    for (const { ref, record } of importedFolders) {
+        const id = folderIds[ref];
+        if (id !== undefined) await addFolder({ ...record, id });
+    }
+    for (const pf of paperFolders) {
+        const paperId = paperIds[pf.paperId];
+        const folderId = folderIds[pf.folderId];
+        if (paperId !== undefined && folderId !== undefined) {
+            await addPaperToFolder(paperId, folderId).catch(() => {});
+        }
+    }
+    for (const annotation of annotations) {
+        const paperId = paperIds[annotation.paperId];
+        if (paperId === undefined) continue;
+        const { id, ...rest } = annotation;
+        await addAnnotation({ ...rest, paperId }).catch(() => {});
     }
 }
 

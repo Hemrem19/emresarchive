@@ -528,30 +528,24 @@ export const settingsView = {
                             throw new Error('Invalid file format: Unable to parse JSON. Please use a valid backup file.');
                         }
 
-                        // Step 1: Clear ALL data (local + cloud) before importing
-                        // This prevents conflicts when syncing imported data
-                        if (isCloudSyncEnabled() && isAuthenticated()) {
-                            showToast('Clearing existing data from cloud...', 'info', { duration: 10000 });
-                            try {
-                                await clearAllData();
-                                // Small delay to let cloud deletions complete
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                            } catch (clearError) {
-                                console.error('Failed to clear cloud data:', clearError);
-                                // Continue anyway - importData will clear local
-                                showToast('Warning: Cloud data may not have been fully cleared', 'warning', { duration: 3000 });
-                            }
-                        }
-
-                        // Step 2: Import data (handles both local and cloud in one batch)
+                        // importData replaces the local library and, with cloud sync on,
+                        // swaps the cloud library in one atomic request. The cloud is not
+                        // cleared beforehand: a failed import must leave it intact, and
+                        // PDFs the backup still references must survive.
                         showToast('Importing data... Please wait.', 'info', { duration: 10000 });
-                        await importData(papersToImport);
+                        const result = await importData(papersToImport);
 
-                        if (isCloudSyncEnabled() && isAuthenticated()) {
+                        if (result?.cloud === 'synced') {
                             showToast('Import successful! Data synced to cloud.', 'success');
+                        } else if (result?.cloud === 'failed') {
+                            showToast('Imported on this device, but the cloud copy could not be updated. Your cloud library was left unchanged.', 'warning', { duration: 8000 });
                         } else {
                             showToast('Import successful! Library has been restored.', 'success');
                         }
+                        if (result?.warnings?.length) {
+                            console.warn('Import warnings:', result.warnings);
+                        }
+
                         appState.allPapersCache = []; // Clear cache in app state
 
                         // Navigate to dashboard without full page reload to avoid aborting pending requests
