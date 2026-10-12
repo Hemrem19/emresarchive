@@ -13,6 +13,7 @@
  * client's old ids mapped to the new ones.
  */
 import { pdfUrlError, personalLibrary, storagePrefix } from '../lib/access.js';
+import { deleteObjects, isStorageConfigured, listObjects } from '../lib/storage.js';
 
 export const MAX_IMPORT_PAPERS = 10000;
 const CHUNK_BYTES = 512 * 1024;
@@ -274,24 +275,16 @@ export async function runImport(d1, user, normalized, { mode = 'merge', now = ne
  * upload racing with the import is never deleted.
  */
 export async function sweepUnreferencedPdfs(env, d1, user, startedAt) {
-    if (!env.PDF_BUCKET) return 0;
+    if (!isStorageConfigured(env)) return 0;
     const { results } = await d1.prepare(
         `SELECT pdf_url FROM papers WHERE user_id = ? AND deleted_at IS NULL AND pdf_url LIKE 'papers/%'`
     ).bind(user.id).all();
     const keep = new Set(results.map((r) => r.pdf_url));
 
-    let removed = 0;
-    let cursor;
-    do {
-        const page = await env.PDF_BUCKET.list({ prefix: storagePrefix(personalLibrary(user)), cursor, limit: 1000 });
-        const stale = page.objects
-            .filter((o) => !keep.has(o.key) && new Date(o.uploaded) < new Date(startedAt))
-            .map((o) => o.key);
-        if (stale.length) {
-            await env.PDF_BUCKET.delete(stale);
-            removed += stale.length;
-        }
-        cursor = page.truncated ? page.cursor : undefined;
-    } while (cursor);
-    return removed;
+    const stale = [];
+    for await (const object of listObjects(env, storagePrefix(personalLibrary(user)))) {
+        if (!keep.has(object.key) && object.uploaded < new Date(startedAt)) stale.push(object.key);
+    }
+    for (let i = 0; i < stale.length; i += 1000) await deleteObjects(env, stale.slice(i, i + 1000));
+    return stale.length;
 }

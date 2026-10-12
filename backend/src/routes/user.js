@@ -4,6 +4,8 @@ import * as schema from '../../drizzle/schema.js';
 import { eq, or, inArray, count } from 'drizzle-orm';
 import { liveOwnedBy, ownedBy, personalLibrary, storagePrefix } from '../lib/access.js';
 import { authenticate } from '../middleware/auth.js';
+import { deleteObjects, isStorageConfigured, listObjects } from '../lib/storage.js';
+import { measureLibrary, recordUsage } from '../services/storage-quota.js';
 
 const user = new Hono();
 
@@ -27,11 +29,13 @@ user.get('/stats', async (c) => {
         .where(liveOwnedBy(table, authUser));
       return row.value;
     };
-    const [papers, folders, annotations] = await Promise.all([
+    const [papers, folders, annotations, storageUsedBytes] = await Promise.all([
       countLive(schema.papers),
       countLive(schema.folders),
       countLive(schema.annotations),
+      isStorageConfigured(c.env) ? measureLibrary(c.env, personalLibrary(authUser)) : 0,
     ]);
+    if (storageUsedBytes !== authUser.storageUsedBytes) await recordUsage(db, authUser, storageUsedBytes);
 
     return c.json({
       success: true,
@@ -41,7 +45,8 @@ user.get('/stats', async (c) => {
           folders,
           collections: folders, // legacy key; collections became folders
           annotations,
-          storageUsedBytes: authUser.storageUsedBytes?.toString() || '0'
+          storageUsedBytes: String(storageUsedBytes),
+          storageLimitBytes: String(authUser.storageLimitBytes)
         }
       }
     });
@@ -149,19 +154,11 @@ user.delete('/data', async (c) => {
 
 // Removes every object in the user's personal library storage
 async function deleteUserPdfs(env, user) {
-  if (!env.PDF_BUCKET) return 0;
-  let removed = 0;
-  let cursor;
-  do {
-    const page = await env.PDF_BUCKET.list({ prefix: storagePrefix(personalLibrary(user)), cursor, limit: 1000 });
-    const keys = page.objects.map((o) => o.key);
-    if (keys.length) {
-      await env.PDF_BUCKET.delete(keys);
-      removed += keys.length;
-    }
-    cursor = page.truncated ? page.cursor : undefined;
-  } while (cursor);
-  return removed;
+  if (!isStorageConfigured(env)) return 0;
+  const keys = [];
+  for await (const object of listObjects(env, storagePrefix(personalLibrary(user)))) keys.push(object.key);
+  for (let i = 0; i < keys.length; i += 1000) await deleteObjects(env, keys.slice(i, i + 1000));
+  return keys.length;
 }
 
 export default user;

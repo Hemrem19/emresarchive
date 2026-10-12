@@ -228,7 +228,7 @@ export const formView = {
                         showToast('PDF uploaded to cloud successfully!', 'success');
                     } catch (uploadError) {
                         console.error('PDF upload to S3 failed:', uploadError);
-                        showToast('PDF upload failed, saving paper without PDF. You can add PDF later.', 'warning');
+                        showToast(`PDF upload failed (${uploadError.message}). Saving paper without PDF; you can add it later.`, 'warning', { duration: 6000 });
                         // Continue without PDF - user can add it later
                         paperData.hasPdf = false;
                     }

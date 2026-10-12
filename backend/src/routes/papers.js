@@ -12,6 +12,7 @@ import {
 } from '../lib/storage.js';
 import { generateFileToken } from '../lib/jwt.js';
 import { PDF_COLUMNS, pdfResponse, resolvePdfSource } from '../services/pdf.js';
+import { MAX_PDF_BYTES, checkQuota, recordUsage } from '../services/storage-quota.js';
 
 const papers = new Hono();
 papers.use('*', authenticate);
@@ -389,6 +390,8 @@ function pdfChangeError(user, paper, changes) {
     return pdfUrlError(libraryOf(paper), changes.pdfUrl);
 }
 
+const tooLarge = (c, message) => c.json({ success: false, error: { message } }, 413);
+
 const storageNotConfigured = (c) => c.json({
     success: false,
     error: { message: 'PDF storage is not configured on the server.' }
@@ -402,6 +405,10 @@ const storageNotConfigured = (c) => c.json({
 papers.post('/upload', async (c) => {
     if (!isStorageConfigured(c.env)) return storageNotConfigured(c);
 
+    // Refuse oversized bodies before buffering them (multipart adds a little overhead)
+    const declared = Number(c.req.header('content-length'));
+    if (declared > MAX_PDF_BYTES + 64 * 1024) return tooLarge(c, 'PDF is larger than the upload limit');
+
     const body = await c.req.parseBody().catch(() => ({}));
     const file = body.file;
     if (!file || typeof file === 'string') {
@@ -412,8 +419,14 @@ papers.post('/upload', async (c) => {
     }
 
     try {
-        const s3Key = pdfKey(personalLibrary(c.get('user')), c.req.query('paperId'), file.name);
+        const user = c.get('user');
+        const library = personalLibrary(user);
+        const s3Key = pdfKey(library, c.req.query('paperId'), file.name);
+        const { error, used } = await checkQuota(c.env, library, user.storageLimitBytes, s3Key, file.size);
+        if (error) return tooLarge(c, error);
+
         await putObject(c.env, s3Key, await file.arrayBuffer(), file.type);
+        await recordUsage(getDb(c), user, used + file.size);
 
         return c.json({ success: true, data: { s3Key, pdfSizeBytes: file.size, filename: file.name } });
     } catch (err) {
@@ -435,11 +448,19 @@ papers.post('/upload-url', async (c) => {
     if (contentType !== 'application/pdf') {
         return c.json({ success: false, error: { message: 'Only PDF files are allowed' } }, 400);
     }
+    if (!Number.isSafeInteger(size) || size <= 0) {
+        return c.json({ success: false, error: { message: 'size must be a positive number of bytes' } }, 400);
+    }
     if (!canPresign(c.env)) return storageNotConfigured(c);
 
     try {
-        const s3Key = pdfKey(personalLibrary(c.get('user')), paperId, filename);
-        const uploadUrl = await presignUpload(c.env, s3Key, contentType);
+        const user = c.get('user');
+        const library = personalLibrary(user);
+        const s3Key = pdfKey(library, paperId, filename);
+        // The URL only accepts exactly `size` bytes, so the quota check holds
+        const { error } = await checkQuota(c.env, library, user.storageLimitBytes, s3Key, size);
+        if (error) return tooLarge(c, error);
+        const uploadUrl = await presignUpload(c.env, s3Key, size, contentType);
         return c.json({ success: true, data: { uploadUrl, s3Key, expiresIn: PRESIGNED_URL_EXPIRY } });
     } catch (err) {
         console.error('[PDF presign upload]', err);

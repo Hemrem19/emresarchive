@@ -5,7 +5,9 @@
  * S3-compatible API (S3_ENDPOINT / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY /
  * S3_BUCKET_NAME). Presigned URLs always require the S3 credentials.
  */
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+    S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export const PRESIGNED_URL_EXPIRY = 3600;
@@ -25,12 +27,6 @@ const getS3Client = (env) => new S3Client({
         secretAccessKey: env.S3_SECRET_ACCESS_KEY,
     },
 });
-
-/** Same key layout the Express backend used, so existing objects stay reachable. */
-export function generatePdfKey(userId, paperId, filename) {
-    const sanitized = (filename || 'upload.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `papers/${userId}/${paperId}/${sanitized}`;
-}
 
 /** pdfUrl may hold a bare key or a full R2 URL (legacy rows). */
 export function extractKey(urlOrKey) {
@@ -73,12 +69,49 @@ export async function getObject(env, key) {
     }
 }
 
-export function presignUpload(env, key, contentType = 'application/pdf') {
+/** Content-Length is signed, so storage rejects a body of any other size. */
+export function presignUpload(env, key, size, contentType = 'application/pdf') {
     return getSignedUrl(getS3Client(env), new PutObjectCommand({
         Bucket: env.S3_BUCKET_NAME,
         Key: key,
         ContentType: contentType,
+        ContentLength: size,
     }), { expiresIn: PRESIGNED_URL_EXPIRY });
+}
+
+/** Yields { key, size, uploaded } for every object under `prefix`. */
+export async function* listObjects(env, prefix) {
+    if (env.PDF_BUCKET) {
+        let cursor;
+        do {
+            const page = await env.PDF_BUCKET.list({ prefix, cursor, limit: 1000 });
+            for (const o of page.objects) yield { key: o.key, size: o.size, uploaded: new Date(o.uploaded) };
+            cursor = page.truncated ? page.cursor : undefined;
+        } while (cursor);
+        return;
+    }
+    const client = getS3Client(env);
+    let token;
+    do {
+        const page = await client.send(new ListObjectsV2Command({
+            Bucket: env.S3_BUCKET_NAME, Prefix: prefix, ContinuationToken: token,
+        }));
+        for (const o of page.Contents || []) yield { key: o.Key, size: o.Size, uploaded: new Date(o.LastModified) };
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+}
+
+/** Deletes up to 1000 keys. */
+export async function deleteObjects(env, keys) {
+    if (!keys.length) return;
+    if (env.PDF_BUCKET) {
+        await env.PDF_BUCKET.delete(keys);
+        return;
+    }
+    await getS3Client(env).send(new DeleteObjectsCommand({
+        Bucket: env.S3_BUCKET_NAME,
+        Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+    }));
 }
 
 export function presignDownload(env, key) {
