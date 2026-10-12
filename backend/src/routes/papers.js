@@ -8,7 +8,7 @@ import {
     libraryFields, libraryOf, pdfKey, pdfUrlError, personalLibrary,
 } from '../lib/access.js';
 import {
-    PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, putObject, presignUpload, presignDownload,
+    PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, putObject, presignDownload,
 } from '../lib/storage.js';
 import { generateFileToken } from '../lib/jwt.js';
 import { PDF_COLUMNS, pdfResponse, resolvePdfSource } from '../services/pdf.js';
@@ -432,39 +432,6 @@ papers.post('/upload', async (c) => {
     } catch (err) {
         console.error('[PDF upload]', err);
         return c.json({ success: false, error: { message: 'Failed to store PDF' } }, 500);
-    }
-});
-
-/**
- * Presigned PDF upload URL
- * POST /api/papers/upload-url
- * Body: { filename, size, contentType, paperId? }
- */
-papers.post('/upload-url', async (c) => {
-    const { filename, size, contentType, paperId } = await c.req.json().catch(() => ({}));
-    if (!filename || !size || !contentType) {
-        return c.json({ success: false, error: { message: 'filename, size, and contentType are required' } }, 400);
-    }
-    if (contentType !== 'application/pdf') {
-        return c.json({ success: false, error: { message: 'Only PDF files are allowed' } }, 400);
-    }
-    if (!Number.isSafeInteger(size) || size <= 0) {
-        return c.json({ success: false, error: { message: 'size must be a positive number of bytes' } }, 400);
-    }
-    if (!canPresign(c.env)) return storageNotConfigured(c);
-
-    try {
-        const user = c.get('user');
-        const library = personalLibrary(user);
-        const s3Key = pdfKey(library, paperId, filename);
-        // The URL only accepts exactly `size` bytes, so the quota check holds
-        const { error } = await checkQuota(c.env, library, s3Key, size);
-        if (error) return tooLarge(c, error);
-        const uploadUrl = await presignUpload(c.env, s3Key, size, contentType);
-        return c.json({ success: true, data: { uploadUrl, s3Key, expiresIn: PRESIGNED_URL_EXPIRY } });
-    } catch (err) {
-        console.error('[PDF presign upload]', err);
-        return c.json({ success: false, error: { message: 'Failed to generate upload URL' } }, 500);
     }
 });
 

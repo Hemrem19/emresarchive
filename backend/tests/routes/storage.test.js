@@ -69,38 +69,6 @@ describe('uploads', () => {
     });
 });
 
-describe('presigned uploads', () => {
-    beforeEach(() => {
-        Object.assign(t.env, {
-            S3_ENDPOINT: 'https://example.r2.cloudflarestorage.com',
-            S3_ACCESS_KEY_ID: 'id',
-            S3_SECRET_ACCESS_KEY: 'secret',
-            S3_BUCKET_NAME: 'bucket',
-        });
-    });
-
-    const presign = (user, size) => t.request('/api/papers/upload-url', {
-        user, method: 'POST', body: { filename: 'a.pdf', size, contentType: 'application/pdf', paperId: 3 },
-    });
-
-    it('signs the declared size so a larger body is rejected by storage', async () => {
-        const res = await json(await presign(alice, 1234));
-        expect(res.status).toBe(200);
-        const signed = new URL(res.body.data.uploadUrl).searchParams.get('X-Amz-SignedHeaders');
-        expect(signed.split(';')).toContain('content-length');
-    });
-
-    it('applies the quota before handing out a URL', async () => {
-        setLimit('1000B');
-        await t.bucket.put('papers/1/1/old.pdf', new Uint8Array(900).buffer);
-        expect((await presign(alice, 200)).status).toBe(413);
-    });
-
-    it.each([0, -5, 1.5, '100', null])('rejects size %s', async (size) => {
-        expect((await presign(alice, size)).status).toBe(400);
-    });
-});
-
 describe('limit configuration', () => {
     it.each([['2GB', 2 * 1024 ** 3], ['500 MB', 500 * 1024 ** 2], ['1.5gb', 1.5 * 1024 ** 3], ['1000B', 1000]])(
         'reads %s', (value, bytes) => expect(parseSize(value)).toBe(bytes));
@@ -135,5 +103,14 @@ describe('stats', () => {
         const changed = await json(await t.request('/api/user/stats', { user: alice }));
         expect(changed.body.data.stats.storageLimitBytes).toBe(String(5 * 1024 ** 3));
         expect(usage(alice)).toBe(700);
+    });
+});
+
+describe('upload paths', () => {
+    it('has no presigned upload route (uploads go through the Worker only)', async () => {
+        const res = await t.request('/api/papers/upload-url', {
+            user: alice, method: 'POST', body: { filename: 'a.pdf', size: 10, contentType: 'application/pdf' },
+        });
+        expect(res.status).toBe(404);
     });
 });

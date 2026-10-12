@@ -348,51 +348,6 @@ describe('api/papers.js - Papers API', () => {
         });
     });
 
-    describe('getUploadUrl', () => {
-        it('should get a presigned upload URL', async () => {
-            const options = {
-                filename: 'test.pdf',
-                size: 1024,
-                contentType: 'application/pdf',
-                paperId: 1
-            };
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: true,
-                data: {
-                    uploadUrl: 'https://s3.example.com/upload',
-                    s3Key: 'papers/test.pdf',
-                    expiresIn: 3600
-                }
-            };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            const result = await papersApi.getUploadUrl(options);
-
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('/api/papers/upload-url'),
-                expect.objectContaining({
-                    method: 'POST',
-                    body: JSON.stringify(options)
-                })
-            );
-            expect(result.uploadUrl).toBe('https://s3.example.com/upload');
-            expect(result.s3Key).toBe('papers/test.pdf');
-        });
-
-        it('should throw error on invalid response', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = { success: false };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            await expect(papersApi.getUploadUrl({ filename: 'test.pdf' })).rejects.toThrow('Invalid response from server');
-        });
-    });
-
     describe('uploadPdfViaBackend', () => {
         it('should upload PDF via backend', async () => {
             const file = new File(['test content'], 'test.pdf', { type: 'application/pdf' });

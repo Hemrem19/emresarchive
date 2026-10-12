@@ -33,8 +33,7 @@ vi.mock('../../api/papers.js', () => ({
     updatePaper: vi.fn(),
     deletePaper: vi.fn(),
     batchOperations: vi.fn(() => Promise.resolve([])),
-    getUploadUrl: vi.fn(),
-    uploadPdf: vi.fn(),
+    uploadPdfViaBackend: vi.fn(),
     getPdfDownloadUrl: vi.fn()
 }));
 
@@ -132,8 +131,7 @@ describe('DB Adapter Coverage', () => {
             const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
 
             // Mock API responses
-            apiPapers.getUploadUrl.mockResolvedValue({ uploadUrl: 'http://upload', s3Key: 'key' });
-            apiPapers.uploadPdf.mockResolvedValue();
+            apiPapers.uploadPdfViaBackend.mockResolvedValue({ s3Key: 'key', pdfSizeBytes: 4 });
             apiPapers.createPaper.mockResolvedValue({ id: 1, title: 'Test', pdfUrl: 'key' });
             localPapers.addPaper.mockResolvedValue(1);
 
@@ -144,8 +142,7 @@ describe('DB Adapter Coverage', () => {
 
             await papers.addPaper(paperData);
 
-            expect(apiPapers.getUploadUrl).toHaveBeenCalled();
-            expect(apiPapers.uploadPdf).toHaveBeenCalled();
+            expect(apiPapers.uploadPdfViaBackend).toHaveBeenCalledWith(file);
             expect(apiPapers.createPaper).toHaveBeenCalledWith(expect.objectContaining({
                 pdfUrl: 'key'
             }));
@@ -158,7 +155,7 @@ describe('DB Adapter Coverage', () => {
             const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
 
             // Mock upload failure
-            apiPapers.getUploadUrl.mockRejectedValue(new Error('Upload failed'));
+            apiPapers.uploadPdfViaBackend.mockRejectedValue(new Error('Upload failed'));
             apiPapers.createPaper.mockResolvedValue({ id: 1, title: 'Test' });
             localPapers.addPaper.mockResolvedValue(1);
 
@@ -282,20 +279,14 @@ describe('DB Adapter Coverage', () => {
             const configModule = await import('../../config.js');
             configModule.isCloudSyncEnabled.mockReturnValue(false);
 
-            await expect(papers.getUploadUrl({})).rejects.toThrow('Cloud sync required');
-            await expect(papers.uploadPdf('url', {})).rejects.toThrow('Cloud sync required');
             await expect(papers.getPdfDownloadUrl(1)).rejects.toThrow('Cloud sync required');
         });
 
         it('should handle API errors in PDF ops', async () => {
             const apiPapers = await import('../../api/papers.js');
 
-            apiPapers.getUploadUrl.mockRejectedValue(new Error('API Error'));
-            apiPapers.uploadPdf.mockRejectedValue(new Error('API Error'));
             apiPapers.getPdfDownloadUrl.mockRejectedValue(new Error('API Error'));
 
-            await expect(papers.getUploadUrl({})).rejects.toThrow('Cloud sync required'); // Wrapper throws generic
-            await expect(papers.uploadPdf('url', {})).rejects.toThrow('Failed to upload PDF');
             await expect(papers.getPdfDownloadUrl(1)).rejects.toThrow('Cloud sync required');
         });
     });

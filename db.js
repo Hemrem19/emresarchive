@@ -38,8 +38,6 @@ export const batchOperations = papersAdapter.batchOperations.bind(papersAdapter)
 
 // Additional paper operations (cloud-only or enhanced)
 export const searchPapers = papersAdapter.searchPapers.bind(papersAdapter);
-export const getUploadUrl = papersAdapter.getUploadUrl.bind(papersAdapter);
-export const uploadPdf = papersAdapter.uploadPdf.bind(papersAdapter);
 export const getPdfDownloadUrl = papersAdapter.getPdfDownloadUrl.bind(papersAdapter);
 
 // Folder operations (with cloud sync support)

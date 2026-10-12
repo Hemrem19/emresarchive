@@ -3,7 +3,7 @@
  *
  * Prefers a native R2 binding (env.PDF_BUCKET) and falls back to the
  * S3-compatible API (S3_ENDPOINT / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY /
- * S3_BUCKET_NAME). Presigned URLs always require the S3 credentials.
+ * S3_BUCKET_NAME). Presigned download URLs require the S3 credentials.
  */
 import {
     S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand,
@@ -67,16 +67,6 @@ export async function getObject(env, key) {
         if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) return null;
         throw err;
     }
-}
-
-/** Content-Length is signed, so storage rejects a body of any other size. */
-export function presignUpload(env, key, size, contentType = 'application/pdf') {
-    return getSignedUrl(getS3Client(env), new PutObjectCommand({
-        Bucket: env.S3_BUCKET_NAME,
-        Key: key,
-        ContentType: contentType,
-        ContentLength: size,
-    }), { expiresIn: PRESIGNED_URL_EXPIRY });
 }
 
 /** Yields { key, size, uploaded } for every object under `prefix`. */

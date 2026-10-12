@@ -3,7 +3,7 @@ import { showToast } from './ui.js';
 import { fetchDoiMetadata } from './api.js';
 import { isCloudSyncEnabled } from './config.js';
 import { isAuthenticated } from './api/auth.js';
-import { getUploadUrl, uploadPdf, uploadPdfViaBackend } from './api/papers.js';
+import { uploadPdfViaBackend } from './api/papers.js';
 
 export const formView = {
     isEditMode: false,

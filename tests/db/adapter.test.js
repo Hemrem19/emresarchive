@@ -61,8 +61,7 @@ vi.mock('../../api/papers.js', () => ({
     updatePaper: vi.fn(),
     deletePaper: vi.fn(),
     searchPapers: vi.fn(() => Promise.resolve({ papers: [] })),
-    getUploadUrl: vi.fn(),
-    uploadPdf: vi.fn(),
+    uploadPdfViaBackend: vi.fn(),
     batchOperations: vi.fn(() => Promise.resolve([]))
 }));
 

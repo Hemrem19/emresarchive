@@ -34,8 +34,7 @@ vi.mock('../../db/papers.js', () => ({
 vi.mock('../../api/papers.js', () => ({
     createPaper: vi.fn(),
     batchOperations: vi.fn(),
-    getUploadUrl: vi.fn(),
-    uploadPdf: vi.fn()
+    uploadPdfViaBackend: vi.fn()
 }));
 
 vi.mock('../../db/sync.js', () => ({

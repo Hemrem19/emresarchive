@@ -262,54 +262,7 @@ export async function searchPapers(query, options = {}) {
 }
 
 /**
- * Gets a presigned URL for PDF upload.
- * @param {Object} options - Upload options.
- * @param {string} options.filename - PDF filename.
- * @param {number} options.size - File size in bytes.
- * @param {string} options.contentType - MIME type (default: 'application/pdf').
- * @param {number|null} options.paperId - Optional paper ID (for new papers, can be null).
- * @returns {Promise<Object>} Promise resolving to { uploadUrl, s3Key, expiresIn }.
- */
-export async function getUploadUrl(options) {
-    const {
-        filename,
-        size,
-        contentType = 'application/pdf',
-        paperId = null
-    } = options;
-
-    try {
-        const response = await apiRequest(`${API_BASE}/upload-url`, {
-            method: 'POST',
-            body: JSON.stringify({
-                filename,
-                size,
-                contentType,
-                paperId
-            })
-        });
-
-        const result = await parseJsonResponse(response);
-
-        if (result.success && result.data) {
-            return {
-                uploadUrl: result.data.uploadUrl,
-                fields: result.data.fields || null, // Presigned POST fields (if using POST)
-                s3Key: result.data.s3Key,
-                expiresIn: result.data.expiresIn
-            };
-        }
-
-        throw new Error('Invalid response from server');
-    } catch (error) {
-        console.error('Get upload URL error:', error);
-        throw error;
-    }
-}
-
-/**
- * Uploads a PDF file to S3 via backend server (direct upload).
- * This avoids presigned URL signature mismatch issues.
+ * Uploads a PDF through the backend (the only upload path; the server checks size and quota).
  * @param {File|Blob} file - PDF file to upload.
  * @param {number|null} paperId - Optional paper ID (for new papers, can be null).
  * @returns {Promise<Object>} Promise resolving to { s3Key, pdfSizeBytes, filename }.
@@ -383,73 +336,6 @@ export async function uploadPdfViaBackend(file, paperId = null) {
         throw new Error('Invalid response from server');
     } catch (error) {
         console.error('Upload PDF via backend error:', error);
-        throw error;
-    }
-}
-
-/**
- * Uploads a PDF file to S3 using presigned URL (supports both POST and PUT).
- * @deprecated Use uploadPdfViaBackend instead to avoid signature mismatch issues.
- * @param {string} uploadUrl - Presigned upload URL.
- * @param {File|Blob} file - PDF file to upload.
- * @param {Object|null} fields - Presigned POST fields (if using POST method).
- * @returns {Promise<void>}
- */
-export async function uploadPdf(uploadUrl, file, fields = null) {
-    try {
-        if (fields && typeof uploadUrl === 'string' && uploadUrl.includes('http')) {
-            // Presigned POST: Send FormData with fields + file
-            // Note: R2 may not support presigned POST (returns 501), so this might fail
-            const formData = new FormData();
-            
-            // Add all presigned POST fields
-            for (const [key, value] of Object.entries(fields)) {
-                formData.append(key, value);
-            }
-            
-            // Add the file (must be last field in FormData for presigned POST)
-            // The field name doesn't matter for presigned POST - S3 accepts any name
-            formData.append('file', file);
-            
-            const response = await fetch(uploadUrl, {
-                method: 'POST',
-                body: formData
-                // DO NOT set Content-Type header - browser sets it with boundary for multipart/form-data
-            });
-            
-            if (!response.ok) {
-                // If POST returns 501 (Not Implemented), R2 doesn't support presigned POST
-                // The backend should have fallen back to PUT, but if it didn't, log this
-                if (response.status === 501) {
-                    console.error('R2 returned 501 Not Implemented - presigned POST not supported');
-                }
-                const errorText = await response.text().catch(() => '');
-                console.error('Upload failed response:', response.status, response.statusText, errorText);
-                throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-            }
-            return; // Success - exit function
-        } else {
-            // Presigned PUT: Send file directly
-            // Note: Even though CanonicalRequest shows GET, PUT might work with x-id=PutObject
-            // The ContentType is included in the signature, so we must match it exactly
-            const response = await fetch(uploadUrl, {
-                method: 'PUT',
-                body: file,
-                headers: {
-                    // Content-Type must match exactly what was used in PutObjectCommand
-                    'Content-Type': 'application/pdf'
-                }
-                // DO NOT set Content-Length - browser sets it automatically
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => '');
-                console.error('Upload failed response:', response.status, response.statusText, errorText);
-                throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-            }
-        }
-    } catch (error) {
-        console.error('Upload PDF error:', error);
         throw error;
     }
 }

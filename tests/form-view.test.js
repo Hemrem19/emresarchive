@@ -30,8 +30,6 @@ vi.mock('../api/auth.js', () => ({
 }));
 
 vi.mock('../api/papers.js', () => ({
-    getUploadUrl: vi.fn(),
-    uploadPdf: vi.fn(),
     uploadPdfViaBackend: vi.fn()
 }));
 

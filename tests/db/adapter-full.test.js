@@ -37,8 +37,7 @@ vi.mock('../../db/papers.js', () => ({
 vi.mock('../../api/papers.js', () => ({
     createPaper: vi.fn(),
     batchOperations: vi.fn(),
-    getUploadUrl: vi.fn(),
-    uploadPdf: vi.fn()
+    uploadPdfViaBackend: vi.fn()
 }));
 
 vi.mock('../../db/folders.js', () => ({
@@ -137,7 +136,7 @@ describe('Adapter Full Coverage', () => {
             const localId = 123;
 
             // Mock upload failure
-            apiPapers.getUploadUrl.mockRejectedValue(new Error('Upload Error'));
+            apiPapers.uploadPdfViaBackend.mockRejectedValue(new Error('Upload Error'));
 
             // Mock cloud create failure (cascading or separate)
             apiPapers.createPaper.mockRejectedValue(new Error('Network Error'));

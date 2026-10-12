@@ -244,17 +244,11 @@ export const papers = {
                 if (processedData.pdfData && processedData.pdfData instanceof File) {
                     // If pdfData is a File, it should have been uploaded to S3 in form.view.js
                     // If it wasn't, handle it here as fallback
-                    const { getUploadUrl, uploadPdf } = await import('../api/papers.js');
+                    const { uploadPdfViaBackend } = await import('../api/papers.js');
                     try {
-                        const { uploadUrl, s3Key } = await getUploadUrl({
-                            filename: processedData.pdfData.name,
-                            size: processedData.pdfData.size,
-                            contentType: processedData.pdfData.type || 'application/pdf',
-                            paperId: null
-                        });
-                        await uploadPdf(uploadUrl, processedData.pdfData);
+                        const { s3Key, pdfSizeBytes } = await uploadPdfViaBackend(processedData.pdfData);
                         processedData.s3Key = s3Key;
-                        processedData.pdfSizeBytes = processedData.pdfData.size;
+                        processedData.pdfSizeBytes = pdfSizeBytes;
                         delete processedData.pdfData; // Remove File object, use s3Key instead
                     } catch (uploadError) {
                         console.error('PDF upload during add failed:', uploadError);
@@ -447,28 +441,6 @@ export const papers = {
             paper.authors?.some(a => a.toLowerCase().includes(lowerQuery)) ||
             paper.notes?.toLowerCase().includes(lowerQuery)
         );
-    },
-
-    async getUploadUrl(options) {
-        if (shouldUseCloudSync()) {
-            try {
-                return await apiPapers.getUploadUrl(options);
-            } catch (error) {
-                throw new Error('Cloud sync required for PDF upload. Please log in.');
-            }
-        }
-        throw new Error('Cloud sync required for PDF upload. Please log in.');
-    },
-
-    async uploadPdf(uploadUrl, file) {
-        if (shouldUseCloudSync()) {
-            try {
-                return await apiPapers.uploadPdf(uploadUrl, file);
-            } catch (error) {
-                throw new Error('Failed to upload PDF to cloud storage.');
-            }
-        }
-        throw new Error('Cloud sync required for PDF upload. Please log in.');
     },
 
     async getPdfDownloadUrl(paperId) {
