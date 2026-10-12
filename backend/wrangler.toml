@@ -14,8 +14,14 @@ routes = [
 ENVIRONMENT = "production"
 # Cloud storage per library (e.g. "2GB", "500MB"); placeholder for now
 STORAGE_LIMIT = "2GB"
+# Nightly cleanup of expired-trash and unreferenced PDFs (src/services/purge.js):
+# "report" only logs what would be removed; "delete" removes it
+STORAGE_PURGE = "report"
 # [env.production]
 # name = "citavers-backend-prod"
+
+[triggers]
+crons = ["0 3 * * *"] # 03:00 UTC daily: storage purge
 
 [[d1_databases]]
 binding = "citavers_db"

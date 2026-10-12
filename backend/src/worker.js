@@ -13,6 +13,7 @@ import importRoutes from './routes/import.js';
 import filesRoutes from './routes/files.js';
 import { authenticateSocket } from './middleware/auth.js';
 import { isAllowedOrigin } from './lib/origins.js';
+import { purgeStorage } from './services/purge.js';
 
 const app = new Hono();
 
@@ -107,6 +108,15 @@ app.onError((err, c) => {
 export default {
   fetch(request, env, ctx) {
     return app.fetch(request, env, ctx);
+  },
+
+  // Cron Trigger (wrangler.toml [triggers])
+  scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      purgeStorage(env)
+        .then((summary) => console.log('[purge]', JSON.stringify(summary)))
+        .catch((err) => console.error('[purge] failed:', err))
+    );
   }
 };
 
