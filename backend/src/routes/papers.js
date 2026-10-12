@@ -422,7 +422,7 @@ papers.post('/upload', async (c) => {
         const user = c.get('user');
         const library = personalLibrary(user);
         const s3Key = pdfKey(library, c.req.query('paperId'), file.name);
-        const { error, used } = await checkQuota(c.env, library, user.storageLimitBytes, s3Key, file.size);
+        const { error, used } = await checkQuota(c.env, library, s3Key, file.size);
         if (error) return tooLarge(c, error);
 
         await putObject(c.env, s3Key, await file.arrayBuffer(), file.type);
@@ -458,7 +458,7 @@ papers.post('/upload-url', async (c) => {
         const library = personalLibrary(user);
         const s3Key = pdfKey(library, paperId, filename);
         // The URL only accepts exactly `size` bytes, so the quota check holds
-        const { error } = await checkQuota(c.env, library, user.storageLimitBytes, s3Key, size);
+        const { error } = await checkQuota(c.env, library, s3Key, size);
         if (error) return tooLarge(c, error);
         const uploadUrl = await presignUpload(c.env, s3Key, size, contentType);
         return c.json({ success: true, data: { uploadUrl, s3Key, expiresIn: PRESIGNED_URL_EXPIRY } });

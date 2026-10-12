@@ -15,7 +15,7 @@ export const users = sqliteTable('users', {
   lastLoginAt: text('last_login_at'),
   lastSyncedAt: text('last_synced_at'),
   storageUsedBytes: integer('storage_used_bytes', { mode: 'number' }).default(0).notNull(),
-  storageLimitBytes: integer('storage_limit_bytes', { mode: 'number' }).default(2147483648).notNull(), // 2GB default
+  storageLimitBytes: integer('storage_limit_bytes', { mode: 'number' }).default(2147483648).notNull(), // unused: the limit is STORAGE_LIMIT in wrangler.toml
   settings: text('settings', { mode: 'json' }).default('{}').notNull(),
 });
 

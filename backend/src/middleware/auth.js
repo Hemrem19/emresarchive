@@ -39,7 +39,6 @@ function createAuthenticate({ allowQueryToken }) {
         emailVerified: true,
         createdAt: true,
         storageUsedBytes: true,
-        storageLimitBytes: true,
         settings: true
       }
     });

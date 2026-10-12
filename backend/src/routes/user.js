@@ -5,7 +5,7 @@ import { eq, or, inArray, count } from 'drizzle-orm';
 import { liveOwnedBy, ownedBy, personalLibrary, storagePrefix } from '../lib/access.js';
 import { authenticate } from '../middleware/auth.js';
 import { deleteObjects, isStorageConfigured, listObjects } from '../lib/storage.js';
-import { measureLibrary, recordUsage } from '../services/storage-quota.js';
+import { libraryLimit, measureLibrary, recordUsage } from '../services/storage-quota.js';
 
 const user = new Hono();
 
@@ -46,7 +46,7 @@ user.get('/stats', async (c) => {
           collections: folders, // legacy key; collections became folders
           annotations,
           storageUsedBytes: String(storageUsedBytes),
-          storageLimitBytes: String(authUser.storageLimitBytes)
+          storageLimitBytes: String(libraryLimit(c.env, personalLibrary(authUser)))
         }
       }
     });

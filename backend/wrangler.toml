@@ -12,6 +12,8 @@ routes = [
 
 [vars]
 ENVIRONMENT = "production"
+# Cloud storage per library (e.g. "2GB", "500MB"); placeholder for now
+STORAGE_LIMIT = "2GB"
 # [env.production]
 # name = "citavers-backend-prod"
 

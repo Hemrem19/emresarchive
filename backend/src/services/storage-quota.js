@@ -3,9 +3,11 @@
  * library's prefix, never from sizes clients report (pdfSizeBytes is client
  * writable), so it cannot drift or be under-reported.
  *
- * Today every library is a personal one and its limit is the owner's
- * storage_limit_bytes. A group library will carry its own limit, so members'
- * uploads count against the group, not against whoever happens to upload.
+ * The limit is configuration, not data: STORAGE_LIMIT in wrangler.toml
+ * (e.g. "2GB", "500MB"). Changing it there and redeploying applies to every
+ * library at once. Today every library is a personal one; a group library
+ * will get its own limit through libraryLimit, so members' uploads count
+ * against the group, not against whoever happens to upload.
  */
 import { eq } from 'drizzle-orm';
 import * as schema from '../../drizzle/schema.js';
@@ -16,6 +18,24 @@ import { storagePrefix } from '../lib/access.js';
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
 const MB = 1024 * 1024;
+
+/** Used when STORAGE_LIMIT is not set. */
+export const DEFAULT_STORAGE_LIMIT = '2GB';
+
+const UNITS = { B: 1, KB: 1024, MB, GB: 1024 * MB, TB: 1024 * 1024 * MB };
+
+/** Parses "2GB", "500 MB", "1.5GB" or "1000B" into bytes. */
+export function parseSize(value) {
+    const match = /^\s*(\d+(?:\.\d+)?)\s*(B|KB|MB|GB|TB)\s*$/i.exec(String(value));
+    if (!match) throw new Error(`Invalid storage size: "${value}" (use e.g. "2GB" or "500MB")`);
+    return Math.floor(Number(match[1]) * UNITS[match[2].toUpperCase()]);
+}
+
+/** Storage limit of `library` in bytes (the same for every library until groups). */
+export function libraryLimit(env, library) {
+    return parseSize(env.STORAGE_LIMIT ?? DEFAULT_STORAGE_LIMIT);
+}
+
 const formatMb = (bytes) => `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`;
 
 /** Bytes stored in `library`, leaving out `exceptKey` (an object about to be replaced). */
@@ -28,11 +48,12 @@ export async function measureLibrary(env, library, exceptKey = null) {
 }
 
 /**
- * Whether `size` more bytes fit in `library`, whose limit is `limitBytes`.
- * `key` is where they will be written; an object already there is replaced,
- * so its size does not count. Returns { error, used }.
+ * Whether `size` more bytes fit in `library`. `key` is where they will be
+ * written; an object already there is replaced, so its size does not count.
+ * Returns { error, used }.
  */
-export async function checkQuota(env, library, limitBytes, key, size) {
+export async function checkQuota(env, library, key, size) {
+    const limitBytes = libraryLimit(env, library);
     if (size > MAX_PDF_BYTES) {
         return { error: `PDF is larger than the ${formatMb(MAX_PDF_BYTES)} limit`, used: null };
     }

@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestApp } from '../support/app.js';
-import { MAX_PDF_BYTES } from '../../src/services/storage-quota.js';
+import { MAX_PDF_BYTES, libraryLimit, parseSize } from '../../src/services/storage-quota.js';
 
 let t, alice, bob;
 
@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 
 const json = async (res) => ({ status: res.status, body: await res.json().catch(() => null) });
-const setLimit = (user, bytes) => t.db.sqlite.prepare('UPDATE users SET storage_limit_bytes = ? WHERE id = ?').run(bytes, user.id);
+const setLimit = (limit) => { t.env.STORAGE_LIMIT = limit; };
 const usage = (user) => t.row('SELECT storage_used_bytes AS used FROM users WHERE id = ?', user.id).used;
 
 function upload(user, { bytes = 100, name = 'paper.pdf', paperId = 7 } = {}) {
@@ -35,7 +35,7 @@ describe('uploads', () => {
     });
 
     it('refuses an upload that would exceed the limit and stores nothing', async () => {
-        setLimit(alice, 1000);
+        setLimit('1000B');
         await t.bucket.put('papers/1/1/old.pdf', new Uint8Array(950).buffer);
         const res = await json(await upload(alice, { bytes: 100 }));
 
@@ -45,7 +45,7 @@ describe('uploads', () => {
     });
 
     it('does not count the file being replaced', async () => {
-        setLimit(alice, 1000);
+        setLimit('1000B');
         expect((await upload(alice, { bytes: 800 })).status).toBe(200);
         const again = await upload(alice, { bytes: 900 });
 
@@ -60,7 +60,7 @@ describe('uploads', () => {
     });
 
     it('counts only the uploader\'s own library', async () => {
-        setLimit(bob, 1000);
+        setLimit('1000B');
         await t.bucket.put('papers/1/1/big.pdf', new Uint8Array(5000).buffer);
         await t.bucket.put('papers/12/1/big.pdf', new Uint8Array(5000).buffer);
 
@@ -91,13 +91,34 @@ describe('presigned uploads', () => {
     });
 
     it('applies the quota before handing out a URL', async () => {
-        setLimit(alice, 1000);
+        setLimit('1000B');
         await t.bucket.put('papers/1/1/old.pdf', new Uint8Array(900).buffer);
         expect((await presign(alice, 200)).status).toBe(413);
     });
 
     it.each([0, -5, 1.5, '100', null])('rejects size %s', async (size) => {
         expect((await presign(alice, size)).status).toBe(400);
+    });
+});
+
+describe('limit configuration', () => {
+    it.each([['2GB', 2 * 1024 ** 3], ['500 MB', 500 * 1024 ** 2], ['1.5gb', 1.5 * 1024 ** 3], ['1000B', 1000]])(
+        'reads %s', (value, bytes) => expect(parseSize(value)).toBe(bytes));
+
+    it.each(['2', 'two GB', '', '-1GB', '2PB'])('rejects %s', (value) => {
+        expect(() => parseSize(value)).toThrow(/Invalid storage size/);
+    });
+
+    it('defaults to 2GB when STORAGE_LIMIT is not set', () => {
+        expect(libraryLimit({}, { ownerId: 1 })).toBe(2 * 1024 ** 3);
+    });
+
+    it('applies a changed limit without touching user rows', async () => {
+        setLimit('1KB');
+        expect((await upload(alice, { bytes: 1000 })).status).toBe(200);
+        setLimit('2KB');
+        expect((await upload(alice, { bytes: 1000, name: 'b.pdf' })).status).toBe(200);
+        expect((await upload(alice, { bytes: 100, name: 'c.pdf' })).status).toBe(413);
     });
 });
 
@@ -109,6 +130,10 @@ describe('stats', () => {
 
         expect(res.body.data.stats.storageUsedBytes).toBe('700');
         expect(res.body.data.stats.storageLimitBytes).toBe(String(2 * 1024 ** 3));
+
+        setLimit('5GB');
+        const changed = await json(await t.request('/api/user/stats', { user: alice }));
+        expect(changed.body.data.stats.storageLimitBytes).toBe(String(5 * 1024 ** 3));
         expect(usage(alice)).toBe(700);
     });
 });
