@@ -25,7 +25,8 @@ const FILES_TO_COPY = [
     'docs.view.js',
     'citation.js',
     'api.js',
-    'tailwind.js'
+    'tailwind.js',
+    '_headers' // Pages response headers (cache rules)
 ];
 
 // Directories to copy recursively
