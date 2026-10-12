@@ -32,3 +32,17 @@ export async function clearAllUserData() {
         throw new Error(`Failed to clear user data: ${error.message}`);
     }
 }
+
+/**
+ * Cloud storage usage of the signed-in user's library.
+ * @returns {Promise<{usedBytes: number, limitBytes: number}>}
+ */
+export async function getStorageUsage() {
+    const response = await apiRequest(`${API_BASE}/stats`, { method: 'GET', credentials: 'include' });
+    const result = await parseJsonResponse(response);
+    if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to load storage usage');
+    }
+    const { storageUsedBytes, storageLimitBytes } = result.data.stats;
+    return { usedBytes: Number(storageUsedBytes), limitBytes: Number(storageLimitBytes) };
+}

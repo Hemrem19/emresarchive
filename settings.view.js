@@ -4,6 +4,7 @@ import { showToast } from './ui.js';
 import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
 import { isAuthenticated, getUser, resendVerificationEmail } from './api/auth.js';
+import { getStorageUsage } from './api/user.js';
 import { parseRIS } from './import/ris-parser.js';
 import { restartAutoSync, stopAutoSync, performManualSync } from './core/syncManager.js';
 
@@ -31,6 +32,32 @@ export const settingsView = {
     setupAppearance() {
         // Dark mode is now always enabled - no toggle needed
         // This function is kept for compatibility but does nothing
+    },
+
+    // Cloud storage used by PDFs, against the account's limit (signed-in cloud users only)
+    async renderStorageUsage(statsList) {
+        if (!isCloudSyncEnabled() || !isAuthenticated()) return;
+        let usage;
+        try {
+            usage = await getStorageUsage();
+        } catch (error) {
+            console.warn('Could not load cloud storage usage:', error);
+            return;
+        }
+        const { usedBytes, limitBytes } = usage;
+        if (!Number.isFinite(usedBytes) || !(limitBytes > 0)) return;
+
+        const percent = Math.min(100, (usedBytes / limitBytes) * 100);
+        const barColor = percent >= 90 ? 'bg-red-500' : percent >= 75 ? 'bg-yellow-500' : 'bg-primary';
+        statsList.insertAdjacentHTML('beforeend', `
+                <div class="col-span-2 sm:col-span-4 flex flex-col rounded-xl border border-white/5 bg-slate-800/50 backdrop-blur-sm p-4 shadow-lg shadow-black/20" id="storage-usage">
+                    <dt class="text-xs font-medium text-slate-400 uppercase tracking-wider">Cloud Storage (PDFs)</dt>
+                    <dd class="mt-2 text-sm text-slate-200">${formatBytes(usedBytes)} of ${formatBytes(limitBytes)} used</dd>
+                    <div class="mt-2 h-2 w-full rounded-full bg-slate-700" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}">
+                        <div class="h-2 rounded-full ${barColor}" style="width: ${percent.toFixed(1)}%"></div>
+                    </div>
+                </div>
+                `);
     },
 
     async setupStatistics() {
@@ -71,6 +98,7 @@ export const settingsView = {
                 `).join('');
 
                 statsList.innerHTML = fullStatsHtml;
+                await this.renderStorageUsage(statsList);
             } catch (error) {
                 console.error('Error fetching or rendering statistics:', error);
                 statsList.innerHTML = `<p class="text-red-500">Failed to load statistics.</p>`;
@@ -1071,3 +1099,9 @@ export const settingsView = {
         }
     }
 };
+
+function formatBytes(bytes) {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+    return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+}
