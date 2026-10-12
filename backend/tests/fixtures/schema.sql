@@ -200,3 +200,17 @@ CREATE UNIQUE INDEX `sessions_token_hash_unique` ON `sessions` (`token_hash`);
 CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);
 
 CREATE UNIQUE INDEX `users_verification_token_unique` ON `users` (`verification_token`);
+
+CREATE INDEX IF NOT EXISTS `papers_user_id_updated_at_idx` ON `papers` (`user_id`, `updated_at`);
+
+CREATE INDEX IF NOT EXISTS `annotations_user_id_idx` ON `annotations` (`user_id`);
+
+CREATE INDEX IF NOT EXISTS `annotations_paper_id_idx` ON `annotations` (`paper_id`);
+
+CREATE INDEX IF NOT EXISTS `network_graphs_user_id_idx` ON `network_graphs` (`user_id`);
+
+CREATE INDEX IF NOT EXISTS `paper_connections_from_paper_id_idx` ON `paper_connections` (`from_paper_id`);
+
+CREATE INDEX IF NOT EXISTS `paper_connections_to_paper_id_idx` ON `paper_connections` (`to_paper_id`);
+
+CREATE INDEX IF NOT EXISTS `sessions_user_id_idx` ON `sessions` (`user_id`);

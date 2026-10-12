@@ -4,8 +4,9 @@ compatibility_date = "2024-09-23"
 compatibility_flags = [ "nodejs_compat" ]
 
 # Serve the API on the same site as the frontend so the refresh-token
-# cookie is first-party. workers.dev stays on during the transition.
-workers_dev = true
+# cookie is first-party. The workers.dev address is off so the API has one
+# public origin.
+workers_dev = false
 routes = [
   { pattern = "api.citavers.com", custom_domain = true }
 ]

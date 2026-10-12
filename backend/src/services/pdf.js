@@ -22,6 +22,22 @@ export function resolvePdfSource(paper) {
     return isHttpUrl(pdfUrl) ? { kind: 'external', url: pdfUrl } : null;
 }
 
+/** External PDFs are streamed through the Worker; bound what one request may pull. */
+export const MAX_EXTERNAL_PDF_BYTES = 100 * 1024 * 1024;
+export const EXTERNAL_FETCH_TIMEOUT_MS = 20_000;
+
+/** Passes bytes through until `limit`, then fails the stream (the client sees a cut-off download). */
+function capBytes(body, limit) {
+    let seen = 0;
+    return body.pipeThrough(new TransformStream({
+        transform(chunk, controller) {
+            seen += chunk.byteLength;
+            if (seen > limit) controller.error(new Error('External PDF exceeds the size limit'));
+            else controller.enqueue(chunk);
+        },
+    }));
+}
+
 const notFound = (c, message = 'PDF not found for this paper') =>
     c.json({ success: false, error: { message } }, 404);
 
@@ -47,9 +63,19 @@ export async function pdfResponse(c, paper, disposition = 'inline') {
             return new Response(obj.body, { headers });
         }
 
-        const upstream = await fetch(source.url);
+        // The link is user-supplied: time-box the request and cap the size
+        const upstream = await fetch(source.url, {
+            signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
+            headers: { Accept: 'application/pdf' },
+        });
         if (!upstream.ok) throw new Error(`Upstream responded ${upstream.status}`);
-        return new Response(upstream.body, { headers });
+        const declared = Number(upstream.headers.get('content-length'));
+        if (declared > MAX_EXTERNAL_PDF_BYTES) {
+            upstream.body?.cancel();
+            return c.json({ success: false, error: { message: 'External PDF is too large to proxy' } }, 413);
+        }
+        if (declared) headers['Content-Length'] = String(declared);
+        return new Response(upstream.body && capBytes(upstream.body, MAX_EXTERNAL_PDF_BYTES), { headers });
     } catch (err) {
         console.error('[PDF]', err);
         return c.json({ success: false, error: { message: 'Failed to fetch PDF' } }, 500);
