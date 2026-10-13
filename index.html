@@ -534,12 +534,13 @@
 
             <!-- Mobile Nav Links -->
             <nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
+                <div id="mobile-library-switcher"></div>
                 <a href="#/app"
                     class="sidebar-all-papers-link sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
                     <span class="material-symbols-outlined text-[20px] sm:text-[24px]">inbox</span>
                     <span class="font-medium">All Papers</span>
                 </a>
-                <a href="#/graph"
+                <a href="#/graph" data-personal-only
                     class="sidebar-link flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors text-sm sm:text-base min-h-[44px]">
                     <span class="material-symbols-outlined text-[20px] sm:text-[24px]">hub</span>
                     <span class="font-medium">Network</span>
@@ -571,16 +572,19 @@
                 </a>
 
                 <nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
-                    <h3
-                        class="px-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2 mt-2">
-                        Library</h3>
+                    <!-- Library switcher (components/librarySwitcher.js) replaces the heading when signed in -->
+                    <div id="library-switcher">
+                        <h3
+                            class="px-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider mb-2 mt-2">
+                            Library</h3>
+                    </div>
 
                     <a href="#/app"
                         class="sidebar-all-papers-link sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
                         <span class="material-symbols-outlined text-[20px]">inbox</span>
                         <span class="text-sm font-medium">All Papers</span>
                     </a>
-                    <a href="#/graph"
+                    <a href="#/graph" data-personal-only
                         class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-primary transition-colors">
                         <span class="material-symbols-outlined text-[20px]">hub</span>
                         <span class="text-sm font-medium">Network</span>

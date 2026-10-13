@@ -63,6 +63,10 @@ vi.mock('../../details/related.manager.js', () => ({
     }
 }));
 
+vi.mock('../../components/copyToLibrary.js', () => ({
+    canCopyBetweenLibraries: vi.fn(() => false),
+    openCopyDialog: vi.fn(),
+}));
 vi.mock('../../components/rating-input.js', () => ({
     createRatingInput: vi.fn().mockImplementation(() => document.createElement('div'))
 }));

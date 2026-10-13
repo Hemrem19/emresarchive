@@ -430,3 +430,10 @@ body:has(#app:not(:empty)) .app-shell {
         }
     }
 }
+/* Inside a group library, personal-only links and sections are hidden (core/library.js) */
+.in-group-library [data-personal-only] {
+    display: none !important;
+}
+.in-group-library .border-t:has(+ [data-personal-only]) {
+    display: none !important;
+}

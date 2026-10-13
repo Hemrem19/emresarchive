@@ -3,6 +3,7 @@
  * Handles all folder CRUD operations with the backend API
  */
 
+import { libraryHeaders } from '../core/library.js';
 import { getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from './auth.js';
 import { parseJsonResponse } from './utils.js';
@@ -19,6 +20,7 @@ async function apiRequest(url, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
+        ...libraryHeaders(),
         ...options.headers
     };
 

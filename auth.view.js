@@ -3,6 +3,7 @@
  * Handles authentication modal UI and user login/registration
  */
 
+import { inGroupLibrary } from './core/library.js';
 import { login, register, logout, isAuthenticated, getUser, verifyEmail, resendVerificationEmail } from './api/auth.js';
 import { showToast } from './ui.js';
 import { setCloudSyncEnabled } from './config.js';
@@ -529,9 +530,16 @@ export const authView = {
      * Handles user logout.
      */
     async handleLogout() {
+        const wasInGroup = inGroupLibrary();
         try {
             await logout();
             setCloudSyncEnabled(false);
+            if (wasInGroup) {
+                // The group's local copy was just removed: reopen in the personal library
+                window.location.hash = '#/app';
+                window.location.reload();
+                return;
+            }
             this.updateUIForUnauthenticated();
             showToast('Logged out successfully. App is now in local-only mode.', 'success');
         } catch (error) {

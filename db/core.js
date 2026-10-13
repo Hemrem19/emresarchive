@@ -3,7 +3,10 @@
  * Handles IndexedDB initialization, schema migrations, and database lifecycle
  */
 
-const DB_NAME = 'CitaversDB';
+import { PERSONAL_DB_NAME, dbName, rememberOpened } from '../core/library.js';
+
+// Personal library's database; a group library opens its own (core/library.js)
+const DB_NAME = PERSONAL_DB_NAME;
 const DB_VERSION = 7;
 const STORE_NAME_PAPERS = 'papers';
 const STORE_NAME_COLLECTIONS = 'collections';
@@ -30,6 +33,9 @@ async function openDB() {
         console.error('IndexedDB not available:', error);
         throw error;
     }
+
+    const DB_NAME = dbName();
+    rememberOpened(DB_NAME);
 
     return new Promise((resolve, reject) => {
         // First, check if database exists and what version it has

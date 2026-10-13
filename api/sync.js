@@ -6,6 +6,7 @@
  * serves as a fallback/batch sync endpoint client.
  */
 
+import { libraryHeaders } from '../core/library.js';
 import { getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from '../api/auth.js';
 
@@ -45,6 +46,7 @@ async function authFetch(url, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        ...libraryHeaders(),
         ...options.headers,
     };
 
@@ -184,6 +186,7 @@ export async function apiRequest(url, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        ...libraryHeaders(),
         ...options.headers,
     };
 

@@ -43,6 +43,10 @@ export const homeView = `
                                 <span class="material-symbols-outlined text-sm">folder_copy</span>
                                 <span>Add to Folder</span>
                             </button>
+                            <button id="batch-copy-btn" class="hidden h-9 px-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold rounded-lg hover:bg-emerald-500/30 transition-colors whitespace-nowrap flex items-center gap-1.5 flex-shrink-0">
+                                <span class="material-symbols-outlined text-sm">content_copy</span>
+                                <span>Copy to…</span>
+                            </button>
                             <button id="batch-delete-btn" class="h-9 px-3 bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-lg hover:bg-red-500/30 transition-colors whitespace-nowrap flex items-center gap-1 flex-shrink-0">
                                 <span class="material-symbols-outlined text-sm">delete</span>
                                 <span>Delete</span>

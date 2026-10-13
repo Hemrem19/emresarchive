@@ -21,6 +21,7 @@ const FILES_TO_COPY = [
     'dashboard.view.js',
     'form.view.js',
     'settings.view.js',
+    'group.view.js',
     'graph.view.js',
     'docs.view.js',
     'landing.view.js',

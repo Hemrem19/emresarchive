@@ -6,7 +6,7 @@ export const settingsView = `
                     <p class="mt-2 text-sm text-slate-400">Manage your library, preferences, and data</p>
                 </div>
                 <div class="space-y-8">
-                    <section>
+                    <section data-personal-only>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
@@ -41,7 +41,7 @@ export const settingsView = `
                         </div>
                     </section>
                     <div class="border-t border-white/5"></div>
-                    <section>
+                    <section data-personal-only>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
@@ -80,7 +80,7 @@ export const settingsView = `
                         </div>
                     </section>
                     <div class="border-t border-white/5"></div>
-                    <section>
+                    <section data-personal-only>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
@@ -99,7 +99,7 @@ export const settingsView = `
                         </div>
                     </section>
                     <div class="border-t border-white/5"></div>
-                    <section>
+                    <section data-personal-only>
                         <div class="bg-primary/10 p-6 rounded-xl border border-primary/20 shadow-lg shadow-blue-500/10">
                             <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                                 <div class="md:col-span-1">
@@ -120,7 +120,7 @@ export const settingsView = `
                         </div>
                     </section>
                     <div class="border-t border-white/5"></div>
-                    <section>
+                    <section data-personal-only>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
@@ -156,7 +156,7 @@ export const settingsView = `
                         </div>
                     </section>
                     <div class="border-t border-white/5"></div>
-                    <section>
+                    <section data-personal-only>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
@@ -210,7 +210,7 @@ export const settingsView = `
                         </div>
                     </section>
                     <div class="border-t border-white/5"></div>
-                    <section>
+                    <section data-personal-only>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
@@ -229,7 +229,7 @@ export const settingsView = `
                         </div>
                     </section>
                     <div class="border-t border-red-500/20"></div>
-                    <section>
+                    <section data-personal-only>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
                             <div class="md:col-span-1">
                                 <h3 class="text-lg font-semibold text-red-400 flex items-center gap-2">

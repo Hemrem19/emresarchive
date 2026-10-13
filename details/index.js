@@ -1,3 +1,4 @@
+import { canCopyBetweenLibraries, openCopyDialog } from '../components/copyToLibrary.js';
 import { getPaperById, updatePaper } from '../db.js';
 import { escapeHtml, showToast, formatRelativeTime } from '../ui.js';
 import { views as templates } from '../views/index.js';
@@ -170,6 +171,11 @@ export const detailsView = {
                             <span class="material-symbols-outlined text-base">format_quote</span>
                             <span>Generate Citation</span>
                         </button>
+                        ${canCopyBetweenLibraries() ? `
+                        <button id="copy-to-library-btn" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl bg-gradient-to-r from-white/5 to-white/10 hover:from-white/10 hover:to-white/20 transition-all">
+                            <span class="material-symbols-outlined text-base">content_copy</span>
+                            <span>Copy to…</span>
+                        </button>` : ''}
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-3">
@@ -450,6 +456,9 @@ export const detailsView = {
                 }
             });
         });
+
+        // Copy into another library (personal or a group)
+        document.getElementById('copy-to-library-btn')?.addEventListener('click', () => openCopyDialog([paper.id]));
 
         // Citation Generation
         const generateCitationBtn = document.getElementById('generate-citation-btn');

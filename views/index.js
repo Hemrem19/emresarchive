@@ -14,6 +14,7 @@ import { graphView } from './pages/graph.js';
 import { docsView } from './pages/docs.js';
 import { privacyView } from './pages/privacy.js';
 import { termsView } from './pages/terms.js';
+import { groupView, invitesView } from './pages/group.js';
 
 // Import modal views
 import { authModalView } from './modals/auth.js';
@@ -37,6 +38,8 @@ export const views = {
     docs: docsView,
     privacy: privacyView,
     terms: termsView,
+    group: groupView,
+    invites: invitesView,
 
     // Modals
     authModal: authModalView,

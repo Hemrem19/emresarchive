@@ -10,6 +10,7 @@ import { graphView } from '../graph.view.js';
 import { docsView } from '../docs.view.js';
 import { privacyView } from '../privacy.view.js';
 import { termsView } from '../terms.view.js';
+import { groupPageView, invitesPageView } from '../group.view.js';
 import { views as templates } from '../views/index.js';
 import { highlightActiveSidebarLink } from '../ui.js';
 import { parseUrlHash, applyFiltersAndRender } from './filters.js';
@@ -143,6 +144,19 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
                 await appState.currentView.mount(appState);
                 renderSidebarStatusLinks(); // Re-render in case order changed
             });
+        } else if (requestedPath.startsWith('/group/')) {
+            const id = parseInt(requestedPath.split('/')[2], 10);
+            appState.currentView = groupPageView;
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
+            renderView(app, templates.group, () => appState.currentView.mount(id));
+        } else if (requestedPath === '/invites') {
+            appState.currentView = invitesPageView;
+            app.classList.remove('p-0', 'overflow-hidden');
+            app.classList.add('p-4', 'sm:p-6', 'overflow-y-auto');
+            app.style.height = '';
+            renderView(app, templates.invites, () => appState.currentView.mount());
         } else if (requestedPath === '/graph') {
             appState.currentView = graphView;
             // Remove padding and overflow from app container for full-screen graph view

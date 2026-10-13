@@ -181,6 +181,18 @@ describe('api/auth.js - Authentication Service', () => {
 
             expect(isAuthenticated()).toBe(false);
         });
+
+        it('should drop group copies and return to the personal library', async () => {
+            setAuth(mockToken, mockUser);
+            localStorage.setItem('citavers:library', 'group:3');
+            localStorage.setItem('citavers:lastSyncedAt:group:3', 'x');
+            global.fetch.mockResolvedValueOnce({ ok: true });
+
+            await logout();
+
+            expect(localStorage.getItem('citavers:library')).toBeNull();
+            expect(localStorage.getItem('citavers:lastSyncedAt:group:3')).toBeNull();
+        });
     });
 
     describe('refreshToken', () => {

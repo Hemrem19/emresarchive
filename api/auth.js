@@ -5,6 +5,7 @@
 
 import { API_CONFIG } from '../config.js';
 import { showToast } from '../ui.js';
+import { clearGroupData } from '../core/library.js';
 
 const AUTH_ENDPOINT = `${API_CONFIG.BASE_URL}/api/auth`;
 
@@ -354,8 +355,9 @@ export async function logout() {
         console.error('Logout error:', error);
         // Continue with local logout even if API call fails
     } finally {
-        // Always clear local auth data
+        // Always clear local auth data, and every group's local copy
         clearAuth();
+        await clearGroupData();
     }
 }
 
@@ -417,7 +419,9 @@ export async function refreshToken() {
             // If refresh fails (401, 403, etc.), user needs to log in again
             if (error.status === 401 || error.status === 403) {
                 clearAuth();
-                // The login ended (expired, or signed out from another device): ask to sign in
+                // The login ended (expired, or signed out from another device): drop
+                // group copies and ask to sign in
+                clearGroupData().catch(() => {});
                 window.dispatchEvent(new CustomEvent('auth:logout'));
                 throw new Error('Session expired. Please log in again.');
             }

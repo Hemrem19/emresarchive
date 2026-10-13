@@ -3,6 +3,7 @@
  * Handles batch actions on selected papers: status change, tag management, delete, and export
  */
 
+import { canCopyBetweenLibraries, openCopyDialog } from '../../components/copyToLibrary.js';
 import { renderSidebarTags, renderSidebarFolders, showToast, escapeHtml } from '../../ui.js';
 import { addPaperToFolder, getAllFolders, getAllPaperFolders, addFolder } from '../../db.js';
 import { generateBibliography, exportBibliographyToFile, copyBibliographyToClipboard } from '../../citation.js';
@@ -397,6 +398,14 @@ export function registerBatchOperationHandlers(appState, applyFiltersAndRender, 
         batchAddToFolderBtn.addEventListener('click', handlers.batchAddToFolderHandler);
     }
 
+    // Batch Copy to another library (needs the cloud)
+    const batchCopyBtn = document.getElementById('batch-copy-btn');
+    if (batchCopyBtn && canCopyBetweenLibraries()) {
+        batchCopyBtn.classList.remove('hidden');
+        handlers.batchCopyHandler = () => openCopyDialog(Array.from(appState.selectedPaperIds).map(Number));
+        batchCopyBtn.addEventListener('click', handlers.batchCopyHandler);
+    }
+
     // Batch Export Bibliography
     const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');
     if (batchExportBibliographyBtn) {
@@ -435,6 +444,11 @@ export function unregisterBatchOperationHandlers(handlers) {
     const batchAddToFolderBtn = document.getElementById('batch-add-to-folder-btn');
     if (batchAddToFolderBtn && handlers.batchAddToFolderHandler) {
         batchAddToFolderBtn.removeEventListener('click', handlers.batchAddToFolderHandler);
+    }
+
+    const batchCopyBtn = document.getElementById('batch-copy-btn');
+    if (batchCopyBtn && handlers.batchCopyHandler) {
+        batchCopyBtn.removeEventListener('click', handlers.batchCopyHandler);
     }
 
     const batchExportBibliographyBtn = document.getElementById('batch-export-bibliography-btn');

@@ -1,7 +1,7 @@
 import { openDB } from './db.js';
 import { views as templates } from './views/index.js';
 import { highlightActiveSidebarLink } from './ui.js';
-import { getStatusOrder } from './config.js';
+import { getStatusOrder, isCloudSyncEnabled } from './config.js';
 import { authView } from './auth.view.js';
 
 // Import refactored core modules
@@ -12,6 +12,17 @@ import { createCommandPalette } from './core/commandPalette.js';
 import { createKeyboardShortcuts } from './core/keyboardShortcuts.js';
 import { initializeAutoSync } from './core/syncManager.js';
 import { checkAndShowMigrationBanner } from './components/MigrationBanner.js';
+import { renderLibrarySwitcher } from './components/librarySwitcher.js';
+import { inGroupLibrary, openLibrary } from './core/library.js';
+import { isAuthenticated } from './api/auth.js';
+
+// --- Library ---
+// A group library lives in the cloud: signed out or with sync off, this tab
+// works in the personal library instead. Must run before the database opens.
+if (inGroupLibrary() && !(isAuthenticated() && isCloudSyncEnabled())) {
+    openLibrary('personal', { reload: false });
+}
+document.documentElement.classList.toggle('in-group-library', inGroupLibrary());
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
@@ -378,6 +389,9 @@ openDB().then(() => {
 
     // Initialize automatic sync (if cloud sync enabled and authenticated)
     initializeAutoSync();
+
+    // Library switcher (also returns to the personal library if the open group is gone)
+    renderLibrarySwitcher();
     
     // Check if we need to show the CRDT Migration Banner
     checkAndShowMigrationBanner();

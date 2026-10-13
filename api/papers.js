@@ -3,6 +3,7 @@
  * Handles all paper CRUD operations with the backend API
  */
 
+import { libraryHeaders } from '../core/library.js';
 import { API_CONFIG, getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from './auth.js';
 import { parseJsonResponse, withRateLimitCheck } from './utils.js';
@@ -25,6 +26,7 @@ async function apiRequest(url, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
+        ...libraryHeaders(),
         ...options.headers
     };
 
@@ -282,7 +284,8 @@ export async function uploadPdfViaBackend(file, paperId = null) {
         }
         
         const headers = {
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${accessToken}`,
+            ...libraryHeaders(),
             // DO NOT set Content-Type - browser sets it with boundary for multipart/form-data
         };
         

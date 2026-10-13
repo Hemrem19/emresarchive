@@ -36,6 +36,7 @@ import {
 
 // Import auto-sync manager
 import { triggerDebouncedSync } from '../core/syncManager.js';
+import { inGroupLibrary, lastSyncedKey } from '../core/library.js';
 
 // Import rate limit utilities
 import { isRateLimited, getRateLimitRemainingTime } from '../api/utils.js';
@@ -60,8 +61,6 @@ function seedLocalFromCloud() {
     return _seedInFlight;
 }
 
-const LAST_SYNCED_KEY = 'citavers:lastSyncedAt';
-
 function _stripApiFieldsFromFolder(folder) {
     // Remove API-specific fields that shouldn't be stored locally
     const { paperIds, version, deletedAt, ...local } = folder;
@@ -69,7 +68,7 @@ function _stripApiFieldsFromFolder(folder) {
 }
 
 async function _doSeedLocalFromCloud() {
-    const lastSyncedAt = localStorage.getItem(LAST_SYNCED_KEY);
+    const lastSyncedAt = localStorage.getItem(lastSyncedKey());
     const syncStart = new Date().toISOString();
     const isDelta = !!lastSyncedAt;
 
@@ -150,7 +149,7 @@ async function _doSeedLocalFromCloud() {
         }
     }
 
-    localStorage.setItem(LAST_SYNCED_KEY, syncStart);
+    localStorage.setItem(lastSyncedKey(), syncStart);
 }
 
 /**
@@ -273,6 +272,8 @@ export const papers = {
                 triggerDebouncedSync();
                 return paper.id;
             } catch (error) {
+                // A group's library lives on the server; a local-only paper there would never reach the others
+                if (inGroupLibrary()) throw new Error(`Could not add the paper to the group: ${error.message}`);
                 console.error('Cloud sync failed, falling back to local:', error);
                 // Fall back to local if cloud fails
                 const localId = await localPapers.addPaper(paperData);

@@ -16,6 +16,7 @@ import { WebsocketProvider } from 'https://esm.sh/y-websocket@3.0.0?deps=yjs@13.
 import { upgradeLegacySchemaToYjs } from './schemaUpgrade.js';
 import { isSyncInProgress } from '../db/sync.js';
 import { syncFromCloud } from '../db/adapter.js';
+import { syncRoom } from './library.js';
 
 let provider = null;
 let yDoc = null;
@@ -164,7 +165,8 @@ export function initializeAutoSync() {
         // params must be a plain object — y-websocket v3 does not call it if it's
         // a function. The actual token is written in connectWithFreshToken()
         // immediately before every connect() so refreshed tokens are used.
-        provider = new WebsocketProvider(wsUrl, 'default', yDoc, {
+        // Room of the open library: a group's (members only) or the personal one
+        provider = new WebsocketProvider(wsUrl, syncRoom(), yDoc, {
             connect: false,
             params: {},
             maxBackoffTime: 30_000
@@ -198,6 +200,12 @@ export function initializeAutoSync() {
                 // Reset session guard so we get one syncFromCloud per connection
                 _yjsSyncDoneForSession = false;
             }
+        });
+
+        // The server sets signals.changedAt after any write to a group library;
+        // pull so other members' changes show up without a manual sync.
+        yDoc.getMap('signals').observe(() => {
+            syncFromCloud({ force: true }).catch(e => console.warn('[Sync Manager] Pull after change signal failed:', e.message));
         });
 
         // Kick off the first connection attempt with a fresh token.
