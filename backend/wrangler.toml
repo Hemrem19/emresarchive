@@ -17,7 +17,7 @@ ENVIRONMENT = "production"
 STORAGE_LIMIT = "2GB"
 # Nightly cleanup of expired-trash and unreferenced PDFs (src/services/purge.js):
 # "report" only logs what would be removed; "delete" removes it
-STORAGE_PURGE = "report"
+STORAGE_PURGE = "delete"
 # [env.production]
 # name = "citavers-backend-prod"
 
