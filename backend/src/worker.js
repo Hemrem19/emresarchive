@@ -14,6 +14,7 @@ import filesRoutes from './routes/files.js';
 import { authenticateSocket } from './middleware/auth.js';
 import { isAllowedOrigin } from './lib/origins.js';
 import { purgeStorage } from './services/purge.js';
+import { deleteExpiredSessions, userRoom } from './services/sessions.js';
 
 const app = new Hono();
 
@@ -69,12 +70,15 @@ app.get('/api/sync/workspace/:id', authenticateSocket, async (c) => {
   // membership model yet, so trusting it let every user join the same room
   // (the frontend always sends "default") and receive each other's data.
   // Replace with a membership check when shared workspaces are built.
-  const id = c.env.WORKSPACE_DO.idFromName(`user:${user.id}`);
-  const stub = c.env.WORKSPACE_DO.get(id);
+  const stub = userRoom(c.env, user.id);
 
   // We must clone the incoming request to inject our custom X-User-Id header
   const headers = new Headers(c.req.raw.headers);
   headers.set('X-User-Id', user.id.toString());
+  // Lets the room close this socket when its login is ended
+  const sessionId = c.get('sessionId');
+  if (sessionId) headers.set('X-Session-Id', String(sessionId));
+  else headers.delete('X-Session-Id');
   
   const exp = c.get('jwtExp');
   if (exp) {
@@ -116,6 +120,11 @@ export default {
       purgeStorage(env)
         .then((summary) => console.log('[purge]', JSON.stringify(summary)))
         .catch((err) => console.error('[purge] failed:', err))
+    );
+    ctx.waitUntil(
+      deleteExpiredSessions(env)
+        .then((removed) => console.log('[sessions] removed expired logins:', removed))
+        .catch((err) => console.error('[sessions] cleanup failed:', err))
     );
   }
 };

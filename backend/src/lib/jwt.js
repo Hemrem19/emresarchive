@@ -6,14 +6,16 @@
 import jwt from 'jsonwebtoken';
 
 /**
- * Generate access token (short-lived)
+ * Generate access token (short-lived). `sid` names the login it belongs to,
+ * so ending that login rejects the token at once instead of at expiry.
  */
-export const generateAccessToken = (userId, email, env) => {
+export const generateAccessToken = (userId, email, env, sessionId) => {
   if (!env.JWT_ACCESS_SECRET) console.error('❌ JWT_ACCESS_SECRET is missing!');
   return jwt.sign(
     {
       userId,
       email,
+      ...(sessionId ? { sid: sessionId } : {}),
       type: 'access'
     },
     env.JWT_ACCESS_SECRET,

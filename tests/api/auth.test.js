@@ -212,8 +212,12 @@ describe('api/auth.js - Authentication Service', () => {
                 json: async () => ({ success: false })
             });
 
+            const onLogout = vi.fn();
+            window.addEventListener('auth:logout', onLogout);
             await expect(refreshToken()).rejects.toThrow('Session expired');
+            window.removeEventListener('auth:logout', onLogout);
             expect(isAuthenticated()).toBe(false);
+            expect(onLogout).toHaveBeenCalledTimes(1); // shows the sign-in dialog
         });
     });
 

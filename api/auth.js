@@ -417,6 +417,8 @@ export async function refreshToken() {
             // If refresh fails (401, 403, etc.), user needs to log in again
             if (error.status === 401 || error.status === 403) {
                 clearAuth();
+                // The login ended (expired, or signed out from another device): ask to sign in
+                window.dispatchEvent(new CustomEvent('auth:logout'));
                 throw new Error('Session expired. Please log in again.');
             }
 

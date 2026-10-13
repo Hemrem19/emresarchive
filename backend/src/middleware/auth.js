@@ -2,6 +2,7 @@ import { verifyAccessToken } from '../lib/jwt.js';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
 import { eq } from 'drizzle-orm';
+import { findLiveSession } from '../services/sessions.js';
 
 const unauthorized = (c, message) => c.json({ success: false, error: { message } }, 401);
 
@@ -30,7 +31,8 @@ function createAuthenticate({ allowQueryToken }) {
     if (decoded?.type !== 'access') return unauthorized(c, 'Invalid token');
 
     const db = drizzle(c.env.citavers_db, { schema });
-    const user = await db.query.users.findFirst({
+    // Tokens issued before access tokens named their login have no sid; they expire within 15 minutes
+    const [user, session] = await Promise.all([db.query.users.findFirst({
       where: eq(schema.users.id, decoded.userId),
       columns: {
         id: true,
@@ -41,10 +43,12 @@ function createAuthenticate({ allowQueryToken }) {
         storageUsedBytes: true,
         settings: true
       }
-    });
+    }), decoded.sid ? findLiveSession(db, decoded.userId, decoded.sid) : null]);
     if (!user) return unauthorized(c, 'User not found');
+    if (decoded.sid && !session) return unauthorized(c, 'Session ended');
 
     c.set('user', user);
+    c.set('sessionId', decoded.sid ?? null);
     // Pass expiration for active WebSocket severing
     if (decoded.exp) c.set('jwtExp', decoded.exp);
 

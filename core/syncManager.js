@@ -77,9 +77,13 @@ async function ensureFreshToken() {
 async function connectWithFreshToken() {
     if (!provider) return;
     const token = await ensureFreshToken();
-    if (token) {
-        provider.params = { token };
+    // No token means signed out (or the login was ended elsewhere): retrying
+    // with the old one would only be refused again
+    if (!token) {
+        provider.shouldConnect = false;
+        return;
     }
+    provider.params = { token };
     try { provider.connect(); } catch (e) {
         console.warn('[Sync Manager] provider.connect() threw:', e.message);
     }

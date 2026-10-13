@@ -190,6 +190,25 @@ export const settingsView = `
                             </div>
                         </div>
                     </section>
+                    <section id="devices-section" class="hidden">
+                        <div class="border-t border-white/5 mb-8"></div>
+                        <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
+                            <div class="md:col-span-1">
+                                <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-xl text-primary">devices</span>
+                                    Signed-in Devices
+                                </h3>
+                                <p class="mt-2 text-sm text-slate-400">Where your account is signed in. Signing a device out ends its session and stops its sync right away.</p>
+                            </div>
+                            <div class="flex flex-col gap-3 md:col-span-2">
+                                <ul id="devices-list" class="flex flex-col gap-2"></ul>
+                                <button id="sign-out-others-btn" class="hidden self-start inline-flex items-center gap-2 rounded-xl border border-red-500/40 bg-slate-800/50 px-4 py-2 text-sm font-semibold text-red-400 transition-all hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span class="material-symbols-outlined text-base">logout</span>
+                                    <span>Sign out all other devices</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
                     <div class="border-t border-white/5"></div>
                     <section>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">

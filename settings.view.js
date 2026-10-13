@@ -1,10 +1,10 @@
 import { getAllPapers, exportAllData, importData, clearAllData, addPaper, getPaperByDoi } from './db.js';
 import { exportToExcel } from './db/excel-export.js';
-import { showToast } from './ui.js';
+import { showToast, escapeHtml } from './ui.js';
 import { generateCitation } from './citation.js';
 import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnabled, getApiBaseUrl } from './config.js';
 import { isAuthenticated, getUser, resendVerificationEmail } from './api/auth.js';
-import { getStorageUsage } from './api/user.js';
+import { getStorageUsage, listSessions, endSession, endOtherSessions } from './api/user.js';
 import { parseRIS } from './import/ris-parser.js';
 import { restartAutoSync, stopAutoSync, performManualSync } from './core/syncManager.js';
 
@@ -16,6 +16,7 @@ export const settingsView = {
         this.setupStatusReordering();
         this.setupImportExport(appState);
         this.setupCloudSync();
+        this.setupDevices();
         this.setupDangerZone(appState);
 
     },
@@ -58,6 +59,65 @@ export const settingsView = {
                     </div>
                 </div>
                 `);
+    },
+
+    // Devices the account is signed in on, each with a sign-out button (signed-in cloud users only)
+    async setupDevices() {
+        const section = document.getElementById('devices-section');
+        const list = document.getElementById('devices-list');
+        const othersBtn = document.getElementById('sign-out-others-btn');
+        if (!section || !list || !othersBtn) return;
+        if (!isCloudSyncEnabled() || !isAuthenticated()) return;
+
+        const render = async () => {
+            let sessions;
+            try {
+                sessions = await listSessions();
+            } catch (error) {
+                console.warn('Could not load signed-in devices:', error);
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            list.innerHTML = sessions.map((s) => `
+                <li class="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-slate-800/50 px-4 py-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-slate-200 truncate">${escapeHtml(s.device)}${s.current ? ' <span class="ml-1 text-xs font-semibold text-primary">This device</span>' : ''}</p>
+                        <p class="text-xs text-slate-400">Active ${formatWhen(s.lastActivityAt)} · signed in ${formatWhen(s.createdAt)}${s.ipAddress ? ` · ${escapeHtml(s.ipAddress)}` : ''}</p>
+                    </div>
+                    ${s.current ? '' : `<button data-session-id="${Number(s.id)}" class="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50">Sign out</button>`}
+                </li>`).join('');
+            othersBtn.classList.toggle('hidden', !sessions.some((s) => !s.current));
+        };
+
+        list.addEventListener('click', async (event) => {
+            const button = event.target.closest('button[data-session-id]');
+            if (!button) return;
+            button.disabled = true;
+            try {
+                await endSession(button.dataset.sessionId);
+                showToast('Device signed out.', 'success');
+            } catch (error) {
+                showToast(`Could not sign out the device: ${error.message}`, 'error');
+            }
+            await render();
+        });
+
+        othersBtn.addEventListener('click', async () => {
+            if (!confirm('Sign out all other devices? They will need to sign in again.')) return;
+            othersBtn.disabled = true;
+            try {
+                const { ended } = await endOtherSessions();
+                showToast(`Signed out ${ended} other device${ended === 1 ? '' : 's'}.`, 'success');
+            } catch (error) {
+                showToast(`Could not sign out other devices: ${error.message}`, 'error');
+            } finally {
+                othersBtn.disabled = false;
+            }
+            await render();
+        });
+
+        await render();
     },
 
     async setupStatistics() {
@@ -1099,6 +1159,17 @@ export const settingsView = {
         }
     }
 };
+
+// "5 minutes ago", "yesterday"
+function formatWhen(iso) {
+    const seconds = (new Date(iso).getTime() - Date.now()) / 1000;
+    if (!Number.isFinite(seconds)) return 'at an unknown time';
+    if (Math.abs(seconds) < 60) return 'just now';
+    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+    for (const [unit, size] of [['day', 86400], ['hour', 3600], ['minute', 60]]) {
+        if (Math.abs(seconds) >= size) return rtf.format(Math.round(seconds / size), unit);
+    }
+}
 
 function formatBytes(bytes) {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;

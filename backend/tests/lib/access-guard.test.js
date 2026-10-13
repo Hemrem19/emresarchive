@@ -14,6 +14,7 @@ const DIRS = ['routes', 'services'];
 // Raw D1 statements on the caller's own library, reviewed by hand.
 const ALLOWED = {
     'services/importer.js': 'replace-mode restore and PDF sweep act on the personal library only',
+    'services/sessions.js': 'logins belong to a person, not a library',
 };
 
 const FORBIDDEN = [

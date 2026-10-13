@@ -5,6 +5,7 @@ import { eq, or, inArray, count } from 'drizzle-orm';
 import { liveOwnedBy, ownedBy, personalLibrary, storagePrefix } from '../lib/access.js';
 import { authenticate } from '../middleware/auth.js';
 import { deleteObjects, isStorageConfigured, listObjects } from '../lib/storage.js';
+import { endSessions, listSessions } from '../services/sessions.js';
 import { libraryLimit, measureLibrary, recordUsage } from '../services/storage-quota.js';
 
 const user = new Hono();
@@ -55,12 +56,37 @@ user.get('/stats', async (c) => {
   }
 });
 
+/**
+ * Signed-in devices
+ * GET /api/user/sessions
+ */
 user.get('/sessions', async (c) => {
-  return c.json({ success: false, error: { message: 'Not implemented yet' } }, 501);
+  const sessions = await listSessions(getDb(c), c.get('user').id, c.get('sessionId'));
+  return c.json({ success: true, data: { sessions } });
 });
 
+/**
+ * Sign out every device except this one
+ * DELETE /api/user/sessions
+ */
+user.delete('/sessions', async (c) => {
+  const current = c.get('sessionId');
+  if (!current) {
+    return c.json({ success: false, error: { message: 'Please sign in again first.' } }, 409);
+  }
+  const ended = await endSessions(c.env, getDb(c), c.get('user').id, { allBut: current });
+  return c.json({ success: true, data: { ended: ended.length } });
+});
+
+/**
+ * Sign out one device
+ * DELETE /api/user/sessions/:id
+ */
 user.delete('/sessions/:id', async (c) => {
-  return c.json({ success: false, error: { message: 'Not implemented yet' } }, 501);
+  const id = Number(c.req.param('id'));
+  const ended = Number.isInteger(id) ? await endSessions(c.env, getDb(c), c.get('user').id, { ids: [id] }) : [];
+  if (!ended.length) return c.json({ success: false, error: { message: 'Session not found' } }, 404);
+  return c.json({ success: true, data: { ended: 1, current: id === c.get('sessionId') } });
 });
 
 /**

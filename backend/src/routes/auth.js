@@ -3,9 +3,10 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
 import { eq } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '../lib/password.js';
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
+import { generateAccessToken, verifyAccessToken, verifyRefreshToken } from '../lib/jwt.js';
+import { endSessions, sha256Hex, startSession } from '../services/sessions.js';
 // Note: We use WebCrypto API compatible equivalents instead of 'crypto' module where possible on Edge
-import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import { getCookie, deleteCookie } from 'hono/cookie';
 import { authenticate } from '../middleware/auth.js';
 import { generateVerificationToken, sendVerificationEmail, VERIFICATION_TOKEN_TTL_MS } from '../lib/mailer.js';
 
@@ -71,43 +72,7 @@ auth.post('/register', async (c) => {
 
     await sendVerificationInBackground(c, user, verificationToken);
 
-    // Session temp hash
-    const tempTokenHash = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-    const [session] = await db.insert(schema.sessions).values({
-      userId: user.id,
-      tokenHash: tempTokenHash,
-      deviceName: c.req.header('user-agent')?.substring(0, 255) || null,
-      userAgent: c.req.header('user-agent') || null,
-      ipAddress: c.req.header('cf-connecting-ip') || '127.0.0.1',
-      expiresAt: expiresAt,
-    }).returning();
-
-    const refreshToken = generateRefreshToken(user.id, session.id, c.env);
-    
-    // Hash refresh token to store
-    // WebCrypto subtle crypto requires buffer logic, keeping simplified for prototype:
-    const encoder = new TextEncoder();
-    const data = encoder.encode(refreshToken);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const tokenHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    await db.update(schema.sessions)
-      .set({ tokenHash })
-      .where(eq(schema.sessions.id, session.id));
-
-    // Set cookie
-    setCookie(c, 'refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: c.env?.ENVIRONMENT === 'production',
-      sameSite: c.env?.ENVIRONMENT === 'production' ? 'None' : 'Lax',
-      maxAge: 7 * 24 * 60 * 60,
-      path: '/'
-    });
-
-    const accessToken = generateAccessToken(user.id, user.email, c.env);
+    const accessToken = await startSession(c, db, user);
 
     return c.json({
       success: true,
@@ -119,8 +84,7 @@ auth.post('/register', async (c) => {
           emailVerified: user.emailVerified,
           createdAt: user.createdAt
         },
-        accessToken,
-        refreshToken
+        accessToken
       }
     }, 201);
 
@@ -166,40 +130,7 @@ auth.post('/login', async (c) => {
     }, 401);
   }
 
-  // Generate tokens
-  const expiresInMs = 7 * 24 * 60 * 60 * 1000;
-  const expiresAt = new Date(Date.now() + expiresInMs).toISOString();
-
-  const [session] = await db.insert(schema.sessions).values({
-    userId: user.id,
-    tokenHash: crypto.randomUUID(), // Temp hash
-    deviceName: c.req.header('user-agent')?.substring(0, 255) || null,
-    userAgent: c.req.header('user-agent') || null,
-    ipAddress: c.req.header('cf-connecting-ip') || '127.0.0.1',
-    expiresAt: expiresAt,
-  }).returning();
-
-  const refreshToken = generateRefreshToken(user.id, session.id, c.env);
-
-  const encoder = new TextEncoder();
-  const data = encoder.encode(refreshToken);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const tokenHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-  await db.update(schema.sessions)
-    .set({ tokenHash })
-    .where(eq(schema.sessions.id, session.id));
-
-  setCookie(c, 'refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: c.env?.ENVIRONMENT === 'production',
-    sameSite: c.env?.ENVIRONMENT === 'production' ? 'None' : 'Lax',
-    maxAge: 7 * 24 * 60 * 60,
-    path: '/'
-  });
-
-  const accessToken = generateAccessToken(user.id, user.email, c.env);
+  const accessToken = await startSession(c, db, user);
 
   return c.json({
     success: true,
@@ -211,8 +142,7 @@ auth.post('/login', async (c) => {
         emailVerified: user.emailVerified,
         createdAt: user.createdAt
       },
-      accessToken,
-      refreshToken
+      accessToken
     }
   });
 });
@@ -238,10 +168,7 @@ auth.post('/refresh', async (c) => {
   }
 
   // Hash the incoming token for DB comparison (same method as login/register)
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(token));
-  const tokenHash = Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
+  const tokenHash = await sha256Hex(token);
 
   const session = await db.query.sessions.findFirst({
     where: eq(schema.sessions.id, decoded.sessionId)
@@ -265,7 +192,10 @@ auth.post('/refresh', async (c) => {
     return c.json({ success: false, error: { message: 'User not found' } }, 401);
   }
 
-  const accessToken = generateAccessToken(user.id, user.email, c.env);
+  await db.update(schema.sessions)
+    .set({ lastActivityAt: new Date().toISOString() })
+    .where(eq(schema.sessions.id, session.id));
+  const accessToken = generateAccessToken(user.id, user.email, c.env, session.id);
 
   return c.json({ success: true, data: { accessToken } });
 });
@@ -275,9 +205,29 @@ auth.post('/refresh', async (c) => {
  * POST /api/auth/logout
  */
 auth.post('/logout', async (c) => {
+  const login = loginOf(c);
+  if (login) await endSessions(c.env, getDb(c), login.userId, { ids: [login.sessionId] });
   deleteCookie(c, 'refreshToken');
   return c.json({ success: true, message: 'Logged out successfully' });
 });
+
+/** The login a logout names: the refresh cookie's, else the access token's `sid`. */
+function loginOf(c) {
+  const attempts = [
+    () => verifyRefreshToken(getCookie(c, 'refreshToken'), c.env),
+    () => {
+      const decoded = verifyAccessToken(c.req.header('authorization')?.replace(/^Bearer /, ''), c.env);
+      return decoded.type === 'access' && { userId: decoded.userId, sessionId: decoded.sid };
+    },
+  ];
+  for (const attempt of attempts) {
+    try {
+      const login = attempt();
+      if (login?.userId && login.sessionId) return login;
+    } catch { /* missing, expired or invalid: try the next */ }
+  }
+  return null;
+}
 
 /**
  * Current User

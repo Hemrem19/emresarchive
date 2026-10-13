@@ -3,6 +3,7 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
+import { CLOSE_SOCKETS_PATH, SESSION_ENDED_CODE } from './services/sessions.js';
 
 // Message Types
 const messageSync = 0;
@@ -88,6 +89,7 @@ export class WorkspaceDurableObject {
             this.sessions.set(ws, {
               connectionId: attached.connectionId || crypto.randomUUID(),
               userId: attached.userId || null,
+              sessionId: attached.sessionId || null,
               tokens: 100,
               lastRefill: Date.now(),
               timeoutId: null
@@ -122,6 +124,13 @@ export class WorkspaceDurableObject {
   }
 
   async fetch(request) {
+    // From the Worker only: clients reach this object solely through the
+    // GET /api/sync/workspace upgrade route, so they cannot send this POST.
+    if (request.method === 'POST' && new URL(request.url).pathname === CLOSE_SOCKETS_PATH) {
+      const { sessionIds = [] } = await request.json();
+      return Response.json({ closed: this.closeLoginSockets(sessionIds) });
+    }
+
     const upgradeHeader = request.headers.get('Upgrade');
     if (!upgradeHeader || upgradeHeader !== 'websocket') {
       return new Response('Expected Upgrade: websocket', { status: 426 });
@@ -134,11 +143,13 @@ export class WorkspaceDurableObject {
 
     // Securely extract User context injected by worker route
     const userId = request.headers.get('X-User-Id');
+    const sessionId = Number(request.headers.get('X-Session-Id')) || null;
     const jwtExpSecs = request.headers.get('X-JWT-Exp');
 
     const sessionData = { 
       connectionId: crypto.randomUUID(),
       userId: userId,
+      sessionId,
       tokens: 100, // Burst capacity
       lastRefill: Date.now(),
       timeoutId: null
@@ -170,7 +181,8 @@ export class WorkspaceDurableObject {
       if (typeof server.serializeAttachment === 'function') {
         server.serializeAttachment({
           connectionId: sessionData.connectionId,
-          userId: sessionData.userId
+          userId: sessionData.userId,
+          sessionId: sessionData.sessionId
         });
       }
     } catch (e) {
@@ -293,6 +305,18 @@ export class WorkspaceDurableObject {
     }
     this.sessions.delete(ws);
     try { ws.close(); } catch (_) { /* already closed */ }
+  }
+
+  /** Closes the sockets opened by these logins; returns how many. */
+  closeLoginSockets(sessionIds) {
+    let closed = 0;
+    for (const [ws, session] of [...this.sessions.entries()]) {
+      if (session.sessionId == null || !sessionIds.includes(session.sessionId)) continue;
+      try { ws.close(SESSION_ENDED_CODE, 'Session ended'); } catch (_) { /* already closed */ }
+      this.closeSession(ws);
+      closed++;
+    }
+    return closed;
   }
 
   broadcastToAll(message) {
