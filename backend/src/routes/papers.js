@@ -4,9 +4,10 @@ import * as schema from '../../drizzle/schema.js';
 import { eq, and, desc, asc, gt, or, sql, count } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
 import {
-    READ, WRITE, READ_FILES, WRITE_FILES, accessible, accessibleWithDeleted, allows, findAccessible,
-    libraryFields, libraryOf, pdfKey, pdfUrlError, personalLibrary,
+    READ, WRITE, READ_FILES, WRITE_FILES, accessible, accessibleWithDeleted, allows, allowsIn, findAccessible,
+    isGroupLibrary, libraryFields, libraryOf, pdfKey, pdfUrlError,
 } from '../lib/access.js';
+import { libraryContext } from '../middleware/library.js';
 import {
     PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, putObject, presignDownload,
 } from '../lib/storage.js';
@@ -15,7 +16,7 @@ import { PDF_COLUMNS, pdfResponse, resolvePdfSource } from '../services/pdf.js';
 import { MAX_PDF_BYTES, checkQuota, recordUsage } from '../services/storage-quota.js';
 
 const papers = new Hono();
-papers.use('*', authenticate);
+papers.use('*', authenticate, libraryContext);
 
 const getDb = (c) => drizzle(c.env.citavers_db, { schema });
 
@@ -140,12 +141,13 @@ papers.get('/', async (c) => {
 
     // Delta mode: include tombstones so clients can detect remote deletions.
     // Full mode: exclude deleted rows as before.
+    const library = c.get('library');
     const whereClause = since
         ? and(
-            accessibleWithDeleted(schema.papers, authUser, READ),
+            accessibleWithDeleted(schema.papers, authUser, READ, library),
             or(gt(schema.papers.updatedAt, since), gt(schema.papers.deletedAt, since))
           )
-        : accessible(schema.papers, authUser, READ);
+        : accessible(schema.papers, authUser, READ, library);
 
     try {
         const allPapers = await db.query.papers.findMany({
@@ -160,7 +162,7 @@ papers.get('/', async (c) => {
         let total = allPapers.length;
         if (!since) {
             const allCount = await db.query.papers.findMany({
-                where: accessible(schema.papers, authUser, READ),
+                where: accessible(schema.papers, authUser, READ, library),
                 columns: { id: true },
             });
             total = allCount.length;
@@ -198,7 +200,7 @@ papers.get('/search', async (c) => {
     const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '25', 10)));
 
-    const conditions = [accessible(schema.papers, authUser, READ)];
+    const conditions = [accessible(schema.papers, authUser, READ, c.get('library'))];
     if (status) conditions.push(eq(schema.papers.status, status));
     if (tag) {
         conditions.push(sql`EXISTS (SELECT 1 FROM json_each(${schema.papers.tags}) WHERE lower(value) = lower(${tag}))`);
@@ -268,8 +270,10 @@ papers.post('/', async (c) => {
     if (!body.title) {
         return c.json({ success: false, error: { message: 'Title is required' } }, 400);
     }
-    // New papers go to the caller's personal library (groups will pass a library id)
-    const library = personalLibrary(authUser);
+    const library = c.get('library');
+    if (!allowsIn(authUser, WRITE, library)) {
+        return c.json({ success: false, error: { message: 'You may not add papers to this library' } }, 403);
+    }
     const pdfError = pdfUrlError(library, body.pdfUrl);
     if (pdfError) {
         return c.json({ success: false, error: { message: pdfError } }, 400);
@@ -278,7 +282,7 @@ papers.post('/', async (c) => {
     try {
         const now = new Date().toISOString();
         const [paper] = await db.insert(schema.papers).values({
-            ...libraryFields(library),
+            ...libraryFields(library, authUser),
             title: body.title,
             authors: body.authors || [],
             year: body.year || null,
@@ -429,13 +433,16 @@ papers.post('/upload', async (c) => {
 
     try {
         const user = c.get('user');
-        const library = personalLibrary(user);
+        const library = c.get('library');
+        if (!allowsIn(user, WRITE_FILES, library)) {
+            return c.json({ success: false, error: { message: 'You may not add files to this library' } }, 403);
+        }
         const s3Key = pdfKey(library, c.req.query('paperId'), file.name);
         const { error, used } = await checkQuota(c.env, library, s3Key, file.size);
         if (error) return tooLarge(c, error);
 
         await putObject(c.env, s3Key, await file.arrayBuffer(), file.type);
-        await recordUsage(getDb(c), user, used + file.size);
+        if (!isGroupLibrary(library)) await recordUsage(getDb(c), user, used + file.size);
 
         return c.json({ success: true, data: { s3Key, pdfSizeBytes: file.size, filename: file.name } });
     } catch (err) {

@@ -214,3 +214,45 @@ CREATE INDEX IF NOT EXISTS `paper_connections_from_paper_id_idx` ON `paper_conne
 CREATE INDEX IF NOT EXISTS `paper_connections_to_paper_id_idx` ON `paper_connections` (`to_paper_id`);
 
 CREATE INDEX IF NOT EXISTS `sessions_user_id_idx` ON `sessions` (`user_id`);
+
+CREATE TABLE `groups` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`name` text NOT NULL,
+	`owner_id` integer NOT NULL,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX `groups_owner_id_idx` ON `groups` (`owner_id`);
+CREATE TABLE `group_members` (
+	`group_id` integer NOT NULL,
+	`user_id` integer NOT NULL,
+	`role` text NOT NULL,
+	`joined_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (`group_id`, `user_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX `group_members_user_id_idx` ON `group_members` (`user_id`);
+CREATE TABLE `group_invites` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`group_id` integer NOT NULL,
+	`email` text NOT NULL,
+	`role` text NOT NULL,
+	`invited_by` integer,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`expires_at` text NOT NULL,
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`invited_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+CREATE UNIQUE INDEX `group_invites_group_email_unique` ON `group_invites` (`group_id`, `email`);
+CREATE INDEX `group_invites_email_idx` ON `group_invites` (`email`);
+ALTER TABLE `papers` ADD `group_id` integer REFERENCES `groups`(`id`) ON DELETE cascade;
+ALTER TABLE `folders` ADD `group_id` integer REFERENCES `groups`(`id`) ON DELETE cascade;
+ALTER TABLE `paper_folders` ADD `group_id` integer REFERENCES `groups`(`id`) ON DELETE cascade;
+ALTER TABLE `annotations` ADD `group_id` integer REFERENCES `groups`(`id`) ON DELETE cascade;
+CREATE INDEX `papers_group_id_updated_at_idx` ON `papers` (`group_id`, `updated_at`);
+CREATE INDEX `folders_group_id_idx` ON `folders` (`group_id`);
+CREATE INDEX `paper_folders_group_id_idx` ON `paper_folders` (`group_id`);
+CREATE INDEX `annotations_group_id_idx` ON `annotations` (`group_id`);
+

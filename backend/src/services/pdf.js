@@ -6,7 +6,7 @@ import { extractKey, getObject, isStorageConfigured, isStoredObject } from '../l
 import { isHttpUrl, keyInLibrary, libraryOf } from '../lib/access.js';
 
 /** Columns a paper must be loaded with for the helpers below. */
-export const PDF_COLUMNS = { id: true, pdfUrl: true, userId: true };
+export const PDF_COLUMNS = { id: true, pdfUrl: true, userId: true, groupId: true };
 
 /**
  * Where a paper's PDF may be read from, or null when its pdfUrl is not

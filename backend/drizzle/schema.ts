@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, blob, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob, real, primaryKey } from 'drizzle-orm/sqlite-core';
 import { sql, relations } from 'drizzle-orm';
 
 // Users Table
@@ -38,10 +38,38 @@ export const clientSyncStates = sqliteTable('client_sync_states', {
   lastSynced: text('last_synced').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Groups (private shared libraries). Rows with group_id belong to the group's
+// library; user_id on them is the member who added them. See src/lib/access.js.
+export const groups = sqliteTable('groups', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const groupMembers = sqliteTable('group_members', {
+  groupId: integer('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(), // 'owner' | 'admin' | 'member'
+  joinedAt: text('joined_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (t) => ({ pk: primaryKey({ columns: [t.groupId, t.userId] }) }));
+
+export const groupInvites = sqliteTable('group_invites', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  groupId: integer('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: text('role').notNull(),
+  invitedBy: integer('invited_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  expiresAt: text('expires_at').notNull(),
+});
+
 // Papers Table
 export const papers = sqliteTable('papers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   authors: text('authors', { mode: 'json' }).default('[]').notNull(),
   year: integer('year'),
@@ -73,6 +101,7 @@ export const papers = sqliteTable('papers', {
 export const folders = sqliteTable('folders', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   icon: text('icon').default('folder'),
   color: text('color'),
@@ -91,6 +120,7 @@ export const paperFolders = sqliteTable('paper_folders', {
   paperId: integer('paper_id').notNull().references(() => papers.id, { onDelete: 'cascade' }),
   folderId: integer('folder_id').notNull().references(() => folders.id, { onDelete: 'cascade' }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
   addedAt: text('added_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   deletedAt: text('deleted_at'),
 });
@@ -100,6 +130,7 @@ export const annotations = sqliteTable('annotations', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   paperId: integer('paper_id').notNull().references(() => papers.id, { onDelete: 'cascade' }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
   type: text('type').notNull(), // 'highlight', 'note', 'bookmark'
   pageNumber: integer('page_number'),
   position: text('position', { mode: 'json' }),

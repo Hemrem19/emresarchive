@@ -4,13 +4,14 @@ import * as schema from '../../drizzle/schema.js';
 import { eq, and, isNull, asc, sql, gt, or } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
 import {
-  READ, WRITE, accessible, accessibleWithDeleted, findAccessible, inLibrary, libraryFields, libraryOf,
-  personalLibrary, sameLibrary,
+  READ, WRITE, accessible, accessibleWithDeleted, allowsIn, findAccessible, inLibrary, libraryFields, libraryOf,
+  sameLibrary,
 } from '../lib/access.js';
+import { libraryContext } from '../middleware/library.js';
 
 const foldersRouter = new Hono();
 
-foldersRouter.use('*', authenticate);
+foldersRouter.use('*', authenticate, libraryContext);
 
 const getDb = (c) => drizzle(c.env.citavers_db, { schema });
 
@@ -25,12 +26,13 @@ foldersRouter.get('/', async (c) => {
 
   try {
     // Delta mode: include tombstones so clients can detect remote deletions.
+    const library = c.get('library');
     const whereClause = since
       ? and(
-          accessibleWithDeleted(schema.folders, authUser, READ),
+          accessibleWithDeleted(schema.folders, authUser, READ, library),
           or(gt(schema.folders.updatedAt, since), gt(schema.folders.deletedAt, since))
         )
-      : accessible(schema.folders, authUser, READ);
+      : accessible(schema.folders, authUser, READ, library);
 
     const userFolders = await db.query.folders.findMany({
       where: whereClause,
@@ -54,7 +56,7 @@ foldersRouter.get('/', async (c) => {
     const assocRows = await db
       .select({ folderId: schema.paperFolders.folderId, paperId: schema.paperFolders.paperId })
       .from(schema.paperFolders)
-      .where(accessible(schema.paperFolders, authUser, READ));
+      .where(accessible(schema.paperFolders, authUser, READ, library));
 
     const byFolder = new Map();
     for (const r of assocRows) {
@@ -122,10 +124,14 @@ foldersRouter.post('/', async (c) => {
     return c.json({ success: false, error: { message: 'Name is required' } }, 400);
   }
 
+  const library = c.get('library');
+  if (!allowsIn(authUser, WRITE, library)) {
+    return c.json({ success: false, error: { message: 'You may not add folders to this library' } }, 403);
+  }
+
   try {
-    // New folders go to the caller's personal library (groups will pass a library id)
     const [folder] = await db.insert(schema.folders).values({
-      ...libraryFields(personalLibrary(authUser)),
+      ...libraryFields(library, authUser),
       name: body.name.trim(),
       icon: body.icon || 'folder',
       color: body.color || null,
@@ -245,7 +251,7 @@ foldersRouter.delete('/:id', async (c) => {
   }
 });
 
-const FOLDER_LIBRARY_COLUMNS = { id: true, userId: true };
+const FOLDER_LIBRARY_COLUMNS = { id: true, userId: true, groupId: true };
 
 /**
  * Get Papers in Folder
@@ -325,7 +331,7 @@ foldersRouter.post('/:id/papers', async (c) => {
     const [record] = await db.insert(schema.paperFolders).values({
       paperId: paper.id,
       folderId: folder.id,
-      ...libraryFields(library)
+      ...libraryFields(library, authUser)
     }).returning({
       id: schema.paperFolders.id,
       paperId: schema.paperFolders.paperId,

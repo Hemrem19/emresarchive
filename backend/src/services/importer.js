@@ -176,18 +176,20 @@ export async function runImport(d1, user, normalized, { mode = 'merge', now = ne
 
     if (mode === 'replace') {
         // Papers and folders become tombstones so other devices' delta sync
-        // removes them; dependent rows are deleted outright.
+        // removes them; dependent rows are deleted outright. Only the personal
+        // library is replaced (group_id IS NULL): rows the user added to
+        // groups belong to those groups.
         stmts.push(
-            d1.prepare('DELETE FROM paper_folders WHERE user_id = ?').bind(uid),
-            d1.prepare('DELETE FROM annotations WHERE user_id = ?').bind(uid),
+            d1.prepare('DELETE FROM paper_folders WHERE user_id = ? AND group_id IS NULL').bind(uid),
+            d1.prepare('DELETE FROM annotations WHERE user_id = ? AND group_id IS NULL').bind(uid),
             d1.prepare(`DELETE FROM paper_connections
-                        WHERE from_paper_id IN (SELECT id FROM papers WHERE user_id = ?1)
-                           OR to_paper_id IN (SELECT id FROM papers WHERE user_id = ?1)`).bind(uid),
+                        WHERE from_paper_id IN (SELECT id FROM papers WHERE user_id = ?1 AND group_id IS NULL)
+                           OR to_paper_id IN (SELECT id FROM papers WHERE user_id = ?1 AND group_id IS NULL)`).bind(uid),
             d1.prepare('DELETE FROM network_graphs WHERE user_id = ?').bind(uid),
             d1.prepare(`UPDATE papers SET deleted_at = ?2, updated_at = ?2, version = version + 1
-                        WHERE user_id = ?1 AND deleted_at IS NULL`).bind(uid, now),
+                        WHERE user_id = ?1 AND group_id IS NULL AND deleted_at IS NULL`).bind(uid, now),
             d1.prepare(`UPDATE folders SET deleted_at = ?2, updated_at = ?2, version = version + 1
-                        WHERE user_id = ?1 AND deleted_at IS NULL`).bind(uid, now),
+                        WHERE user_id = ?1 AND group_id IS NULL AND deleted_at IS NULL`).bind(uid, now),
         );
     }
 
@@ -277,7 +279,7 @@ export async function runImport(d1, user, normalized, { mode = 'merge', now = ne
 export async function sweepUnreferencedPdfs(env, d1, user, startedAt) {
     if (!isStorageConfigured(env)) return 0;
     const { results } = await d1.prepare(
-        `SELECT pdf_url FROM papers WHERE user_id = ? AND deleted_at IS NULL AND pdf_url LIKE 'papers/%'`
+        `SELECT pdf_url FROM papers WHERE user_id = ? AND group_id IS NULL AND deleted_at IS NULL AND pdf_url LIKE 'papers/%'`
     ).bind(user.id).all();
     const keep = new Set(results.map((r) => r.pdf_url));
 

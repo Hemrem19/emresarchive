@@ -35,7 +35,7 @@ app.use('*', cors({
   origin: (origin) => isAllowedOrigin(origin) ? origin : null,
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Debug-Mode'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Debug-Mode', 'X-Library'],
   maxAge: 86400,
 }));
 

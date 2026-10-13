@@ -32,7 +32,7 @@ function createAuthenticate({ allowQueryToken }) {
 
     const db = drizzle(c.env.citavers_db, { schema });
     // Tokens issued before access tokens named their login have no sid; they expire within 15 minutes
-    const [user, session] = await Promise.all([db.query.users.findFirst({
+    const [user, session, memberships] = await Promise.all([db.query.users.findFirst({
       where: eq(schema.users.id, decoded.userId),
       columns: {
         id: true,
@@ -43,10 +43,14 @@ function createAuthenticate({ allowQueryToken }) {
         storageUsedBytes: true,
         settings: true
       }
-    }), decoded.sid ? findLiveSession(db, decoded.userId, decoded.sid) : null]);
+    }), decoded.sid ? findLiveSession(db, decoded.userId, decoded.sid) : null,
+    db.select({ groupId: schema.groupMembers.groupId, role: schema.groupMembers.role })
+      .from(schema.groupMembers).where(eq(schema.groupMembers.userId, decoded.userId))]);
     if (!user) return unauthorized(c, 'User not found');
     if (decoded.sid && !session) return unauthorized(c, 'Session ended');
 
+    // Group roles for src/lib/access.js: { [groupId]: role }
+    user.memberships = Object.fromEntries(memberships.map((m) => [m.groupId, m.role]));
     c.set('user', user);
     c.set('sessionId', decoded.sid ?? null);
     // Pass expiration for active WebSocket severing

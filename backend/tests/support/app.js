@@ -42,12 +42,21 @@ export function createTestApp() {
             return insert('papers', { user_id: user.id, title: `Paper of ${user.id}`, ...fields });
         },
 
+        /** A group owned by `owner`; `members` is a list of [user, role]. */
+        addGroup(owner, members = [], name = `Group of ${owner.id}`) {
+            const id = insert('groups', { name, owner_id: owner.id });
+            insert('group_members', { group_id: id, user_id: owner.id, role: 'owner' });
+            for (const [user, role] of members) insert('group_members', { group_id: id, user_id: user.id, role });
+            return id;
+        },
+
         addFolder(user, fields = {}) {
             return insert('folders', { user_id: user.id, name: `Folder of ${user.id}`, ...fields });
         },
 
-        request(path, { user, token, method = 'GET', body, headers = {} } = {}) {
+        request(path, { user, token, method = 'GET', body, headers = {}, library } = {}) {
             const h = new Headers(headers);
+            if (library) h.set('X-Library', library);
             const bearer = token ?? user?.token;
             if (bearer) h.set('Authorization', `Bearer ${bearer}`);
             let payload = body;
