@@ -5,8 +5,10 @@ import { eq, and, desc, asc, gt, or, sql, count } from 'drizzle-orm';
 import { authenticate } from '../middleware/auth.js';
 import {
     READ, WRITE, READ_FILES, WRITE_FILES, accessible, accessibleWithDeleted, allows, allowsIn, findAccessible,
-    isGroupLibrary, libraryFields, libraryOf, pdfKey, pdfUrlError,
+    isGroupLibrary, libraryFields, libraryOf, parseLibrary, pdfKey, pdfUrlError,
 } from '../lib/access.js';
+import { MAX_COPY, copyPapers } from '../services/copy.js';
+import { announceChange } from '../services/groups.js';
 import { libraryContext } from '../middleware/library.js';
 import {
     PRESIGNED_URL_EXPIRY, isStorageConfigured, canPresign, putObject, presignDownload,
@@ -70,6 +72,37 @@ const RETURNING_COLUMNS = {
     clientId: schema.papers.clientId,
     version: schema.papers.version,
 };
+
+/**
+ * Copy papers into another library (personal ↔ group, group ↔ group)
+ * POST /api/papers/copy { paperIds: number[], to: "personal" | "group:12" }
+ */
+papers.post('/copy', async (c) => {
+    const user = c.get('user');
+    const body = await c.req.json().catch(() => ({}));
+    const ids = Array.isArray(body.paperIds) ? [...new Set(body.paperIds.map(Number))].filter(Number.isInteger) : [];
+    if (!ids.length || ids.length > MAX_COPY) {
+        return c.json({ success: false, error: { message: `Choose between 1 and ${MAX_COPY} papers to copy` } }, 400);
+    }
+    const target = parseLibrary(user, body.to);
+    if (!target) return c.json({ success: false, error: { message: 'Library not found' } }, 404);
+    if (!allowsIn(user, WRITE, target)) {
+        return c.json({ success: false, error: { message: 'You may not add papers to that library' } }, 403);
+    }
+
+    try {
+        const results = await copyPapers(c.env, getDb(c), user, ids, target);
+        // libraryContext announces changes to the request's own library only
+        if (isGroupLibrary(target) && results.some((r) => r.success)) {
+            const job = announceChange(c.env, target.groupId);
+            try { c.executionCtx.waitUntil(job); } catch { await job; }
+        }
+        return c.json({ success: true, data: { results } });
+    } catch (err) {
+        console.error('[Paper copy]', err);
+        return c.json({ success: false, error: { message: 'Copy failed' } }, 500);
+    }
+});
 
 /**
  * Batch Operations (update/delete multiple papers)
