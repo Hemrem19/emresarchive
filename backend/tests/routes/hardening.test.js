@@ -86,3 +86,26 @@ describe('library indexes', () => {
         expect(plan('SELECT * FROM network_graphs WHERE user_id = 1')).toContain('network_graphs_user_id_idx');
     });
 });
+
+describe('PDF link on edits', () => {
+    const stored = 'papers/1/1/paper.pdf';
+    const link = (id) => t.row('SELECT pdf_url FROM papers WHERE id = ?', id).pdf_url;
+
+    it('an edit carrying an empty pdfUrl keeps the stored PDF linked', async () => {
+        const id = t.addPaper(alice, { pdf_url: stored, pdf_size_bytes: 5 });
+        await t.request(`/api/papers/${id}`, { user: alice, method: 'PUT', body: { title: 'New', pdfUrl: null } });
+        await t.request('/api/papers/batch', {
+            user: alice, method: 'POST',
+            body: { operations: [{ type: 'update', id, data: { notes: 'n', pdfUrl: '', pdfSizeBytes: null } }] },
+        });
+
+        const row = t.row('SELECT title, notes, pdf_url, pdf_size_bytes FROM papers WHERE id = ?', id);
+        expect(row).toMatchObject({ title: 'New', notes: 'n', pdf_url: stored, pdf_size_bytes: 5 });
+    });
+
+    it('an edit can still set a new link', async () => {
+        const id = t.addPaper(alice);
+        await t.request(`/api/papers/${id}`, { user: alice, method: 'PUT', body: { pdfUrl: 'https://example.org/a.pdf' } });
+        expect(link(id)).toBe('https://example.org/a.pdf');
+    });
+});

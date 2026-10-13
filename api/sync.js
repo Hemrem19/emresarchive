@@ -105,10 +105,9 @@ export function mapPaperToApi(localPaper) {
     }
 
     // Map s3Key → pdfUrl
-    if (p.s3Key !== undefined) {
-        p.pdfUrl = p.s3Key;
-        delete p.s3Key;
-    }
+    // A missing s3Key means "not downloaded here", not "no PDF": never send it as null
+    if (p.s3Key) p.pdfUrl = p.s3Key;
+    delete p.s3Key;
 
     // Remove local-only fields
     delete p.pdfData;
@@ -143,7 +142,7 @@ export function mapPaperFromApi(apiPaper) {
     }
 
     // Map pdfUrl → s3Key
-    if (p.pdfUrl !== undefined) {
+    if (p.pdfUrl) {
         p.s3Key = p.pdfUrl;
         p.hasPdf = true;
     } else {

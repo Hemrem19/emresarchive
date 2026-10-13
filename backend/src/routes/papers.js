@@ -102,13 +102,7 @@ papers.post('/batch', async (c) => {
                 const pdfError = pdfChangeError(authUser, existing, op.data);
                 if (pdfError) { results.push({ id: op.id, success: false, error: pdfError, type: 'update' }); continue; }
 
-                const updateData = { updatedAt: new Date().toISOString(), version: existing.version + 1 };
-                const fields = ['title', 'authors', 'year', 'journal', 'doi', 'url', 'abstract',
-                    'tags', 'status', 'relatedPaperIds', 'notes', 'summary', 'rating',
-                    'pdfUrl', 'pdfSizeBytes', 'readingProgress', 'clientId'];
-                for (const field of fields) {
-                    if (op.data[field] !== undefined) updateData[field] = op.data[field];
-                }
+                const updateData = { ...updateFields(op.data), updatedAt: new Date().toISOString(), version: existing.version + 1 };
                 const [paper] = await db.update(schema.papers)
                     .set(updateData)
                     .where(eq(schema.papers.id, op.id))
@@ -334,13 +328,7 @@ papers.put('/:id', async (c) => {
             return c.json({ success: false, error: { message: pdfError } }, 400);
         }
 
-        const updateData = { updatedAt: new Date().toISOString(), version: existing.version + 1 };
-        const fields = ['title', 'authors', 'year', 'journal', 'doi', 'url', 'abstract',
-            'tags', 'status', 'relatedPaperIds', 'notes', 'summary', 'rating',
-            'pdfUrl', 'pdfSizeBytes', 'readingProgress', 'clientId'];
-        for (const field of fields) {
-            if (updates[field] !== undefined) updateData[field] = updates[field];
-        }
+        const updateData = { ...updateFields(updates), updatedAt: new Date().toISOString(), version: existing.version + 1 };
 
         const [paper] = await db.update(schema.papers)
             .set(updateData)
@@ -384,8 +372,29 @@ const findPaperFiles = (c, paperId) =>
 
 // Changing a paper's PDF needs file rights on it, and the new key must sit in
 // the paper's own library.
+const UPDATE_FIELDS = ['title', 'authors', 'year', 'journal', 'doi', 'url', 'abstract',
+    'tags', 'status', 'relatedPaperIds', 'notes', 'summary', 'rating',
+    'pdfUrl', 'pdfSizeBytes', 'readingProgress', 'clientId'];
+
+/**
+ * The columns an update may set. An empty pdfUrl never clears the link: the
+ * app has no "remove PDF" action, and devices that never downloaded a PDF
+ * send null with every edit, which unlinked stored files.
+ */
+function updateFields(changes) {
+    const data = {};
+    for (const field of UPDATE_FIELDS) {
+        if (changes[field] !== undefined) data[field] = changes[field];
+    }
+    if (!data.pdfUrl) {
+        delete data.pdfUrl;
+        delete data.pdfSizeBytes;
+    }
+    return data;
+}
+
 function pdfChangeError(user, paper, changes) {
-    if (changes.pdfUrl === undefined || changes.pdfUrl === paper.pdfUrl) return null;
+    if (!changes.pdfUrl || changes.pdfUrl === paper.pdfUrl) return null;
     if (!allows(user, WRITE_FILES, paper)) return 'You may not change this paper\'s PDF';
     return pdfUrlError(libraryOf(paper), changes.pdfUrl);
 }
