@@ -4,6 +4,7 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { CLOSE_SOCKETS_PATH, SESSION_ENDED_CODE } from './services/sessions.js';
+import { CHANGED_PATH } from './services/groups.js';
 
 // Message Types
 const messageSync = 0;
@@ -126,9 +127,15 @@ export class WorkspaceDurableObject {
   async fetch(request) {
     // From the Worker only: clients reach this object solely through the
     // GET /api/sync/workspace upgrade route, so they cannot send this POST.
-    if (request.method === 'POST' && new URL(request.url).pathname === CLOSE_SOCKETS_PATH) {
-      const { sessionIds = [] } = await request.json();
-      return Response.json({ closed: this.closeLoginSockets(sessionIds) });
+    const internal = request.method === 'POST' ? new URL(request.url).pathname : null;
+    if (internal === CLOSE_SOCKETS_PATH) {
+      const { sessionIds = [], userIds = [] } = await request.json();
+      return Response.json({ closed: this.closeSockets({ sessionIds, userIds }) });
+    }
+    if (internal === CHANGED_PATH) {
+      // A plain Yjs update every client receives; the app pulls when it sees it
+      this.doc.getMap('signals').set('changedAt', Date.now());
+      return Response.json({ ok: true });
     }
 
     const upgradeHeader = request.headers.get('Upgrade');
@@ -307,11 +314,14 @@ export class WorkspaceDurableObject {
     try { ws.close(); } catch (_) { /* already closed */ }
   }
 
-  /** Closes the sockets opened by these logins; returns how many. */
-  closeLoginSockets(sessionIds) {
+  /** Closes the sockets opened by these logins or users; returns how many. */
+  closeSockets({ sessionIds = [], userIds = [] }) {
+    const users = new Set(userIds.map(String));
     let closed = 0;
     for (const [ws, session] of [...this.sessions.entries()]) {
-      if (session.sessionId == null || !sessionIds.includes(session.sessionId)) continue;
+      const ended = (session.sessionId != null && sessionIds.includes(session.sessionId))
+        || (session.userId != null && users.has(String(session.userId)));
+      if (!ended) continue;
       try { ws.close(SESSION_ENDED_CODE, 'Session ended'); } catch (_) { /* already closed */ }
       this.closeSession(ws);
       closed++;

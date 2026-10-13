@@ -5,14 +5,13 @@
  *
  * The limit is configuration, not data: STORAGE_LIMIT in wrangler.toml
  * (e.g. "2GB", "500MB"). Changing it there and redeploying applies to every
- * library at once. Today every library is a personal one; a group library
- * will get its own limit through libraryLimit, so members' uploads count
- * against the group, not against whoever happens to upload.
+ * library at once. A group library has its own limit (STORAGE_LIMIT_GROUP),
+ * so members' uploads count against the group, not against whoever uploads.
  */
 import { eq } from 'drizzle-orm';
 import * as schema from '../../drizzle/schema.js';
 import { listObjects } from '../lib/storage.js';
-import { storagePrefix } from '../lib/access.js';
+import { isGroupLibrary, storagePrefix } from '../lib/access.js';
 
 /** Largest single PDF accepted; matches the limit the app enforces (form.view.js). */
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
@@ -31,9 +30,13 @@ export function parseSize(value) {
     return Math.floor(Number(match[1]) * UNITS[match[2].toUpperCase()]);
 }
 
-/** Storage limit of `library` in bytes (the same for every library until groups). */
+/**
+ * Storage limit of `library` in bytes: STORAGE_LIMIT for personal libraries,
+ * STORAGE_LIMIT_GROUP for groups (pooled: every member's uploads count there).
+ */
 export function libraryLimit(env, library) {
-    return parseSize(env.STORAGE_LIMIT ?? DEFAULT_STORAGE_LIMIT);
+    const configured = isGroupLibrary(library) ? env.STORAGE_LIMIT_GROUP : env.STORAGE_LIMIT;
+    return parseSize(configured ?? DEFAULT_STORAGE_LIMIT);
 }
 
 const formatMb = (bytes) => `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`;

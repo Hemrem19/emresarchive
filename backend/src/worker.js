@@ -11,10 +11,13 @@ import annotationsRoutes from './routes/annotations.js';
 import networkRoutes from './routes/network.js';
 import importRoutes from './routes/import.js';
 import filesRoutes from './routes/files.js';
+import groupsRoutes from './routes/groups.js';
 import { authenticateSocket } from './middleware/auth.js';
 import { isAllowedOrigin } from './lib/origins.js';
 import { purgeStorage } from './services/purge.js';
 import { deleteExpiredSessions, userRoom } from './services/sessions.js';
+import { groupRoom } from './services/groups.js';
+import { roleIn } from './lib/access.js';
 
 const app = new Hono();
 
@@ -57,6 +60,7 @@ app.route('/api/annotations', annotationsRoutes);
 app.route('/api/networks', networkRoutes);
 app.route('/api/import', importRoutes);
 app.route('/api/files', filesRoutes);
+app.route('/api/groups', groupsRoutes);
 
 // Durable Objects Sync Route
 app.get('/api/sync/workspace/:id', authenticateSocket, async (c) => {
@@ -66,11 +70,12 @@ app.get('/api/sync/workspace/:id', authenticateSocket, async (c) => {
   }
 
   const user = c.get('user');
-  // The client-supplied :id is ignored on purpose: there is no workspace
-  // membership model yet, so trusting it let every user join the same room
-  // (the frontend always sends "default") and receive each other's data.
-  // Replace with a membership check when shared workspaces are built.
-  const stub = userRoom(c.env, user.id);
+  // "group:12" joins that group's room, for members only; anything else is
+  // the caller's personal room. Rooms are never chosen by name alone: that
+  // once let every user join the same "default" room.
+  const group = /^group:(\d+)$/.exec(c.req.param('id') || '');
+  if (group && !roleIn(user, Number(group[1]))) return c.json({ error: 'Group not found' }, 404);
+  const stub = group ? groupRoom(c.env, Number(group[1])) : userRoom(c.env, user.id);
 
   // We must clone the incoming request to inject our custom X-User-Id header
   const headers = new Headers(c.req.raw.headers);

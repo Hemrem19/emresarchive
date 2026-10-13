@@ -114,3 +114,19 @@ describe('upload paths', () => {
         expect(res.status).toBe(404);
     });
 });
+
+describe('group storage', () => {
+    it('measures a group on its own and applies the group limit', async () => {
+        const group = t.addGroup(alice, [[bob, 'member']]);
+        t.env.STORAGE_LIMIT_GROUP = '1000B';
+        await t.bucket.put(`papers/g${group}/1/a.pdf`, new Uint8Array(950).buffer);
+        await t.bucket.put('papers/2/1/mine.pdf', new Uint8Array(5000).buffer);
+
+        const form = new FormData();
+        form.append('file', new File([new Uint8Array(100)], 'b.pdf', { type: 'application/pdf' }));
+        const res = await t.request('/api/papers/upload?paperId=5', { user: bob, library: `group:${group}`, method: 'POST', body: form });
+        expect(res.status).toBe(413);
+        expect(libraryLimit(t.env, { groupId: group })).toBe(1000);
+        expect(libraryLimit(t.env, { ownerId: 1 })).toBe(2 * 1024 ** 3);
+    });
+});

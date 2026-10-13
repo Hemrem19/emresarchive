@@ -95,21 +95,30 @@ export async function endSessions(env, db, userId, { ids, allBut } = {}) {
   const scope = ids ? inArray(S.id, ids) : allBut ? ne(S.id, allBut) : undefined;
   const ended = (await db.delete(S).where(and(eq(S.userId, userId), scope)).returning({ id: S.id }))
     .map((s) => s.id);
-  if (ended.length) await closeSockets(env, userId, ended);
+  if (ended.length) await closeSockets(env, db, userId, ended);
   return ended;
 }
 
-/** Closes the sync connections opened by these logins. Best effort: a socket also dies when its token expires. */
-async function closeSockets(env, userId, sessionIds) {
+/**
+ * Closes the sync connections opened by these logins, in the user's personal
+ * room and every group room they belong to. Best effort: a socket also dies
+ * when its token expires.
+ */
+async function closeSockets(env, db, userId, sessionIds) {
   if (!env.WORKSPACE_DO) return;
-  try {
-    await userRoom(env, userId).fetch(`https://sync${CLOSE_SOCKETS_PATH}`, {
-      method: 'POST',
-      body: JSON.stringify({ sessionIds }),
-    });
-  } catch (err) {
-    console.error('[sessions] closing sync sockets failed:', err.message);
-  }
+  const groups = await db.select({ id: schema.groupMembers.groupId }).from(schema.groupMembers)
+    .where(eq(schema.groupMembers.userId, userId));
+  const rooms = [`user:${userId}`, ...groups.map((g) => `group:${g.id}`)];
+  await Promise.all(rooms.map(async (room) => {
+    try {
+      await env.WORKSPACE_DO.get(env.WORKSPACE_DO.idFromName(room)).fetch(`https://sync${CLOSE_SOCKETS_PATH}`, {
+        method: 'POST',
+        body: JSON.stringify({ sessionIds }),
+      });
+    } catch (err) {
+      console.error(`[sessions] closing sync sockets in ${room} failed:`, err.message);
+    }
+  }));
 }
 
 /** Removes logins past their expiry (nightly cron). */

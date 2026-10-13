@@ -15,6 +15,11 @@ routes = [
 ENVIRONMENT = "production"
 # Cloud storage per library (e.g. "2GB", "500MB"); placeholder for now
 STORAGE_LIMIT = "2GB"
+# Groups (src/services/groups.js); placeholders for now. Each group has its
+# own pooled storage, so the number of groups one person may own is capped.
+STORAGE_LIMIT_GROUP = "2GB"
+MAX_OWNED_GROUPS = "3"
+MAX_GROUP_MEMBERS = "25"
 # Nightly cleanup of expired-trash and unreferenced PDFs (src/services/purge.js):
 # "report" only logs what would be removed; "delete" removes it
 STORAGE_PURGE = "delete"
