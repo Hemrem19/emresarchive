@@ -512,3 +512,39 @@ describe('core/syncManager.js - group rooms', () => {
         expect(WebsocketProvider.last.shouldConnect).toBe(false);
     });
 });
+
+describe('core/syncManager.js - keepalive', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        localStorage.clear();
+        const { isCloudSyncEnabled } = await import('../../config.js');
+        const auth = await import('../../api/auth.js');
+        isCloudSyncEnabled.mockReturnValue(true);
+        auth.isAuthenticated.mockReturnValue(true);
+        auth.getAccessToken.mockReturnValue(null);
+    });
+
+    afterEach(() => stopAutoSync());
+
+    it('pings with a text frame and treats "pong" as traffic without decoding it', async () => {
+        initializeAutoSync();
+        const { WebsocketProvider } = await import('https://esm.sh/y-websocket@3.0.0?deps=yjs@13.6.30');
+        const provider = WebsocketProvider.last;
+        const yjsHandler = vi.fn();
+        provider.ws = { readyState: 1, send: vi.fn(), onmessage: yjsHandler };
+        provider.wsconnected = true;
+        provider.emit('status', [{ status: 'connected' }]);
+
+        vi.advanceTimersByTime(20_000);
+        expect(provider.ws.send).toHaveBeenCalledWith('ping');
+
+        provider.wsLastMessageReceived = 0;
+        provider.ws.onmessage({ data: 'pong' });
+        expect(provider.wsLastMessageReceived).toBeGreaterThan(0);
+        expect(yjsHandler).not.toHaveBeenCalled();
+
+        const binary = { data: new ArrayBuffer(2) };
+        provider.ws.onmessage(binary);
+        expect(yjsHandler).toHaveBeenCalledWith(binary);
+    });
+});

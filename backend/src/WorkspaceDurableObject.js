@@ -10,6 +10,11 @@ import { CHANGED_PATH, REMOVED_CODE } from './services/groups.js';
 const messageSync = 0;
 const messageAwareness = 1;
 
+/** Keepalive text frames, answered by the runtime (setWebSocketAutoResponse). */
+export const KEEPALIVE_PING = 'ping';
+export const KEEPALIVE_PONG = 'pong';
+const LOADED_FROM_STORAGE = Symbol('loaded from storage');
+
 export class WorkspaceDurableObject {
   constructor(state, env) {
     this.state = state;
@@ -18,6 +23,16 @@ export class WorkspaceDurableObject {
     // In-memory Yjs Document
     this.doc = new Y.Doc();
     this.awareness = new awarenessProtocol.Awareness(this.doc);
+    // The room only relays other clients' presence. Awareness starts a 3 s
+    // interval and re-announces its own (empty) state every 15 s; either one
+    // keeps the object from hibernating, and that idle time is billed.
+    clearInterval(this.awareness._checkInterval);
+    this.awareness.setLocalState(null);
+
+    // Keepalive pings are answered by the runtime without waking the object
+    if (typeof state.setWebSocketAutoResponse === 'function' && typeof WebSocketRequestResponsePair === 'function') {
+      state.setWebSocketAutoResponse(new WebSocketRequestResponsePair(KEEPALIVE_PING, KEEPALIVE_PONG));
+    }
     
     // Track active WebSocket connections
     this.sessions = new Map();
@@ -43,7 +58,8 @@ export class WorkspaceDurableObject {
 
     // Listen to document updates to sync across connected clients
     this.doc.on('update', (update, origin) => {
-      this.schedulePersist();
+      // Loading the stored snapshot is not a change worth writing back
+      if (origin !== LOADED_FROM_STORAGE) this.schedulePersist();
 
       const encoder = encoding.createEncoder();
       encoding.writeVarUint(encoder, messageSync);
@@ -73,7 +89,7 @@ export class WorkspaceDurableObject {
           const bytes = storedUpdate instanceof Uint8Array
             ? storedUpdate
             : (Array.isArray(storedUpdate) ? new Uint8Array(storedUpdate) : null);
-          if (bytes) Y.applyUpdate(this.doc, bytes);
+          if (bytes) Y.applyUpdate(this.doc, bytes, LOADED_FROM_STORAGE);
         }
       } catch (err) {
         console.error('[DO] Failed to apply stored snapshot, starting fresh:', err && err.message);
@@ -91,9 +107,9 @@ export class WorkspaceDurableObject {
               connectionId: attached.connectionId || crypto.randomUUID(),
               userId: attached.userId || null,
               sessionId: attached.sessionId || null,
+              expiresAt: attached.expiresAt || null,
               tokens: 100,
               lastRefill: Date.now(),
-              timeoutId: null
             });
           }
         }
@@ -159,26 +175,16 @@ export class WorkspaceDurableObject {
       sessionId,
       tokens: 100, // Burst capacity
       lastRefill: Date.now(),
-      timeoutId: null
     };
 
-    // Active JWT Expiry Severing Logic
+    // The socket lives no longer than the token that opened it. A timer would
+    // keep the object awake (and billed), so expiry is checked when a message
+    // arrives; ended logins and removed members are closed explicitly.
     if (jwtExpSecs) {
-      const expMs = parseInt(jwtExpSecs, 10) * 1000;
-      const ttl = expMs - Date.now();
-      
-      if (ttl <= 0) {
+      sessionData.expiresAt = parseInt(jwtExpSecs, 10) * 1000;
+      if (sessionData.expiresAt <= Date.now()) {
         return new Response('Token already expired', { status: 401 });
       }
-      
-      // Forcefully terminate this connection when the token natively expires
-      sessionData.timeoutId = setTimeout(() => {
-        console.warn(`[Zero-Trust] Token natively expired for User ${userId}. Force closing socket.`);
-        try {
-          server.close(1008, 'Token expired natively during session');
-        } catch (e) {}
-        this.closeSession(server);
-      }, ttl);
     }
 
     this.sessions.set(server, sessionData);
@@ -189,7 +195,8 @@ export class WorkspaceDurableObject {
         server.serializeAttachment({
           connectionId: sessionData.connectionId,
           userId: sessionData.userId,
-          sessionId: sessionData.sessionId
+          sessionId: sessionData.sessionId,
+          expiresAt: sessionData.expiresAt || null
         });
       }
     } catch (e) {
@@ -223,6 +230,12 @@ export class WorkspaceDurableObject {
   webSocketMessage(ws, message) {
     const session = this.sessions.get(ws);
     if (!session) return;
+
+    if (session.expiresAt && session.expiresAt <= Date.now()) {
+      try { ws.close(1008, 'Token expired'); } catch (_) { /* already closed */ }
+      this.closeSession(ws);
+      return;
+    }
 
     // Rate limiting (Token Bucket) - Zero-Trust Phase 5
     const now = Date.now();
@@ -302,7 +315,6 @@ export class WorkspaceDurableObject {
   closeSession(ws) {
     const session = this.sessions.get(ws);
     if (session) {
-      if (session.timeoutId) clearTimeout(session.timeoutId);
       // Only remove awareness states originating from *this* client. The previous
       // code nuked every peer's awareness on any disconnect, which made shared
       // sessions flicker and lose presence.

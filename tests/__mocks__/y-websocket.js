@@ -9,6 +9,7 @@ export class WebsocketProvider {
         this.connected = false;
         this.awareness = {
             setLocalStateField: () => {},
+            setLocalState: () => {},
             getStates: () => new Map(),
             on: () => {},
             off: () => {},

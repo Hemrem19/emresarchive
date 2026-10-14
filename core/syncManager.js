@@ -38,7 +38,7 @@ let _keepAliveInterval = null;
 // Guard so syncFromCloud only fires once per WebSocket session, not on every reconnect.
 let _yjsSyncDoneForSession = false;
 
-const WS_KEEPALIVE_MS = 25_000; // Under Cloudflare's 30s idle timeout
+const WS_KEEPALIVE_MS = 20_000; // y-websocket closes after 30 s without any message
 const TOKEN_REFRESH_THRESHOLD_MS = 60_000; // Refresh if <60s of life remains
 
 /**
@@ -93,6 +93,28 @@ async function connectWithFreshToken() {
     try { provider.connect(); } catch (e) {
         console.warn('[Sync Manager] provider.connect() threw:', e.message);
     }
+}
+
+const KEEPALIVE_PING = 'ping';
+const KEEPALIVE_PONG = 'pong';
+
+/**
+ * Lets the keepalive reply count as traffic without reaching the Yjs decoder,
+ * which only understands binary frames. y-websocket sets ws.onmessage on each
+ * new socket, so this runs on every connect.
+ */
+function acceptKeepaliveReplies(provider) {
+    const ws = provider.ws;
+    if (!ws || ws._keepaliveAware) return;
+    const handle = ws.onmessage;
+    ws.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+            if (event.data === KEEPALIVE_PONG) provider.wsLastMessageReceived = Date.now();
+            return;
+        }
+        handle?.call(ws, event);
+    };
+    ws._keepaliveAware = true;
 }
 
 /**
@@ -177,6 +199,10 @@ export function initializeAutoSync() {
             maxBackoffTime: 30_000
         });
 
+        // No presence is shown anywhere, and a non-null local state is re-sent
+        // every 15 s, waking the sync room each time
+        provider.awareness.setLocalState(null);
+
         provider.on('connection-error', err => {
             console.warn('[Sync Manager] WebSocket connection error:', err?.message ?? err);
             if (_wsBackoffTimer !== null) return; // Already waiting — ignore further errors
@@ -200,6 +226,7 @@ export function initializeAutoSync() {
         provider.on('status', event => {
             console.log('[Sync Manager] Websocket status:', event.status);
             if (event.status === 'connected') {
+                acceptKeepaliveReplies(provider);
                 _wsFailureCount = 0;
                 if (_wsBackoffTimer) { clearTimeout(_wsBackoffTimer); _wsBackoffTimer = null; }
                 // Reset session guard so we get one syncFromCloud per connection
@@ -235,11 +262,12 @@ export function initializeAutoSync() {
             }
         });
 
-        // Keep-alive: send a harmless awareness update every 25s to prevent
-        // Cloudflare's 30s idle WebSocket timeout from closing the connection.
+        // Keep-alive: y-websocket drops a connection that received nothing for
+        // 30 s. A "ping" text frame is answered with "pong" by the Cloudflare
+        // runtime itself, so the sync room is not woken (or billed) for it.
         _keepAliveInterval = setInterval(() => {
-            if (provider && provider.wsconnected) {
-                provider.awareness.setLocalStateField('_ka', Date.now());
+            if (provider && provider.wsconnected && provider.ws?.readyState === 1) {
+                try { provider.ws.send(KEEPALIVE_PING); } catch (_) { /* reconnect handles it */ }
             }
         }, WS_KEEPALIVE_MS);
 
