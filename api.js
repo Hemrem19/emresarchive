@@ -97,6 +97,14 @@ export const normalizePaperIdentifier = (input) => {
  * @returns {Promise<Object>} A promise that resolves with the structured paper data.
  * @throws {Error} Throws descriptive errors for various failure scenarios.
  */
+/** Plain text from a CSL abstract, which publishers send as JATS markup ("<jats:p>…</jats:p>"). */
+const abstractFrom = (value) => {
+    if (typeof value !== 'string') return '';
+    return value.replace(/<jats:title>[^<]*<\/jats:title>/gi, ' ').replace(/<[^>]+>/g, ' ')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+        .replace(/\s+/g, ' ').trim();
+};
+
 export const fetchDoiMetadata = async (identifier, options = {}) => {
     const { timeout = 10000 } = options;
 
@@ -225,6 +233,7 @@ export const fetchDoiMetadata = async (identifier, options = {}) => {
             journal: data['container-title'] || '',
             year: year,
             doi: data.DOI || cleanDoi,
+            ...(abstractFrom(data.abstract) ? { abstract: abstractFrom(data.abstract) } : {}),
         };
 
     } catch (error) {

@@ -13,6 +13,13 @@ export const homeView = `
                             <span class="material-symbols-outlined text-lg sm:text-base">add</span>
                             <span class="hidden sm:inline">Add</span>
                         </button>
+                        <span class="hidden sm:inline text-xs text-slate-500">or</span>
+                        <button type="button" id="upload-pdfs-btn" title="Add papers from PDF files; details are filled in automatically. You can also drop PDFs anywhere on this page."
+                            class="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 border border-primary/60 text-primary hover:bg-primary/10 text-sm font-bold rounded-lg transition-all flex-shrink-0 active:scale-95">
+                            <span class="material-symbols-outlined text-lg sm:text-base">upload_file</span>
+                            <span class="hidden sm:inline">Upload PDFs</span>
+                        </button>
+                        <input type="file" id="upload-pdfs-input" accept="application/pdf,.pdf" multiple class="hidden">
                     </div>
                 </form>
             </div>
