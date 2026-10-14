@@ -20,6 +20,8 @@ export const INVITE_DAYS = 14;
 export const MAX_NAME_LENGTH = 100;
 /** Path the Worker posts to on a group room after the group's library changed. */
 export const CHANGED_PATH = '/internal/changed';
+/** WebSocket close code a member sees when they lost access (removed, left, group deleted). */
+export const REMOVED_CODE = 4003;
 
 const GR = schema.groups;
 const GM = schema.groupMembers;

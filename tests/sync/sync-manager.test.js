@@ -36,6 +36,10 @@ vi.mock('../../ui.js', () => ({
     showToast: vi.fn()
 }));
 
+vi.mock('../../components/librarySwitcher.js', () => ({
+    renderLibrarySwitcher: vi.fn()
+}));
+
 // Mock timers
 vi.useFakeTimers();
 
@@ -473,3 +477,38 @@ describe('core/syncManager.js - Network Reconnect', () => {
     });
 });
 
+
+describe('core/syncManager.js - group rooms', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        localStorage.clear();
+        const { isCloudSyncEnabled } = await import('../../config.js');
+        const auth = await import('../../api/auth.js');
+        isCloudSyncEnabled.mockReturnValue(true);
+        auth.isAuthenticated.mockReturnValue(true);
+        auth.getAccessToken.mockReturnValue(null);
+    });
+
+    afterEach(() => stopAutoSync());
+
+    it('joins the open group\'s room', async () => {
+        localStorage.setItem('citavers:library', 'group:5');
+        initializeAutoSync();
+        const { WebsocketProvider } = await import('https://esm.sh/y-websocket@3.0.0?deps=yjs@13.6.30');
+        expect(WebsocketProvider.last.room).toBe('group:5');
+    });
+
+    it('re-checks membership when the server says this user was removed', async () => {
+        localStorage.setItem('citavers:library', 'group:5');
+        initializeAutoSync();
+        const { WebsocketProvider } = await import('https://esm.sh/y-websocket@3.0.0?deps=yjs@13.6.30');
+        const { renderLibrarySwitcher } = await import('../../components/librarySwitcher.js');
+
+        WebsocketProvider.last.emit('connection-close', [{ code: 1006 }]);
+        expect(renderLibrarySwitcher).not.toHaveBeenCalled();
+
+        WebsocketProvider.last.emit('connection-close', [{ code: 4003 }]);
+        expect(renderLibrarySwitcher).toHaveBeenCalledTimes(1);
+        expect(WebsocketProvider.last.shouldConnect).toBe(false);
+    });
+});

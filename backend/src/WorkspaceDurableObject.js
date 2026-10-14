@@ -4,7 +4,7 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { CLOSE_SOCKETS_PATH, SESSION_ENDED_CODE } from './services/sessions.js';
-import { CHANGED_PATH } from './services/groups.js';
+import { CHANGED_PATH, REMOVED_CODE } from './services/groups.js';
 
 // Message Types
 const messageSync = 0;
@@ -319,10 +319,12 @@ export class WorkspaceDurableObject {
     const users = new Set(userIds.map(String));
     let closed = 0;
     for (const [ws, session] of [...this.sessions.entries()]) {
-      const ended = (session.sessionId != null && sessionIds.includes(session.sessionId))
-        || (session.userId != null && users.has(String(session.userId)));
-      if (!ended) continue;
-      try { ws.close(SESSION_ENDED_CODE, 'Session ended'); } catch (_) { /* already closed */ }
+      const loginEnded = session.sessionId != null && sessionIds.includes(session.sessionId);
+      const removed = session.userId != null && users.has(String(session.userId));
+      if (!loginEnded && !removed) continue;
+      // Distinct codes: an ended login signs the app out; a removal sends it back to its own library
+      const [code, reason] = loginEnded ? [SESSION_ENDED_CODE, 'Session ended'] : [REMOVED_CODE, 'Removed from group'];
+      try { ws.close(code, reason); } catch (_) { /* already closed */ }
       this.closeSession(ws);
       closed++;
     }

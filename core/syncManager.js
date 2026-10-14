@@ -16,7 +16,11 @@ import { WebsocketProvider } from 'https://esm.sh/y-websocket@3.0.0?deps=yjs@13.
 import { upgradeLegacySchemaToYjs } from './schemaUpgrade.js';
 import { isSyncInProgress } from '../db/sync.js';
 import { syncFromCloud } from '../db/adapter.js';
-import { syncRoom } from './library.js';
+import { inGroupLibrary, syncRoom } from './library.js';
+import { renderLibrarySwitcher } from '../components/librarySwitcher.js';
+
+// Close code the server uses when this user lost access to the open group (backend services/groups.js)
+const REMOVED_FROM_GROUP_CODE = 4003;
 
 let provider = null;
 let yDoc = null;
@@ -78,6 +82,7 @@ async function ensureFreshToken() {
 async function connectWithFreshToken() {
     if (!provider) return;
     const token = await ensureFreshToken();
+    if (!provider) return; // sync was stopped while the token was being fetched
     // No token means signed out (or the login was ended elsewhere): retrying
     // with the old one would only be refused again
     if (!token) {
@@ -199,6 +204,15 @@ export function initializeAutoSync() {
                 if (_wsBackoffTimer) { clearTimeout(_wsBackoffTimer); _wsBackoffTimer = null; }
                 // Reset session guard so we get one syncFromCloud per connection
                 _yjsSyncDoneForSession = false;
+            }
+        });
+
+        // Removed from the open group (or it was deleted): the switcher re-checks
+        // membership and returns to the personal library.
+        provider.on('connection-close', (event) => {
+            if (event?.code === REMOVED_FROM_GROUP_CODE && inGroupLibrary()) {
+                provider.shouldConnect = false;
+                renderLibrarySwitcher();
             }
         });
 

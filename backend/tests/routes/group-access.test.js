@@ -87,6 +87,15 @@ describe('writing', () => {
         expect(t.row('SELECT user_id, group_id FROM folders WHERE id = ?', folder.body.data.folder.id)).toEqual({ user_id: bob.id, group_id: group });
     });
 
+    it('lets members change tags on group papers in a batch', async () => {
+        const res = await json(await t.request('/api/papers/batch', {
+            user: alice, library: G, method: 'POST',
+            body: { operations: [{ type: 'update', id: gPaper, data: { tags: ['ml', 'rl'] } }] },
+        }));
+        expect(res.body.data.results[0]).toMatchObject({ success: true, data: { tags: ['ml', 'rl'] } });
+        expect(JSON.parse(t.row('SELECT tags FROM papers WHERE id = ?', gPaper).tags)).toEqual(['ml', 'rl']);
+    });
+
     it('lets members edit papers others added', async () => {
         await t.request(`/api/papers/${gPaper}`, { user: alice, method: 'PUT', body: { title: 'Edited' } });
         expect(t.row('SELECT title FROM papers WHERE id = ?', gPaper).title).toBe('Edited');

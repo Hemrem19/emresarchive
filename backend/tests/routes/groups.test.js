@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createTestApp } from '../support/app.js';
-import { CHANGED_PATH } from '../../src/services/groups.js';
+import { CHANGED_PATH, REMOVED_CODE } from '../../src/services/groups.js';
 import { CLOSE_SOCKETS_PATH } from '../../src/services/sessions.js';
 import { WorkspaceDurableObject } from '../../src/WorkspaceDurableObject.js';
 
@@ -271,7 +271,7 @@ describe('sync room', () => {
         doc.sessions.set(stays, { userId: '1', sessionId: 10 });
 
         expect(await (await post(doc, CLOSE_SOCKETS_PATH, { userIds: [3] })).json()).toEqual({ closed: 1 });
-        expect(gone.close).toHaveBeenCalled();
+        expect(gone.close).toHaveBeenCalledWith(REMOVED_CODE, 'Removed from group');
         expect(stays.close).not.toHaveBeenCalled();
     });
 
