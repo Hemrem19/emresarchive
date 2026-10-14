@@ -48,6 +48,17 @@ describe('reading', () => {
         expect(await pdf.text()).toBe('%PDF group');
     });
 
+    it('serves group PDFs through download links, while the holder is still a member', async () => {
+        const info = await json(await t.request(`/api/papers/${gPaper}/pdf`, { user: alice }));
+        const link = new URL(info.body.data.downloadUrl, 'https://api.test');
+        const download = await t.request(`${link.pathname}${link.search}`);
+        expect(download.status).toBe(200);
+        expect(await download.text()).toBe('%PDF group');
+
+        t.db.sqlite.prepare('DELETE FROM group_members WHERE user_id = ?').run(alice.id);
+        expect((await t.request(`${link.pathname}${link.search}`)).status).toBe(404);
+    });
+
     it('shows nothing of a group to a non-member', async () => {
         expect((await t.request('/api/papers', { user: eve, library: G })).status).toBe(404);
         expect((await t.request('/api/folders', { user: eve, library: G })).status).toBe(404);

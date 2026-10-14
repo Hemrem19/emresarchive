@@ -5,6 +5,7 @@ import * as schema from '../../drizzle/schema.js';
 import { verifyFileToken } from '../lib/jwt.js';
 import { READ_FILES, findAccessible } from '../lib/access.js';
 import { PDF_COLUMNS, pdfResponse } from '../services/pdf.js';
+import { loadMemberships } from '../services/groups.js';
 
 /**
  * Downloads through plain links, which cannot send an Authorization header.
@@ -21,6 +22,8 @@ files.get('/pdf', async (c) => {
     const db = drizzle(c.env.citavers_db, { schema });
     const user = await db.query.users.findFirst({ where: eq(schema.users.id, grant.userId), columns: { id: true } });
     if (!user) return c.json({ success: false, error: { message: 'Link expired or invalid' } }, 401);
+    // Group papers are reached through membership, checked now rather than when the link was made
+    user.memberships = await loadMemberships(db, user.id);
 
     const paper = await findAccessible(db.query.papers, schema.papers, user, grant.paperId, READ_FILES, PDF_COLUMNS);
     if (!paper) return c.json({ success: false, error: { message: 'Paper not found' } }, 404);

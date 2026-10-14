@@ -46,6 +46,12 @@ const nowIso = () => new Date().toISOString();
 
 // --- Groups ------------------------------------------------------------------
 
+/** A user's group roles, { [groupId]: role }: what src/lib/access.js reads as user.memberships. */
+export async function loadMemberships(db, userId) {
+    const rows = await db.select({ groupId: GM.groupId, role: GM.role }).from(GM).where(eq(GM.userId, userId));
+    return Object.fromEntries(rows.map((m) => [m.groupId, m.role]));
+}
+
 /** The groups `user` belongs to, with their role and member count. */
 export async function listGroups(db, user) {
     const ids = Object.keys(user.memberships ?? {}).map(Number);

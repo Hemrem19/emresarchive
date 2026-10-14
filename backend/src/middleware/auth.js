@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
 import { eq } from 'drizzle-orm';
 import { findLiveSession } from '../services/sessions.js';
+import { loadMemberships } from '../services/groups.js';
 
 const unauthorized = (c, message) => c.json({ success: false, error: { message } }, 401);
 
@@ -44,13 +45,11 @@ function createAuthenticate({ allowQueryToken }) {
         settings: true
       }
     }), decoded.sid ? findLiveSession(db, decoded.userId, decoded.sid) : null,
-    db.select({ groupId: schema.groupMembers.groupId, role: schema.groupMembers.role })
-      .from(schema.groupMembers).where(eq(schema.groupMembers.userId, decoded.userId))]);
+    loadMemberships(db, decoded.userId)]);
     if (!user) return unauthorized(c, 'User not found');
     if (decoded.sid && !session) return unauthorized(c, 'Session ended');
 
-    // Group roles for src/lib/access.js: { [groupId]: role }
-    user.memberships = Object.fromEntries(memberships.map((m) => [m.groupId, m.role]));
+    user.memberships = memberships;
     c.set('user', user);
     c.set('sessionId', decoded.sid ?? null);
     // Pass expiration for active WebSocket severing

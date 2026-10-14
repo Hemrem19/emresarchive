@@ -12,6 +12,17 @@ vi.mock('../api/groups.js', () => ({
     listGroups: vi.fn(),
     createGroup: vi.fn(),
     copyPapers: vi.fn(),
+    getGroup: vi.fn(),
+    listMembers: vi.fn(),
+    listInvites: vi.fn(),
+    removeMember: vi.fn(async () => ({})),
+    renameGroup: vi.fn(async () => ({})),
+    cancelInvite: vi.fn(async () => ({})),
+    deleteGroup: vi.fn(),
+    setMemberRole: vi.fn(),
+    inviteMember: vi.fn(),
+    acceptInvite: vi.fn(),
+    declineInvite: vi.fn(),
 }));
 vi.mock('../ui.js', async (importOriginal) => ({
     ...(await importOriginal()),
@@ -24,8 +35,9 @@ vi.mock('../core/library.js', async (importOriginal) => {
 
 const { switcherHtml, renderLibrarySwitcher } = await import('../components/librarySwitcher.js');
 const { copyTargets, describeResults, openCopyDialog } = await import('../components/copyToLibrary.js');
-const { memberRowHtml } = await import('../group.view.js');
-const { listGroups, copyPapers } = await import('../api/groups.js');
+const { memberRowHtml, groupPageView } = await import('../group.view.js');
+const groupsApi = await import('../api/groups.js');
+const { listGroups, copyPapers } = groupsApi;
 const { openLibrary } = await import('../core/library.js');
 const { showToast } = await import('../ui.js');
 
@@ -129,5 +141,48 @@ describe('group page member rows', () => {
 
     it('gives members no controls', () => {
         expect(row({ userId: 3, role: 'member', email: 'm@x' }, 'member', 4)).toEqual({ roleSelect: null, remove: null });
+    });
+});
+
+describe('group page actions', () => {
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+
+    beforeEach(async () => {
+        vi.mocked(groupsApi.getGroup).mockResolvedValue({ id: 7, name: 'Lab', role: 'owner', storage: { usedBytes: 0, limitBytes: 100 } });
+        vi.mocked(groupsApi.listMembers).mockResolvedValue([
+            { userId: 1, role: 'owner', email: 'me@x' },
+            { userId: 3, role: 'member', email: 'm@x' },
+        ]);
+        vi.mocked(groupsApi.listInvites).mockResolvedValue([{ id: 11, email: 'new@x', role: 'member' }]);
+        vi.stubGlobal('confirm', vi.fn(() => true));
+        vi.stubGlobal('prompt', vi.fn(() => 'Lab 2'));
+        document.body.innerHTML = '<div id="group-page"></div>';
+        await groupPageView.mount(7);
+    });
+
+    it('removes a member when Remove is clicked and confirmed', async () => {
+        document.querySelector('[data-remove="3"]').click();
+        await flush();
+        expect(groupsApi.removeMember).toHaveBeenCalledWith(7, 3);
+    });
+
+    it('renames and cancels invites from their buttons', async () => {
+        document.querySelector('[data-rename]').click();
+        await flush();
+        expect(groupsApi.renameGroup).toHaveBeenCalledWith(7, 'Lab 2');
+
+        document.querySelector('[data-cancel-invite="11"]').click();
+        await flush();
+        expect(groupsApi.cancelInvite).toHaveBeenCalledWith(7, 11);
+    });
+
+    it('sends invites from the form, not from the click handler', async () => {
+        vi.mocked(groupsApi.inviteMember).mockResolvedValue({});
+        const form = document.getElementById('group-invite-form');
+        form.email.value = 'friend@x.dev';
+        form.querySelector('[type="submit"]').click();
+        await flush();
+        expect(groupsApi.inviteMember).toHaveBeenCalledTimes(1);
+        expect(groupsApi.inviteMember).toHaveBeenCalledWith(7, 'friend@x.dev', 'member');
     });
 });

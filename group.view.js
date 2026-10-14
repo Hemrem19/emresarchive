@@ -57,7 +57,7 @@ export function memberRowHtml(m, { me, myRole }) {
                     <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
                     <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Admin</option>
                 </select>` : `<span class="text-xs text-slate-400">${ROLE_LABELS[m.role] || escapeHtml(m.role)}</span>`}
-                ${canRemove ? `<button data-remove="${m.userId}" class="${button('text-red-400 hover:bg-red-500/10')}">Remove</button>` : ''}
+                ${canRemove ? `<button type="button" data-remove="${m.userId}" class="${button('text-red-400 hover:bg-red-500/10')}">Remove</button>` : ''}
             </div>
         </li>`;
 }
@@ -106,8 +106,8 @@ export const groupPageView = {
                     <p class="mt-1 text-sm text-slate-400">Private group · you are ${ROLE_LABELS[group.role]?.toLowerCase() || escapeHtml(group.role)}</p>
                 </div>
                 <div class="flex gap-2">
-                    ${isManager(group.role) ? `<button data-rename class="${button('border border-white/10 text-slate-200 hover:bg-white/5')}">Rename</button>` : ''}
-                    ${opened ? '' : `<button data-open class="${button('bg-primary text-white hover:bg-primary/90')}">Open library</button>`}
+                    ${isManager(group.role) ? `<button type="button" data-rename class="${button('border border-white/10 text-slate-200 hover:bg-white/5')}">Rename</button>` : ''}
+                    ${opened ? '' : `<button type="button" data-open class="${button('bg-primary text-white hover:bg-primary/90')}">Open library</button>`}
                 </div>
             </div>
 
@@ -137,15 +137,15 @@ export const groupPageView = {
                     ${invites.map((i) => `
                     <li class="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-slate-800/30 px-4 py-2">
                         <p class="min-w-0 text-sm text-slate-300 truncate">${escapeHtml(i.email)} <span class="text-xs text-slate-500">· ${ROLE_LABELS[i.role] || ''} · pending</span></p>
-                        <button data-cancel-invite="${i.id}" class="${button('text-slate-400 hover:text-white hover:bg-white/5')}">Cancel</button>
+                        <button type="button" data-cancel-invite="${i.id}" class="${button('text-slate-400 hover:text-white hover:bg-white/5')}">Cancel</button>
                     </li>`).join('')}
                 </ul>`) : ''}
 
             ${section('logout', group.role === 'owner' ? 'Delete group' : 'Leave group', group.role === 'owner'
                 ? `<p class="text-sm text-slate-400">Deletes the group's library for every member: its papers, folders and PDFs. This cannot be undone. Copy papers you want to keep into your own library first.</p>
-                   <button data-delete class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Delete group</button>`
+                   <button type="button" data-delete class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Delete group</button>`
                 : `<p class="text-sm text-slate-400">You lose access to the group's library. Papers you copied into your own library stay there.</p>
-                   <button data-leave class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Leave group</button>`)}
+                   <button type="button" data-leave class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Leave group</button>`)}
         `;
     },
 
@@ -159,8 +159,9 @@ export const groupPageView = {
     },
 
     async onClick(event) {
+        // The invite form's own button is handled by onSubmit
         const target = event.target.closest('button');
-        if (!target || target.type === 'submit') return;
+        if (!target || target.closest('form')) return;
         const id = this.groupId;
         const me = getUser()?.id;
 
@@ -260,8 +261,8 @@ export const invitesPageView = {
                     <p class="text-xs text-slate-400">Invited by ${escapeHtml(i.invitedBy || i.invitedByEmail || 'a member')} as ${ROLE_LABELS[i.role]?.toLowerCase() || 'member'}</p>
                 </div>
                 <div class="flex gap-2">
-                    <button data-decline="${i.id}" class="${button('text-slate-400 hover:text-white hover:bg-white/5')}">Decline</button>
-                    <button data-accept="${i.id}" data-group="${i.groupId}" class="${button('bg-primary text-white hover:bg-primary/90')}">Join</button>
+                    <button type="button" data-decline="${i.id}" class="${button('text-slate-400 hover:text-white hover:bg-white/5')}">Decline</button>
+                    <button type="button" data-accept="${i.id}" data-group="${i.groupId}" class="${button('bg-primary text-white hover:bg-primary/90')}">Join</button>
                 </div>
             </li>`).join('')
             : '<li class="text-sm text-slate-400">No pending invitations. If you expected one, make sure you signed in with the address it was sent to, and that the address is verified.</li>';
