@@ -149,8 +149,14 @@ export class WorkspaceDurableObject {
       return Response.json({ closed: this.closeSockets({ sessionIds, userIds }) });
     }
     if (internal === CHANGED_PATH) {
-      // A plain Yjs update every client receives; the app pulls when it sees it
-      this.doc.getMap('signals').set('changedAt', Date.now());
+      // A plain Yjs update every client receives. changedAt: the app pulls the
+      // library. comments: only apps showing that paper refetch its thread.
+      const { paperId } = await request.json().catch(() => ({}));
+      if (Number.isInteger(paperId)) {
+        this.doc.getMap('signals').set('comments', { paperId, at: Date.now() });
+      } else {
+        this.doc.getMap('signals').set('changedAt', Date.now());
+      }
       return Response.json({ ok: true });
     }
 

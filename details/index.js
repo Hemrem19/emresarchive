@@ -8,6 +8,8 @@ import { isCloudSyncEnabled } from '../config.js';
 import { isAuthenticated } from '../api/auth.js';
 import { getApiBaseUrl } from '../config.js';
 import { createRatingInput } from '../components/rating-input.js';
+import { mountComments } from '../components/paperComments.js';
+import { inGroupLibrary } from '../core/library.js';
 
 import { notesManager } from './notes.manager.js';
 import { summaryManager } from './summary.manager.js';
@@ -17,10 +19,23 @@ export const detailsView = {
     paperId: null,
     hasUnsavedChanges: false,
     _cloudSyncHandler: null,
+    // Discussion (group libraries): mounted once per paper and moved back into
+    // place after each re-render, so live syncs keep drafts and scroll.
+    _comments: null,
+    _commentsRoot: null,
+
+    /** Comments live on the server, in group libraries only. */
+    commentsEnabled() {
+        return inGroupLibrary() && isCloudSyncEnabled() && isAuthenticated();
+    },
 
     async mount(paperId, appState) {
         this.paperId = paperId;
         this.hasUnsavedChanges = false; // Reset state
+        this._comments?.unmount();
+        this._comments = null;
+        this._commentsRoot = null;
+        this._commentCount = null;
         const container = document.getElementById('paper-details-container');
         if (!container) return;
 
@@ -33,6 +48,9 @@ export const detailsView = {
 
         this.render(paper);
         this.setupEventListeners(paper, appState);
+        if (this._commentsRoot && /[?&]c\b/.test(window.location.hash)) {
+            this._commentsRoot.scrollIntoView({ block: 'start' });
+        }
 
         // Refresh details when cloud sync pulls new data from another device
         this._cloudSyncHandler = async () => {
@@ -64,6 +82,9 @@ export const detailsView = {
             window.removeEventListener('citavers:cloud-synced', this._cloudSyncHandler);
             this._cloudSyncHandler = null;
         }
+        this._comments?.unmount();
+        this._comments = null;
+        this._commentsRoot = null;
 
         console.log('Details view unmounted.');
         this.paperId = null;
@@ -73,9 +94,15 @@ export const detailsView = {
         const container = document.getElementById('paper-details-container');
         if (!paper) return;
 
+        const discussion = this.commentsEnabled();
         const detailsHtml = `
-        <div class="flex flex-col xl:flex-row gap-8">
-            <aside class="w-full xl:w-96 order-2 xl:order-1 space-y-6">
+        ${discussion ? `
+        <button type="button" id="discussion-chip" class="xl:hidden mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300">
+            <span class="material-symbols-outlined text-base leading-none text-primary">forum</span>
+            <span data-chip-text>Discussion</span>
+        </button>` : ''}
+        <div class="flex flex-col xl:flex-row ${discussion ? 'gap-6 2xl:gap-8 pb-24 xl:pb-0' : 'gap-8'}">
+            <aside class="w-full ${discussion ? 'xl:w-72 2xl:w-80 order-3' : 'xl:w-96 order-2'} xl:order-1 shrink-0 space-y-6">
                 <div class="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/40 p-6 space-y-6">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex-1">
@@ -188,7 +215,7 @@ export const detailsView = {
                     </div>
                 </div>
             </aside>
-            <section class="flex-1 order-1 xl:order-2">
+            <section class="flex-1 min-w-0 order-1 xl:order-2">
                 <div class="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-xl shadow-2xl shadow-black/50 flex flex-col h-full overflow-hidden">
                     <nav id="details-tabs" class="flex flex-wrap gap-2 px-4 pt-4 border-b border-white/5 bg-white/5">
                         <button data-tab="abstract" class="tab-btn px-4 py-2 rounded-xl border border-transparent text-xs font-semibold tracking-wide text-slate-400 hover:text-white hover:border-white/10 transition-all">Abstract</button>
@@ -257,9 +284,42 @@ export const detailsView = {
                     <!-- Future PDF Panel slot -->
                 </div>
             </section>
+            ${discussion ? '<div data-discussion-slot></div>' : ''}
         </div>
         `;
         container.innerHTML = detailsHtml;
+        if (discussion) this.placeDiscussion(paper.id);
+    },
+
+    /** Puts the discussion column in its slot, mounting it the first time. */
+    placeDiscussion(paperId) {
+        const container = document.getElementById('paper-details-container');
+        container.parentElement?.classList.replace('max-w-7xl', 'max-w-screen-2xl');
+        if (!this._commentsRoot) {
+            this._commentsRoot = document.createElement('div');
+            this._commentsRoot.id = 'paper-discussion';
+            this._commentsRoot.className = 'w-full order-2 xl:order-3 xl:w-80 2xl:w-96 shrink-0 scroll-mt-4 xl:sticky xl:top-0 xl:self-start xl:h-[calc(100vh-8rem)]';
+            this._comments = mountComments(this._commentsRoot, paperId, {
+                onCount: ({ count, unread }) => {
+                    this._commentCount = { count, unread };
+                    this.updateDiscussionChip();
+                },
+            });
+        }
+        container.querySelector('[data-discussion-slot]')?.replaceWith(this._commentsRoot);
+        document.getElementById('discussion-chip')?.addEventListener('click', () => {
+            this._commentsRoot?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        this.updateDiscussionChip();
+    },
+
+    updateDiscussionChip() {
+        const text = document.querySelector('#discussion-chip [data-chip-text]');
+        if (!text) return;
+        const { count = 0, unread = 0 } = this._commentCount || {};
+        text.textContent = count
+            ? `${count} comment${count === 1 ? '' : 's'}${unread ? ` · ${unread} new` : ''}`
+            : 'Start a discussion';
     },
 
     async setupEventListeners(paper, appState) {

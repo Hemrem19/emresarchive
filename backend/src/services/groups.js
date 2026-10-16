@@ -198,8 +198,11 @@ async function postToRoom(env, groupId, path, body) {
     }
 }
 
-/** Tells the group's open apps that its library changed, so they pull. */
-export const announceChange = (env, groupId) => postToRoom(env, groupId, CHANGED_PATH, {});
+/**
+ * Tells the group's open apps that its library changed, so they pull; with
+ * { paperId }, only that paper's comments changed.
+ */
+export const announceChange = (env, groupId, change = {}) => postToRoom(env, groupId, CHANGED_PATH, change);
 
 /** Closes these users' sync connections to the group (removed, left, or group deleted). */
 export const closeMemberSockets = (env, groupId, userIds) =>

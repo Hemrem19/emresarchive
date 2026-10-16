@@ -388,6 +388,8 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                             <span class="material-symbols-outlined text-[14px] fill-current">star</span> ${paper.rating}
                         </span>` : ''}
 
+                        <span class="comment-badge-slot contents" data-paper-id="${paper.id}"></span>
+
                         ${hasNotes ? `
                         <button class="expand-notes-btn flex items-center gap-1 text-slate-400 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-white/5" data-paper-id="${paper.id}">
                             <span class="material-symbols-outlined text-[16px] expand-icon">expand_more</span>
@@ -438,7 +440,11 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
     const scrollTop = paperListContainer.scrollTop;
     paperListContainer.innerHTML = paperItemsHtml;
     paperListContainer.scrollTop = scrollTop;
+    // Card extras filled in by their own modules (components/commentBadges.js)
+    window.dispatchEvent(new CustomEvent(PAPER_LIST_RENDERED));
 };
+
+export const PAPER_LIST_RENDERED = 'citavers:paper-list-rendered';
 
 /**
  * Gets a consistent color scheme for a tag based on its name.

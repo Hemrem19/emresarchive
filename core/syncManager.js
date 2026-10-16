@@ -18,6 +18,7 @@ import { isSyncInProgress } from '../db/sync.js';
 import { syncFromCloud } from '../db/adapter.js';
 import { inGroupLibrary, syncRoom } from './library.js';
 import { renderLibrarySwitcher } from '../components/librarySwitcher.js';
+import { COMMENTS_CHANGED } from '../components/paperComments.js';
 
 // Close code the server uses when this user lost access to the open group (backend services/groups.js)
 const REMOVED_FROM_GROUP_CODE = 4003;
@@ -245,8 +246,17 @@ export function initializeAutoSync() {
 
         // The server sets signals.changedAt after any write to a group library;
         // pull so other members' changes show up without a manual sync.
-        yDoc.getMap('signals').observe(() => {
-            syncFromCloud({ force: true }).catch(e => console.warn('[Sync Manager] Pull after change signal failed:', e.message));
+        // signals.comments names one paper whose comments changed: only a
+        // thread showing it refetches (components/paperComments.js).
+        const signals = yDoc.getMap('signals');
+        signals.observe((event) => {
+            if (event.keysChanged.has('comments')) {
+                const { paperId } = signals.get('comments') || {};
+                window.dispatchEvent(new CustomEvent(COMMENTS_CHANGED, { detail: { paperId } }));
+            }
+            if (event.keysChanged.has('changedAt')) {
+                syncFromCloud({ force: true }).catch(e => console.warn('[Sync Manager] Pull after change signal failed:', e.message));
+            }
         });
 
         // Kick off the first connection attempt with a fresh token.
@@ -257,7 +267,6 @@ export function initializeAutoSync() {
                 _yjsSyncDoneForSession = true;
                 console.log('[Sync Manager] Initial Yjs state synchronized');
                 upgradeLegacySchemaToYjs(yDoc).catch(e => console.error(e));
-                bindDiscussionDrawer();
                 syncFromCloud().catch(e => console.warn('[SyncManager] WS sync pull failed:', e.message));
             }
         });
@@ -344,31 +353,3 @@ export async function performManualSync() {
     }
 }
 
-/**
- * Binds the Discussion Drawer textarea to the active Yjs Document
- */
-function bindDiscussionDrawer() {
-    if (!yDoc) return;
-    const textArea = document.getElementById('discussion-crdt-editor');
-    if (!textArea) return;
-
-    const yText = yDoc.getText('liveNotes');
-
-    yText.observe(() => {
-        const text = yText.toString();
-        if (textArea.value !== text) {
-            textArea.value = text;
-        }
-    });
-
-    textArea.addEventListener('input', (e) => {
-        const val = e.target.value;
-        const old = yText.toString();
-        if (val !== old) {
-            yDoc.transact(() => {
-                yText.delete(0, yText.length);
-                yText.insert(0, val);
-            }, 'local_ui_edit');
-        }
-    });
-}

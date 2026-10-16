@@ -256,3 +256,7 @@ CREATE INDEX `folders_group_id_idx` ON `folders` (`group_id`);
 CREATE INDEX `paper_folders_group_id_idx` ON `paper_folders` (`group_id`);
 CREATE INDEX `annotations_group_id_idx` ON `annotations` (`group_id`);
 
+ALTER TABLE `annotations` ADD `parent_id` integer REFERENCES `annotations`(`id`) ON DELETE cascade;
+ALTER TABLE `annotations` ADD `client_id` text;
+CREATE INDEX `annotations_paper_created_idx` ON `annotations` (`paper_id`, `created_at`);
+CREATE UNIQUE INDEX `annotations_user_client_unique` ON `annotations` (`user_id`, `client_id`) WHERE `client_id` IS NOT NULL;

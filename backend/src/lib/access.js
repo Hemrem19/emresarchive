@@ -185,6 +185,29 @@ export function findAccessible(query, table, user, id, action, columns) {
     });
 }
 
+// --- Authorship ----------------------------------------------------------
+// In a group, user_id is the member who added a row. Some rows belong to that
+// person within the library (a comment): only they may edit it, while group
+// managers may still remove it.
+
+/** Whether `user` wrote this loaded row (needs its userId). */
+export const isAuthor = (user, row) => row?.userId === user.id;
+
+/** The column naming who wrote a row of `table`, e.g. to join their name. */
+export const authorColumn = (table) => table.userId;
+
+/** Condition: rows of `table` written by `user`. */
+export const authoredBy = (table, user) => eq(table.userId, user.id);
+
+/**
+ * Whether `user` may remove someone else's row in its library: group owners
+ * and admins in a group, the owner in a personal library.
+ */
+export function maySupervise(user, row) {
+    const library = libraryOf(row);
+    return isGroupLibrary(library) ? can(user, MANAGE_GROUP, library.groupId) : library.ownerId === user.id;
+}
+
 // --- PDF storage -----------------------------------------------------------
 // Object keys are papers/{ownerId}/{paperId}/{file} in a personal library and
 // papers/g{groupId}/{paperId}/{file} in a group: files live under the library

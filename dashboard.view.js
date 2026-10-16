@@ -15,6 +15,7 @@ import { registerSearchModeHandlers, unregisterSearchModeHandlers } from './dash
 import { registerFolderHandlers, unregisterFolderHandlers } from './dashboard/handlers/folders.js';
 import { registerQuickAddHandler, unregisterQuickAddHandler } from './dashboard/handlers/quick-add.js';
 import { registerPdfImport, unregisterPdfImport } from './components/pdfImport.js';
+import { registerCommentBadges, unregisterCommentBadges } from './components/commentBadges.js';
 import { registerPaperListHandlers, unregisterPaperListHandlers } from './dashboard/handlers/paper-list.js';
 import { registerPaginationHandlers, unregisterPaginationHandlers } from './dashboard/handlers/pagination.js';
 import { 
@@ -106,6 +107,7 @@ export const dashboardView = {
             ...registerPaginationHandlers(appState, applyFiltersAndRender),
             ...registerQuickAddHandler(appState, applyFiltersAndRender),
             ...registerPdfImport(),
+            ...registerCommentBadges(),
             ...registerBatchToolbarHandlers(appState, applyFiltersAndRender, updateBatchToolbar),
             ...registerBatchOperationHandlers(appState, applyFiltersAndRender, updateBatchToolbar),
             ...registerPaperListHandlers(appState, applyFiltersAndRender, updateBatchToolbar),
@@ -166,6 +168,7 @@ export const dashboardView = {
         unregisterPaginationHandlers(this.handlers);
         unregisterQuickAddHandler(this.handlers);
         unregisterPdfImport(this.handlers);
+        unregisterCommentBadges(this.handlers);
         unregisterBatchToolbarHandlers(this.handlers);
         unregisterBatchOperationHandlers(this.handlers);
         unregisterPaperListHandlers(this.handlers);

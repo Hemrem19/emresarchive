@@ -131,7 +131,10 @@ export const annotations = sqliteTable('annotations', {
   paperId: integer('paper_id').notNull().references(() => papers.id, { onDelete: 'cascade' }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
-  type: text('type').notNull(), // 'highlight', 'note', 'bookmark'
+  type: text('type').notNull(), // 'comment' (paper discussion); 'highlight', 'note', 'bookmark' unused
+  // A reply's top-level comment (FK to annotations.id in migration 0004)
+  parentId: integer('parent_id'),
+  clientId: text('client_id'),
   pageNumber: integer('page_number'),
   position: text('position', { mode: 'json' }),
   content: text('content'),

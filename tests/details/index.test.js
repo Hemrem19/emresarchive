@@ -12,6 +12,8 @@ import * as config from '../../config.js';
 import { notesManager } from '../../details/notes.manager.js';
 import { summaryManager } from '../../details/summary.manager.js';
 import { relatedManager } from '../../details/related.manager.js';
+import { inGroupLibrary } from '../../core/library.js';
+import { mountComments } from '../../components/paperComments.js';
 
 // Mock dependencies
 vi.mock('../../db.js', () => ({
@@ -69,6 +71,16 @@ vi.mock('../../components/copyToLibrary.js', () => ({
 }));
 vi.mock('../../components/rating-input.js', () => ({
     createRatingInput: vi.fn().mockImplementation(() => document.createElement('div'))
+}));
+
+vi.mock('../../core/library.js', () => ({
+    inGroupLibrary: vi.fn(() => false),
+}));
+vi.mock('../../components/paperComments.js', () => ({
+    mountComments: vi.fn((root) => {
+        root.innerHTML = '<div data-discussion>Discussion</div>';
+        return { unmount: vi.fn(), focus: vi.fn(), refresh: vi.fn() };
+    }),
 }));
 
 vi.mock('../../citation.js', () => ({
@@ -414,6 +426,39 @@ describe('Details View', () => {
             expect(db.updatePaper).toHaveBeenCalledWith(1, expect.objectContaining({ notes: 'New Notes' }));
             expect(ui.showToast).toHaveBeenCalledWith('Changes saved successfully', 'success');
             expect(saveBtn.classList.contains('hidden')).toBe(true);
+        });
+    });
+
+    describe('Discussion', () => {
+        const paper = { id: 7, title: 'Shared', authors: [], readingStatus: 'To Read' };
+
+        it('is not shown in the personal library', async () => {
+            db.getPaperById.mockResolvedValue(paper);
+            await detailsView.mount(7, {});
+            expect(mountComments).not.toHaveBeenCalled();
+            expect(document.getElementById('discussion-chip')).toBeNull();
+        });
+
+        it('sits beside the paper in a group and survives re-renders', async () => {
+            inGroupLibrary.mockReturnValue(true);
+            config.isCloudSyncEnabled.mockReturnValue(true);
+            db.getPaperById.mockResolvedValue(paper);
+            await detailsView.mount(7, {});
+
+            expect(mountComments).toHaveBeenCalledTimes(1);
+            expect(mountComments).toHaveBeenCalledWith(expect.any(HTMLElement), 7, expect.anything());
+            const root = document.getElementById('paper-discussion');
+            expect(container.contains(root)).toBe(true);
+
+            detailsView.render(paper); // a sync refresh
+            expect(mountComments).toHaveBeenCalledTimes(1);
+            expect(document.getElementById('paper-discussion')).toBe(root);
+
+            mountComments.mock.calls[0][2].onCount({ count: 2, unread: 1 });
+            expect(document.getElementById('discussion-chip').textContent).toContain('2 comments · 1 new');
+
+            inGroupLibrary.mockReturnValue(false);
+            config.isCloudSyncEnabled.mockReturnValue(false);
         });
     });
 });

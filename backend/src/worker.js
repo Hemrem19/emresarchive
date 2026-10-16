@@ -12,6 +12,7 @@ import networkRoutes from './routes/network.js';
 import importRoutes from './routes/import.js';
 import filesRoutes from './routes/files.js';
 import groupsRoutes from './routes/groups.js';
+import commentsRoutes from './routes/comments.js';
 import { authenticateSocket } from './middleware/auth.js';
 import { isAllowedOrigin } from './lib/origins.js';
 import { purgeStorage } from './services/purge.js';
@@ -61,6 +62,7 @@ app.route('/api/networks', networkRoutes);
 app.route('/api/import', importRoutes);
 app.route('/api/files', filesRoutes);
 app.route('/api/groups', groupsRoutes);
+app.route('/api/comments', commentsRoutes);
 
 // Durable Objects Sync Route
 app.get('/api/sync/workspace/:id', authenticateSocket, async (c) => {
