@@ -10,9 +10,14 @@ body {
 }
 
 /* Toast animation */
+/* Leaves when ui.js removes it, so each toast keeps its own duration */
 .toast {
-    animation: toast-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both,
-        toast-out 0.5s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.5s both;
+    pointer-events: auto;
+    animation: toast-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+}
+
+.toast.toast-leaving {
+    animation: toast-out 0.5s cubic-bezier(0.550, 0.085, 0.680, 0.530) both;
 }
 
 @keyframes toast-in {

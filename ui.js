@@ -134,7 +134,7 @@ export const showToast = (message, type = 'success', options = {}) => {
 const removeToast = (toast) => {
     if (!toast || !toast.parentElement) return;
 
-    toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+    toast.classList.add('toast-leaving');
     setTimeout(() => {
         toast.remove();
     }, 500);
