@@ -35,8 +35,5 @@ export const editComment = (id, fields) => call(`${comments()}/${id}`, 'PATCH', 
 
 export const deleteComment = (id) => call(`${comments()}/${id}`, 'DELETE');
 
-/** Brings back a comment deleted in the last few minutes. */
-export const restoreComment = (id) => call(`${comments()}/${id}`, 'PATCH', { restore: true }).then((d) => d.comment);
-
 /** [{ paperId, count, lastAt, lastOtherAt }] for the open library. */
 export const commentSummary = () => call(`${comments()}/summary`).then((d) => d.papers);

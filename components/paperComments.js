@@ -7,20 +7,20 @@
  *
  * Built to need no clicks: the comment box is always open (Enter posts,
  * Shift+Enter adds a line), comments show at once and are confirmed in the
- * background, a failed post stays with a Retry, and deleting offers Undo
- * instead of asking first. On narrow screens a bar at the bottom of the
+ * background, a failed post stays with a Retry, and Delete asks with a second
+ * tap on the same spot instead of a dialog. On narrow screens a bar at the bottom of the
  * screen takes comments whenever the thread is scrolled out of view.
  *
  * Live: the group's sync room names the paper whose comments changed
  * (`citavers:comments-changed`); only a thread showing that paper refetches.
  */
-import { addComment, deleteComment, editComment, listComments, restoreComment } from '../api/comments.js';
+import { addComment, deleteComment, editComment, listComments } from '../api/comments.js';
 import { currentLibrary } from '../core/library.js';
 import { escapeHtml, formatRelativeTime, showToast } from '../ui.js';
 
 export const COMMENTS_CHANGED = 'citavers:comments-changed';
 const NARROW = '(max-width: 1279px)'; // below Tailwind's xl, where the thread is not a side column
-const UNDO_MS = 5000;
+const CONFIRM_MS = 3000; // how long "Delete?" waits for the second tap
 
 // --- Pure helpers -------------------------------------------------------------
 
@@ -149,10 +149,10 @@ const newClientId = () => `${Date.now().toString(36)}-${(clientSeq++).toString(3
  * @returns {{ unmount: () => void, focus: () => void, refresh: () => Promise<void> }}
  */
 export function mountComments(root, paperId, { onCount, api } = {}) {
-    const calls = { listComments, addComment, editComment, deleteComment, restoreComment, ...api };
+    const calls = { listComments, addComment, editComment, deleteComment, ...api };
     let comments = [];       // from the server
     let pending = [];        // posted here, not yet confirmed (or failed)
-    const hidden = new Set(); // deleted here, waiting out the Undo
+    const hidden = new Set(); // deleted here, waiting for the server
     let loaded = false;
     let loadError = null;
     const unreadAfter = lastSeen(paperId); // dots for others' comments newer than the last visit ('' = never)
@@ -318,6 +318,20 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         });
     }
 
+    // First tap turns the link into "Delete?"; a second one within a few seconds deletes
+    function armDelete(button) {
+        if (button.dataset.armed) return remove(Number(button.dataset.delete));
+        button.dataset.armed = 'true';
+        button.textContent = 'Delete?';
+        button.classList.add('font-semibold', 'text-red-300');
+        setTimeout(() => {
+            if (!button.isConnected) return;
+            delete button.dataset.armed;
+            button.textContent = 'Delete';
+            button.classList.remove('font-semibold', 'text-red-300');
+        }, CONFIRM_MS);
+    }
+
     async function remove(id) {
         hidden.add(id);
         render({ keepScroll: true });
@@ -329,21 +343,6 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
             showToast(`Couldn't delete the comment: ${err.message}`, 'error');
             return;
         }
-        showToast('Comment deleted', 'info', {
-            duration: UNDO_MS,
-            actions: [{
-                label: 'Undo',
-                onClick: async () => {
-                    try {
-                        await calls.restoreComment(id);
-                    } catch (err) {
-                        showToast(`Couldn't restore the comment: ${err.message}`, 'error');
-                    }
-                    hidden.delete(id);
-                    await load();
-                },
-            }],
-        });
         await load();
         hidden.delete(id);
     }
@@ -384,7 +383,7 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         if (!target) return;
         if (target.dataset.reply) openReply(target.dataset.reply);
         else if (target.dataset.edit) startEdit(Number(target.dataset.edit));
-        else if (target.dataset.delete) remove(Number(target.dataset.delete));
+        else if (target.dataset.delete) armDelete(target);
         else if (target.dataset.retry) {
             const entry = pending.find((p) => p.clientId === target.dataset.retry);
             if (entry) send(entry);

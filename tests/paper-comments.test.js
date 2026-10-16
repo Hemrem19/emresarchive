@@ -25,7 +25,6 @@ function fakeApi(initial = []) {
             return rows.find((r) => r.id === id);
         }),
         deleteComment: vi.fn(async (id) => { rows = rows.filter((r) => r.id !== id); }),
-        restoreComment: vi.fn(),
     };
 }
 
@@ -155,19 +154,34 @@ describe('writing', () => {
         expect(root.querySelector('[data-comment="1"]').textContent).toContain('edited');
     });
 
-    it('deletes at once and offers Undo', async () => {
+    it('deletes on a second tap of Delete', async () => {
         const api = fakeApi([comment(1, { mine: true, canEdit: true, canDelete: true })]);
         mountComments(root, 5, { api });
         await flush();
-        root.querySelector('[data-delete="1"]').click();
+        const button = root.querySelector('[data-delete="1"]');
+        button.click();
+        expect(button.textContent).toBe('Delete?');
+        expect(api.deleteComment).not.toHaveBeenCalled();
+
+        button.click();
         expect(root.querySelector('[data-comment="1"]')).toBeNull();
         await flush();
         expect(api.deleteComment).toHaveBeenCalledWith(1);
-        const undo = document.querySelector('#toast-container .toast-action-btn');
-        expect(undo.textContent).toContain('Undo');
-        undo.click();
-        await flush();
-        expect(api.restoreComment).toHaveBeenCalledWith(1);
+        expect(root.querySelector('[data-comment="1"]')).toBeNull();
+    });
+
+    it('forgets the first tap after a few seconds', async () => {
+        vi.useFakeTimers();
+        const api = fakeApi([comment(1, { mine: true, canEdit: true, canDelete: true })]);
+        mountComments(root, 5, { api });
+        await vi.runAllTimersAsync();
+        const button = root.querySelector('[data-delete="1"]');
+        button.click();
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(button.textContent).toBe('Delete');
+        button.click();
+        expect(api.deleteComment).not.toHaveBeenCalled();
+        vi.useRealTimers();
     });
 });
 
