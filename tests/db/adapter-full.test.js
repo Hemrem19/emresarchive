@@ -5,15 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers, folders, annotations } from '../../db/adapter.js';
+import { papers, folders } from '../../db/adapter.js';
 import * as configModule from '../../config.js';
 import * as authModule from '../../api/auth.js';
 import * as localPapers from '../../db/papers.js';
 import * as apiPapers from '../../api/papers.js';
 import * as localFolders from '../../db/folders.js';
 import * as apiFolders from '../../api/folders.js';
-import * as localAnnotations from '../../db/annotations.js';
-import * as apiAnnotations from '../../api/annotations.js';
 import * as syncModule from '../../db/sync.js';
 import * as syncManager from '../../core/syncManager.js';
 
@@ -76,12 +74,6 @@ vi.mock('../../db/annotations.js', () => ({
     deleteAnnotationsByPaperId: vi.fn()
 }));
 
-vi.mock('../../api/annotations.js', () => ({
-    createAnnotation: vi.fn(),
-    updateAnnotation: vi.fn(),
-    deleteAnnotation: vi.fn()
-}));
-
 vi.mock('../../db/sync.js', () => ({
     trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
@@ -91,9 +83,6 @@ vi.mock('../../db/sync.js', () => ({
     trackFolderDeleted: vi.fn(),
     trackPaperFolderCreated: vi.fn(),
     trackPaperFolderDeleted: vi.fn(),
-    trackAnnotationCreated: vi.fn(),
-    trackAnnotationUpdated: vi.fn(),
-    trackAnnotationDeleted: vi.fn()
 }));
 
 vi.mock('../../core/syncManager.js', () => ({
@@ -194,49 +183,6 @@ describe('Adapter Full Coverage', () => {
 
             expect(localFolders.deleteFolder).toHaveBeenCalledWith(id);
             expect(syncModule.trackFolderDeleted).toHaveBeenCalledWith(id);
-            expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
-        });
-    });
-
-    describe('Annotation Cloud Fallbacks', () => {
-        it('should fallback to local add and track when cloud fails', async () => {
-            const data = { paperId: 1, content: 'Note' };
-            const localId = 20;
-
-            apiAnnotations.createAnnotation.mockRejectedValue(new Error('API Error'));
-            localAnnotations.addAnnotation.mockResolvedValue(localId);
-
-            const result = await annotations.addAnnotation(data);
-
-            expect(result).toBe(localId);
-            expect(syncModule.trackAnnotationCreated).toHaveBeenCalledWith({ ...data, localId });
-            expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
-        });
-
-        it('should fallback to local update and track when cloud fails', async () => {
-            const id = 20;
-            const data = { content: 'Updated' };
-
-            apiAnnotations.updateAnnotation.mockRejectedValue(new Error('API Error'));
-            localAnnotations.updateAnnotation.mockResolvedValue(id);
-
-            const result = await annotations.updateAnnotation(id, data);
-
-            expect(result).toBe(id);
-            expect(syncModule.trackAnnotationUpdated).toHaveBeenCalledWith(id, data);
-            expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
-        });
-
-        it('should fallback to local delete and track when cloud fails', async () => {
-            const id = 20;
-
-            apiAnnotations.deleteAnnotation.mockRejectedValue(new Error('API Error'));
-            localAnnotations.deleteAnnotation.mockResolvedValue();
-
-            await annotations.deleteAnnotation(id);
-
-            expect(localAnnotations.deleteAnnotation).toHaveBeenCalledWith(id);
-            expect(syncModule.trackAnnotationDeleted).toHaveBeenCalledWith(id);
             expect(syncManager.triggerDebouncedSync).toHaveBeenCalled();
         });
     });

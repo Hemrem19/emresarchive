@@ -282,8 +282,8 @@ export const settingsView = {
                     const counts = status.pendingChangeCounts;
                     const total =
                         (counts.papers?.created || 0) + (counts.papers?.updated || 0) + (counts.papers?.deleted || 0) +
-                        (counts.collections?.created || 0) + (counts.collections?.updated || 0) + (counts.collections?.deleted || 0) +
-                        (counts.annotations?.created || 0) + (counts.annotations?.updated || 0) + (counts.annotations?.deleted || 0);
+                        (counts.folders?.created || 0) + (counts.folders?.updated || 0) + (counts.folders?.deleted || 0) +
+                        (counts.paperFolders?.created || 0) + (counts.paperFolders?.deleted || 0);
 
                     if (pendingChangesDisplay && total > 0) {
                         pendingChangesDisplay.textContent = `${total} pending change${total !== 1 ? 's' : ''} waiting to sync`;

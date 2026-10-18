@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers, folders, annotations } from '../../db/adapter.js';
+import { papers, folders } from '../../db/adapter.js';
 import { resetAllMocks } from '../helpers.js';
 
 // Mock dependencies
@@ -78,14 +78,6 @@ vi.mock('../../db/annotations.js', () => ({
     deleteAnnotationsByPaperId: vi.fn()
 }));
 
-vi.mock('../../api/annotations.js', () => ({
-    createAnnotation: vi.fn(),
-    getAnnotations: vi.fn(() => Promise.resolve([])),
-    getAnnotation: vi.fn(),
-    updateAnnotation: vi.fn(),
-    deleteAnnotation: vi.fn()
-}));
-
 vi.mock('../../db/sync.js', () => ({
     trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
@@ -95,9 +87,6 @@ vi.mock('../../db/sync.js', () => ({
     trackFolderDeleted: vi.fn(),
     trackPaperFolderCreated: vi.fn(),
     trackPaperFolderDeleted: vi.fn(),
-    trackAnnotationCreated: vi.fn(),
-    trackAnnotationUpdated: vi.fn(),
-    trackAnnotationDeleted: vi.fn()
 }));
 
 vi.mock('../../core/syncManager.js', () => ({
@@ -332,41 +321,4 @@ describe('DB Adapter Coverage', () => {
         });
     });
 
-    describe('Annotations Adapter Coverage', () => {
-        it('should handle local save error during addAnnotation', async () => {
-            const apiAnnotations = await import('../../api/annotations.js');
-            const localAnnotations = await import('../../db/annotations.js');
-
-            apiAnnotations.createAnnotation.mockResolvedValue({ id: 1 });
-            localAnnotations.addAnnotation.mockRejectedValue(new Error('Local Error'));
-
-            await annotations.addAnnotation({ paperId: 1 });
-
-            expect(apiAnnotations.createAnnotation).toHaveBeenCalled();
-        });
-
-        it('should handle local update error during updateAnnotation', async () => {
-            const apiAnnotations = await import('../../api/annotations.js');
-            const localAnnotations = await import('../../db/annotations.js');
-
-            apiAnnotations.updateAnnotation.mockResolvedValue({ id: 1 });
-            localAnnotations.updateAnnotation.mockRejectedValue(new Error('Local Error'));
-
-            await annotations.updateAnnotation(1, {});
-
-            expect(apiAnnotations.updateAnnotation).toHaveBeenCalled();
-        });
-
-        it('should handle local delete error during deleteAnnotation', async () => {
-            const apiAnnotations = await import('../../api/annotations.js');
-            const localAnnotations = await import('../../db/annotations.js');
-
-            apiAnnotations.deleteAnnotation.mockResolvedValue();
-            localAnnotations.deleteAnnotation.mockRejectedValue(new Error('Local Error'));
-
-            await annotations.deleteAnnotation(1);
-
-            expect(apiAnnotations.deleteAnnotation).toHaveBeenCalled();
-        });
-    });
 });

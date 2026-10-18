@@ -23,7 +23,6 @@ function _emptyPending() {
         papers:       { created: [], updated: [], deleted: [] },
         folders:      { created: [], updated: [], deleted: [] },
         paperFolders: { created: [], deleted: [] },
-        annotations:  { created: [], updated: [], deleted: [] },
     };
 }
 
@@ -98,23 +97,6 @@ export function trackPaperFolderDeleted(paperId, folderId) {
 }
 
 // ---------------------------------------------------------------------------
-// Annotation tracking
-// ---------------------------------------------------------------------------
-export function trackAnnotationCreated(annotation) {
-    _pending.annotations.created.push({ ...annotation });
-}
-
-export function trackAnnotationUpdated(id, data) {
-    _pending.annotations.updated.push({ id, ...data });
-}
-
-export function trackAnnotationDeleted(id) {
-    _pending.annotations.created = _pending.annotations.created.filter(a => a.id !== id);
-    _pending.annotations.updated = _pending.annotations.updated.filter(a => a.id !== id);
-    _pending.annotations.deleted.push(id);
-}
-
-// ---------------------------------------------------------------------------
 // Sync orchestration (delegates to the api/sync.js stubs for testability)
 // ---------------------------------------------------------------------------
 
@@ -129,7 +111,7 @@ export async function performFullSync() {
     // This function is a no-op shim kept for backwards-compatibility with callers and tests.
     clearMockSync();
     localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
-    return { success: true, synced: 0, counts: { papers: 0, folders: 0, paperFolders: 0, annotations: 0 } };
+    return { success: true, synced: 0, counts: { papers: 0, folders: 0, paperFolders: 0 } };
 }
 
 export async function performIncrementalSync() {
@@ -137,7 +119,7 @@ export async function performIncrementalSync() {
     // This function is a no-op shim kept for backwards-compatibility with callers and tests.
     clearMockSync();
     localStorage.setItem('citavers_last_synced_at', new Date().toISOString());
-    return { success: true, hasLocalChanges: false, synced: 0, serverChangeCount: { papers: 0, folders: 0, paperFolders: 0, annotations: 0 }, conflicts: {} };
+    return { success: true, hasLocalChanges: false, synced: 0, serverChangeCount: { papers: 0, folders: 0, paperFolders: 0 }, conflicts: {} };
 }
 
 export async function performSync() {
@@ -153,8 +135,7 @@ export async function getSyncStatusInfo() {
     const hasPendingChanges =
         pending.papers.created.length > 0 || pending.papers.updated.length > 0 || pending.papers.deleted.length > 0 ||
         pending.folders.created.length > 0 || pending.folders.updated.length > 0 || pending.folders.deleted.length > 0 ||
-        pending.paperFolders.created.length > 0 || pending.paperFolders.deleted.length > 0 ||
-        pending.annotations.created.length > 0 || pending.annotations.updated.length > 0 || pending.annotations.deleted.length > 0;
+        pending.paperFolders.created.length > 0 || pending.paperFolders.deleted.length > 0;
 
     return {
         lastSyncedAt: localStorage.getItem('citavers_last_synced_at') || null,
@@ -173,11 +154,6 @@ export async function getSyncStatusInfo() {
             paperFolders: {
                 created: pending.paperFolders.created.length,
                 deleted: pending.paperFolders.deleted.length,
-            },
-            annotations: {
-                created: pending.annotations.created.length,
-                updated: pending.annotations.updated.length,
-                deleted: pending.annotations.deleted.length,
             },
         },
         serverCounts: {},

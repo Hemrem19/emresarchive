@@ -5,12 +5,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers, annotations } from '../../db/adapter.js';
+import { papers } from '../../db/adapter.js';
 import * as configModule from '../../config.js';
 import * as authModule from '../../api/auth.js';
 import * as localPapers from '../../db/papers.js';
 import * as apiPapers from '../../api/papers.js';
-import * as localAnnotations from '../../db/annotations.js';
 
 // Mock dependencies
 vi.mock('../../config.js', () => ({
@@ -47,9 +46,6 @@ vi.mock('../../db/sync.js', () => ({
     trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
     trackPaperDeleted: vi.fn(),
-    trackAnnotationCreated: vi.fn(),
-    trackAnnotationUpdated: vi.fn(),
-    trackAnnotationDeleted: vi.fn()
 }));
 
 vi.mock('../../core/syncManager.js', () => ({
@@ -132,11 +128,4 @@ describe('Adapter Final Coverage', () => {
         });
     });
 
-    describe('Annotation Bulk Delete', () => {
-        it('should call local deleteAnnotationsByPaperId', async () => {
-            localAnnotations.deleteAnnotationsByPaperId.mockResolvedValue();
-            await annotations.deleteAnnotationsByPaperId(1);
-            expect(localAnnotations.deleteAnnotationsByPaperId).toHaveBeenCalledWith(1);
-        });
-    });
 });

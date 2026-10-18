@@ -14,12 +14,10 @@ import { isAuthenticated } from '../api/auth.js';
 // Import function now saves directly to local storage and tracks changes for later sync
 import { deletePaper as deletePaperViaAdapter } from '../db.js';
 import { deleteFolder as deleteFolderViaAdapter } from '../db.js';
-import { deleteAnnotation as deleteAnnotationViaAdapter } from '../db.js';
 import { getAllPapers as getAllPapersViaAdapter } from '../db.js';
 import { getAllFolders as getAllFoldersViaAdapter } from '../db.js';
 import * as apiPapers from '../api/papers.js';
 import * as apiFolders from '../api/folders.js';
-import * as apiAnnotations from '../api/annotations.js';
 import { clearAllUserData } from '../api/user.js';
 
 /**

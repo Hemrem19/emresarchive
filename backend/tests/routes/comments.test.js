@@ -111,11 +111,11 @@ describe('editing and deleting', () => {
         expect((await list(owner)).body.data.comments).toEqual([]);
     });
 
-    it('undoes a delete', async () => {
+    it('keeps a deleted comment deleted', async () => {
         const c = (await post(member, { content: 'Oops' })).body.data.comment;
         await remove(member, c.id);
-        expect((await patch(member, c.id, { restore: true })).status).toBe(200);
-        expect((await list(member)).body.data.comments.map((x) => x.content)).toEqual(['Oops']);
+        expect((await patch(member, c.id, { content: 'Back' })).status).toBe(403);
+        expect((await list(member)).body.data.comments).toEqual([]);
     });
 });
 

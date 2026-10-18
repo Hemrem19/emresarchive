@@ -11,13 +11,11 @@ import { getApiBaseUrl } from '../config.js';
 import * as localPapers from './papers.js';
 import * as localFolders from './folders.js';
 import * as localPaperFolders from './paperFolders.js';
-import * as localAnnotations from './annotations.js';
 
 // Import API functions
 import * as apiPapers from '../api/papers.js';
 import * as apiFolders from '../api/folders.js';
 import * as apiPaperFoldersApi from '../api/paperFolders.js';
-import * as apiAnnotations from '../api/annotations.js';
 
 // Sync tracking (delegates to db/sync.js in-memory change queue for offline-first support)
 import {
@@ -28,10 +26,7 @@ import {
     trackFolderUpdated,
     trackFolderDeleted,
     trackPaperFolderCreated,
-    trackPaperFolderDeleted,
-    trackAnnotationCreated,
-    trackAnnotationUpdated,
-    trackAnnotationDeleted
+    trackPaperFolderDeleted
 } from './sync.js';
 
 // Import auto-sync manager
@@ -617,134 +612,6 @@ export const paperFoldersAdapter = {
 
     async removeAllForPaper(paperId) {
         return localPaperFolders.removeAllForPaper(paperId);
-    }
-};
-
-/**
- * Annotation operations adapter
- */
-export const annotations = {
-    async addAnnotation(annotationData) {
-        if (shouldUseCloudSync()) {
-            try {
-                const annotation = await apiAnnotations.createAnnotation(
-                    annotationData.paperId,
-                    annotationData
-                );
-                // Also save to local
-                try {
-                    await localAnnotations.addAnnotation(annotation);
-                } catch (localError) {
-                    // Ignore local save errors
-                }
-                // Trigger debounced sync after successful cloud operation
-                triggerDebouncedSync();
-                return annotation.id;
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                const localId = await localAnnotations.addAnnotation(annotationData);
-                // Track change for later sync
-                if (shouldUseCloudSync()) {
-                    trackAnnotationCreated({ ...annotationData, localId });
-                    // Trigger debounced sync after local fallback
-                    triggerDebouncedSync();
-                }
-                return localId;
-            }
-        }
-        // Local-only mode: add and track for potential future sync
-        const localId = await localAnnotations.addAnnotation(annotationData);
-        if (isCloudSyncEnabled() && isAuthenticated()) {
-            trackAnnotationCreated({ ...annotationData, localId });
-            // Trigger debounced sync for local-only changes
-            triggerDebouncedSync();
-        }
-        return localId;
-    },
-
-    async getAnnotationsByPaperId(paperId) {
-        // Always read from local storage first
-        return localAnnotations.getAnnotationsByPaperId(paperId);
-    },
-
-    async getAnnotationById(id) {
-        // Always read from local storage first
-        return localAnnotations.getAnnotationById(id);
-    },
-
-    async updateAnnotation(id, updateData) {
-        if (shouldUseCloudSync()) {
-            try {
-                const annotation = await apiAnnotations.updateAnnotation(id, updateData);
-                // Also update local
-                try {
-                    await localAnnotations.updateAnnotation(id, annotation);
-                } catch (localError) {
-                    // Ignore local update errors
-                }
-                // Trigger debounced sync after successful cloud operation
-                triggerDebouncedSync();
-                return annotation.id || id;
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                const result = await localAnnotations.updateAnnotation(id, updateData);
-                // Track change for later sync
-                if (shouldUseCloudSync()) {
-                    trackAnnotationUpdated(id, updateData);
-                    // Trigger debounced sync after local fallback
-                    triggerDebouncedSync();
-                }
-                return result;
-            }
-        }
-        // Local-only mode: update and track for potential future sync
-        const result = await localAnnotations.updateAnnotation(id, updateData);
-        if (isCloudSyncEnabled() && isAuthenticated()) {
-            trackAnnotationUpdated(id, updateData);
-            // Trigger debounced sync for local-only changes
-            triggerDebouncedSync();
-        }
-        return result;
-    },
-
-    async deleteAnnotation(id) {
-        if (shouldUseCloudSync()) {
-            try {
-                await apiAnnotations.deleteAnnotation(id);
-                // Also delete from local
-                try {
-                    await localAnnotations.deleteAnnotation(id);
-                } catch (localError) {
-                    // Ignore local delete errors
-                }
-                // Trigger debounced sync after successful cloud operation
-                triggerDebouncedSync();
-                return;
-            } catch (error) {
-                console.error('Cloud sync failed, falling back to local:', error);
-                await localAnnotations.deleteAnnotation(id);
-                // Track deletion for later sync
-                if (shouldUseCloudSync()) {
-                    trackAnnotationDeleted(id);
-                    // Trigger debounced sync after local fallback
-                    triggerDebouncedSync();
-                }
-                return;
-            }
-        }
-        // Local-only mode: delete and track for potential future sync
-        await localAnnotations.deleteAnnotation(id);
-        if (isCloudSyncEnabled() && isAuthenticated()) {
-            trackAnnotationDeleted(id);
-            // Trigger debounced sync for local-only changes
-            triggerDebouncedSync();
-        }
-    },
-
-    async deleteAnnotationsByPaperId(paperId) {
-        // For now, this is local-only as API doesn't have bulk delete
-        // Could be enhanced to fetch all and delete individually
-        return localAnnotations.deleteAnnotationsByPaperId(paperId);
     }
 };
 

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { papers, folders, annotations } from '../../db/adapter.js';
+import { papers, folders } from '../../db/adapter.js';
 import * as configModule from '../../config.js';
 import * as authModule from '../../api/auth.js';
 import * as utilsModule from '../../api/utils.js';
@@ -51,9 +51,6 @@ vi.mock('../../db/sync.js', () => ({
     trackFolderDeleted: vi.fn(),
     trackPaperFolderCreated: vi.fn(),
     trackPaperFolderDeleted: vi.fn(),
-    trackAnnotationCreated: vi.fn(),
-    trackAnnotationUpdated: vi.fn(),
-    trackAnnotationDeleted: vi.fn()
 }));
 
 vi.mock('../../core/syncManager.js', () => ({

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { papers, folders, annotations, isCloudSyncAvailable } from '../../db/adapter.js';
+import { papers, folders, isCloudSyncAvailable } from '../../db/adapter.js';
 import { resetAllMocks, setMockAuth, clearMockAuth, setMockSyncEnabled, clearMockSync } from '../helpers.js';
 
 // Mock dependencies
@@ -79,14 +79,6 @@ vi.mock('../../api/paperFolders.js', () => ({
     getPapersInFolder: vi.fn(() => Promise.resolve([]))
 }));
 
-vi.mock('../../api/annotations.js', () => ({
-    createAnnotation: vi.fn(),
-    getAnnotations: vi.fn(() => Promise.resolve([])),
-    getAnnotation: vi.fn(),
-    updateAnnotation: vi.fn(),
-    deleteAnnotation: vi.fn()
-}));
-
 vi.mock('../../db/sync.js', () => ({
     trackPaperCreated: vi.fn(),
     trackPaperUpdated: vi.fn(),
@@ -96,9 +88,6 @@ vi.mock('../../db/sync.js', () => ({
     trackFolderDeleted: vi.fn(),
     trackPaperFolderCreated: vi.fn(),
     trackPaperFolderDeleted: vi.fn(),
-    trackAnnotationCreated: vi.fn(),
-    trackAnnotationUpdated: vi.fn(),
-    trackAnnotationDeleted: vi.fn()
 }));
 
 vi.mock('../../core/syncManager.js', () => ({
@@ -385,47 +374,3 @@ describe('db/adapter.js - Folder Operations', () => {
     });
 });
 
-describe('db/adapter.js - Annotation Operations', () => {
-    beforeEach(async () => {
-        resetAllMocks();
-        clearMockSync();
-        vi.clearAllMocks();
-
-        const { isCloudSyncEnabled } = await import('../../config.js');
-        const { isAuthenticated } = await import('../../api/auth.js');
-
-        isCloudSyncEnabled.mockReturnValue(true);
-        isAuthenticated.mockReturnValue(true);
-    });
-
-    it('should create annotation via API in cloud mode', async () => {
-        const apiAnnotations = await import('../../api/annotations.js');
-        const localAnnotations = await import('../../db/annotations.js');
-        const { triggerDebouncedSync } = await import('../../core/syncManager.js');
-
-        apiAnnotations.createAnnotation.mockResolvedValue({ id: 1, paperId: 1, type: 'highlight' });
-        localAnnotations.addAnnotation.mockResolvedValue(1);
-
-        const result = await annotations.addAnnotation({ paperId: 1, type: 'highlight' });
-
-        expect(apiAnnotations.createAnnotation).toHaveBeenCalled();
-        expect(localAnnotations.addAnnotation).toHaveBeenCalled();
-        expect(triggerDebouncedSync).toHaveBeenCalled();
-        expect(result).toBe(1);
-    });
-
-    it('should fallback to local on cloud error', async () => {
-        const apiAnnotations = await import('../../api/annotations.js');
-        const localAnnotations = await import('../../db/annotations.js');
-        const { trackAnnotationCreated } = await import('../../db/sync.js');
-
-        apiAnnotations.createAnnotation.mockRejectedValue(new Error('Cloud error'));
-        localAnnotations.addAnnotation.mockResolvedValue(2);
-
-        const result = await annotations.addAnnotation({ paperId: 1, type: 'highlight' });
-
-        expect(localAnnotations.addAnnotation).toHaveBeenCalled();
-        expect(trackAnnotationCreated).toHaveBeenCalled();
-        expect(result).toBe(2);
-    });
-});

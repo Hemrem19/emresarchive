@@ -12,16 +12,13 @@ import {
     trackFolderCreated,
     trackFolderUpdated,
     trackFolderDeleted,
-    trackAnnotationCreated,
-    trackAnnotationUpdated,
-    trackAnnotationDeleted,
     performFullSync,
     performIncrementalSync,
     performSync,
     getSyncStatusInfo,
     clearMockSync as resetSyncState
 } from '../../db/sync.js';
-import { createMockPaper, createMockFolder, createMockAnnotation, resetAllMocks, setMockAuth, setMockSyncEnabled, clearMockSync } from '../helpers.js';
+import { createMockPaper, createMockFolder, resetAllMocks, setMockAuth, setMockSyncEnabled, clearMockSync } from '../helpers.js';
 
 // Mock the sync API functions - need to include mapping functions
 vi.mock('../../api/sync.js', async (importOriginal) => {
@@ -50,8 +47,7 @@ describe('db/sync.js - Change Tracking', () => {
             expect(changes).toEqual({
                 papers: { created: [], updated: [], deleted: [] },
                 folders: { created: [], updated: [], deleted: [] },
-                paperFolders: { created: [], deleted: [] },
-                annotations: { created: [], updated: [], deleted: [] }
+                paperFolders: { created: [], deleted: [] }
             });
         });
 
@@ -151,29 +147,6 @@ describe('db/sync.js - Change Tracking', () => {
         });
     });
 
-    describe('Annotation change tracking', () => {
-        it('should track annotation creation', () => {
-            const annotation = createMockAnnotation({ id: 1 });
-            trackAnnotationCreated(annotation);
-            
-            const changes = getPendingChanges();
-            expect(changes.annotations.created).toHaveLength(1);
-        });
-
-        it('should track annotation update', () => {
-            trackAnnotationUpdated(1, { content: 'Updated content' });
-            
-            const changes = getPendingChanges();
-            expect(changes.annotations.updated).toHaveLength(1);
-        });
-
-        it('should track annotation deletion', () => {
-            trackAnnotationDeleted(1);
-            
-            const changes = getPendingChanges();
-            expect(changes.annotations.deleted).toContain(1);
-        });
-    });
 });
 
 // Note: prepareChangesForSync is internal and tested via performIncrementalSync

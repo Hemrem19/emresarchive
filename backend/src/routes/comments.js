@@ -16,7 +16,7 @@ import { announceChange } from '../services/groups.js';
  *   GET    /api/comments/summary            counts per paper in the X-Library library
  *   GET    /api/comments/papers/:paperId    the thread
  *   POST   /api/comments/papers/:paperId    { content, pageNumber?, parentId?, clientId? }
- *   PATCH  /api/comments/:id                { content, pageNumber? } (author) or { restore: true }
+ *   PATCH  /api/comments/:id                { content, pageNumber? } (author)
  *   DELETE /api/comments/:id                author, or a group owner or admin
  *
  * Writes in a group tell its sync room which paper changed, so only the
@@ -29,7 +29,6 @@ export const COMMENT = 'comment';
 export const MAX_CONTENT = 5000;
 export const MAX_PER_PAPER = 1000;
 export const MAX_LISTED = 500;
-export const RESTORE_WINDOW_MS = 10 * 60 * 1000;
 
 const A = schema.annotations;
 const U = schema.users;
@@ -204,23 +203,15 @@ comments.patch('/:id', async (c) => {
     const user = c.get('user');
     const row = await commentFor(c);
     if (!row) return fail(c, 404, 'Comment not found');
-    const body = await c.req.json().catch(() => ({}));
-
-    if (body.restore === true) {
-        const mayRestore = allows(user, WRITE, row) && (isAuthor(user, row) || maySupervise(user, row));
-        if (!row.deletedAt || !mayRestore) return fail(c, 404, 'Comment not found');
-        if (Date.now() - Date.parse(row.deletedAt) > RESTORE_WINDOW_MS) return fail(c, 409, 'This comment can no longer be restored');
-        await db.update(A).set({ deletedAt: null }).where(eq(A.id, row.id));
-    } else {
-        if (row.deletedAt || !allows(user, WRITE, row) || !isAuthor(user, row)) {
-            return fail(c, 403, 'Only the author can edit a comment');
-        }
-        const { text, error } = cleanContent(body.content);
-        if (error) return fail(c, 400, error);
-        const pageNumber = body.pageNumber === undefined ? row.pageNumber : cleanPage(body.pageNumber);
-        if (pageNumber === undefined) return fail(c, 400, 'The page must be a whole number');
-        await db.update(A).set({ content: text, pageNumber, updatedAt: new Date().toISOString() }).where(eq(A.id, row.id));
+    if (row.deletedAt || !allows(user, WRITE, row) || !isAuthor(user, row)) {
+        return fail(c, 403, 'Only the author can edit a comment');
     }
+    const body = await c.req.json().catch(() => ({}));
+    const { text, error } = cleanContent(body.content);
+    if (error) return fail(c, 400, error);
+    const pageNumber = body.pageNumber === undefined ? row.pageNumber : cleanPage(body.pageNumber);
+    if (pageNumber === undefined) return fail(c, 400, 'The page must be a whole number');
+    await db.update(A).set({ content: text, pageNumber, updatedAt: new Date().toISOString() }).where(eq(A.id, row.id));
 
     const updated = await loadComment(db, row.id);
     await announce(c, updated);
