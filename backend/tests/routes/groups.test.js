@@ -111,6 +111,32 @@ describe('managing the group', () => {
     });
 });
 
+describe('handing the group over', () => {
+    const roleOf = (user) => t.row('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?', group, user.id).role;
+
+    it('makes a member the owner and the old owner an admin, who can then leave', async () => {
+        expect((await call(owner, 'POST', `/${group}/owner`, { userId: member.id })).status).toBe(200);
+        expect(t.row('SELECT owner_id FROM groups WHERE id = ?', group).owner_id).toBe(member.id);
+        expect([roleOf(member), roleOf(owner)]).toEqual(['owner', 'admin']);
+        expect((await call(owner, 'DELETE', `/${group}/members/${owner.id}`)).status).toBe(200);
+    });
+
+    it('is for the owner only, and only to a member', async () => {
+        expect((await call(admin, 'POST', `/${group}/owner`, { userId: admin.id })).status).toBe(403);
+        expect((await call(owner, 'POST', `/${group}/owner`, { userId: eve.id })).status).toBe(404);
+        expect((await call(owner, 'POST', `/${group}/owner`, { userId: owner.id })).status).toBe(409);
+        expect(roleOf(owner)).toBe('owner');
+    });
+
+    it('respects the limit on groups one person owns', async () => {
+        t.env.MAX_OWNED_GROUPS = '1';
+        t.addGroup(member, [], 'Own');
+        const res = await json(await call(owner, 'POST', `/${group}/owner`, { userId: member.id }));
+        expect(res.status).toBe(409);
+        expect(roleOf(owner)).toBe('owner');
+    });
+});
+
 describe('removing and leaving', () => {
     it('lets admins remove members; their access and sync end at once', async () => {
         const paper = t.addPaper(owner, { group_id: group });

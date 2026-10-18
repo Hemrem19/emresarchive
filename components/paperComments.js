@@ -16,11 +16,10 @@
  */
 import { addComment, deleteComment, editComment, listComments } from '../api/comments.js';
 import { currentLibrary } from '../core/library.js';
-import { escapeHtml, formatRelativeTime, showToast } from '../ui.js';
+import { confirmedBySecondTap, escapeHtml, formatRelativeTime, showToast } from '../ui.js';
 
 export const COMMENTS_CHANGED = 'citavers:comments-changed';
 const NARROW = '(max-width: 1279px)'; // below Tailwind's xl, where the thread is not a side column
-const CONFIRM_MS = 3000; // how long "Delete?" waits for the second tap
 
 // --- Pure helpers -------------------------------------------------------------
 
@@ -318,20 +317,6 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         });
     }
 
-    // First tap turns the link into "Delete?"; a second one within a few seconds deletes
-    function armDelete(button) {
-        if (button.dataset.armed) return remove(Number(button.dataset.delete));
-        button.dataset.armed = 'true';
-        button.textContent = 'Delete?';
-        button.classList.add('font-semibold', 'text-red-300');
-        setTimeout(() => {
-            if (!button.isConnected) return;
-            delete button.dataset.armed;
-            button.textContent = 'Delete';
-            button.classList.remove('font-semibold', 'text-red-300');
-        }, CONFIRM_MS);
-    }
-
     async function remove(id) {
         hidden.add(id);
         render({ keepScroll: true });
@@ -383,7 +368,7 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         if (!target) return;
         if (target.dataset.reply) openReply(target.dataset.reply);
         else if (target.dataset.edit) startEdit(Number(target.dataset.edit));
-        else if (target.dataset.delete) armDelete(target);
+        else if (target.dataset.delete) { if (confirmedBySecondTap(target, 'Delete?')) remove(Number(target.dataset.delete)); }
         else if (target.dataset.retry) {
             const entry = pending.find((p) => p.clientId === target.dataset.retry);
             if (entry) send(entry);

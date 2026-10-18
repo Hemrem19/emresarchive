@@ -25,7 +25,7 @@ describe('core/library', () => {
         expect(currentLibrary()).toBe('group:12');
         expect(currentGroupId()).toBe(12);
         expect(dbName()).toBe('CitaversDB-group-12');
-        expect(lastSyncedKey()).toBe('citavers:lastSyncedAt:group:12');
+        expect(lastSyncedKey()).toBe('citavers:lastSyncedAt:group:12:v2');
         expect(libraryHeaders()).toEqual({ 'X-Library': 'group:12' });
         expect(syncRoom()).toBe('group:12');
     });

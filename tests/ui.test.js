@@ -314,6 +314,18 @@ describe('UI Utilities', () => {
             expect(container.textContent).toContain('8'); // Rating
         });
 
+        it('shows who added a group paper', () => {
+            renderPaperList([
+                { id: 1, title: 'Theirs', authors: ['A'], readingStatus: 'To Read', tags: [], addedBy: { name: 'Ayse', mine: false } },
+                { id: 2, title: 'Mine', authors: ['B'], readingStatus: 'To Read', tags: [], addedBy: { name: 'Me', mine: true } },
+                { id: 3, title: 'Personal', authors: ['C'], readingStatus: 'To Read', tags: [] },
+            ]);
+            const cards = [...container.querySelectorAll('.paper-card')];
+            expect(cards[0].querySelector('[title^="Added to the group by"]').textContent).toContain('Ayse');
+            expect(cards[1].querySelector('[title^="Added to the group by"]').textContent).toContain('You');
+            expect(cards[2].querySelector('[title^="Added to the group by"]')).toBeNull();
+        });
+
         it('should highlight search terms in title and authors', () => {
             const papers = [
                 {

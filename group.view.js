@@ -1,22 +1,28 @@
 /**
  * Group page (#/group/:id): name, storage, members and roles, invitations,
- * and leaving or deleting the group. Invitations page (#/invites): accept
- * or decline invites addressed to the signed-in user.
+ * handing the group to another member, and leaving or deleting it.
+ * Invitations page (#/invites): accept or decline invites addressed to the
+ * signed-in user.
+ *
+ * No browser dialogs: renaming happens in place, removing and leaving take
+ * a second tap, and deleting asks for the group's name inside the page.
  *
  * What each control may do is enforced by the backend; the page only hides
  * controls the user's role cannot use.
  */
 import {
-    getGroup, renameGroup, deleteGroup, listMembers, setMemberRole, removeMember,
+    getGroup, renameGroup, deleteGroup, listMembers, setMemberRole, removeMember, transferOwnership,
     listInvites, inviteMember, cancelInvite, listGroups, acceptInvite, declineInvite,
 } from './api/groups.js';
 import { getUser } from './api/auth.js';
 import { currentGroupId, openLibrary } from './core/library.js';
 import { renderLibrarySwitcher } from './components/librarySwitcher.js';
-import { showToast, escapeHtml } from './ui.js';
+import { showToast, escapeHtml, confirmedBySecondTap } from './ui.js';
 
 const ROLE_LABELS = { owner: 'Owner', admin: 'Admin', member: 'Member' };
 const isManager = (role) => role === 'owner' || role === 'admin';
+const memberName = (m) => m.name || m.email;
+const input = 'h-10 rounded-lg border border-slate-600 bg-slate-800 px-3 text-sm text-white placeholder:text-slate-500';
 
 const button = (extra = '') => `rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${extra}`;
 const section = (icon, title, body) => `
@@ -62,17 +68,79 @@ export function memberRowHtml(m, { me, myRole }) {
         </li>`;
 }
 
+function headingHtml(group, { renaming, opened }) {
+    if (renaming) {
+        return `
+            <form id="group-rename-form" class="flex w-full flex-wrap items-center gap-2">
+                <input name="groupName" required maxlength="100" value="${escapeHtml(group.name)}" aria-label="Group name" class="${input} min-w-0 flex-1 text-base font-semibold">
+                <button type="submit" class="${button('bg-primary text-white hover:bg-primary/90')} h-10">Save</button>
+                <button type="button" data-rename-cancel class="${button('text-slate-300 hover:bg-white/5')} h-10">Cancel</button>
+            </form>`;
+    }
+    return `
+        <div class="min-w-0">
+            <h2 class="text-2xl sm:text-3xl font-bold text-slate-100 break-words">${escapeHtml(group.name)}</h2>
+            <p class="mt-1 text-sm text-slate-400">Private group · you are ${ROLE_LABELS[group.role]?.toLowerCase() || escapeHtml(group.role)}</p>
+        </div>
+        <div class="flex gap-2">
+            ${isManager(group.role) ? `<button type="button" data-rename class="${button('border border-white/10 text-slate-200 hover:bg-white/5')}">Rename</button>` : ''}
+            ${opened ? '' : `<button type="button" data-open class="${button('bg-primary text-white hover:bg-primary/90')}">Open library</button>`}
+        </div>`;
+}
+
+/** The owner's way out: hand the group over (then leave), or delete it. */
+function ownerSectionsHtml(group, members, { me, confirmingDelete }) {
+    const others = members.filter((m) => m.userId !== me);
+    const handOver = others.length ? section('swap_horiz', 'Hand over the group', `
+        <p class="text-sm text-slate-400">The new owner gets every right you have now. You stay on as an admin and can then leave.</p>
+        <div class="mt-3 flex flex-col sm:flex-row gap-2">
+            <select id="group-new-owner" aria-label="New owner" class="${input} sm:flex-1">
+                ${others.map((m) => `<option value="${m.userId}">${escapeHtml(memberName(m))} · ${ROLE_LABELS[m.role] || ''}</option>`).join('')}
+            </select>
+            <button type="button" data-transfer class="${button('border border-white/10 text-slate-200 hover:bg-white/5')} h-10">Make owner</button>
+        </div>`) : '';
+
+    const deleteBody = confirmingDelete
+        ? `<p class="text-sm text-slate-300">Type <span class="font-semibold text-white">${escapeHtml(group.name)}</span> to delete it for everyone.</p>
+           <div class="mt-3 flex flex-col sm:flex-row gap-2">
+               <input id="group-delete-name" autocomplete="off" aria-label="Group name" class="${input} sm:flex-1">
+               <button type="button" data-delete-confirm disabled class="${button('bg-red-600 text-white hover:bg-red-500')} h-10">Delete for everyone</button>
+               <button type="button" data-delete-cancel class="${button('text-slate-300 hover:bg-white/5')} h-10">Cancel</button>
+           </div>`
+        : `<p class="text-sm text-slate-400">Deletes the group's library for every member: its papers, folders and PDFs. This cannot be undone. Copy papers you want to keep into your own library first.${others.length ? ' To leave without deleting, hand the group over above.' : ''}</p>
+           <button type="button" data-delete class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Delete group</button>`;
+    return handOver + section('delete', 'Delete group', deleteBody);
+}
+
 export const groupPageView = {
     groupId: null,
+    renaming: false,
+    confirmingDelete: false,
 
     async mount(groupId) {
         this.groupId = groupId;
+        this.renaming = false;
+        this.confirmingDelete = false;
         const page = document.getElementById('group-page');
         if (!page) return;
         page.onclick = (event) => this.onClick(event);
         page.onchange = (event) => this.onChange(event);
         page.onsubmit = (event) => this.onSubmit(event);
+        page.oninput = (event) => this.onInput(event);
+        page.onkeydown = (event) => {
+            if (event.key === 'Escape' && this.renaming) this.setRenaming(false);
+        };
         await this.render();
+    },
+
+    async setRenaming(on) {
+        this.renaming = on;
+        await this.render();
+        if (on) {
+            const field = document.querySelector('#group-rename-form input');
+            field?.focus();
+            field?.select();
+        }
     },
 
     unmount() {
@@ -92,6 +160,7 @@ export const groupPageView = {
         }
         if (this.groupId !== id) return; // navigated away meanwhile
         this.group = group;
+        this.members = members;
 
         const me = getUser()?.id;
         const { usedBytes, limitBytes } = group.storage;
@@ -100,16 +169,7 @@ export const groupPageView = {
         const opened = currentGroupId() === id;
 
         page.innerHTML = `
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="min-w-0">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-100 break-words">${escapeHtml(group.name)}</h2>
-                    <p class="mt-1 text-sm text-slate-400">Private group · you are ${ROLE_LABELS[group.role]?.toLowerCase() || escapeHtml(group.role)}</p>
-                </div>
-                <div class="flex gap-2">
-                    ${isManager(group.role) ? `<button type="button" data-rename class="${button('border border-white/10 text-slate-200 hover:bg-white/5')}">Rename</button>` : ''}
-                    ${opened ? '' : `<button type="button" data-open class="${button('bg-primary text-white hover:bg-primary/90')}">Open library</button>`}
-                </div>
-            </div>
+            <div class="flex flex-wrap items-start justify-between gap-4">${headingHtml(group, { renaming: this.renaming, opened })}</div>
 
             ${section('cloud', 'Storage', `
                 <p class="text-sm text-slate-200">${formatBytes(usedBytes)} of ${formatBytes(limitBytes)} used by the group's PDFs</p>
@@ -141,12 +201,13 @@ export const groupPageView = {
                     </li>`).join('')}
                 </ul>`) : ''}
 
-            ${section('logout', group.role === 'owner' ? 'Delete group' : 'Leave group', group.role === 'owner'
-                ? `<p class="text-sm text-slate-400">Deletes the group's library for every member: its papers, folders and PDFs. This cannot be undone. Copy papers you want to keep into your own library first.</p>
-                   <button type="button" data-delete class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Delete group</button>`
-                : `<p class="text-sm text-slate-400">You lose access to the group's library. Papers you copied into your own library stay there.</p>
-                   <button type="button" data-leave class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Leave group</button>`)}
+            ${group.role === 'owner'
+                ? ownerSectionsHtml(group, members, { me, confirmingDelete: this.confirmingDelete })
+                : section('logout', 'Leave group', `
+                    <p class="text-sm text-slate-400">You lose access to the group's library and need a new invitation to come back. Papers you copied into your own library stay there.</p>
+                    <button type="button" data-leave class="mt-3 ${button('border border-red-500/40 text-red-400 hover:bg-red-500/10')}">Leave group</button>`)}
         `;
+        if (this.confirmingDelete) document.getElementById('group-delete-name')?.focus();
     },
 
     async run(action, success) {
@@ -159,22 +220,20 @@ export const groupPageView = {
     },
 
     async onClick(event) {
-        // The invite form's own button is handled by onSubmit
+        // Submit buttons are handled by onSubmit
         const target = event.target.closest('button');
-        if (!target || target.closest('form')) return;
+        if (!target || target.type === 'submit') return;
         const id = this.groupId;
         const me = getUser()?.id;
 
         if (target.matches('[data-open]')) {
             openLibrary(id);
         } else if (target.matches('[data-rename]')) {
-            const name = window.prompt('New name for the group', this.group?.name || '');
-            if (!name || !name.trim()) return;
-            await this.run(() => renameGroup(id, name.trim()), 'Group renamed.');
-            await this.render();
-            renderLibrarySwitcher();
+            await this.setRenaming(true);
+        } else if (target.matches('[data-rename-cancel]')) {
+            await this.setRenaming(false);
         } else if (target.dataset.remove) {
-            if (!window.confirm('Remove this member? They lose access to the group\'s library right away.')) return;
+            if (!confirmedBySecondTap(target, 'Remove?')) return;
             target.disabled = true;
             await this.run(() => removeMember(id, Number(target.dataset.remove)), 'Member removed.');
             await this.render();
@@ -182,8 +241,16 @@ export const groupPageView = {
             target.disabled = true;
             await this.run(() => cancelInvite(id, Number(target.dataset.cancelInvite)), 'Invitation cancelled.');
             await this.render();
+        } else if (target.matches('[data-transfer]')) {
+            const userId = Number(document.getElementById('group-new-owner')?.value);
+            const next = this.members?.find((m) => m.userId === userId);
+            if (!next || !confirmedBySecondTap(target, `Make ${memberName(next)} the owner?`)) return;
+            target.disabled = true;
+            await this.run(() => transferOwnership(id, userId), `${memberName(next)} now owns the group.`);
+            await this.render();
+            renderLibrarySwitcher();
         } else if (target.matches('[data-leave]')) {
-            if (!window.confirm(`Leave "${this.group?.name}"? You will need a new invitation to come back.`)) return;
+            if (!confirmedBySecondTap(target, 'Tap again to leave')) return;
             try {
                 await removeMember(id, me);
                 showToast('You left the group.', 'success');
@@ -191,13 +258,12 @@ export const groupPageView = {
             } catch (error) {
                 showToast(error.message, 'error', { duration: 6000 });
             }
-        } else if (target.matches('[data-delete]')) {
-            const typed = window.prompt(`This deletes "${this.group?.name}" and everything in it for all members. Type the group name to confirm.`);
-            if (typed === null) return;
-            if (typed.trim() !== this.group?.name) {
-                showToast('The name did not match; nothing was deleted.', 'info');
-                return;
-            }
+        } else if (target.matches('[data-delete]') || target.matches('[data-delete-cancel]')) {
+            this.confirmingDelete = target.matches('[data-delete]');
+            await this.render();
+        } else if (target.matches('[data-delete-confirm]')) {
+            if (document.getElementById('group-delete-name')?.value.trim() !== this.group?.name) return;
+            target.disabled = true;
             try {
                 await deleteGroup(id);
                 showToast('Group deleted.', 'success');
@@ -216,7 +282,24 @@ export const groupPageView = {
         await this.render();
     },
 
+    onInput(event) {
+        if (event.target.id !== 'group-delete-name') return;
+        const confirm = document.querySelector('[data-delete-confirm]');
+        if (confirm) confirm.disabled = event.target.value.trim() !== this.group?.name;
+    },
+
     async onSubmit(event) {
+        if (event.target.id === 'group-rename-form') {
+            event.preventDefault();
+            const name = event.target.elements.groupName.value.trim();
+            if (!name) return;
+            if (name !== this.group?.name) {
+                await this.run(() => renameGroup(this.groupId, name), 'Group renamed.');
+                renderLibrarySwitcher();
+            }
+            await this.setRenaming(false);
+            return;
+        }
         if (event.target.id !== 'group-invite-form') return;
         event.preventDefault();
         const form = event.target;

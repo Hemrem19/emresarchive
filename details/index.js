@@ -1,6 +1,6 @@
 import { canCopyBetweenLibraries, openCopyDialog } from '../components/copyToLibrary.js';
 import { getPaperById, updatePaper } from '../db.js';
-import { escapeHtml, showToast, formatRelativeTime } from '../ui.js';
+import { escapeHtml, showToast, formatRelativeTime, addedByLabel } from '../ui.js';
 import { views as templates } from '../views/index.js';
 import { generateCitation } from '../citation.js';
 import { getPdfDownloadUrl, getPdfViewUrl } from '../api/papers.js';
@@ -134,6 +134,11 @@ export const detailsView = {
                             <span class="text-slate-500">Status</span>
                             <span>${escapeHtml(paper.readingStatus || 'N/A')}</span>
                         </div>
+                        ${addedByLabel(paper) ? `
+                            <div class="flex justify-between gap-3">
+                                <span class="text-slate-500">Added by</span>
+                                <span class="text-right">${escapeHtml(addedByLabel(paper))}</span>
+                            </div>` : ''}
                         ${paper.updatedAt ? `
                             <div class="flex justify-between gap-3 pt-3 border-t border-white/5 text-xs uppercase tracking-wide text-slate-500">
                                 <span>Last updated</span>

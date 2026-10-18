@@ -24,7 +24,8 @@ vi.mock('../../db.js', () => ({
 vi.mock('../../ui.js', () => ({
     escapeHtml: (str) => str || '',
     formatRelativeTime: () => 'Just now',
-    showToast: vi.fn()
+    showToast: vi.fn(),
+    addedByLabel: (paper) => (paper?.addedBy ? (paper.addedBy.mine ? 'You' : paper.addedBy.name) : ''),
 }));
 
 vi.mock('../../api/papers.js', () => ({
@@ -147,6 +148,12 @@ describe('Details View', () => {
             expect(container.innerHTML).toContain('Minimal Paper');
             expect(container.innerHTML).toContain('Unknown Author');
             expect(container.innerHTML).toContain('N/A'); // For journal, year, DOI
+        });
+
+        it('says who added a group paper', async () => {
+            db.getPaperById.mockResolvedValue({ id: 1, title: 'Shared', addedBy: { name: 'Ayse', mine: false } });
+            await detailsView.mount(1, {});
+            expect(container.textContent).toMatch(/Added by\s*Ayse/);
         });
     });
 

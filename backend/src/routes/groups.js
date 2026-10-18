@@ -8,7 +8,7 @@ import {
 import {
     acceptInvite, cancelInvite, cleanName, closeMemberSockets, createGroup, declineInvite, deleteGroup,
     findGroup, findInviteFor, findMember, groupStorage, invite, invitesFor, isEmail, listGroups, listInvites,
-    listMembers, normalizeEmail, removeMember, renameGroup, setRole, MAX_NAME_LENGTH,
+    listMembers, normalizeEmail, removeMember, renameGroup, setRole, transferOwnership, MAX_NAME_LENGTH,
 } from '../services/groups.js';
 import { sendGroupInviteEmail } from '../lib/mailer.js';
 
@@ -166,6 +166,26 @@ groups.patch('/:id/members/:userId', async (c) => {
 });
 
 /**
+ * Make another member the owner; the current owner becomes an admin (owner only)
+ * POST /api/groups/:id/owner { userId }
+ */
+groups.post('/:id/owner', async (c) => {
+    const id = memberGroupId(c);
+    if (!id) return notFound(c);
+    const user = c.get('user');
+    if (!can(user, DELETE_GROUP, id)) return forbidden(c);
+    const { userId } = await c.req.json().catch(() => ({}));
+
+    const db = getDb(c);
+    const target = await findMember(db, id, Number(userId));
+    if (!target) return fail(c, 404, 'Member not found');
+    if (target.userId === user.id) return fail(c, 409, 'You already own this group');
+    const result = await transferOwnership(db, c.env, id, user.id, target.userId);
+    if (result.error) return fail(c, 409, result.error);
+    return c.json({ success: true, data: { ownerId: target.userId } });
+});
+
+/**
  * Remove a member, or leave the group (your own id)
  * DELETE /api/groups/:id/members/:userId
  */
@@ -179,7 +199,7 @@ groups.delete('/:id/members/:userId', async (c) => {
 
     const leaving = target.userId === user.id;
     if (target.role === OWNER) {
-        return fail(c, 409, leaving ? 'The owner cannot leave; delete the group instead' : 'The owner cannot be removed');
+        return fail(c, 409, leaving ? 'The owner cannot leave; make someone else the owner first' : 'The owner cannot be removed');
     }
     if (!leaving) {
         // Admins remove members; only the owner removes admins

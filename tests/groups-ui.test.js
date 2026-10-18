@@ -16,9 +16,10 @@ vi.mock('../api/groups.js', () => ({
     listMembers: vi.fn(),
     listInvites: vi.fn(),
     removeMember: vi.fn(async () => ({})),
+    transferOwnership: vi.fn(async () => ({})),
     renameGroup: vi.fn(async () => ({})),
     cancelInvite: vi.fn(async () => ({})),
-    deleteGroup: vi.fn(),
+    deleteGroup: vi.fn(async () => ({})),
     setMemberRole: vi.fn(),
     inviteMember: vi.fn(),
     acceptInvite: vi.fn(),
@@ -154,26 +155,79 @@ describe('group page actions', () => {
             { userId: 3, role: 'member', email: 'm@x' },
         ]);
         vi.mocked(groupsApi.listInvites).mockResolvedValue([{ id: 11, email: 'new@x', role: 'member' }]);
-        vi.stubGlobal('confirm', vi.fn(() => true));
-        vi.stubGlobal('prompt', vi.fn(() => 'Lab 2'));
         document.body.innerHTML = '<div id="group-page"></div>';
         await groupPageView.mount(7);
     });
 
-    it('removes a member when Remove is clicked and confirmed', async () => {
-        document.querySelector('[data-remove="3"]').click();
+    it('removes a member on a second tap of Remove', async () => {
+        const remove = document.querySelector('[data-remove="3"]');
+        remove.click();
+        await flush();
+        expect(remove.textContent).toBe('Remove?');
+        expect(groupsApi.removeMember).not.toHaveBeenCalled();
+        remove.click();
         await flush();
         expect(groupsApi.removeMember).toHaveBeenCalledWith(7, 3);
     });
 
-    it('renames and cancels invites from their buttons', async () => {
+    it('renames in place, and Cancel leaves the name alone', async () => {
         document.querySelector('[data-rename]').click();
         await flush();
-        expect(groupsApi.renameGroup).toHaveBeenCalledWith(7, 'Lab 2');
+        document.querySelector('[data-rename-cancel]').click();
+        await flush();
+        expect(document.getElementById('group-rename-form')).toBeNull();
 
+        document.querySelector('[data-rename]').click();
+        await flush();
+        const form = document.getElementById('group-rename-form');
+        form.elements.groupName.value = 'Lab 2';
+        form.querySelector('[type="submit"]').click();
+        await flush();
+        expect(groupsApi.renameGroup).toHaveBeenCalledWith(7, 'Lab 2');
+    });
+
+    it('cancels invites from their buttons', async () => {
         document.querySelector('[data-cancel-invite="11"]').click();
         await flush();
         expect(groupsApi.cancelInvite).toHaveBeenCalledWith(7, 11);
+    });
+
+    it('hands the group to the chosen member after a second tap', async () => {
+        const make = document.querySelector('[data-transfer]');
+        expect(document.getElementById('group-new-owner').value).toBe('3');
+        make.click();
+        expect(groupsApi.transferOwnership).not.toHaveBeenCalled();
+        make.click();
+        await flush();
+        expect(groupsApi.transferOwnership).toHaveBeenCalledWith(7, 3);
+    });
+
+    it('deletes the group only once its name is typed', async () => {
+        document.querySelector('[data-delete]').click();
+        await flush();
+        const name = document.getElementById('group-delete-name');
+        const confirm = document.querySelector('[data-delete-confirm]');
+        name.value = 'Lb';
+        name.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(confirm.disabled).toBe(true);
+        name.value = 'Lab';
+        name.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(confirm.disabled).toBe(false);
+        confirm.click();
+        await flush();
+        expect(groupsApi.deleteGroup).toHaveBeenCalledWith(7);
+    });
+
+    it('lets a member leave on a second tap', async () => {
+        vi.mocked(groupsApi.getGroup).mockResolvedValue({ id: 7, name: 'Lab', role: 'member', storage: { usedBytes: 0, limitBytes: 100 } });
+        await groupPageView.mount(7);
+        expect(document.querySelector('[data-transfer]')).toBeNull();
+        const leave = document.querySelector('[data-leave]');
+        leave.click();
+        expect(groupsApi.removeMember).not.toHaveBeenCalled();
+        leave.click();
+        await flush();
+        expect(groupsApi.removeMember).toHaveBeenCalledWith(7, 1);
     });
 
     it('sends invites from the form, not from the click handler', async () => {

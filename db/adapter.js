@@ -198,6 +198,7 @@ function mapPaperDataToApi(paperData) {
     delete apiData.pdfData; // PDFs are uploaded separately via S3
     delete apiData.hasPdf; // Backend determines this from pdfUrl existence
     delete apiData.pdfFile; // PDF files are not sent to API
+    delete apiData.addedBy; // set by the server in group libraries
     delete apiData.createdAt; // API sets this automatically
     delete apiData.id; // API generates IDs
 
@@ -259,6 +260,8 @@ export const papers = {
                 // Also save to local for offline access
                 try {
                     const localPaper = mapPaperDataFromApi(paper);
+                    // The server names the adder on its next pull; until then it is you
+                    if (inGroupLibrary()) localPaper.addedBy = { name: '', mine: true };
                     await localPapers.addPaper(localPaper);
                 } catch (localError) {
                     // Ignore local save errors (not critical in cloud mode)

@@ -57,7 +57,8 @@ export function rememberOpened(name) {
 /** localStorage key of the open library's "last pulled from the cloud" time. */
 export function lastSyncedKey() {
     const groupId = currentGroupId();
-    return groupId === null ? 'citavers:lastSyncedAt' : `citavers:lastSyncedAt:group:${groupId}`;
+    // v2: group pulls start over once so every paper gets its addedBy
+    return groupId === null ? 'citavers:lastSyncedAt' : `citavers:lastSyncedAt:group:${groupId}:v2`;
 }
 
 /** Headers naming the open library to the backend (none for the personal one). */

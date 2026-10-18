@@ -29,6 +29,29 @@ export const sanitizeHtml = (html) => {
  * @param {number} options.duration - Duration in ms (default: 3000, 0 = persistent).
  * @param {Array} options.actions - Array of action objects {label, onClick}.
  */
+/** Who added a group paper ("You", "Ayşe"); '' outside groups or before the server says. */
+export const addedByLabel = (paper) => (paper?.addedBy ? (paper.addedBy.mine ? 'You' : paper.addedBy.name || '') : '');
+
+/**
+ * Confirms a destructive button without a dialog: the first tap swaps its
+ * text for `label` for a few seconds, and only a second tap in that time
+ * returns true. Works the same with a mouse and on phones.
+ */
+export function confirmedBySecondTap(button, label, ms = 3000) {
+    if (button.dataset.armed) return true;
+    const original = button.innerHTML;
+    button.dataset.armed = 'true';
+    button.textContent = label;
+    button.classList.add('font-semibold', 'text-red-300');
+    setTimeout(() => {
+        if (!button.isConnected) return;
+        delete button.dataset.armed;
+        button.innerHTML = original;
+        button.classList.remove('font-semibold', 'text-red-300');
+    }, ms);
+    return false;
+}
+
 export const showToast = (message, type = 'success', options = {}) => {
     const container = document.getElementById('toast-container');
     if (!container) {
@@ -386,6 +409,11 @@ export const renderPaperList = (papers, searchTerm = '', selectedIds = new Set()
                         ${paper.rating !== null && paper.rating !== undefined ? `
                         <span class="flex items-center gap-1 text-yellow-500 font-bold bg-yellow-500/10 px-2 py-1 rounded-md border border-yellow-500/20">
                             <span class="material-symbols-outlined text-[14px] fill-current">star</span> ${paper.rating}
+                        </span>` : ''}
+
+                        ${addedByLabel(paper) ? `
+                        <span class="flex items-center gap-1 text-slate-400" title="Added to the group by ${escapeHtml(addedByLabel(paper))}">
+                            <span class="material-symbols-outlined text-[14px]">person</span> ${escapeHtml(addedByLabel(paper))}
                         </span>` : ''}
 
                         <span class="comment-badge-slot contents" data-paper-id="${paper.id}"></span>

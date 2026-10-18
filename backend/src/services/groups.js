@@ -113,6 +113,23 @@ export const findMember = (db, groupId, userId) =>
 export const setRole = (db, groupId, userId, role) =>
     db.update(GM).set({ role }).where(and(eq(GM.groupId, groupId), eq(GM.userId, userId)));
 
+/**
+ * Hands the group to another member, who must have room under the ownership
+ * limit; the previous owner stays on as an admin. Returns { error } on refusal.
+ */
+export async function transferOwnership(db, env, groupId, fromId, toId) {
+    const [{ owned }] = await db.select({ owned: count() }).from(GR).where(eq(GR.ownerId, toId));
+    if (owned >= maxOwnedGroups(env)) {
+        return { error: `They already own ${maxOwnedGroups(env)} groups, the most one person can own` };
+    }
+    await db.batch([
+        db.update(GR).set({ ownerId: toId, updatedAt: nowIso() }).where(eq(GR.id, groupId)),
+        setRole(db, groupId, toId, OWNER),
+        setRole(db, groupId, fromId, ADMIN),
+    ]);
+    return {};
+}
+
 export const removeMember = (db, groupId, userId) =>
     db.delete(GM).where(and(eq(GM.groupId, groupId), eq(GM.userId, userId)));
 

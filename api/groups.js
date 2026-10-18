@@ -42,6 +42,9 @@ export const listMembers = (id) => call(`${GROUPS}/${id}/members`).then((d) => d
 
 export const setMemberRole = (id, userId, role) => call(`${GROUPS}/${id}/members/${userId}`, 'PATCH', { role });
 
+/** Makes another member the owner; I stay on as an admin. */
+export const transferOwnership = (id, userId) => call(`${GROUPS}/${id}/owner`, 'POST', { userId });
+
 /** Removes a member; with my own id, leaves the group. */
 export const removeMember = (id, userId) => call(`${GROUPS}/${id}/members/${userId}`, 'DELETE');
 

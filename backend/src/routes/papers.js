@@ -48,6 +48,17 @@ const PAPER_COLUMNS = {
     version: true,
 };
 
+// In a group, who added each paper: { name, mine }. The name falls back to
+// the start of the email, which fellow members already see in the member list.
+const ADDED_BY = { user: { columns: { id: true, name: true, email: true } } };
+
+function withAddedBy(rows, authUser) {
+    return rows.map(({ user, ...paper }) => (user ? {
+        ...paper,
+        addedBy: { name: user.name?.trim() || String(user.email || '').split('@')[0] || 'Someone', mine: user.id === authUser.id },
+    } : paper));
+}
+
 // Paper columns for .returning() calls (uses schema column references)
 const RETURNING_COLUMNS = {
     id: schema.papers.id,
@@ -183,13 +194,15 @@ papers.get('/', async (c) => {
         : accessible(schema.papers, authUser, READ, library);
 
     try {
-        const allPapers = await db.query.papers.findMany({
+        const inGroup = isGroupLibrary(library);
+        const allPapers = withAddedBy(await db.query.papers.findMany({
             where: whereClause,
             orderBy: [orderFn(sortColumn)],
             columns: PAPER_COLUMNS,
+            ...(inGroup ? { with: ADDED_BY } : {}),
             limit,
             offset,
-        });
+        }), authUser);
 
         // Skip the count query in delta mode — pagination is less useful there.
         let total = allPapers.length;

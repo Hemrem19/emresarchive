@@ -41,6 +41,18 @@ describe('reading', () => {
         expect(titles(await json(await t.request('/api/papers', { user: alice })))).toEqual(['Alice personal']);
     });
 
+    it('says who added each group paper, and nothing of the kind in a personal library', async () => {
+        t.db.sqlite.prepare('UPDATE users SET name = ? WHERE id = ?').run('Bob Builder', bob.id);
+        const asAlice = await json(await t.request('/api/papers', { user: alice, library: G }));
+        const asBob = await json(await t.request('/api/papers', { user: bob, library: G }));
+        expect(asAlice.body.data.papers[0].addedBy).toEqual({ name: 'Bob Builder', mine: false });
+        expect(asBob.body.data.papers[0].addedBy).toEqual({ name: 'Bob Builder', mine: true });
+        expect(asAlice.body.data.papers[0]).not.toHaveProperty('user');
+
+        const personal = await json(await t.request('/api/papers', { user: alice }));
+        expect(personal.body.data.papers[0]).not.toHaveProperty('addedBy');
+    });
+
     it('lets members read a group paper and its PDF by id', async () => {
         expect((await t.request(`/api/papers/${gPaper}`, { user: alice })).status).toBe(200);
         const pdf = await t.request(`/api/papers/${gPaper}/pdf-proxy`, { user: alice });
