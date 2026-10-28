@@ -144,6 +144,12 @@ describe('networks', () => {
         expect(body.data.edges.map((e) => e.id)).toEqual(['c2']);
     });
 
+    it('leaves out shared-tag links stored by older runs', async () => {
+        t.insert('paper_connections', { id: 'c-tag', from_paper_id: aPaper, to_paper_id: aPaper2, connection_type: 'common_tag', source: 'auto' });
+        const { body } = await json(await t.request('/api/networks/g-alice', { user: alice }));
+        expect(body.data.edges.map((e) => e.id)).toEqual(['c1']);
+    });
+
     it('regenerating a network never touches another user\'s connections', async () => {
         t.addPaper(bob);
         const res = await t.request('/api/networks/auto-generate', { user: bob, method: 'POST' });

@@ -14,7 +14,7 @@ const CACHE_TTL = 90 * 24 * 60 * 60 * 1000;
 // Each lookup may cost two fetches (OpenAlex, then Semantic Scholar)
 export const MAX_LOOKUPS_PER_RUN = 20;
 const LOOKUP_CONCURRENCY = 5;
-// A tag/author shared by more papers than this adds noise, not structure
+// An author shared by more papers than this adds noise, not structure
 const MAX_GROUP_SIZE = 50;
 const INSERT_CHUNK = 2000;
 
@@ -158,7 +158,8 @@ export function buildConnections(papers, citations) {
         connections.push({ fromPaperId: fromId, toPaperId: toId, connectionType: type });
     };
 
-    // 1. Shared tags / authors via inverted index (avoids O(N^2) pair scans)
+    // 1. Shared authors via inverted index (avoids O(N^2) pair scans). Shared
+    //    tags are not links: broad tags tied most of a library into one knot.
     const linkGroups = (field, type) => {
         const groups = new Map();
         for (const paper of papers) {
@@ -175,7 +176,6 @@ export function buildConnections(papers, citations) {
             }
         }
     };
-    linkGroups('tags', 'common_tag');
     linkGroups('authors', 'common_author');
 
     // 2. Citations between papers in the library

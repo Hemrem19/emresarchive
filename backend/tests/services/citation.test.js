@@ -62,7 +62,7 @@ describe('Citation Service', () => {
     });
 
     describe('buildConnections', () => {
-        it('links papers sharing tags or authors once per pair', () => {
+        it('links papers sharing authors once per pair, but not papers sharing tags', () => {
             const papers = [
                 { id: 1, tags: ['ML', 'nlp'], authors: ['Ada'] },
                 { id: 2, tags: ['ml', 'NLP'], authors: ['ada'] },
@@ -72,13 +72,12 @@ describe('Citation Service', () => {
             const edges = buildConnections(papers, new Map());
 
             expect(edges).toEqual([
-                { fromPaperId: 1, toPaperId: 2, connectionType: 'common_tag' },
                 { fromPaperId: 1, toPaperId: 2, connectionType: 'common_author' },
             ]);
         });
 
-        it('skips overly common tags', () => {
-            const papers = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, tags: ['everything'], authors: [] }));
+        it('skips overly common authors', () => {
+            const papers = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, tags: [], authors: ['Everyone'] }));
             expect(buildConnections(papers, new Map())).toEqual([]);
         });
 

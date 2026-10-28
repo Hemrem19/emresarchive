@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, ne } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import * as schema from '../../drizzle/schema.js';
 import { authenticate } from '../middleware/auth.js';
@@ -75,14 +75,16 @@ network.get('/:id', async (c) => {
         id: P.id, title: P.title, doi: P.doi, status: P.status, year: P.year, authors: P.authors, tags: P.tags,
     }).from(P).where(visiblePaper(P));
 
-    // Only edges whose both ends are visible papers of this library
+    // Only edges whose both ends are visible papers of this library. Shared-tag
+    // links are no longer made; ones from older runs stay hidden until regenerated.
     const PC = schema.paperConnections;
     const from = alias(P, 'from_paper');
     const to = alias(P, 'to_paper');
     const edges = await db.select({ id: PC.id, fromPaperId: PC.fromPaperId, toPaperId: PC.toPaperId, connectionType: PC.connectionType })
         .from(PC)
         .innerJoin(from, and(eq(from.id, PC.fromPaperId), visiblePaper(from)))
-        .innerJoin(to, and(eq(to.id, PC.toPaperId), visiblePaper(to)));
+        .innerJoin(to, and(eq(to.id, PC.toPaperId), visiblePaper(to)))
+        .where(ne(PC.connectionType, 'common_tag'));
 
     const { userId, layout, ...graphFields } = graph;
     return c.json({
