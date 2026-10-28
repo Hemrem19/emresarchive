@@ -116,6 +116,8 @@ app.onError((err, c) => {
   }, statusCode);
 });
 
+export { app };
+
 export default {
   fetch(request, env, ctx) {
     return app.fetch(request, env, ctx);

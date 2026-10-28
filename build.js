@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DIST_DIR = path.join(__dirname, 'dist');
+// BUILD_OUT: another output folder (tests/build-output.test.js builds into a temp folder)
+const DIST_DIR = process.env.BUILD_OUT || path.join(__dirname, 'dist');
 
 // Files to copy directly to root of dist
 const FILES_TO_COPY = [

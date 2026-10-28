@@ -53,6 +53,17 @@ Key layers:
 - **`backend/src/lib/`** — Shared utilities: JWT (15m access / 7d refresh), bcrypt (cost 12), Resend email, Zod validation, R2 (S3-compatible PDF storage).
 - ORM: **Drizzle** over **Cloudflare D1** (SQLite). Schema in `backend/drizzle/`.
 
+### API contract (required on every API change)
+
+`contract/api.js` lists every request the app makes to the Worker and every Worker route, with who may call it (`access`: public, user, file-token, socket). **Any commit that adds, removes, renames or re-paths an `api/*.js` function, a raw `/api/` URL elsewhere (e.g. `core/syncManager.js`, `extension/popup.js`), or a Worker route must update `contract/api.js` in the same commit.** Adding or removing a file in `backend/src/routes/` also means updating the "Route handlers (…)" list above.
+
+Tests enforce it in both suites, and CI runs them on every push:
+- `tests/api-contract.test.js`: every exported `api/*.js` function is listed, and calling it really requests the listed method and path.
+- `backend/tests/contract.test.js`: every route is listed and every listed call has a route; every non-public route refuses anonymous callers; scanner probes (`/.env`, `/.git/config`…) get a bare 404; the route-module list above matches; the contract holds no secrets.
+- `tests/build-output.test.js`: `dist/` (what citavers.com serves) never contains `contract/`, `backend/`, tests, env files or git data.
+
+`SERVER_ONLY` holds routes the app doesn't call, `NOT_REQUESTS` holds `api/*.js` exports that make no request, and `KNOWN_DRIFT` holds mismatches awaiting a decision. Only remove items from `KNOWN_DRIFT` (once fixed); never add one to make a change pass.
+
 ### Data flow (example: add paper)
 ```
 form.view.js (user submits)
