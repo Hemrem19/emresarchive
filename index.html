@@ -5,6 +5,18 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
     <title>citavers - Your Research, Your Rules.</title>
+    <!-- An app address (#/app, #/details/…) shows the app shell from the first paint, not the
+         landing page until every script has loaded. handleRouting() keeps the class current. -->
+    <script>
+        (function () {
+            var h = location.hash;
+            if (h && h !== '#' && h !== '#/') document.documentElement.classList.add('app-route');
+        })();
+    </script>
+    <style>
+        html.app-route #landing-page { display: none !important; }
+        html.app-route #app-shell { display: block !important; }
+    </style>
     <meta name="description"
         content="The simple research paper manager. Organize, annotate, and connect your knowledge without losing control of your data." />
 
@@ -677,6 +689,7 @@
             const hash = window.location.hash;
             const landingPage = document.getElementById('landing-page');
             const appShell = document.getElementById('app-shell');
+            document.documentElement.classList.toggle('app-route', Boolean(hash) && hash !== '#/' && hash !== '#');
 
             // If hash is empty or just #/ -> Show Landing Page
             if (!hash || hash === '#/' || hash === '#') {
