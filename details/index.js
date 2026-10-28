@@ -1,5 +1,6 @@
 import { canCopyBetweenLibraries, openCopyDialog } from '../components/copyToLibrary.js';
 import { getPaperById, updatePaper } from '../db.js';
+import { syncFromCloud } from '../db/adapter.js';
 import { escapeHtml, showToast, formatRelativeTime, addedByLabel } from '../ui.js';
 import { views as templates } from '../views/index.js';
 import { generateCitation } from '../citation.js';
@@ -43,15 +44,13 @@ export const detailsView = {
 
         let paper = await getPaperById(paperId);
 
-        // Just switched to this group (e.g. from a notification): its papers may still be arriving
+        // Just switched to this group (e.g. from a notification): its papers may still be
+        // arriving. Wait for the pull in flight (or a fresh one), then look once more; a pull
+        // that already happened returns at once, so a paper from another library is "not found".
         if (!paper && this.commentsEnabled() && !waited) {
             container.innerHTML = `<p class="py-10 text-center text-sm text-slate-400">Loading paper…</p>`;
-            this._cloudSyncHandler = () => {
-                window.removeEventListener('citavers:cloud-synced', this._cloudSyncHandler);
-                this._cloudSyncHandler = null;
-                if (this.paperId === paperId) this.mount(paperId, appState, { waited: true });
-            };
-            window.addEventListener('citavers:cloud-synced', this._cloudSyncHandler);
+            await syncFromCloud().catch(() => {});
+            if (this.paperId === paperId) await this.mount(paperId, appState, { waited: true });
             return;
         }
 
@@ -359,6 +358,9 @@ export const detailsView = {
     },
 
     async setupEventListeners(paper, appState) {
+        // A live-sync redraw can start a newer setup while this one awaits; then this one stops,
+        // so controls are not wired (or the rating added) twice
+        const setup = this._setupSeq = (this._setupSeq || 0) + 1;
         const paperId = paper.id;
 
         // Initialize Notes Manager
@@ -382,6 +384,7 @@ export const detailsView = {
             list: relatedPapersList,
             addBtn: addLinkBtn
         });
+        if (setup !== this._setupSeq) return;
 
         // Papers the network links to this one, and why (cloud only; hidden when none)
         const connectedRoot = document.getElementById('connected-papers');
@@ -406,7 +409,7 @@ export const detailsView = {
                 size: 'md',
                 displayMode: 'slider'
             });
-            ratingContainer.appendChild(ratingComponent);
+            ratingContainer.replaceChildren(ratingComponent);
         }
 
         // Read Paper

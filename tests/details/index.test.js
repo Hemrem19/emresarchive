@@ -59,6 +59,13 @@ vi.mock('../../details/summary.manager.js', () => ({
     }
 }));
 
+vi.mock('../../db/adapter.js', () => ({
+    syncFromCloud: vi.fn(async () => {})
+}));
+vi.mock('../../components/connectedPapers.js', () => ({
+    renderConnected: vi.fn(async () => {})
+}));
+
 vi.mock('../../details/related.manager.js', () => ({
     relatedManager: {
         initialize: vi.fn(),
@@ -110,6 +117,37 @@ describe('Details View', () => {
             db.getPaperById.mockResolvedValue(null);
             await detailsView.mount(999, {});
             expect(container.innerHTML).toContain('Paper not found');
+        });
+
+        it('shows "not found" for a paper outside the open group once its pull is done', async () => {
+            const { syncFromCloud } = await import('../../db/adapter.js');
+            const config = await import('../../config.js');
+            inGroupLibrary.mockReturnValue(true);
+            config.isCloudSyncEnabled.mockReturnValue(true);
+            db.getPaperById.mockResolvedValue(null);
+
+            await detailsView.mount(516, {});
+
+            expect(syncFromCloud).toHaveBeenCalled();
+            expect(db.getPaperById).toHaveBeenCalledTimes(2);
+            expect(container.innerHTML).toContain('Paper not found');
+            inGroupLibrary.mockReturnValue(false);
+            config.isCloudSyncEnabled.mockReturnValue(false);
+        });
+
+        it('adds one rating control when a sync redraw overlaps the first setup', async () => {
+            let release;
+            relatedManager.initialize.mockImplementationOnce(() => new Promise((r) => { release = r; }));
+            db.getPaperById.mockResolvedValue({ id: 1, title: 'P', authors: [], tags: [] });
+
+            const first = detailsView.mount(1, {});
+            await new Promise((r) => setTimeout(r, 0));
+            await detailsView._cloudSyncHandler?.(); // a live pull redraws while the first setup waits
+            const redraw = detailsView.setupEventListeners({ id: 1, title: 'P', authors: [], tags: [] }, {});
+            release();
+            await Promise.all([first, redraw]);
+
+            expect(document.getElementById('rating-container').children).toHaveLength(1);
         });
 
         it('should render paper details when paper exists', async () => {
