@@ -70,6 +70,12 @@
     </script>
 
     <style>
+        /* Toasts (ui.js showToast): slide in, and out when removed. style.css is not loaded by this page. */
+        .toast { animation: toast-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both; }
+        .toast.toast-leaving { animation: toast-out 0.5s cubic-bezier(0.550, 0.085, 0.680, 0.530) both; }
+        @keyframes toast-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toast-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
         /* Modern Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;

@@ -91,3 +91,13 @@ describe('picking', () => {
         expect(document.querySelectorAll('[role="listbox"]:not(.hidden)')).toHaveLength(0);
     });
 });
+
+describe('anchoring', () => {
+    it('anchors the list to its box even when attached before the box is on the page', () => {
+        const form = document.createElement('form');
+        const input = document.createElement('textarea');
+        form.appendChild(input);
+        attachMentions(input, { members: () => members }); // detached, like the main comment box at mount
+        expect(form.style.position).toBe('relative');
+    });
+});

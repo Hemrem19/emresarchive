@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../core/library.js', async (importOriginal) => ({ ...(await importOriginal()), openLibrary: vi.fn() }));
 
-const { mountBell, NOTIFY, FOCUS_COMMENT, isOnScreen, commentHash } = await import('../components/notificationBell.js');
+const { mountBell: mount, NOTIFY, FOCUS_COMMENT, isOnScreen, commentHash } = await import('../components/notificationBell.js');
 const { GROUPS_LOADED } = await import('../components/librarySwitcher.js');
 const { openLibrary } = await import('../core/library.js');
 
@@ -25,6 +25,15 @@ function fakeApi(items = []) {
         renderLibrarySwitcher: vi.fn(),
     };
 }
+
+// Unmounted after each test, so old bells don't answer this test's events
+const mounted = [];
+const mountBell = (...args) => {
+    const view = mount(...args);
+    mounted.push(view);
+    return view;
+};
+afterEach(() => mounted.splice(0).forEach((view) => view.unmount()));
 
 let slot;
 beforeEach(() => {
@@ -144,5 +153,32 @@ describe('bell', () => {
         await flush();
         bell().click();
         expect(slot.textContent).toContain("You're all caught up.");
+    });
+});
+
+describe('live invites', () => {
+    it('reloads invites on a signal and toasts a new one with Accept', async () => {
+        const api = fakeApi([]);
+        mountBell(slot, { api });
+        await flush();
+        invites([]);
+        window.dispatchEvent(new CustomEvent(NOTIFY));
+        expect(api.renderLibrarySwitcher).toHaveBeenCalled();
+
+        invites([invite]); // what the switcher's reload brings
+        expect(badge().textContent).toBe('1');
+        const toast = document.getElementById('toast-container');
+        expect(toast.textContent).toContain('Olivia invited you to Reading club');
+        expect(toast.querySelector('.toast').classList.contains('pointer-events-auto')).toBe(true);
+        toast.querySelector('[data-action-idx="0"]').click();
+        await flush();
+        expect(api.acceptInvite).toHaveBeenCalledWith(4);
+    });
+
+    it('does not toast invites already there on load', async () => {
+        mountBell(slot, { api: fakeApi([]) });
+        await flush();
+        invites([invite]);
+        expect(document.getElementById('toast-container').textContent).toBe('');
     });
 });

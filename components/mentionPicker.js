@@ -79,7 +79,8 @@ export function highlightMentions(html, mentions, myId) {
  */
 export function attachMentions(textarea, { members }) {
     const host = textarea.parentElement;
-    if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+    // Not via getComputedStyle: a box not yet on the page reports no position at all
+    if (!host.style.position) host.style.position = 'relative';
     const list = document.createElement('div');
     list.setAttribute('role', 'listbox');
     list.className = 'absolute left-0 z-50 hidden w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-white/10 bg-slate-900 py-1 shadow-2xl shadow-black/50';

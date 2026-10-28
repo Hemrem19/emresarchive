@@ -88,7 +88,8 @@ export const showToast = (message, type = 'success', options = {}) => {
     const style = toastStyles[type] || toastStyles.success;
 
     const toast = document.createElement('div');
-    toast.className = `toast ${style.bg} p-4 rounded-lg shadow-lg text-white flex items-start gap-3 min-w-[300px] max-w-md`;
+    // pointer-events-auto: the container lets clicks through to the page; its toasts must not
+    toast.className = `toast pointer-events-auto ${style.bg} p-4 rounded-lg shadow-lg text-white flex items-start gap-3 min-w-[300px] max-w-md`;
 
     // Build toast content
     let toastContent = `

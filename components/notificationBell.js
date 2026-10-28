@@ -118,6 +118,7 @@ export function mountBell(slot, { api } = {}) {
     let fresh = new Set();    // rows marked "new" while the panel is open
     let newestId = null;      // newest id already known, to toast only what's new
     let lastRefresh = 0;
+    let knownInvites = null;  // invite ids already shown, to toast only new ones
 
     slot.classList.add('relative');
     slot.innerHTML = `
@@ -258,10 +259,24 @@ export function mountBell(slot, { api } = {}) {
     };
     const onGroups = (e) => {
         invites = e.detail?.invites || [];
+        const arrived = knownInvites ? invites.filter((i) => !knownInvites.has(i.id)) : [];
+        knownInvites = new Set(invites.map((i) => i.id));
         renderBadge();
         renderPanel();
+        const invite = arrived[0];
+        if (invite && !open) {
+            const who = invite.invitedBy?.trim() || String(invite.invitedByEmail || '').split('@')[0] || 'Someone';
+            showToast(`${who} invited you to ${invite.groupName}`, 'info', {
+                duration: 8000,
+                actions: [{ label: 'Accept', onClick: () => answerInvite(invite.id, true) }],
+            });
+        }
     };
-    const onNotify = () => refresh();
+    // A signal can mean a mention or reply, or an invite (listed by the switcher)
+    const onNotify = () => {
+        refresh();
+        calls.renderLibrarySwitcher();
+    };
     const onVisible = () => {
         if (document.visibilityState !== 'visible' || Date.now() - lastRefresh < REFRESH_AFTER_MS) return;
         refresh();
