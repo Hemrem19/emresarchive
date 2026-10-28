@@ -37,6 +37,19 @@ const asArray = (value) => {
     return [];
 };
 
+/** Authors two papers share, as the first paper spells them (matched as the network matches them). */
+export function sharedAuthors(authorsA, authorsB) {
+    const name = (v) => String((typeof v === 'object' ? v?.name : v) ?? '').trim();
+    const others = new Set(asArray(authorsB).map((v) => normalizeKey(name(v))));
+    const seen = new Set();
+    return asArray(authorsA).map(name).filter((n) => {
+        const key = normalizeKey(n);
+        if (!key || !others.has(key) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 async function fetchOpenAlex(doi) {
     const res = await fetch(
         `https://api.openalex.org/works/doi:${encodeURIComponent(doi)}?select=id,doi,title,cited_by_count,referenced_works`,

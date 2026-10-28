@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { and, desc, eq, ne } from 'drizzle-orm';
+import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import * as schema from '../../drizzle/schema.js';
 import { authenticate } from '../middleware/auth.js';
 import { READ, WRITE, accessible, allowsIn, findAccessible, inLibrary, libraryOf, personalLibrary } from '../lib/access.js';
-import { generateNetwork } from '../services/citation.js';
+import { generateNetwork, sharedAuthors } from '../services/citation.js';
 
 const network = new Hono();
 network.use('*', authenticate);
@@ -52,6 +52,55 @@ network.get('/', async (c) => {
         .where(accessible(G, c.get('user'), READ))
         .orderBy(desc(G.updatedAt));
     return c.json({ success: true, data: rows });
+});
+
+/**
+ * Why a paper is connected to others: one entry per connected paper, with
+ * its reasons ({ type: 'cites' | 'cited_by' } or { type: 'same_author', names }),
+ * citations first.
+ * GET /api/networks/papers/:paperId/connections
+ */
+network.get('/papers/:paperId/connections', async (c) => {
+    const db = getDb(c);
+    const user = c.get('user');
+    const P = schema.papers;
+    const PC = schema.paperConnections;
+    const id = Number(c.req.param('paperId'));
+    const paper = Number.isInteger(id) && id > 0 && await findAccessible(db.query.papers, P, user, id, READ,
+        { id: true, userId: true, groupId: true, authors: true, deletedAt: true });
+    if (!paper || paper.deletedAt) {
+        return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
+    }
+
+    const library = libraryOf(paper);
+    const other = alias(P, 'other');
+    const otherId = sql`CASE WHEN ${PC.fromPaperId} = ${id} THEN ${PC.toPaperId} ELSE ${PC.fromPaperId} END`;
+    const rows = await db.select({
+        fromPaperId: PC.fromPaperId, type: PC.connectionType,
+        id: other.id, title: other.title, year: other.year, authors: other.authors,
+    })
+        .from(PC)
+        .innerJoin(other, and(eq(other.id, otherId), accessible(other, user, READ), inLibrary(other, library)))
+        .where(and(or(eq(PC.fromPaperId, id), eq(PC.toPaperId, id)), ne(PC.connectionType, 'common_tag')));
+
+    const byPaper = new Map();
+    for (const row of rows) {
+        if (row.id === id) continue;
+        let reason = null;
+        if (row.type === 'cites') reason = { type: row.fromPaperId === id ? 'cites' : 'cited_by' };
+        else if (row.type === 'common_author') {
+            const names = sharedAuthors(paper.authors, row.authors);
+            if (names.length) reason = { type: 'same_author', names };
+        }
+        if (!reason) continue;
+        const entry = byPaper.get(row.id) ?? { paper: { id: row.id, title: row.title, year: row.year ?? null }, reasons: [] };
+        if (!entry.reasons.some((r) => r.type === reason.type)) entry.reasons.push(reason);
+        byPaper.set(row.id, entry);
+    }
+    const cited = (e) => e.reasons.some((r) => r.type !== 'same_author');
+    const connections = [...byPaper.values()].sort((a, b) =>
+        Number(cited(b)) - Number(cited(a)) || String(a.paper.title).localeCompare(String(b.paper.title)));
+    return c.json({ success: true, data: { connections } });
 });
 
 /**

@@ -9,6 +9,7 @@ import { isAuthenticated } from '../api/auth.js';
 import { getApiBaseUrl } from '../config.js';
 import { createRatingInput } from '../components/rating-input.js';
 import { mountComments } from '../components/paperComments.js';
+import { renderConnected } from '../components/connectedPapers.js';
 import { FOCUS_COMMENT } from '../components/notificationBell.js';
 import { inGroupLibrary } from '../core/library.js';
 
@@ -240,6 +241,7 @@ export const detailsView = {
                             <!-- Linked papers render here -->
                         </div>
                     </div>
+                    <div id="connected-papers" class="hidden"></div>
                 </div>
             </aside>
             <section class="flex-1 min-w-0 order-1 xl:order-2">
@@ -380,6 +382,10 @@ export const detailsView = {
             list: relatedPapersList,
             addBtn: addLinkBtn
         });
+
+        // Papers the network links to this one, and why (cloud only; hidden when none)
+        const connectedRoot = document.getElementById('connected-papers');
+        if (connectedRoot && isCloudSyncEnabled() && isAuthenticated()) renderConnected(connectedRoot, paperId);
 
         // Initialize Rating Component
         const ratingContainer = document.getElementById('rating-container');

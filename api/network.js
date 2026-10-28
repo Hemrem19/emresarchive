@@ -76,3 +76,15 @@ export async function getUserNetworks() {
         }
     });
 }
+
+/**
+ * Why a paper is connected to others in its library's network:
+ * [{ paper: { id, title, year }, reasons: [{ type: 'cites' | 'cited_by' | 'same_author', names? }] }]
+ */
+export async function getPaperConnections(paperId) {
+    const { apiRequest } = await import('./sync.js');
+    const response = await apiRequest(`${API_CONFIG.BASE_URL}/api/networks/papers/${paperId}/connections`, { credentials: 'include' });
+    const data = await parseJsonResponse(response);
+    if (!data.success) throw new Error(data.error?.message || 'Failed to load connections');
+    return data.data.connections;
+}

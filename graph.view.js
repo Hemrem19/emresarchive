@@ -2,6 +2,7 @@ import { getAllPapers } from './db.js';
 import { escapeHtml, showToast } from './ui.js';
 import { generateNetwork, getNetwork, getUserNetworks } from './api/network.js';
 import { getAccessToken } from './api/auth.js';
+import { forgetConnections } from './components/connectedPapers.js';
 
 export const graphView = {
     network: null,
@@ -186,6 +187,7 @@ export const graphView = {
             btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">refresh</span> <span class="hidden sm:inline">Generating...</span>';
 
             const result = await generateNetwork();
+            forgetConnections();
             showToast(`Network generated with ${result.stats.nodeCount} papers`, 'success');
 
             await this.loadNetwork(result.graph.id);
