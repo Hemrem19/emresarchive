@@ -378,6 +378,8 @@ export async function getPdfDownloadUrl(paperId) {
             return {
                 pdfUrl: result.data.pdfUrl,
                 downloadUrl: result.data.downloadUrl,
+                // Opens in the browser's PDF viewer (older servers: the download link)
+                viewUrl: result.data.viewUrl || result.data.downloadUrl,
                 proxyUrl,
                 expiresIn: result.data.expiresIn
             };

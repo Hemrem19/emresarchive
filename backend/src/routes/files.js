@@ -11,10 +11,11 @@ import { loadMemberships } from '../services/groups.js';
  * Downloads through plain links, which cannot send an Authorization header.
  * Authenticated by a short-lived file token (see generateFileToken) that names
  * one paper; access is re-checked here, so a revoked right also revokes links.
+ * `view=1` shows the PDF in the browser's viewer instead of downloading it.
  */
 const files = new Hono();
 
-/** GET /api/files/pdf?t=<file token> */
+/** GET /api/files/pdf?t=<file token>[&view=1] */
 files.get('/pdf', async (c) => {
     const grant = verifyFileToken(c.req.query('t'), c.env);
     if (!grant) return c.json({ success: false, error: { message: 'Link expired or invalid' } }, 401);
@@ -27,7 +28,7 @@ files.get('/pdf', async (c) => {
 
     const paper = await findAccessible(db.query.papers, schema.papers, user, grant.paperId, READ_FILES, PDF_COLUMNS);
     if (!paper) return c.json({ success: false, error: { message: 'Paper not found' } }, 404);
-    return pdfResponse(c, paper, 'attachment');
+    return pdfResponse(c, paper, c.req.query('view') === '1' ? 'inline' : 'attachment');
 });
 
 export default files;

@@ -228,6 +228,23 @@ describe('PDF download links', () => {
         expect(await res.text()).toBe('%PDF alice');
     });
 
+    it('the view link opens the PDF in the browser; the download link saves it', async () => {
+        t.db.sqlite.prepare('UPDATE papers SET title = ? WHERE id = ?').run('Ağ: "kontrol" / RL', aPaper);
+        const { body } = await (async () => {
+            const res = await t.request(`/api/papers/${aPaper}/pdf`, { user: alice });
+            return { body: await res.json() };
+        })();
+        const path = (url) => url.replace(/^https?:\/\/[^/]+/, '');
+        const view = await t.request(path(body.data.viewUrl));
+        const save = await t.request(path(body.data.downloadUrl));
+
+        expect(view.status).toBe(200);
+        expect(view.headers.get('content-disposition')).toBe(
+            `inline; filename="paper-${aPaper}.pdf"; filename*=UTF-8''${encodeURIComponent('Ağ kontrol RL.pdf')}`);
+        expect(save.headers.get('content-disposition')).toMatch(/^attachment; /);
+        expect(await view.text()).toBe('%PDF alice');
+    });
+
     it('a download link is not a login token', async () => {
         const token = new URL(`https://x${await link(alice, aPaper)}`).searchParams.get('t');
         expect((await t.request('/api/papers', { token })).status).toBe(401);

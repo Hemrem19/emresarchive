@@ -428,14 +428,24 @@ export const detailsView = {
                     } else if (paper.s3Key || paper.pdfUrl) {
                         const useCloudSync = isCloudSyncEnabled() && isAuthenticated();
                         if (useCloudSync) {
-                            showToast('Opening paper...', 'info');
-                            const { downloadUrl } = await getPdfDownloadUrl(paperId);
-
-                            if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                                const { Browser } = Capacitor.Plugins;
-                                await Browser.open({ url: downloadUrl });
-                            } else {
-                                window.open(downloadUrl, '_blank');
+                            const native = window.Capacitor && window.Capacitor.isNativePlatform();
+                            // Open the tab now, while the tap still counts: browsers block
+                            // tabs opened after waiting for the link
+                            const tab = native ? null : window.open('', '_blank');
+                            try {
+                                const { viewUrl } = await getPdfDownloadUrl(paperId);
+                                if (native) {
+                                    const { Browser } = Capacitor.Plugins;
+                                    await Browser.open({ url: viewUrl });
+                                } else if (tab) {
+                                    tab.opener = null;
+                                    tab.location.href = viewUrl;
+                                } else {
+                                    window.location.href = viewUrl; // tabs blocked: open it here
+                                }
+                            } catch (error) {
+                                tab?.close();
+                                throw error;
                             }
                         } else {
                             showToast('Cloud sync is required for cloud-stored PDFs', 'error');

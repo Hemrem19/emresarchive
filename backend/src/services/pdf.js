@@ -6,7 +6,7 @@ import { extractKey, getObject, isStorageConfigured, isStoredObject } from '../l
 import { isHttpUrl, keyInLibrary, libraryOf } from '../lib/access.js';
 
 /** Columns a paper must be loaded with for the helpers below. */
-export const PDF_COLUMNS = { id: true, pdfUrl: true, userId: true, groupId: true };
+export const PDF_COLUMNS = { id: true, pdfUrl: true, userId: true, groupId: true, title: true };
 
 /**
  * Where a paper's PDF may be read from, or null when its pdfUrl is not
@@ -41,6 +41,19 @@ function capBytes(body, limit) {
 const notFound = (c, message = 'PDF not found for this paper') =>
     c.json({ success: false, error: { message } }, 404);
 
+/**
+ * Content-Disposition naming the file after the paper (shown as the browser
+ * tab's title and offered when saving), with a plain ASCII fallback.
+ * `inline` opens in the browser's PDF viewer; `attachment` downloads.
+ */
+export function pdfDisposition(paper, disposition) {
+    const fallback = `paper-${paper.id}.pdf`;
+    const title = String(paper.title || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    return title
+        ? `${disposition}; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(`${title}.pdf`)}`
+        : `${disposition}; filename="${fallback}"`;
+}
+
 /** Streams the paper's PDF, from storage or the external link. */
 export async function pdfResponse(c, paper, disposition = 'inline') {
     const source = resolvePdfSource(paper);
@@ -48,7 +61,7 @@ export async function pdfResponse(c, paper, disposition = 'inline') {
 
     const headers = {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `${disposition}; filename="paper-${paper.id}.pdf"`,
+        'Content-Disposition': pdfDisposition(paper, disposition),
         'Cache-Control': 'private, max-age=3600',
     };
 

@@ -300,6 +300,41 @@ describe('Details View', () => {
             expect(window.open).toHaveBeenCalledWith('blob:url', '_blank');
         });
 
+        it('opens a cloud PDF in a new tab with the view link, opening the tab before waiting', async () => {
+            db.getPaperById.mockResolvedValue({ id: 1, title: 'Test', s3Key: 'key', hasPdf: true });
+            config.isCloudSyncEnabled.mockReturnValue(true);
+            let resolveLink;
+            apiPapers.getPdfDownloadUrl.mockImplementation(() => new Promise((r) => { resolveLink = r; }));
+            const tab = { location: { href: '' }, opener: window, close: vi.fn() };
+            window.open = vi.fn(() => tab);
+
+            await detailsView.mount(1, {});
+            document.getElementById('read-paper-btn').click();
+
+            expect(window.open).toHaveBeenCalledWith('', '_blank'); // still inside the tap
+            resolveLink({ viewUrl: 'https://api/view', downloadUrl: 'https://api/save' });
+            await new Promise((r) => setTimeout(r, 0));
+            expect(tab.location.href).toBe('https://api/view');
+            expect(tab.opener).toBeNull();
+            config.isCloudSyncEnabled.mockReturnValue(false);
+        });
+
+        it('closes the empty tab when the link cannot be had', async () => {
+            db.getPaperById.mockResolvedValue({ id: 1, title: 'Test', s3Key: 'key', hasPdf: true });
+            config.isCloudSyncEnabled.mockReturnValue(true);
+            apiPapers.getPdfDownloadUrl.mockRejectedValue(new Error('offline'));
+            const tab = { location: { href: '' }, close: vi.fn() };
+            window.open = vi.fn(() => tab);
+
+            await detailsView.mount(1, {});
+            document.getElementById('read-paper-btn').click();
+            await new Promise((r) => setTimeout(r, 0));
+
+            expect(tab.close).toHaveBeenCalled();
+            expect(ui.showToast).toHaveBeenCalledWith('Failed to open paper', 'error');
+            config.isCloudSyncEnabled.mockReturnValue(false);
+        });
+
         it('should handle cloud PDF download', async () => {
             const paper = { id: 1, title: 'Test', s3Key: 'key', hasPdf: true };
             db.getPaperById.mockResolvedValue(paper);

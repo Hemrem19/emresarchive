@@ -498,7 +498,7 @@ papers.post('/upload', async (c) => {
 });
 
 /**
- * PDF download info
+ * PDF links: downloadUrl saves the file, viewUrl opens it in the browser's viewer
  * GET /api/papers/:id/pdf
  */
 papers.get('/:id/pdf', async (c) => {
@@ -513,13 +513,15 @@ papers.get('/:id/pdf', async (c) => {
 
     if (source.kind === 'external') {
         // External link (e.g. arXiv) stored as pdfUrl
-        return c.json({ success: true, data: { pdfUrl: paper.pdfUrl, downloadUrl: paper.pdfUrl, proxyUrl } });
+        return c.json({ success: true, data: { pdfUrl: paper.pdfUrl, downloadUrl: paper.pdfUrl, viewUrl: paper.pdfUrl, proxyUrl } });
     }
 
     let downloadUrl;
+    let viewUrl;
     if (canPresign(c.env)) {
         try {
             downloadUrl = await presignDownload(c.env, source.key);
+            viewUrl = downloadUrl; // stored as application/pdf with no disposition: browsers show it
         } catch (err) {
             console.error('[PDF presign download]', err);
         }
@@ -529,11 +531,12 @@ papers.get('/:id/pdf', async (c) => {
         // token that only downloads this one paper, never the login token.
         const token = generateFileToken(c.get('user').id, paper.id, c.env);
         downloadUrl = `${new URL(c.req.url).origin}/api/files/pdf?t=${encodeURIComponent(token)}`;
+        viewUrl = `${downloadUrl}&view=1`;
     }
 
     return c.json({
         success: true,
-        data: { pdfUrl: paper.pdfUrl, downloadUrl, proxyUrl, expiresIn: PRESIGNED_URL_EXPIRY }
+        data: { pdfUrl: paper.pdfUrl, downloadUrl, viewUrl, proxyUrl, expiresIn: PRESIGNED_URL_EXPIRY }
     });
 });
 
