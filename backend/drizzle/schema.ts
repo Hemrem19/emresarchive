@@ -135,6 +135,8 @@ export const annotations = sqliteTable('annotations', {
   // A reply's top-level comment (FK to annotations.id in migration 0004)
   parentId: integer('parent_id'),
   clientId: text('client_id'),
+  // User ids the comment @mentions (migration 0005)
+  mentions: text('mentions', { mode: 'json' }),
   pageNumber: integer('page_number'),
   position: text('position', { mode: 'json' }),
   content: text('content'),
@@ -143,6 +145,20 @@ export const annotations = sqliteTable('annotations', {
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   deletedAt: text('deleted_at'),
   version: integer('version').default(1).notNull(),
+});
+
+// Notifications: something to tell one person (a mention, or a reply to their comment)
+export const notifications = sqliteTable('notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'mention' | 'reply'
+  actorId: integer('actor_id').references(() => users.id, { onDelete: 'set null' }),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
+  paperId: integer('paper_id').references(() => papers.id, { onDelete: 'cascade' }),
+  // FK to annotations.id in migration 0005
+  commentId: integer('comment_id'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  readAt: text('read_at'),
 });
 
 // Sessions Table

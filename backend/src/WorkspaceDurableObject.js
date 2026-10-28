@@ -151,8 +151,11 @@ export class WorkspaceDurableObject {
     if (internal === CHANGED_PATH) {
       // A plain Yjs update every client receives. changedAt: the app pulls the
       // library. comments: only apps showing that paper refetch its thread.
-      const { paperId } = await request.json().catch(() => ({}));
-      if (Number.isInteger(paperId)) {
+      // notify: these people's bells refresh.
+      const { paperId, notify } = await request.json().catch(() => ({}));
+      if (Array.isArray(notify)) {
+        this.doc.getMap('signals').set('notify', { userIds: notify, at: Date.now() });
+      } else if (Number.isInteger(paperId)) {
         this.doc.getMap('signals').set('comments', { paperId, at: Date.now() });
       } else {
         this.doc.getMap('signals').set('changedAt', Date.now());

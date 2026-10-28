@@ -49,7 +49,7 @@ Key layers:
 
 - **`backend/src/worker.js`** — Hono server entry point; mounts routes, handles WebSocket upgrade to Durable Objects.
 - **`backend/src/WorkspaceDurableObject.js`** — Durable Object for real-time Yjs state; one per workspace.
-- **`backend/src/routes/`** — Route handlers (auth, papers, folders, files, comments, groups, network, import, user).
+- **`backend/src/routes/`** — Route handlers (auth, papers, folders, files, comments, notifications, groups, network, import, user).
 - **`backend/src/lib/`** — Shared utilities: JWT (15m access / 7d refresh), bcrypt (cost 12), Resend email, Zod validation, R2 (S3-compatible PDF storage).
 - ORM: **Drizzle** over **Cloudflare D1** (SQLite). Schema in `backend/drizzle/`.
 

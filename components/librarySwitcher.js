@@ -12,6 +12,9 @@ import { showToast, escapeHtml } from '../ui.js';
 
 const CONTAINERS = ['library-switcher', 'mobile-library-switcher'];
 
+/** Fired with { groups, invites } each time the switcher loads them. */
+export const GROUPS_LOADED = 'citavers:groups-loaded';
+
 const optionClass = 'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm text-slate-300 hover:bg-slate-800 hover:text-white';
 
 /** Switcher markup for the open library and the user's groups and invites. */
@@ -106,6 +109,8 @@ export async function renderLibrarySwitcher() {
         const container = document.getElementById(id);
         if (container) container.innerHTML = switcherHtml(data, here);
     }
+    // The bell lists the same invites
+    window.dispatchEvent(new CustomEvent(GROUPS_LOADED, { detail: data }));
     if (!listening) {
         document.addEventListener('click', onClick);
         listening = true;

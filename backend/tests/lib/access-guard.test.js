@@ -16,6 +16,7 @@ const ALLOWED = {
     'services/importer.js': 'replace-mode restore and PDF sweep act on the personal library only',
     'services/sessions.js': 'logins belong to a person, not a library',
     'services/groups.js': 'stores memberships; access.js decides what they allow',
+    'services/notifications.js': 'notifications belong to a person, not a library',
 };
 
 const FORBIDDEN = [

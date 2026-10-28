@@ -11,6 +11,7 @@ import {
     listMembers, normalizeEmail, removeMember, renameGroup, setRole, transferOwnership, MAX_NAME_LENGTH,
 } from '../services/groups.js';
 import { sendGroupInviteEmail } from '../lib/mailer.js';
+import { signalInvitee } from '../services/notifications.js';
 
 const groups = new Hono();
 groups.use('*', authenticate);
@@ -244,6 +245,7 @@ groups.post('/:id/invites', async (c) => {
 
     const group = await findGroup(db, id);
     await inBackground(c, sendGroupInviteEmail(c.env, { email, groupName: group.name, inviterName: user.name || user.email }));
+    await inBackground(c, signalInvitee(db, c.env, email));
     return c.json({ success: true, data: { invite: result.invite } }, 201);
 });
 

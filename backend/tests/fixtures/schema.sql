@@ -260,3 +260,23 @@ ALTER TABLE `annotations` ADD `parent_id` integer REFERENCES `annotations`(`id`)
 ALTER TABLE `annotations` ADD `client_id` text;
 CREATE INDEX `annotations_paper_created_idx` ON `annotations` (`paper_id`, `created_at`);
 CREATE UNIQUE INDEX `annotations_user_client_unique` ON `annotations` (`user_id`, `client_id`) WHERE `client_id` IS NOT NULL;
+
+ALTER TABLE `annotations` ADD `mentions` text;
+CREATE TABLE `notifications` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`user_id` integer NOT NULL,
+	`type` text NOT NULL,
+	`actor_id` integer,
+	`group_id` integer,
+	`paper_id` integer,
+	`comment_id` integer,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`read_at` text,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`actor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`paper_id`) REFERENCES `papers`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`comment_id`) REFERENCES `annotations`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX `notifications_user_created_idx` ON `notifications` (`user_id`, `created_at`);
+CREATE INDEX `notifications_comment_idx` ON `notifications` (`comment_id`);

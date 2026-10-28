@@ -13,10 +13,17 @@
  *
  * Live: the group's sync room names the paper whose comments changed
  * (`citavers:comments-changed`); only a thread showing that paper refetches.
+ *
+ * Typing "@" in any comment box lists the group's members
+ * (components/mentionPicker.js); the people named are sent with the comment
+ * and the server tells them.
  */
 import { addComment, deleteComment, editComment, listComments } from '../api/comments.js';
-import { currentLibrary } from '../core/library.js';
+import { listMembers } from '../api/groups.js';
+import { getUser } from '../api/auth.js';
+import { currentGroupId, currentLibrary } from '../core/library.js';
 import { confirmedBySecondTap, escapeHtml, formatRelativeTime, showToast } from '../ui.js';
+import { attachMentions, highlightMentions, mentionIdsIn } from './mentionPicker.js';
 
 export const COMMENTS_CHANGED = 'citavers:comments-changed';
 const NARROW = '(max-width: 1279px)'; // below Tailwind's xl, where the thread is not a side column
@@ -93,6 +100,20 @@ function composerHtml({ placeholder, parentId = '', compact = false }) {
         </form>`;
 }
 
+/** The signed-in person's id, to tell their own mentions apart. */
+function myId() {
+    try {
+        return getUser()?.id ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/** Members as the picker lists them, without me; names as the server shows them. */
+export const pickableMembers = (members, me) => members
+    .filter((m) => m.userId !== me)
+    .map((m) => ({ userId: m.userId, email: m.email, name: m.name?.trim() || String(m.email || '').split('@')[0] || 'Someone' }));
+
 function commentHtml(c, { unreadAfter, isReply }) {
     if (c.deleted) {
         return `<div class="py-1 text-xs italic text-slate-500">Comment deleted</div>`;
@@ -109,7 +130,7 @@ function commentHtml(c, { unreadAfter, isReply }) {
     ].filter(Boolean).join('');
 
     return `
-        <div class="group flex gap-2.5" data-comment="${c.id ?? ''}" ${unread ? 'data-unread' : ''}>
+        <div class="group flex gap-2.5 rounded-lg transition-colors duration-700" data-comment="${c.id ?? ''}" ${unread ? 'data-unread' : ''}>
             <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${avatarColor(c.author?.name)} text-xs font-bold text-white">${initial(c.author?.name)}</div>
             <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 text-xs text-slate-400">
@@ -117,7 +138,7 @@ function commentHtml(c, { unreadAfter, isReply }) {
                     ${status}
                     ${unread ? '<span class="h-2 w-2 self-center rounded-full bg-primary" title="New"></span>' : ''}
                 </div>
-                <div data-body class="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-200">${c.pageNumber ? `<span class="mr-1 inline-block rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-semibold text-slate-300">p. ${Number(c.pageNumber)}</span>` : ''}${escapeHtml(c.content)}</div>
+                <div data-body class="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-200">${c.pageNumber ? `<span class="mr-1 inline-block rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-semibold text-slate-300">p. ${Number(c.pageNumber)}</span>` : ''}${highlightMentions(escapeHtml(c.content), c.mentions, myId())}</div>
                 ${actions ? `<div class="mt-1 flex gap-3 text-xs font-medium text-slate-500 xl:opacity-0 xl:group-hover:opacity-100 xl:focus-within:opacity-100 transition-opacity">${actions}</div>` : ''}
             </div>
         </div>`;
@@ -144,11 +165,15 @@ const newClientId = () => `${Date.now().toString(36)}-${(clientSeq++).toString(3
  * Renders the discussion of `paperId` into `root`.
  * @param {HTMLElement} root
  * @param {number} paperId
- * @param {{ onCount?: (info: { count: number, unread: number }) => void, api?: object }} [options]
- * @returns {{ unmount: () => void, focus: () => void, refresh: () => Promise<void> }}
+ * @param {{ onCount?: (info: { count: number, unread: number }) => void, api?: object, focusCommentId?: number }} [options]
+ *   focusCommentId: once loaded, scroll to that comment and flash it
+ * @returns {{ unmount: () => void, focus: () => void, focusComment: (id: number) => void, refresh: () => Promise<void> }}
  */
-export function mountComments(root, paperId, { onCount, api } = {}) {
-    const calls = { listComments, addComment, editComment, deleteComment, ...api };
+export function mountComments(root, paperId, { onCount, api, focusCommentId } = {}) {
+    const calls = { listComments, addComment, editComment, deleteComment, listMembers, ...api };
+    let members = [];        // whom "@" offers
+    const detachers = [];
+    let toFocus = focusCommentId ?? null;
     let comments = [];       // from the server
     let pending = [];        // posted here, not yet confirmed (or failed)
     const hidden = new Set(); // deleted here, waiting for the server
@@ -244,7 +269,27 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         }
         render();
         if (loaded && threadVisible) markSeen(paperId);
+        if (loaded && toFocus) {
+            focusComment(toFocus);
+            toFocus = null;
+        }
     }
+
+    async function loadMembers() {
+        const groupId = currentGroupId();
+        if (groupId === null) return;
+        try {
+            members = pickableMembers(await calls.listMembers(groupId), myId());
+        } catch {
+            members = []; // mentions just aren't offered
+        }
+    }
+
+    const mentionable = (input) => detachers.push(attachMentions(input, { members: () => members }));
+
+    /** The people a text mentions, as ids for the server and names for showing it at once. */
+    const mentionsOf = (content) => mentionIdsIn(content, members)
+        .map((userId) => ({ userId, name: members.find((m) => m.userId === userId).name }));
 
     async function send(entry) {
         entry.pending = true;
@@ -253,6 +298,7 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         try {
             const saved = await calls.addComment(paperId, {
                 content: entry.content, pageNumber: entry.pageNumber, parentId: entry.parentId, clientId: entry.clientId,
+                mentions: entry.mentions.map((m) => m.userId),
             });
             pending = pending.filter((p) => p !== entry);
             if (!comments.some((c) => c.id === saved.id)) comments = [...comments, saved];
@@ -269,7 +315,7 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         const { content, pageNumber } = parsePageRef(text);
         if (!content) return false;
         const entry = {
-            id: null, clientId: newClientId(), parentId, content, pageNumber,
+            id: null, clientId: newClientId(), parentId, content, pageNumber, mentions: mentionsOf(content),
             author: { name: 'You' }, mine: true, createdAt: new Date().toISOString(),
         };
         pending = [...pending, entry];
@@ -280,7 +326,10 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
     function openReply(parentId, value = '', { focus = true } = {}) {
         const slot = thread.querySelector(`[data-reply-slot="${parentId}"]`);
         if (!slot) return;
-        if (!slot.querySelector('[data-composer]')) slot.innerHTML = composerHtml({ placeholder: 'Reply…', parentId, compact: true });
+        if (!slot.querySelector('[data-composer]')) {
+            slot.innerHTML = composerHtml({ placeholder: 'Reply…', parentId, compact: true });
+            mentionable(slot.querySelector('[data-input]'));
+        }
         const input = slot.querySelector('[data-input]');
         if (value) input.value = value;
         if (focus) input.focus();
@@ -294,6 +343,7 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         body.innerHTML = `<textarea data-edit-input rows="2" maxlength="5000" class="w-full resize-none rounded-lg border border-primary/50 bg-slate-900/70 px-2 py-1.5 text-sm text-slate-100 focus:outline-none"></textarea>
             <p class="mt-1 text-[11px] text-slate-500">Enter to save · Esc to cancel</p>`;
         const input = body.querySelector('textarea');
+        mentionable(input); // first, so a pick's Enter doesn't also save
         input.value = prefix + c.content;
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
@@ -307,7 +357,7 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
                 if (!content) return;
                 input.disabled = true;
                 try {
-                    const saved = await calls.editComment(id, { content, pageNumber });
+                    const saved = await calls.editComment(id, { content, pageNumber, mentions: mentionsOf(content).map((m) => m.userId) });
                     comments = comments.map((x) => (x.id === id ? saved : x));
                 } catch (err) {
                     showToast(`Couldn't save the edit: ${err.message}`, 'error');
@@ -410,13 +460,32 @@ export function mountComments(root, paperId, { onCount, api } = {}) {
         mainComposer.querySelector('[data-input]').focus({ preventScroll: true });
     }
 
+    /** Scrolls to a comment and flashes it (e.g. opened from a notification). */
+    function focusComment(id) {
+        if (!loaded) {
+            toFocus = id;
+            return;
+        }
+        const el = thread.querySelector(`[data-comment="${Number(id)}"]`);
+        if (!el) return;
+        root.scrollIntoView?.({ block: 'start' });
+        el.scrollIntoView?.({ block: 'center' });
+        el.classList.add('bg-primary/15');
+        setTimeout(() => el.classList.remove('bg-primary/15'), 1600);
+    }
+
+    mentionable(mainComposer.querySelector('[data-input]'));
+    mentionable(bar.querySelector('[data-input]'));
+    loadMembers();
     load();
 
     return {
         focus,
+        focusComment,
         refresh: load,
         unmount() {
             alive = false;
+            detachers.forEach((detach) => detach());
             observers.forEach((o) => o.disconnect());
             window.removeEventListener(COMMENTS_CHANGED, onChanged);
             bar.remove();

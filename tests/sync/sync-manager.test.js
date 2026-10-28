@@ -39,6 +39,12 @@ vi.mock('../../ui.js', () => ({
 vi.mock('../../components/librarySwitcher.js', () => ({
     renderLibrarySwitcher: vi.fn()
 }));
+vi.mock('../../api/groups.js', () => ({
+    listMembers: vi.fn(async () => [])
+}));
+vi.mock('../../components/notificationBell.js', () => ({
+    NOTIFY: 'citavers:notify'
+}));
 
 // Mock timers
 vi.useFakeTimers();

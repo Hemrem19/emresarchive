@@ -7,7 +7,7 @@
  */
 
 import { isCloudSyncEnabled, getApiBaseUrl } from '../config.js';
-import { isAuthenticated, getAccessToken, refreshToken } from '../api/auth.js';
+import { isAuthenticated, getAccessToken, refreshToken, getUser } from '../api/auth.js';
 import { showToast } from '../ui.js';
 // Both imports point to the same esm.sh URL for yjs via ?deps= so the browser
 // module cache returns one Y.Doc constructor — prevents "Yjs was already imported" warning.
@@ -19,6 +19,7 @@ import { syncFromCloud } from '../db/adapter.js';
 import { inGroupLibrary, syncRoom } from './library.js';
 import { renderLibrarySwitcher } from '../components/librarySwitcher.js';
 import { COMMENTS_CHANGED } from '../components/paperComments.js';
+import { NOTIFY } from '../components/notificationBell.js';
 
 // Close code the server uses when this user lost access to the open group (backend services/groups.js)
 const REMOVED_FROM_GROUP_CODE = 4003;
@@ -253,6 +254,11 @@ export function initializeAutoSync() {
             if (event.keysChanged.has('comments')) {
                 const { paperId } = signals.get('comments') || {};
                 window.dispatchEvent(new CustomEvent(COMMENTS_CHANGED, { detail: { paperId } }));
+            }
+            // signals.notify names people with something new in their bell
+            if (event.keysChanged.has('notify')) {
+                const { userIds = [] } = signals.get('notify') || {};
+                if (userIds.includes(getUser()?.id)) window.dispatchEvent(new CustomEvent(NOTIFY));
             }
             if (event.keysChanged.has('changedAt')) {
                 syncFromCloud({ force: true }).catch(e => console.warn('[Sync Manager] Pull after change signal failed:', e.message));

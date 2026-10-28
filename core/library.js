@@ -70,15 +70,18 @@ export function libraryHeaders() {
 /** Sync room of the open library ("personal" maps to the user's own room server-side). */
 export const syncRoom = () => read();
 
-/** Opens a library: "personal" or a group id. Reloads unless `reload` is false. */
-export function openLibrary(library, { reload = true } = {}) {
+/**
+ * Opens a library: "personal" or a group id. Reloads unless `reload` is false,
+ * landing on `hash` (default the dashboard).
+ */
+export function openLibrary(library, { reload = true, hash = '#/app' } = {}) {
     const value = library === PERSONAL || library === null || library === undefined ? PERSONAL : `group:${Number(library)}`;
     try {
         if (value === PERSONAL) localStorage.removeItem(STORAGE_KEY);
         else localStorage.setItem(STORAGE_KEY, value);
     } catch { /* storage unavailable: stays in the personal library */ }
     if (reload && typeof window !== 'undefined') {
-        window.location.hash = '#/app';
+        window.location.hash = hash;
         window.location.reload();
     }
 }

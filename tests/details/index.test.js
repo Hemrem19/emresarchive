@@ -77,10 +77,13 @@ vi.mock('../../components/rating-input.js', () => ({
 vi.mock('../../core/library.js', () => ({
     inGroupLibrary: vi.fn(() => false),
 }));
+vi.mock('../../components/notificationBell.js', () => ({
+    FOCUS_COMMENT: 'citavers:focus-comment',
+}));
 vi.mock('../../components/paperComments.js', () => ({
     mountComments: vi.fn((root) => {
         root.innerHTML = '<div data-discussion>Discussion</div>';
-        return { unmount: vi.fn(), focus: vi.fn(), refresh: vi.fn() };
+        return { unmount: vi.fn(), focus: vi.fn(), focusComment: vi.fn(), refresh: vi.fn() };
     }),
 }));
 

@@ -150,7 +150,7 @@ describe('writing', () => {
         input.value = 'Fixed';
         press(input, 'Enter');
         await flush();
-        expect(api.editComment).toHaveBeenCalledWith(1, { content: 'Fixed', pageNumber: null });
+        expect(api.editComment).toHaveBeenCalledWith(1, { content: 'Fixed', pageNumber: null, mentions: [] });
         expect(root.querySelector('[data-comment="1"]').textContent).toContain('edited');
     });
 
@@ -222,5 +222,55 @@ describe('live and unread', () => {
         expect(api.addComment).toHaveBeenCalledWith(5, expect.objectContaining({ content: 'From the bar' }));
         view.unmount();
         expect(document.body.contains(bar)).toBe(false);
+    });
+});
+
+describe('mentions', () => {
+    const members = [
+        { userId: 1, name: 'Me', email: 'me@x.dev', role: 'owner' },
+        { userId: 2, name: 'Olivia Owner', email: 'olivia@x.dev', role: 'admin' },
+    ];
+    beforeEach(() => {
+        localStorage.setItem('citavers:library', 'group:7');
+        localStorage.setItem('citavers_user', JSON.stringify({ id: 1 }));
+    });
+
+    it('offers the group members but not me, and sends who was mentioned', async () => {
+        const api = { ...fakeApi(), listMembers: vi.fn(async () => members) };
+        mountComments(root, 5, { api });
+        await flush();
+        expect(api.listMembers).toHaveBeenCalledWith(7);
+
+        const input = mainInput();
+        input.focus();
+        input.value = 'what do you think @ol';
+        input.setSelectionRange(input.value.length, input.value.length);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        expect([...root.querySelectorAll('[data-pick]')].map((b) => b.textContent.replace(/\s+/g, ' ').trim())).toEqual(['O Olivia Owner']);
+
+        press(input, 'Enter'); // picks
+        expect(input.value).toBe('what do you think @Olivia Owner ');
+        expect(api.addComment).not.toHaveBeenCalled();
+        press(input, 'Enter'); // posts
+        await flush();
+        expect(api.addComment).toHaveBeenCalledWith(5, expect.objectContaining({ content: 'what do you think @Olivia Owner', mentions: [2] }));
+    });
+
+    it('highlights mentions, mine more strongly', async () => {
+        const api = fakeApi([comment(1, { content: '@Me and @Olivia Owner', mentions: [{ userId: 1, name: 'Me' }, { userId: 2, name: 'Olivia Owner' }] })]);
+        mountComments(root, 5, { api: { ...api, listMembers: async () => members } });
+        await flush();
+        const chips = [...root.querySelectorAll('[data-mention]')];
+        expect(chips.map((c) => c.textContent)).toEqual(['@Me', '@Olivia Owner']);
+        expect(chips[0].className).toContain('amber');
+        expect(chips[1].className).not.toContain('amber');
+    });
+
+    it('scrolls to and flashes a comment opened from a notification', async () => {
+        const api = fakeApi([comment(1), comment(2)]);
+        mountComments(root, 5, { api: { ...api, listMembers: async () => [] }, focusCommentId: 2 });
+        await flush();
+        expect(root.querySelector('[data-comment="2"]').classList.contains('bg-primary/15')).toBe(true);
+        expect(root.querySelector('[data-comment="1"]').classList.contains('bg-primary/15')).toBe(false);
     });
 });

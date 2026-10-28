@@ -13,6 +13,7 @@ import { createKeyboardShortcuts } from './core/keyboardShortcuts.js';
 import { initializeAutoSync } from './core/syncManager.js';
 import { checkAndShowMigrationBanner } from './components/MigrationBanner.js';
 import { renderLibrarySwitcher } from './components/librarySwitcher.js';
+import { mountBell } from './components/notificationBell.js';
 import { inGroupLibrary, openLibrary } from './core/library.js';
 import { isAuthenticated } from './api/auth.js';
 
@@ -389,6 +390,10 @@ openDB().then(() => {
 
     // Initialize automatic sync (if cloud sync enabled and authenticated)
     initializeAutoSync();
+
+    // Notification bell (mentions, replies, invites); listens for the switcher's invites, so first
+    const bellSlot = document.getElementById('notification-bell');
+    if (bellSlot && isAuthenticated() && isCloudSyncEnabled()) mountBell(bellSlot);
 
     // Library switcher (also returns to the personal library if the open group is gone)
     renderLibrarySwitcher();

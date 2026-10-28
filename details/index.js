@@ -9,6 +9,7 @@ import { isAuthenticated } from '../api/auth.js';
 import { getApiBaseUrl } from '../config.js';
 import { createRatingInput } from '../components/rating-input.js';
 import { mountComments } from '../components/paperComments.js';
+import { FOCUS_COMMENT } from '../components/notificationBell.js';
 import { inGroupLibrary } from '../core/library.js';
 
 import { notesManager } from './notes.manager.js';
@@ -29,7 +30,7 @@ export const detailsView = {
         return inGroupLibrary() && isCloudSyncEnabled() && isAuthenticated();
     },
 
-    async mount(paperId, appState) {
+    async mount(paperId, appState, { waited = false } = {}) {
         this.paperId = paperId;
         this.hasUnsavedChanges = false; // Reset state
         this._comments?.unmount();
@@ -41,6 +42,18 @@ export const detailsView = {
 
         let paper = await getPaperById(paperId);
 
+        // Just switched to this group (e.g. from a notification): its papers may still be arriving
+        if (!paper && this.commentsEnabled() && !waited) {
+            container.innerHTML = `<p class="py-10 text-center text-sm text-slate-400">Loading paper…</p>`;
+            this._cloudSyncHandler = () => {
+                window.removeEventListener('citavers:cloud-synced', this._cloudSyncHandler);
+                this._cloudSyncHandler = null;
+                if (this.paperId === paperId) this.mount(paperId, appState, { waited: true });
+            };
+            window.addEventListener('citavers:cloud-synced', this._cloudSyncHandler);
+            return;
+        }
+
         if (!paper) {
             container.innerHTML = `<h2>Paper not found</h2><p>The requested paper could not be found. <a href="#/app" class="text-primary hover:underline">Go back to dashboard</a>.</p>`;
             return;
@@ -48,9 +61,14 @@ export const detailsView = {
 
         this.render(paper);
         this.setupEventListeners(paper, appState);
-        if (this._commentsRoot && /[?&]c\b/.test(window.location.hash)) {
+        // ?c: open at the discussion; ?c=<id>: at that comment (mountComments scrolls to it)
+        if (this._commentsRoot && /[?&]c\b/.test(window.location.hash) && !this.linkedCommentId()) {
             this._commentsRoot.scrollIntoView({ block: 'start' });
         }
+        this._focusHandler = (e) => {
+            if (Number(e.detail?.paperId) === this.paperId) this._comments?.focusComment(e.detail.commentId);
+        };
+        window.addEventListener(FOCUS_COMMENT, this._focusHandler);
 
         // Refresh details when cloud sync pulls new data from another device
         this._cloudSyncHandler = async () => {
@@ -81,6 +99,10 @@ export const detailsView = {
         if (this._cloudSyncHandler) {
             window.removeEventListener('citavers:cloud-synced', this._cloudSyncHandler);
             this._cloudSyncHandler = null;
+        }
+        if (this._focusHandler) {
+            window.removeEventListener(FOCUS_COMMENT, this._focusHandler);
+            this._focusHandler = null;
         }
         this._comments?.unmount();
         this._comments = null;
@@ -296,6 +318,12 @@ export const detailsView = {
         if (discussion) this.placeDiscussion(paper.id);
     },
 
+    /** The comment a link points at (#/details/12?c=345), or null. */
+    linkedCommentId() {
+        const id = Number(new URLSearchParams(window.location.hash.split('?')[1] || '').get('c'));
+        return Number.isInteger(id) && id > 0 ? id : null;
+    },
+
     /** Puts the discussion column in its slot, mounting it the first time. */
     placeDiscussion(paperId) {
         const container = document.getElementById('paper-details-container');
@@ -305,6 +333,7 @@ export const detailsView = {
             this._commentsRoot.id = 'paper-discussion';
             this._commentsRoot.className = 'w-full order-2 xl:order-3 xl:w-80 2xl:w-96 shrink-0 scroll-mt-4 xl:sticky xl:top-0 xl:self-start xl:h-[calc(100vh-8rem)]';
             this._comments = mountComments(this._commentsRoot, paperId, {
+                focusCommentId: this.linkedCommentId(),
                 onCount: ({ count, unread }) => {
                     this._commentCount = { count, unread };
                     this.updateDiscussionChip();
