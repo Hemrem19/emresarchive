@@ -8,10 +8,6 @@ import { createMockPaper, resetAllMocks, setMockAuth, setMockSyncEnabled } from 
 
 // Mock sync API
 vi.mock('../../api/sync.js', () => ({
-    fullSync: vi.fn(),
-    incrementalSync: vi.fn(),
-    getSyncStatus: vi.fn(),
-    getClientId: vi.fn(() => 'test-client-id')
 }));
 
 describe('Sync Corruption Prevention', () => {

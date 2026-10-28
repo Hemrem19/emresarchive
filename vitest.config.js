@@ -33,7 +33,6 @@ export default defineConfig({
                 '**/ios/**',
                 '**/App/App/**',
                 '**/mobileApp/**',
-                '**/extension/**',
                 '**/build.js',
                 '**/resize-icons.js',
                 'service-worker.js',

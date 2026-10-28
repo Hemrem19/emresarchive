@@ -55,7 +55,7 @@ Key layers:
 
 ### API contract (required on every API change)
 
-`contract/api.js` lists every request the app makes to the Worker and every Worker route, with who may call it (`access`: public, user, file-token, socket). **Any commit that adds, removes, renames or re-paths an `api/*.js` function, a raw `/api/` URL elsewhere (e.g. `core/syncManager.js`, `extension/popup.js`), or a Worker route must update `contract/api.js` in the same commit.** Adding or removing a file in `backend/src/routes/` also means updating the "Route handlers (…)" list above.
+`contract/api.js` lists every request the app makes to the Worker and every Worker route, with who may call it (`access`: public, user, file-token, socket). **Any commit that adds, removes, renames or re-paths an `api/*.js` function, a raw `/api/` URL elsewhere (e.g. `core/syncManager.js`), or a Worker route must update `contract/api.js` in the same commit.** Adding or removing a file in `backend/src/routes/` also means updating the "Route handlers (…)" list above.
 
 Tests enforce it in both suites, and CI runs them on every push:
 - `tests/api-contract.test.js`: every exported `api/*.js` function is listed, and calling it really requests the listed method and path.

@@ -65,9 +65,9 @@ describe('user settings', () => {
         const me = await json(await t.request('/api/auth/me', { user: alice }));
         expect(me.body.data.user.settings).toEqual({});
 
-        await t.request('/api/user/settings', { user: alice, method: 'PUT', body: { settings: { theme: 'dark' } } });
+        await t.request('/api/user/settings', { user: alice, method: 'PUT', body: { settings: { itemsPerPage: 50 } } });
         const after = await json(await t.request('/api/auth/me', { user: alice }));
-        expect(after.body.data.user.settings).toEqual({ theme: 'dark' });
+        expect(after.body.data.user.settings).toEqual({ itemsPerPage: 50 });
     });
 });
 

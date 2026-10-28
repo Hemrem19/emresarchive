@@ -3,6 +3,8 @@
  * Handles items per page selection
  */
 
+import { settingsChanged } from '../../core/userSettings.js';
+
 /**
  * Creates items per page change handler
  * @param {Object} appState - Application state
@@ -15,6 +17,7 @@ export function createItemsPerPageChangeHandler(appState, applyFiltersAndRender)
         appState.pagination.itemsPerPage = newItemsPerPage;
         appState.pagination.currentPage = 1; // Reset to first page
         localStorage.setItem('itemsPerPage', newItemsPerPage);
+        settingsChanged();
         applyFiltersAndRender();
     };
 }
@@ -29,6 +32,7 @@ export function createSortChangeHandler(appState, applyFiltersAndRender) {
     return (e) => {
         appState.currentSortBy = e.target.value;
         localStorage.setItem('currentSortBy', appState.currentSortBy);
+        settingsChanged();
         applyFiltersAndRender();
     };
 }

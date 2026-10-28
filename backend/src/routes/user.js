@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema.js';
-import { eq, or, inArray, count } from 'drizzle-orm';
+import { eq, or, inArray, count, sql } from 'drizzle-orm';
 import { liveOwnedBy, ownedBy, personalLibrary, storagePrefix } from '../lib/access.js';
 import { authenticate } from '../middleware/auth.js';
 import { deleteObjects, isStorageConfigured, listObjects } from '../lib/storage.js';
@@ -90,37 +90,55 @@ user.delete('/sessions/:id', async (c) => {
 });
 
 /**
- * Update Settings
+ * Preferences that follow the user across devices. Only these keys are kept,
+ * so the column stays small and holds nothing the app does not read.
+ */
+const SETTINGS = {
+  readingStatusOrder: (v) => Array.isArray(v) && v.length <= 20
+    && v.every((s) => typeof s === 'string' && s.trim() && s.length <= 40),
+  currentSortBy: (v) => typeof v === 'string' && /^[\w-]{1,40}$/.test(v),
+  itemsPerPage: (v) => Number.isInteger(v) && v >= 1 && v <= 500,
+};
+
+/** The valid settings in `input`, or null when anything in it is unknown or malformed. */
+export function parseSettings(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const entries = Object.entries(input);
+  if (!entries.every(([k, v]) => Object.hasOwn(SETTINGS, k) && SETTINGS[k](v))) return null;
+  return Object.fromEntries(entries);
+}
+
+/**
+ * Update the display name and/or merge preferences into the stored ones
  * PUT /api/user/settings
+ * Body: { name?, settings? }
  */
 user.put('/settings', async (c) => {
-  const db = getDb(c);
-  const authUser = c.get('user');
-  
   const body = await c.req.json().catch(() => ({}));
-  const { name, settings } = body;
-
   const updateData = {};
-  if (name !== undefined) updateData.name = name;
-  if (settings !== undefined) updateData.settings = settings;
+
+  if (body.name !== undefined) {
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!name || name.length > 100) return c.json({ success: false, error: { message: 'Name must be 1–100 characters' } }, 400);
+    updateData.name = name;
+  }
+  if (body.settings !== undefined) {
+    const settings = parseSettings(body.settings);
+    if (!settings) return c.json({ success: false, error: { message: 'Invalid settings' } }, 400);
+    // Merge, so a device sending one preference keeps the others
+    updateData.settings = sql`json_patch(${schema.users.settings}, ${JSON.stringify(settings)})`;
+  }
+  if (!Object.keys(updateData).length) return c.json({ success: false, error: { message: 'Nothing to update' } }, 400);
 
   try {
-    const [updatedUser] = await db.update(schema.users)
+    const [updated] = await getDb(c).update(schema.users)
       .set(updateData)
-      .where(eq(schema.users.id, authUser.id))
-      .returning({
-        id: schema.users.id,
-        email: schema.users.email,
-        name: schema.users.name,
-        settings: schema.users.settings
-      });
-
-    return c.json({
-      success: true,
-      data: { user: updatedUser }
-    });
+      .where(eq(schema.users.id, c.get('user').id))
+      .returning({ name: schema.users.name, settings: schema.users.settings });
+    return c.json({ success: true, data: updated });
   } catch (err) {
-    return c.json({ success: false, error: err.message }, 500);
+    console.error('Settings update error:', err);
+    return c.json({ success: false, error: { message: 'Failed to save settings' } }, 500);
   }
 });
 

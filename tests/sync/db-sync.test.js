@@ -25,10 +25,6 @@ vi.mock('../../api/sync.js', async (importOriginal) => {
     const actual = await importOriginal();
     return {
         ...actual,
-        fullSync: vi.fn(),
-        incrementalSync: vi.fn(),
-        getSyncStatus: vi.fn(),
-        getClientId: vi.fn(() => 'test-client-id')
     };
 });
 

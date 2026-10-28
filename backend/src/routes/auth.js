@@ -140,7 +140,8 @@ auth.post('/login', async (c) => {
         email: user.email,
         name: user.name,
         emailVerified: user.emailVerified,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        settings: user.settings
       },
       accessToken
     }
@@ -197,7 +198,8 @@ auth.post('/refresh', async (c) => {
     .where(eq(schema.sessions.id, session.id));
   const accessToken = generateAccessToken(user.id, user.email, c.env, session.id);
 
-  return c.json({ success: true, data: { accessToken } });
+  // Preferences ride along, so other devices pick them up without a request of their own
+  return c.json({ success: true, data: { accessToken, settings: user.settings } });
 });
 
 /**

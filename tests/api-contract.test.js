@@ -93,7 +93,7 @@ describe('contract: requests', () => {
 
 describe('contract: raw /api/ URLs outside api/', () => {
     // App code that is shipped (build.js) and could talk to the Worker directly
-    const SKIP = /^(node_modules|dist|backend|tests|api|contract|android|ios|assets|extension\/dist|\.git)(\/|$)|^test_.*\.js$|^(tailwind|build|vitest\.config|vitest\.workspace)\.js$/;
+    const SKIP = /^(node_modules|dist|backend|tests|api|contract|android|ios|assets|\.git)(\/|$)|^test_.*\.js$|^(tailwind|build|vitest\.config|vitest\.workspace)\.js$/;
 
     function sources(dir = ROOT, rel = '') {
         return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

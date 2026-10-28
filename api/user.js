@@ -73,3 +73,21 @@ export function endSession(id) {
 export function endOtherSessions() {
     return sessionsRequest('', 'DELETE');
 }
+
+/**
+ * Merges preferences into the account's stored ones (see core/userSettings.js).
+ * @param {Object} settings - Only the keys to change
+ * @returns {Promise<Object>} The stored preferences after the merge
+ */
+export async function saveSettings(settings) {
+    const response = await apiRequest(`${API_BASE}/settings`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: JSON.stringify({ settings }),
+    });
+    const result = await parseJsonResponse(response);
+    if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to save settings');
+    }
+    return result.data.settings;
+}

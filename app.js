@@ -16,6 +16,7 @@ import { renderLibrarySwitcher } from './components/librarySwitcher.js';
 import { mountBell } from './components/notificationBell.js';
 import { inGroupLibrary, openLibrary } from './core/library.js';
 import { isAuthenticated } from './api/auth.js';
+import { SETTINGS_APPLIED } from './core/userSettings.js';
 
 // --- Library ---
 // A group library lives in the cloud: signed out or with sync off, this tab
@@ -95,6 +96,12 @@ window.addEventListener('auth:logout', () => {
 // --- Initialize Application State ---
 const app = document.getElementById('app');
 const appState = createAppState();
+
+// Preferences changed on another device arrive with login and token refresh
+window.addEventListener(SETTINGS_APPLIED, ({ detail }) => {
+    if (detail.changed.includes('currentSortBy')) appState.currentSortBy = detail.settings.currentSortBy;
+    if (detail.changed.includes('itemsPerPage')) appState.pagination.itemsPerPage = detail.settings.itemsPerPage;
+});
 
 // --- Initialize Command Palette ---
 const commandPalette = createCommandPalette(appState);

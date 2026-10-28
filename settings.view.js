@@ -6,6 +6,7 @@ import { getStatusOrder, saveStatusOrder, isCloudSyncEnabled, setCloudSyncEnable
 import { isAuthenticated, getUser, resendVerificationEmail } from './api/auth.js';
 import { getStorageUsage, listSessions, endSession, endOtherSessions } from './api/user.js';
 import { parseRIS } from './import/ris-parser.js';
+import { settingsChanged } from './core/userSettings.js';
 import { restartAutoSync, stopAutoSync, performManualSync } from './core/syncManager.js';
 
 export const settingsView = {
@@ -503,6 +504,7 @@ export const settingsView = {
             e.preventDefault();
             const newOrder = [...container.querySelectorAll('.status-item')].map(item => item.querySelector('span').textContent);
             saveStatusOrder(newOrder);
+            settingsChanged();
             showToast('Status order saved!');
             // Re-render to ensure clean state
             render();

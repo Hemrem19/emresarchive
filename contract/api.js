@@ -40,6 +40,7 @@ export const ENDPOINTS = [
     { method: 'DELETE', path: '/api/user/sessions', access: 'user', client: 'api/user.js#endOtherSessions', call: [] },
     { method: 'DELETE', path: '/api/user/sessions/:id', access: 'user', client: 'api/user.js#endSession', call: [7] },
     { method: 'DELETE', path: '/api/user/data', access: 'user', client: 'api/user.js#clearAllUserData', call: [] },
+    { method: 'PUT', path: '/api/user/settings', access: 'user', client: 'api/user.js#saveSettings', call: [{ itemsPerPage: 50 }] },
 
     // folders
     { method: 'GET', path: '/api/folders', access: 'user', client: 'api/folders.js#getAllFolders', call: [] },
@@ -102,10 +103,6 @@ export const ENDPOINTS = [
 
     // live sync: a WebSocket opened by the sync manager, not an api/ function
     { method: 'GET', path: '/api/sync/workspace/:id', access: 'socket', client: 'core/syncManager.js' },
-
-    // browser extension (extension/, not part of the web app build)
-    { method: 'POST', path: '/api/auth/login', access: 'public', client: 'extension/popup.js' },
-    { method: 'POST', path: '/api/papers', access: 'user', client: 'extension/popup.js' },
 ];
 
 /** Routes the app does not call, and why they exist. */
@@ -116,7 +113,6 @@ export const SERVER_ONLY = [
 /** Exported api/*.js functions that make no request to the Worker. */
 export const NOT_REQUESTS = [
     'api/auth.js#getAccessToken', 'api/auth.js#getUser', 'api/auth.js#setAuth', 'api/auth.js#clearAuth', 'api/auth.js#isAuthenticated',
-    'api/sync.js#getClientId', 'api/sync.js#getLastSyncedAt', 'api/sync.js#setLastSyncedAt',
     'api/sync.js#mapPaperToApi', 'api/sync.js#mapPaperFromApi', 'api/sync.js#mapCollectionToApi', 'api/sync.js#mapCollectionFromApi',
     'api/sync.js#mapAnnotationToApi', 'api/sync.js#mapAnnotationFromApi',
     'api/sync.js#apiRequest', // the authenticated fetch the others go through
@@ -128,10 +124,4 @@ export const NOT_REQUESTS = [
  * Known mismatches, tolerated until decided (each test run prints them).
  * Remove an item once it is fixed; never add one to make a new change pass.
  */
-export const KNOWN_DRIFT = [
-    { method: 'GET', path: '/api/sync/full', client: 'api/sync.js#fullSync', call: [], problem: 'no route since the Hono migration; only tests call it' },
-    { method: 'POST', path: '/api/sync/incremental', client: 'api/sync.js#incrementalSync', call: [{}], problem: 'no route since the Hono migration; only tests call it' },
-    { method: 'GET', path: '/api/sync/status', client: 'api/sync.js#getSyncStatus', call: [], problem: 'no route since the Hono migration; only tests call it' },
-    { method: 'POST', path: '/api/extension/save', client: 'extension/popup.js', problem: 'no route since the Hono migration; the browser extension calls it (report row 6)' },
-    { method: 'PUT', path: '/api/user/settings', access: 'user', problem: 'route the app never calls' },
-];
+export const KNOWN_DRIFT = [];

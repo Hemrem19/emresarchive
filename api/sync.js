@@ -1,97 +1,13 @@
 /**
  * api/sync.js — Sync API client
  *
- * Provides the REST-based sync client interface used by db/sync.js and tests.
- * In production CRDT mode Yjs WebSockets handle real-time sync; this module
- * serves as a fallback/batch sync endpoint client.
+ * Data mapping between local and API records, and apiRequest (the
+ * authenticated fetch the other api/ modules use). Live sync itself runs over
+ * the Yjs WebSocket (core/syncManager.js).
  */
 
 import { libraryHeaders } from '../core/library.js';
-import { getApiBaseUrl } from '../config.js';
 import { getAccessToken, refreshToken } from '../api/auth.js';
-
-// ---------------------------------------------------------------------------
-// Client ID (persistent browser identifier for conflict resolution)
-// ---------------------------------------------------------------------------
-
-export function getClientId() {
-    let id = localStorage.getItem('citavers_client_id');
-    if (!id) {
-        id = `client_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        localStorage.setItem('citavers_client_id', id);
-    }
-    return id;
-}
-
-// ---------------------------------------------------------------------------
-// Last sync timestamp
-// ---------------------------------------------------------------------------
-
-export function getLastSyncedAt() {
-    return localStorage.getItem('citavers_last_synced_at') || null;
-}
-
-export function setLastSyncedAt(timestamp) {
-    localStorage.setItem('citavers_last_synced_at', timestamp);
-}
-
-// ---------------------------------------------------------------------------
-// Authenticated fetch helper
-// ---------------------------------------------------------------------------
-
-async function authFetch(url, options = {}) {
-    let token = getAccessToken();
-    if (!token) throw new Error('Not authenticated');
-
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        ...libraryHeaders(),
-        ...options.headers,
-    };
-
-    let response = await fetch(url, { ...options, headers });
-
-    if (response.status === 401) {
-        token = await refreshToken();
-        headers['Authorization'] = `Bearer ${token}`;
-        response = await fetch(url, { ...options, headers });
-    }
-
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok || json.success === false) {
-        throw new Error(json.message || json.error?.message || `HTTP ${response.status}`);
-    }
-    return json.data || json;
-}
-
-// ---------------------------------------------------------------------------
-// API calls
-// ---------------------------------------------------------------------------
-
-export async function fullSync() {
-    const base = getApiBaseUrl();
-    const data = await authFetch(`${base}/api/sync/full`, { method: 'GET' });
-    if (data.syncedAt) setLastSyncedAt(data.syncedAt);
-    return data;
-}
-
-export async function incrementalSync(changes) {
-    const base = getApiBaseUrl();
-    const body = JSON.stringify({
-        lastSyncedAt: getLastSyncedAt(),
-        changes,
-        clientId: getClientId(),
-    });
-    const data = await authFetch(`${base}/api/sync/incremental`, { method: 'POST', body });
-    if (data.syncedAt) setLastSyncedAt(data.syncedAt);
-    return data;
-}
-
-export async function getSyncStatus() {
-    const base = getApiBaseUrl();
-    return authFetch(`${base}/api/sync/status`, { method: 'GET' });
-}
 
 // ---------------------------------------------------------------------------
 // Data mapping helpers (local ↔ API format)

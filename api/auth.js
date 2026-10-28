@@ -6,6 +6,7 @@
 import { API_CONFIG } from '../config.js';
 import { showToast } from '../ui.js';
 import { clearGroupData } from '../core/library.js';
+import { applyAccountSettings, forgetPendingSettings } from '../core/userSettings.js';
 
 const AUTH_ENDPOINT = `${API_CONFIG.BASE_URL}/api/auth`;
 
@@ -88,6 +89,7 @@ export function clearAuth() {
     localStorage.removeItem(API_CONFIG.ACCESS_TOKEN_KEY);
     localStorage.removeItem(API_CONFIG.REFRESH_TOKEN_KEY);
     localStorage.removeItem(API_CONFIG.USER_KEY);
+    forgetPendingSettings();
 }
 
 /**
@@ -224,6 +226,7 @@ export async function register(data) {
         if (result.success && result.data) {
             // Store auth data
             setAuth(result.data.accessToken, result.data.user);
+            applyAccountSettings(result.data.user?.settings);
 
             // Store refresh token in httpOnly cookie (handled by backend)
             // Access token stored in localStorage for API calls
@@ -398,6 +401,7 @@ export async function refreshToken() {
             if (result.success && result.data && result.data.accessToken) {
                 const user = getUser();
                 setAuth(result.data.accessToken, user);
+                applyAccountSettings(result.data.settings);
                 return result.data.accessToken;
             }
 
