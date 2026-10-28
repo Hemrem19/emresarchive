@@ -1,5 +1,5 @@
 import { getAllPapers } from './db.js';
-import { showToast } from './ui.js';
+import { escapeHtml, showToast } from './ui.js';
 import { generateNetwork, getNetwork, getUserNetworks } from './api/network.js';
 import { getAccessToken } from './api/auth.js';
 
@@ -46,6 +46,8 @@ export const graphView = {
             const token = getAccessToken();
             if (token) {
                 try {
+                    // The side panel shows these papers when a node is clicked
+                    this.allPapers = await getAllPapers();
                     const networks = await getUserNetworks();
                     if (networks && networks.length > 0) {
                         // Sort by updatedAt descending to get the most recent
@@ -410,6 +412,12 @@ export const graphView = {
             return;
         }
 
+        // Settle once, then hold still: clicking or dragging a node must not
+        // send the whole layout moving again
+        this.network.once('stabilizationIterationsDone', () => {
+            this.network?.setOptions({ physics: { enabled: false } });
+        });
+
         // Events
         this.network.on('click', (params) => {
             if (params.nodes.length > 0) {
@@ -450,28 +458,28 @@ export const graphView = {
         if (!panelContent) return;
 
         const authors = paper.authors && paper.authors.length > 0
-            ? (Array.isArray(paper.authors) ? paper.authors.join(', ') : paper.authors)
+            ? escapeHtml(Array.isArray(paper.authors) ? paper.authors.join(', ') : String(paper.authors))
             : 'Unknown Authors';
 
         const tags = paper.tags && paper.tags.length > 0
-            ? paper.tags.map(tag => `<span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-full">#${tag}</span>`).join('')
+            ? paper.tags.map(tag => `<span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-full">#${escapeHtml(String(tag))}</span>`).join('')
             : '';
 
         const abstract = paper.abstract
-            ? (paper.abstract.length > 300 ? paper.abstract.substring(0, 300) + '...' : paper.abstract)
+            ? escapeHtml(paper.abstract.length > 300 ? paper.abstract.substring(0, 300) + '...' : paper.abstract)
             : 'No abstract available.';
 
         panelContent.innerHTML = `
             <div class="space-y-4 animate-fade-in">
                 <div>
-                    <h3 class="text-xl font-bold text-white leading-tight mb-2">${paper.title}</h3>
+                    <h3 class="text-xl font-bold text-white leading-tight mb-2">${escapeHtml(paper.title || 'Untitled')}</h3>
                     <p class="text-sm text-slate-400">${authors}</p>
-                    <p class="text-xs text-slate-500 mt-1">${paper.year || 'Unknown Year'} • ${paper.publication || 'Unknown Publication'}</p>
+                    <p class="text-xs text-slate-500 mt-1">${escapeHtml(String(paper.year || 'Unknown Year'))} • ${escapeHtml(paper.journal || paper.publication || 'Unknown Publication')}</p>
                 </div>
 
                 <div class="flex flex-wrap gap-2">
                     <span class="px-2 py-0.5 rounded-full text-xs font-medium ${this.getStatusBadgeClass(paper.readingStatus)}">
-                        ${paper.readingStatus || 'To Read'}
+                        ${escapeHtml(paper.readingStatus || 'To Read')}
                     </span>
                     ${tags}
                 </div>

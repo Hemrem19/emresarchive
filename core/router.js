@@ -162,8 +162,8 @@ export const createRouter = (app, appState, renderSidebarStatusLinks) => {
             // Remove padding and overflow from app container for full-screen graph view
             app.classList.remove('p-4', 'sm:p-6', 'overflow-y-auto');
             app.classList.add('p-0', 'overflow-hidden');
-            // Ensure app container has full height
-            app.style.height = '100vh';
+            // Fill the window below the header, not a whole window more (the panel's button fell off-screen)
+            app.style.height = `calc(100dvh - ${Math.max(0, Math.round(app.getBoundingClientRect().top))}px)`;
             renderView(app, templates.graph, () => appState.currentView.mount(appState));
         } else if (requestedPath === '/docs' || requestedPath.startsWith('/docs')) {
             appState.currentView = docsView;

@@ -20,6 +20,7 @@ vi.mock('../api/auth.js', () => ({
 const mockNetworkInstance = {
     destroy: vi.fn(),
     on: vi.fn(),
+    once: vi.fn(),
     body: {
         data: {
             nodes: {
@@ -106,5 +107,39 @@ describe('Graph View', () => {
 
         expect(options.physics.solver).toBe('forceAtlas2Based');
         expect(options.physics.forceAtlas2Based.gravitationalConstant).toBe(-50);
+    });
+
+    it('opens the panel for a node of a saved network (papers loaded on that path too)', async () => {
+        const { getUserNetworks, getNetwork } = await import('../api/network.js');
+        const { getAllPapers } = await import('../db.js');
+        getUserNetworks.mockResolvedValue([{ id: 9, updatedAt: '2026-10-01' }]);
+        getNetwork.mockResolvedValue({
+            nodes: [{ id: '1', label: 'Saved paper', data: { status: 'To Read' } }],
+            edges: [],
+        });
+        getAllPapers.mockResolvedValue([{ id: 1, title: 'Saved paper', authors: ['A'] }]);
+        window.vis = global.vis;
+
+        await graphView.mount({});
+        graphView.handleNodeClick(1);
+
+        expect(document.getElementById('graph-side-panel').classList.contains('open')).toBe(true);
+        expect(document.getElementById('panel-content').textContent).toContain('Saved paper');
+    });
+
+    it('stops the layout once it has settled', async () => {
+        await graphView.renderGraph({ nodes: [{ id: 1 }], edges: [] });
+        mockNetworkInstance.setOptions = vi.fn();
+        const [event, settle] = mockNetworkInstance.once.mock.calls[0];
+        expect(event).toBe('stabilizationIterationsDone');
+        settle();
+        expect(mockNetworkInstance.setOptions).toHaveBeenCalledWith({ physics: { enabled: false } });
+    });
+
+    it('shows paper text in the panel as text', () => {
+        graphView.updateSidePanel({ title: '<img src=x onerror=alert(1)>', authors: ['<b>A</b>'], tags: ['<i>t</i>'], abstract: '<script>' });
+        const content = document.getElementById('panel-content');
+        expect(content.querySelector('img, b, i, script')).toBeNull();
+        expect(content.textContent).toContain('<img src=x onerror=alert(1)>');
     });
 });

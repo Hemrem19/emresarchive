@@ -11,7 +11,8 @@ vi.mock('../db.js', () => ({
 }));
 
 vi.mock('../ui.js', () => ({
-    showToast: vi.fn()
+    showToast: vi.fn(),
+    escapeHtml: (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }));
 
 vi.mock('../api/network.js', () => ({
@@ -27,6 +28,7 @@ vi.mock('../api/auth.js', () => ({
 const mockNetworkInstance = {
     destroy: vi.fn(),
     on: vi.fn(),
+    once: vi.fn(),
     body: {
         data: {
             nodes: {
