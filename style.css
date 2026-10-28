@@ -1,3 +1,8 @@
+/*
+ * Styles Tailwind classes can't express, loaded by index.html after the
+ * Tailwind CDN script. Keep only rules something in the app uses.
+ */
+
 /* For better font rendering */
 body {
     -webkit-font-smoothing: antialiased;
@@ -9,10 +14,8 @@ body {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* Toast animation */
-/* Leaves when ui.js removes it, so each toast keeps its own duration */
+/* Toasts (ui.js showToast): slide in, and out when ui.js removes them */
 .toast {
-    pointer-events: auto;
     animation: toast-in 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
 }
 
@@ -21,30 +24,16 @@ body {
 }
 
 @keyframes toast-in {
-    0% {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-
-    100% {
-        transform: translateX(0);
-        opacity: 1;
-    }
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes toast-out {
-    0% {
-        transform: translateX(0);
-        opacity: 1;
-    }
-
-    100% {
-        transform: translateX(100%);
-        opacity: 0;
-    }
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
 }
 
-/* Command Palette Animations */
+/* Modals and the command palette */
 .animate-fade-in {
     animation: fade-in 0.2s ease-out;
 }
@@ -54,281 +43,36 @@ body {
 }
 
 @keyframes fade-in {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes slide-down {
-    from {
-        opacity: 0;
-        transform: translateY(-20px) scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Command Palette Result Item Hover */
+/* Command palette results: hover and the keyboard-selected one (core/commandPalette.js) */
 .command-palette-item {
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease;
 }
 
 .command-palette-item:hover,
 .command-palette-item.selected {
-    background-color: rgba(var(--primary-rgb), 0.1);
+    background-color: rgba(59, 130, 246, 0.2); /* primary */
 }
 
-.dark .command-palette-item:hover,
-.dark .command-palette-item.selected {
-    background-color: rgba(var(--primary-rgb), 0.2);
-}
-
-/* PDF Viewer Fullscreen Styles */
-#pdf-panel:fullscreen {
-    background-color: #f6f7f8;
-    /* Light mode background */
-}
-
-.dark #pdf-panel:fullscreen {
-    background-color: #101922;
-    /* Dark mode background */
-}
-
-/* Ensure canvas container takes full height in fullscreen */
-#pdf-panel:fullscreen #pdf-canvas-container {
-    max-height: calc(100vh - 60px);
-    /* Subtract toolbar height */
-}
-
-/* PDF Text Layer for Text Selection */
-#pdf-text-layer {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    opacity: 1;
-    line-height: 1.0;
-    z-index: 2;
-    /* Use PDF.js default text layer class */
-}
-
-#pdf-text-layer>span,
-#pdf-text-layer>br {
-    color: transparent;
-    position: absolute;
-    white-space: pre;
-    cursor: text;
-    transform-origin: 0% 0%;
-}
-
-#pdf-text-layer .endOfContent {
-    display: block;
-    position: absolute;
-    left: 0;
-    top: 100%;
-    right: 0;
-    bottom: 0;
-    z-index: -1;
-    cursor: default;
-    user-select: none;
-}
-
-#pdf-text-layer .endOfContent.active {
-    top: 0;
-}
-
-/* Highlighted selected text should be visible */
-#pdf-text-layer ::selection {
-    background: rgba(0, 123, 255, 0.3);
-}
-
-#pdf-text-layer br::selection {
-    background: transparent;
-}
-
-/* Dark mode selection */
-.dark #pdf-text-layer ::selection {
-    background: rgba(96, 165, 250, 0.4);
-}
-
-/* PDF Annotations Layer */
-#pdf-annotations-layer {
-    z-index: 3;
-    /* Above text layer */
-}
-
-/* ==================== MOBILE & TOUCH OPTIMIZATIONS ==================== */
-
-/* Touch manipulation for better mobile performance */
-.touch-manipulation {
-    touch-action: manipulation;
-    /* Prevents 300ms tap delay */
-    -webkit-tap-highlight-color: transparent;
-    /* Removes iOS tap highlight */
-    user-select: none;
-    /* Prevents text selection on buttons */
-}
-
-/* Ensure all inputs and interactive elements are at least 44x44px (Apple HIG) */
-input[type="number"],
-input[type="text"],
-select,
-button {
-    min-height: 44px;
-}
-
-/* PDF Canvas Container - Touch Scrolling */
-#pdf-canvas-container {
-    -webkit-overflow-scrolling: touch;
-    /* Smooth momentum scrolling on iOS */
-    overscroll-behavior: contain;
-    /* Prevents page bounce on iOS */
-}
-
-/* Prevent zoom on input focus (iOS Safari) */
 @media screen and (max-width: 640px) {
-
-    input[type="number"],
-    input[type="text"],
-    input[type="email"],
-    input[type="search"],
-    input[type="url"],
-    input[type="tel"],
-    textarea,
-    select {
-        font-size: 16px !important;
-        /* Prevents iOS zoom when < 16px */
-    }
-}
-
-/* Mobile-friendly tag suggestion buttons */
-@media screen and (max-width: 640px) {
-    #tag-suggestions button {
-        min-height: 36px;
-        padding: 0.5rem 0.75rem;
-        font-size: 14px;
-    }
-
-    /* Larger tap targets for file upload */
-    #file-upload-dropzone {
-        padding: 2rem 1rem;
-        min-height: 120px;
-    }
-
-    /* Stack batch operation controls vertically on small screens */
-    #batch-action-toolbar .flex-col.sm\:flex-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    #batch-action-toolbar .flex-col.sm\:flex-row>div {
-        width: 100%;
-    }
-}
-
-/* Command Palette - Mobile Optimizations */
-@media screen and (max-width: 640px) {
-    #command-palette-modal {
-        max-width: calc(100% - 1rem);
-        margin: 0.5rem;
-    }
-
-    #command-palette-input {
-        font-size: 16px !important;
-        /* Prevent iOS zoom */
-        min-height: 44px;
-    }
-
     .command-palette-item {
-        padding: 1rem !important;
         min-height: 60px;
     }
-
-    .command-palette-item .text-sm {
-        font-size: 14px !important;
-    }
 }
 
-/* Prevent horizontal overflow on mobile */
-* {
-    box-sizing: border-box;
-}
-
-html {
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
-}
-
-body {
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100vw;
-    position: relative;
-    touch-action: pan-y;
-    /* Allow vertical scrolling, prevent horizontal scroll interference */
-}
-
-/* Ensure header and main content don't overflow */
-header {
-    max-width: 100%;
-    overflow-x: hidden;
-    width: 100%;
-}
-
-main {
-    max-width: 100%;
-    overflow-x: hidden;
-    width: 100%;
-}
-
-/* Main container */
-.flex.min-h-screen {
-    max-width: 100%;
-    overflow-x: hidden;
-    width: 100%;
-}
-
-/* Main content area */
-.flex-1.flex.flex-col {
-    max-width: 100%;
-    overflow-x: hidden;
-    width: 100%;
-    min-width: 0;
-}
-
-/* Mobile header specific fixes */
-@media screen and (max-width: 640px) {
-    header {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    #search-input {
-        max-width: 100%;
-        min-width: 0;
-    }
-}
-
-/* Graph View Side Panel Animations */
-#graph-side-panel {
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
+/* Graph view: the paper panel slides in when graph.view.js adds .open */
 #graph-side-panel.open {
     transform: translateX(0);
 }
 
-/* Custom Scrollbar for Graph Panel */
 #panel-content::-webkit-scrollbar {
     width: 6px;
 }
@@ -342,103 +86,31 @@ main {
     border-radius: 3px;
 }
 
-#panel-content::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 116, 139, 1);
+/* Taps without the 300 ms delay or the iOS highlight */
+.touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
-/* Landing Page Styles */
-.app-shell {
-    /* App shell is shown/hidden via JavaScript based on route */
-}
-
-/* Smooth scroll behavior for landing page anchor links */
-html {
-    scroll-behavior: smooth;
-}
-
-/* Landing page section fade-in animation */
-.landing-section {
-    opacity: 0;
-    animation: fade-in-up 0.6s ease-out forwards;
-}
-
-.landing-section.animate-fade-in {
-    opacity: 1;
-}
-
-@keyframes fade-in-up {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+/* iOS Safari zooms into fields with text under 16px when they are focused */
+@media screen and (max-width: 640px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="search"],
+    input[type="url"],
+    input[type="number"],
+    input[type="password"],
+    input[type="tel"],
+    textarea {
+        font-size: 16px !important;
     }
 }
 
-/* Ensure landing page takes full viewport */
-body:has(#app:not(:empty)) .app-shell {
-    display: block;
-}
-
-/* Landing page container - full width, no sidebar/header */
-#app:has(.landing-section) {
-    width: 100%;
-    max-width: 100%;
-}
-
-/* ==================== MOBILE SIDEBAR PERFORMANCE OPTIMIZATIONS ==================== */
-
-/* Mobile Sidebar - Hardware Accelerated Transitions */
-#mobile-sidebar {
-    will-change: transform;
-    backface-visibility: hidden;
-    transform: translate3d(-100%, 0, 0);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    contain: layout style paint;
-}
-
-#mobile-sidebar:not(.-translate-x-full) {
-    transform: translate3d(0, 0, 0);
-}
-
-/* Mobile Sidebar Overlay - Optimized Opacity Transitions */
-#mobile-sidebar-overlay {
-    will-change: opacity;
-    backface-visibility: hidden;
-    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    contain: layout style paint;
-}
-
-/* Sidebar scroll container - Smooth scrolling on mobile */
-#mobile-sidebar nav,
-#mobile-sidebar .overflow-y-auto {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-    /* Allow vertical scrolling within sidebar */
-}
-
-/* Optimize backdrop blur for mobile (can be expensive) */
-@media screen and (max-width: 1024px) {
-    .glass-sidebar {
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-    }
-    
-    /* Reduce blur on very small screens for better performance */
-    @media screen and (max-width: 640px) {
-        .glass-sidebar {
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-        }
-    }
-}
 /* Inside a group library, personal-only links and sections are hidden (core/library.js) */
 .in-group-library [data-personal-only] {
     display: none !important;
 }
+
 .in-group-library .border-t:has(+ [data-personal-only]) {
     display: none !important;
 }
