@@ -4,8 +4,8 @@ import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import * as schema from '../../drizzle/schema.js';
 import { authenticate } from '../middleware/auth.js';
-import { READ, WRITE, accessible, allowsIn, findAccessible, inLibrary, libraryOf, personalLibrary } from '../lib/access.js';
-import { generateNetwork, sharedAuthors } from '../services/citation.js';
+import { READ, accessible, findAccessible, inLibrary, libraryOf, parseLibrary } from '../lib/access.js';
+import { generateNetwork, normalizeDoi, sharedAuthors } from '../services/citation.js';
 
 const network = new Hono();
 network.use('*', authenticate);
@@ -17,6 +17,19 @@ const parseJson = (value, fallback) => {
     try { return JSON.parse(value); } catch { return fallback; }
 };
 
+// The library a request names (X-Library), if the caller may read it. Not
+// libraryContext: regenerating a network must not tell a group's apps to pull.
+const requestLibrary = (c) => parseLibrary(c.get('user'), c.req.header('x-library'));
+
+const notFound = (c) => c.json({ success: false, error: { message: 'Library not found' } }, 404);
+
+// D1 CURRENT_TIMESTAMP ("2026-10-29 12:00:00") is UTC but has no zone mark
+const toTime = (value) => {
+    if (!value) return 0;
+    const text = /^\d{4}-\d\d-\d\d \d/.test(value) ? `${value.replace(' ', 'T')}Z` : value;
+    return new Date(text).getTime() || 0;
+};
+
 const G = schema.networkGraphs;
 const GRAPH_COLUMNS = {
     id: G.id, name: G.name, description: G.description, isAuto: G.isAuto,
@@ -24,18 +37,16 @@ const GRAPH_COLUMNS = {
 };
 
 /**
- * Generate (or regenerate) the auto network
+ * Generate (or regenerate) the auto network of the X-Library library
  * POST /api/networks/auto-generate
  */
 network.post('/auto-generate', async (c) => {
-    const user = c.get('user');
-    // The personal library for now; groups will name the library to map
-    const library = personalLibrary(user);
-    if (!allowsIn(user, WRITE, library)) {
-        return c.json({ success: false, error: { message: 'Not allowed' } }, 403);
-    }
+    const library = requestLibrary(c);
+    if (!library) return notFound(c);
+    // Anyone who can read a library may refresh its network: it is derived
+    // from the papers and changes none of them
     try {
-        const result = await generateNetwork(getDb(c), library);
+        const result = await generateNetwork(getDb(c), library, c.get('user'), c.env);
         return c.json({ success: true, data: result });
     } catch (err) {
         console.error('[Network generate]', err);
@@ -44,12 +55,14 @@ network.post('/auto-generate', async (c) => {
 });
 
 /**
- * List networks
+ * The networks of the X-Library library
  * GET /api/networks
  */
 network.get('/', async (c) => {
+    const library = requestLibrary(c);
+    if (!library) return notFound(c);
     const rows = await getDb(c).select(GRAPH_COLUMNS).from(G)
-        .where(accessible(G, c.get('user'), READ))
+        .where(accessible(G, c.get('user'), READ, library))
         .orderBy(desc(G.updatedAt));
     return c.json({ success: true, data: rows });
 });
@@ -122,6 +135,7 @@ network.get('/:id', async (c) => {
 
     const papers = await db.select({
         id: P.id, title: P.title, doi: P.doi, status: P.status, year: P.year, authors: P.authors, tags: P.tags,
+        updatedAt: P.updatedAt,
     }).from(P).where(visiblePaper(P));
 
     // Only edges whose both ends are visible papers of this library. Shared-tag
@@ -135,12 +149,17 @@ network.get('/:id', async (c) => {
         .innerJoin(to, and(eq(to.id, PC.toPaperId), visiblePaper(to)))
         .where(ne(PC.connectionType, 'common_tag'));
 
-    const { userId, layout, ...graphFields } = graph;
+    const { userId, groupId, layout, suggestions, ...graphFields } = graph;
+    // Papers added, removed or changed since the network was made: the app refreshes it
+    const builtAt = toTime(graph.updatedAt);
+    const stale = papers.length !== graph.nodeCount || papers.some((p) => toTime(p.updatedAt) > builtAt);
+    const shown = new Set(papers.map((p) => p.id));
+    const owned = new Set(papers.map((p) => normalizeDoi(p.doi)).filter(Boolean));
     return c.json({
         success: true,
         data: {
-            graph: graphFields,
-            nodes: papers.map(p => ({
+            graph: { ...graphFields, stale },
+            nodes: papers.map(({ updatedAt, ...p }) => ({
                 id: String(p.id),
                 label: p.title,
                 data: { ...p, authors: parseJson(p.authors, []), tags: parseJson(p.tags, []) },
@@ -151,6 +170,11 @@ network.get('/:id', async (c) => {
                 target: String(e.toPaperId),
                 type: e.connectionType,
             })),
+            // Papers this library cites but lacks; ones added since are left out
+            suggestions: parseJson(suggestions, [])
+                .filter((s) => !(s.doi && owned.has(normalizeDoi(s.doi))))
+                .map((s) => ({ ...s, citedBy: (s.citedBy || []).filter((id) => shown.has(id)).map(String) }))
+                .filter((s) => s.citedBy.length > 0),
         },
     });
 });

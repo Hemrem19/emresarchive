@@ -185,7 +185,7 @@ export async function runImport(d1, user, normalized, { mode = 'merge', now = ne
             d1.prepare(`DELETE FROM paper_connections
                         WHERE from_paper_id IN (SELECT id FROM papers WHERE user_id = ?1 AND group_id IS NULL)
                            OR to_paper_id IN (SELECT id FROM papers WHERE user_id = ?1 AND group_id IS NULL)`).bind(uid),
-            d1.prepare('DELETE FROM network_graphs WHERE user_id = ?').bind(uid),
+            d1.prepare('DELETE FROM network_graphs WHERE user_id = ? AND group_id IS NULL').bind(uid),
             d1.prepare(`UPDATE papers SET deleted_at = ?2, updated_at = ?2, version = version + 1
                         WHERE user_id = ?1 AND group_id IS NULL AND deleted_at IS NULL`).bind(uid, now),
             d1.prepare(`UPDATE folders SET deleted_at = ?2, updated_at = ?2, version = version + 1

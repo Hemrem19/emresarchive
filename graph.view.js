@@ -1,14 +1,32 @@
-import { getAllPapers } from './db.js';
+import { addPaper, getAllPapers, getPaperByDoi } from './db.js';
 import { escapeHtml, showToast } from './ui.js';
+import { fetchDoiMetadata } from './api.js';
 import { generateNetwork, getNetwork, getUserNetworks } from './api/network.js';
 import { getAccessToken } from './api/auth.js';
 import { forgetConnections } from './components/connectedPapers.js';
+
+// How each kind of link is drawn (the legend in views/pages/graph.js matches)
+const EDGE_STYLES = {
+    cites: { width: 1.5, arrows: { to: { enabled: true, scaleFactor: 0.5 } }, color: { color: 'rgba(147,197,253,0.6)', highlight: '#3b82f6', hover: '#3b82f6' } },
+    common_author: { width: 1, dashes: [4, 4], color: { color: 'rgba(255,255,255,0.15)', highlight: '#3b82f6', hover: '#3b82f6' } },
+    related: { width: 1.5, color: { color: 'rgba(167,139,250,0.7)', highlight: '#a78bfa', hover: '#a78bfa' } },
+    suggestion: { width: 1, dashes: [2, 4], arrows: { to: { enabled: true, scaleFactor: 0.4 } }, color: { color: 'rgba(148,163,184,0.3)', highlight: '#94a3b8', hover: '#94a3b8' } },
+};
+const SUGGESTION_PREFIX = 'suggested:';
+// Lookups a rate limit left over are retried while the page stays open
+const RETRY_DELAY_MS = 30000;
+const MAX_RETRIES = 3;
 
 export const graphView = {
     network: null,
     allPapers: [],
     filteredPapers: [],
     currentGraphId: null,
+    nodePapers: new Map(),
+    suggestions: new Map(),
+    refreshing: false,
+    retries: 0,
+    retryTimer: null,
     searchHandler: null,
     statusFilterHandler: null,
     tagFilterHandler: null,
@@ -18,124 +36,103 @@ export const graphView = {
     fitHandler: null,
     panelCloseHandler: null,
     panelOpenHandler: null,
+    legendToggleHandler: null,
     selectedPaperId: null,
+    selectedSuggestion: null,
 
     async mount(appState) {
         try {
             // Wait for DOM to be ready (renderView uses setTimeout, so we need to wait longer)
             // Also wait for vis-network library to load
             await new Promise(resolve => setTimeout(resolve, 100));
-            
-            // Check if vis-network is loaded
+
             if (!window.vis) {
                 console.error('vis-network library not loaded');
                 showToast('Graph library not loaded. Please refresh the page.', 'error');
                 return;
             }
-
-            // Check if elements exist before accessing them
-            const emptyState = document.getElementById('graph-empty-state');
-            const networkContainer = document.getElementById('graph-network');
-            
-            if (!networkContainer) {
+            if (!document.getElementById('graph-network')) {
                 console.error('Graph network container not found');
                 showToast('Failed to initialize graph view', 'error');
                 return;
             }
 
-            // Try to load the latest saved network first (if authenticated)
-            const token = getAccessToken();
-            if (token) {
-                try {
-                    // The side panel shows these papers when a node is clicked
-                    this.allPapers = await getAllPapers();
-                    const networks = await getUserNetworks();
-                    if (networks && networks.length > 0) {
-                        // Sort by updatedAt descending to get the most recent
-                        const latestNetwork = networks.sort((a, b) => 
-                            new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
-                        )[0];
-                        
-                        if (latestNetwork && latestNetwork.id) {
-                            await this.loadNetwork(latestNetwork.id);
-                            this.setupEventListeners();
-                            return; // Successfully loaded saved network
-                        }
-                    }
-                } catch (networkError) {
-                    console.warn('Failed to load saved network, falling back to local data:', networkError);
-                    // Continue to local data fallback
-                }
-            }
-
-            // Fallback: Load local papers and use local graph data
+            this.retries = 0;
+            this.setupEventListeners();
             try {
+                // The side panel shows these papers when a node is clicked
                 this.allPapers = await getAllPapers();
             } catch (dbError) {
                 console.error('Error loading papers for graph:', dbError);
-                // Show empty state if database error
-                if (emptyState) {
-                    emptyState.classList.remove('hidden');
-                    // Update empty state message for database error
-                    const emptyStateText = emptyState.querySelector('p');
-                    if (emptyStateText) {
-                        emptyStateText.textContent = 'Unable to load papers. Database error: ' + (dbError.message || 'Unknown error');
-                    }
-                }
-                showToast('Failed to load papers for graph view: ' + (dbError.message || 'Database error'), 'error', { duration: 5000 });
-                // Don't return - still try to set up event listeners so UI is functional
-                this.setupEventListeners();
+                this.showEmptyState('Unable to load papers. Database error: ' + (dbError.message || 'Unknown error'));
+                return;
+            }
+            this.populateTagFilter();
+
+            // Signed out: the links the user made by hand are all there is
+            if (!getAccessToken()) {
+                this.showLocal();
                 return;
             }
 
-            this.populateTagFilter();
-            const graphData = this.prepareLocalGraphData(this.allPapers);
-
-            if (graphData.edges.length === 0) {
-                if (emptyState) emptyState.classList.remove('hidden');
-            } else {
-                if (emptyState) emptyState.classList.add('hidden');
-                this.renderGraph(graphData);
+            try {
+                const [latest] = await getUserNetworks();
+                if (latest?.id) {
+                    const data = await getNetwork(latest.id);
+                    this.showNetwork(data);
+                    if (data.graph?.stale) this.refresh({ quiet: true });
+                } else {
+                    // First visit to this library: build its network without being asked
+                    this.showLocal();
+                    this.refresh({ quiet: true });
+                }
+            } catch (networkError) {
+                console.warn('Failed to load saved network, showing local links:', networkError);
+                this.showLocal();
+                this.setStatus('Could not load the network. Showing the links you added yourself.');
             }
-
-            this.setupEventListeners();
-
         } catch (error) {
             console.error('Error mounting graph view:', error);
             showToast('Failed to load paper network', 'error');
-            
-            // Show empty state on error
-            const emptyState = document.getElementById('graph-empty-state');
-            if (emptyState) {
-                emptyState.classList.remove('hidden');
-            }
+            this.showEmptyState();
         }
     },
 
-    async mountLocal() {
-        this.allPapers = await getAllPapers();
-        this.populateTagFilter();
+    /** Links the user added under Related Papers, from this device's data. */
+    showLocal() {
         const graphData = this.prepareLocalGraphData(this.allPapers);
-
+        this.nodePapers = new Map(this.allPapers.map(p => [p.id, p]));
+        this.suggestions = new Map();
         if (graphData.edges.length === 0) {
-            document.getElementById('graph-empty-state').classList.remove('hidden');
+            this.showEmptyState();
         } else {
-            document.getElementById('graph-empty-state').classList.add('hidden');
+            this.hideEmptyState();
             this.renderGraph(graphData);
         }
-        this.setupEventListeners();
     },
 
-    async loadNetwork(networkId) {
-        try {
-            document.getElementById('graph-empty-state').classList.add('hidden');
+    async loadNetwork(networkId, stats) {
+        const data = await getNetwork(networkId);
+        this.showNetwork(data, stats);
+    },
 
-            const data = await getNetwork(networkId);
-            this.currentGraphId = networkId;
+    /**
+     * Draws a server network: the library's papers, their links, and the
+     * papers it cites but lacks (hollow nodes).
+     * @param {{ graph, nodes, edges, suggestions }} data
+     * @param {Object} [stats] - from a run just made (pending lookups and misses)
+     */
+    showNetwork(data, stats) {
+        this.currentGraphId = data.graph?.id ?? null;
+        const localById = new Map(this.allPapers.map(p => [p.id, p]));
+        this.nodePapers = new Map();
 
-            // Map backend data to vis-network format
-            const nodes = data.nodes.map(n => ({
-                id: parseInt(n.id),
+        const nodes = data.nodes.map(n => {
+            const id = parseInt(n.id);
+            // Prefer this device's copy (abstract, reading status); the server's otherwise
+            this.nodePapers.set(id, localById.get(id) || { title: n.label, ...n.data, id, readingStatus: n.data.status });
+            return {
+                id,
                 label: this.truncateTitle(n.label, 20),
                 fullTitle: n.label,
                 status: n.data.status,
@@ -145,93 +142,170 @@ export const graphView = {
                 color: this.getNodeColor(n.data.status),
                 font: { color: '#ffffff', strokeWidth: 0, size: 14, face: 'Manrope' },
                 shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10, x: 0, y: 0 }
-            }));
+            };
+        });
+        const ids = new Set(nodes.map(n => n.id));
 
-            const edges = data.edges.map(e => ({
-                id: e.id,
-                from: parseInt(e.source),
-                to: parseInt(e.target),
-                width: 1,
-                color: { color: 'rgba(255,255,255,0.15)', highlight: '#3b82f6', hover: '#3b82f6' },
-                smooth: { type: 'curvedCW', roundness: 0.2 }
-            }));
+        const edges = data.edges.map(e => this.edge(parseInt(e.source), parseInt(e.target), e.type, e.id));
+        // Related Papers links live on this device only; draw the ones the server lacks
+        const linked = new Set(edges.map(e => [Math.min(e.from, e.to), Math.max(e.from, e.to)].join('-')));
+        for (const edge of this.prepareLocalGraphData(this.allPapers.filter(p => ids.has(p.id))).edges) {
+            const key = [Math.min(edge.from, edge.to), Math.max(edge.from, edge.to)].join('-');
+            if (!linked.has(key)) edges.push(this.edge(edge.from, edge.to, 'related'));
+        }
 
-            // Calculate node sizes based on degree
-            const degreeMap = new Map();
-            edges.forEach(e => {
-                degreeMap.set(e.from, (degreeMap.get(e.from) || 0) + 1);
-                degreeMap.set(e.to, (degreeMap.get(e.to) || 0) + 1);
-            });
+        // Size by degree before the suggestions add their own links
+        const degree = new Map();
+        edges.forEach(e => {
+            degree.set(e.from, (degree.get(e.from) || 0) + 1);
+            degree.set(e.to, (degree.get(e.to) || 0) + 1);
+        });
+        nodes.forEach(n => {
+            const d = degree.get(n.id) || 0;
+            n.size = Math.max(20, Math.min(50, 20 + d * 3));
+            n.value = d;
+        });
 
-            nodes.forEach(n => {
-                const degree = degreeMap.get(n.id) || 0;
-                n.size = Math.max(20, Math.min(50, 20 + degree * 3));
-                n.value = degree; // For physics
-            });
+        this.suggestions = new Map();
+        for (const s of data.suggestions || []) {
+            const id = SUGGESTION_PREFIX + s.openAlexId;
+            this.suggestions.set(id, s);
+            nodes.push(this.suggestionNode(id, s));
+            for (const from of s.citedBy) {
+                if (ids.has(parseInt(from))) edges.push(this.edge(parseInt(from), id, 'suggestion'));
+            }
+        }
 
-            this.renderGraph({ nodes, edges });
-            this.populateTagFilterFromNodes(nodes);
+        if (nodes.length === 0) this.showEmptyState();
+        else this.hideEmptyState();
+        this.renderGraph({ nodes, edges });
+        this.populateTagFilterFromNodes(nodes);
+        this.setStatus(this.describe(data, stats));
+    },
 
+    edge(from, to, type, id) {
+        const style = EDGE_STYLES[type] || EDGE_STYLES.common_author;
+        return { ...(id ? { id } : {}), from, to, type, smooth: { type: 'curvedCW', roundness: 0.2 }, ...style };
+    },
+
+    suggestionNode(id, s) {
+        return {
+            id,
+            label: this.truncateTitle(s.title, 20),
+            fullTitle: s.title,
+            suggested: true,
+            tags: [],
+            shape: 'dot',
+            size: 12,
+            borderWidth: 2,
+            color: { background: '#0f172a', border: '#94a3b8', highlight: { background: '#1e293b', border: '#ffffff' }, hover: { background: '#1e293b', border: '#ffffff' } },
+            font: { color: '#94a3b8', strokeWidth: 0, size: 11, face: 'Manrope' },
+            shadow: false,
+        };
+    },
+
+    /** One line on what the network holds and what it is still missing. */
+    describe(data, stats) {
+        const count = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+        const cites = data.edges.filter(e => e.type === 'cites').length;
+        const parts = [count(cites, 'citation link')];
+        if (data.suggestions?.length) parts.push(count(data.suggestions.length, 'suggested paper'));
+        const withoutDoi = data.nodes.filter(n => !n.data?.doi).length;
+        if (withoutDoi) parts.push(`${count(withoutDoi, 'paper')} without a DOI`);
+        if (stats?.notFound) parts.push(`${count(stats.notFound, 'paper')} not found in OpenAlex or Semantic Scholar`);
+        if (stats?.pendingLookups) parts.unshift(`Finding links for ${count(stats.pendingLookups, 'more paper')}…`);
+        return parts.join(' · ');
+    },
+
+    setStatus(text) {
+        const el = document.getElementById('graph-status');
+        if (!el) return;
+        el.textContent = text || '';
+        el.classList.toggle('hidden', !text);
+    },
+
+    showEmptyState(message) {
+        const emptyState = document.getElementById('graph-empty-state');
+        if (!emptyState) return;
+        emptyState.classList.remove('hidden');
+        const text = emptyState.querySelector('p');
+        if (text && message) text.textContent = message;
+    },
+
+    hideEmptyState() {
+        document.getElementById('graph-empty-state')?.classList.add('hidden');
+    },
+
+    /**
+     * Rebuilds the open library's network on the server and redraws it.
+     * quiet: started by the page itself, so only the status line reports.
+     */
+    async refresh({ quiet = false } = {}) {
+        if (this.refreshing) return;
+        this.refreshing = true;
+        clearTimeout(this.retryTimer);
+        const btn = document.getElementById('graph-generate-btn');
+        const icon = btn?.querySelector('.material-symbols-outlined');
+        if (btn) btn.disabled = true;
+        icon?.classList.add('animate-spin');
+        this.setStatus('Finding citation links…');
+
+        try {
+            const result = await generateNetwork();
+            forgetConnections();
+            if (!this.network && !document.getElementById('graph-network')) return; // left the page
+            await this.loadNetwork(result.graph.id, result.stats);
+            if (!quiet) showToast(`Network updated: ${result.stats.nodeCount} papers`, 'success');
+            if (result.stats.pendingLookups > 0 && this.retries < MAX_RETRIES) {
+                this.retries += 1;
+                this.retryTimer = setTimeout(() => this.refresh({ quiet: true }), RETRY_DELAY_MS);
+            }
         } catch (error) {
-            console.error('Failed to load network:', error);
-            showToast('Failed to load network data', 'error');
+            console.error('Generation failed:', error);
+            this.setStatus('Could not update the network. Try Refresh in a moment.');
+            if (!quiet) showToast(error.message || 'Failed to generate network', 'error');
+        } finally {
+            this.refreshing = false;
+            if (btn) btn.disabled = false;
+            icon?.classList.remove('animate-spin');
         }
     },
 
-    async handleGenerate() {
-        const btn = document.getElementById('graph-generate-btn');
-        const originalHTML = btn.innerHTML;
-
-        try {
-            btn.disabled = true;
-            btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">refresh</span> <span class="hidden sm:inline">Generating...</span>';
-
-            const result = await generateNetwork();
-            forgetConnections();
-            showToast(`Network generated with ${result.stats.nodeCount} papers`, 'success');
-
-            await this.loadNetwork(result.graph.id);
-
-        } catch (error) {
-            console.error('Generation failed:', error);
-            showToast(error.message || 'Failed to generate network', 'error');
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
-            }
-        }
+    handleGenerate() {
+        this.retries = 0;
+        return this.refresh();
     },
 
     unmount() {
+        clearTimeout(this.retryTimer);
+        this.retryTimer = null;
         if (this.network) {
             this.network.destroy();
             this.network = null;
         }
 
         // Remove event listeners
-        const searchInput = document.getElementById('graph-search-input');
-        const statusFilter = document.getElementById('graph-status-filter');
-        const tagFilter = document.getElementById('graph-tag-filter');
-        const generateBtn = document.getElementById('graph-generate-btn');
-        const zoomInBtn = document.getElementById('graph-zoom-in');
-        const zoomOutBtn = document.getElementById('graph-zoom-out');
-        const fitBtn = document.getElementById('graph-fit');
-        const panelCloseBtn = document.getElementById('panel-close-btn');
-        const panelOpenBtn = document.getElementById('panel-open-btn');
-
-        if (searchInput && this.searchHandler) searchInput.removeEventListener('input', this.searchHandler);
-        if (statusFilter && this.statusFilterHandler) statusFilter.removeEventListener('change', this.statusFilterHandler);
-        if (tagFilter && this.tagFilterHandler) tagFilter.removeEventListener('change', this.tagFilterHandler);
-        if (generateBtn && this.generateHandler) generateBtn.removeEventListener('click', this.generateHandler);
-        if (zoomInBtn && this.zoomInHandler) zoomInBtn.removeEventListener('click', this.zoomInHandler);
-        if (zoomOutBtn && this.zoomOutHandler) zoomOutBtn.removeEventListener('click', this.zoomOutHandler);
-        if (fitBtn && this.fitHandler) fitBtn.removeEventListener('click', this.fitHandler);
-        if (panelCloseBtn && this.panelCloseHandler) panelCloseBtn.removeEventListener('click', this.panelCloseHandler);
-        if (panelOpenBtn && this.panelOpenHandler) panelOpenBtn.removeEventListener('click', this.panelOpenHandler);
+        const listeners = [
+            ['graph-search-input', 'input', this.searchHandler],
+            ['graph-status-filter', 'change', this.statusFilterHandler],
+            ['graph-tag-filter', 'change', this.tagFilterHandler],
+            ['graph-generate-btn', 'click', this.generateHandler],
+            ['graph-zoom-in', 'click', this.zoomInHandler],
+            ['graph-zoom-out', 'click', this.zoomOutHandler],
+            ['graph-fit', 'click', this.fitHandler],
+            ['panel-close-btn', 'click', this.panelCloseHandler],
+            ['panel-open-btn', 'click', this.panelOpenHandler],
+            ['graph-legend-toggle', 'click', this.legendToggleHandler],
+        ];
+        for (const [id, event, handler] of listeners) {
+            if (handler) document.getElementById(id)?.removeEventListener(event, handler);
+        }
 
         this.allPapers = [];
         this.filteredPapers = [];
+        this.nodePapers = new Map();
+        this.suggestions = new Map();
+        this.selectedSuggestion = null;
     },
 
     prepareLocalGraphData(papers) {
@@ -261,13 +335,7 @@ export const graphView = {
                         const edgeKey = [Math.min(paper.id, relatedId), Math.max(paper.id, relatedId)].join('-');
                         if (!edgeSet.has(edgeKey)) {
                             edgeSet.add(edgeKey);
-                            edges.push({
-                                from: paper.id,
-                                to: relatedId,
-                                width: 1,
-                                color: { color: 'rgba(255,255,255,0.15)', highlight: '#3b82f6', hover: '#3b82f6' },
-                                smooth: { type: 'curvedCW', roundness: 0.2 }
-                            });
+                            edges.push(this.edge(paper.id, relatedId, 'related'));
                         }
                     }
                 });
@@ -430,29 +498,107 @@ export const graphView = {
         });
 
         this.network.on('doubleClick', (params) => {
-            if (params.nodes.length > 0) {
-                window.location.hash = `#/details/${params.nodes[0]}`;
+            const id = params.nodes[0];
+            if (id !== undefined && !this.suggestions.has(id)) {
+                window.location.hash = `#/details/${id}`;
             }
         });
 
-        this.network.on('hoverNode', (params) => {
+        this.network.on('hoverNode', () => {
             document.body.style.cursor = 'pointer';
-            this.highlightConnected(params.node);
         });
 
         this.network.on('blurNode', () => {
             document.body.style.cursor = 'default';
-            this.resetHighlight();
         });
     },
 
     handleNodeClick(nodeId) {
+        const suggestion = this.suggestions.get(nodeId);
+        if (suggestion) {
+            this.selectedPaperId = null;
+            this.selectedSuggestion = suggestion;
+            this.updateSuggestionPanel(suggestion);
+            this.openSidePanel();
+            return;
+        }
+        this.selectedSuggestion = null;
         this.selectedPaperId = nodeId;
-        const paper = this.allPapers.find(p => p.id == nodeId);
+        const paper = this.nodePapers.get(nodeId) || this.allPapers.find(p => p.id == nodeId);
         if (!paper) return;
 
         this.updateSidePanel(paper);
+        this.setPanelAction('Open Full Details');
         this.openSidePanel();
+    },
+
+    setPanelAction(label, { disabled = false, hidden = false } = {}) {
+        const btn = document.getElementById('panel-open-btn');
+        if (!btn) return;
+        btn.textContent = label;
+        btn.disabled = disabled;
+        btn.classList.toggle('hidden', hidden);
+    },
+
+    /** A paper the library cites but lacks: who cites it, and adding it. */
+    updateSuggestionPanel(s) {
+        const panelContent = document.getElementById('panel-content');
+        if (!panelContent) return;
+        const citing = s.citedBy
+            .map(id => this.nodePapers.get(parseInt(id)))
+            .filter(Boolean)
+            .map(p => `<li><a href="#/details/${encodeURIComponent(p.id)}" class="text-primary hover:underline">${escapeHtml(p.title || 'Untitled')}</a></li>`)
+            .join('');
+        const facts = [s.year, s.citedByCount ? `cited ${s.citedByCount.toLocaleString()} times` : null].filter(Boolean).map(v => escapeHtml(String(v))).join(' • ');
+
+        panelContent.innerHTML = `
+            <div class="space-y-4 animate-fade-in">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Suggested paper</p>
+                    <h3 class="text-xl font-bold text-white leading-tight mb-2">${escapeHtml(s.title || 'Untitled')}</h3>
+                    ${facts ? `<p class="text-xs text-slate-500">${facts}</p>` : ''}
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Cited by ${s.citedBy.length} of your papers</h4>
+                    <ul class="text-sm space-y-1.5 list-disc pl-4 text-slate-300">${citing}</ul>
+                </div>
+                ${s.doi ? '' : '<p class="text-sm text-slate-400">No DOI is known for it, so it has to be added by hand.</p>'}
+            </div>
+        `;
+        if (s.added) this.setPanelAction('Added to library', { disabled: true });
+        else this.setPanelAction('Add to library', { hidden: !s.doi });
+    },
+
+    /** Adds a suggested paper to the open library, as Quick Add does with a DOI. */
+    async addSuggestion(s) {
+        this.setPanelAction('Adding…', { disabled: true });
+        try {
+            const existing = await getPaperByDoi(s.doi);
+            if (existing) {
+                showToast(`Already in your library: "${existing.title}"`, 'info');
+            } else {
+                const metadata = await fetchDoiMetadata(s.doi);
+                await addPaper({
+                    ...metadata,
+                    tags: [], createdAt: new Date(), readingStatus: 'To Read',
+                    hasPdf: false, pdfFile: null, notes: '',
+                });
+                showToast('Paper added to your library', 'success');
+            }
+            s.added = true;
+            // Drawn as a library paper now; the next network run links it for real
+            this.network?.body.data.nodes.update({
+                id: SUGGESTION_PREFIX + s.openAlexId,
+                suggested: false, status: 'To Read', size: 20, borderWidth: 0, shadow: true,
+                color: this.getNodeColor('To Read'),
+                font: { color: '#ffffff', strokeWidth: 0, size: 14, face: 'Manrope' },
+            });
+            if (this.selectedSuggestion === s) this.updateSuggestionPanel(s);
+        } catch (error) {
+            console.error('Adding suggested paper failed:', error);
+            showToast(error.message || 'Could not add the paper', 'error');
+            if (this.selectedSuggestion === s) this.setPanelAction('Add to library');
+        }
     },
 
     updateSidePanel(paper) {
@@ -511,16 +657,7 @@ export const graphView = {
         const panel = document.getElementById('graph-side-panel');
         if (panel) panel.classList.remove('open');
         this.selectedPaperId = null;
-    },
-
-    highlightConnected(nodeId) {
-        // Simple highlight logic: dim all non-connected nodes/edges
-        // Vis-network doesn't support easy "dimming" without updating dataset
-        // For now, we'll rely on hover styling defined in options
-    },
-
-    resetHighlight() {
-        // Reset logic
+        this.selectedSuggestion = null;
     },
 
     getNodeColor(status) {
@@ -627,11 +764,17 @@ export const graphView = {
         if (panelCloseBtn) panelCloseBtn.addEventListener('click', this.panelCloseHandler);
 
         this.panelOpenHandler = () => {
-            if (this.selectedPaperId) {
+            if (this.selectedSuggestion) {
+                if (!this.selectedSuggestion.added) this.addSuggestion(this.selectedSuggestion);
+            } else if (this.selectedPaperId) {
                 window.location.hash = `#/details/${this.selectedPaperId}`;
             }
         };
         if (panelOpenBtn) panelOpenBtn.addEventListener('click', this.panelOpenHandler);
+
+        // Phones: the legend stays folded until asked for
+        this.legendToggleHandler = () => document.getElementById('graph-legend-body')?.classList.toggle('hidden');
+        document.getElementById('graph-legend-toggle')?.addEventListener('click', this.legendToggleHandler);
     },
 
     applyFilters() {

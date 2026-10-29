@@ -7,7 +7,13 @@ import { graphView } from '../graph.view.js';
 
 // Mock dependencies
 vi.mock('../db.js', () => ({
-    getAllPapers: vi.fn()
+    getAllPapers: vi.fn(),
+    addPaper: vi.fn(async () => 99),
+    getPaperByDoi: vi.fn(async () => null)
+}));
+
+vi.mock('../api.js', () => ({
+    fetchDoiMetadata: vi.fn(async (doi) => ({ title: 'Classic', doi }))
 }));
 
 vi.mock('../ui.js', () => ({
@@ -17,7 +23,8 @@ vi.mock('../ui.js', () => ({
 
 vi.mock('../api/network.js', () => ({
     getNetwork: vi.fn(),
-    generateNetwork: vi.fn()
+    generateNetwork: vi.fn(),
+    getUserNetworks: vi.fn(async () => [])
 }));
 
 vi.mock('../api/auth.js', () => ({
@@ -67,6 +74,7 @@ describe('graph.view.js - Network Graph Visualization', () => {
         document.body.innerHTML = `
             <div id="graph-network"></div>
             <div id="graph-empty-state" class="hidden"></div>
+            <div id="graph-status" class="hidden"></div>
             <div id="graph-side-panel">
                 <div id="panel-content"></div>
                 <button id="panel-close-btn"></button>
@@ -271,6 +279,132 @@ describe('graph.view.js - Network Graph Visualization', () => {
             await graphView.handleGenerate();
 
             expect(showToast).toHaveBeenCalledWith('Gen failed', 'error');
+        });
+    });
+
+    describe('Server network', () => {
+        const network = (extra = {}) => ({
+            graph: { id: 'g1', stale: false },
+            nodes: [
+                { id: '1', label: 'Paper 1', data: { status: 'Reading', doi: '10.1/a', tags: [] } },
+                { id: '2', label: 'Paper 2', data: { status: 'To Read', doi: null, tags: [] } },
+            ],
+            edges: [
+                { id: 'e1', source: '1', target: '2', type: 'cites' },
+                { id: 'e2', source: '1', target: '2', type: 'common_author' },
+            ],
+            suggestions: [{ openAlexId: 'https://openalex.org/W9', doi: '10.1/z', title: 'Classic', year: 1999, citedByCount: 500, citedBy: ['1', '2'] }],
+            ...extra,
+        });
+        const drawn = () => {
+            const [, data] = global.vis.Network.mock.calls.at(-1);
+            return { nodes: data.nodes.get(), edges: data.edges.get() };
+        };
+
+        beforeEach(async () => {
+            const { getAllPapers } = await import('../db.js');
+            const { getAccessToken } = await import('../api/auth.js');
+            const { getUserNetworks, getNetwork } = await import('../api/network.js');
+            getAllPapers.mockResolvedValue([{ id: 1, title: 'Paper 1', readingStatus: 'Reading', relatedPaperIds: [3] }, { id: 3, title: 'Not in network' }]);
+            getAccessToken.mockReturnValue('token');
+            getUserNetworks.mockResolvedValue([{ id: 'g1' }]);
+            getNetwork.mockResolvedValue(network());
+        });
+
+        it('draws citations as arrows, shared authors dashed, and suggestions as hollow nodes', async () => {
+            await graphView.mount(appState);
+
+            const { nodes, edges } = drawn();
+            expect(edges.find(e => e.type === 'cites').arrows.to.enabled).toBe(true);
+            expect(edges.find(e => e.type === 'common_author').dashes).toBeTruthy();
+            const suggested = nodes.find(n => n.suggested);
+            expect(suggested).toMatchObject({ id: 'suggested:https://openalex.org/W9', borderWidth: 2 });
+            expect(edges.filter(e => e.to === suggested.id).map(e => e.from)).toEqual([1, 2]);
+            // A Related Papers link to a paper outside the network is not drawn
+            expect(edges.some(e => e.type === 'related')).toBe(false);
+        });
+
+        it('says what the network holds', async () => {
+            await graphView.mount(appState);
+            const status = document.getElementById('graph-status');
+            expect(status.classList.contains('hidden')).toBe(false);
+            expect(status.textContent).toBe('1 citation link · 1 suggested paper · 1 paper without a DOI');
+        });
+
+        it('refreshes a stale network by itself, without a toast', async () => {
+            const { getNetwork, generateNetwork } = await import('../api/network.js');
+            const { showToast } = await import('../ui.js');
+            getNetwork.mockResolvedValueOnce(network({ graph: { id: 'g1', stale: true } }));
+            generateNetwork.mockResolvedValue({ graph: { id: 'g1' }, stats: { nodeCount: 2, pendingLookups: 0 } });
+
+            await graphView.mount(appState);
+            await vi.waitFor(() => expect(getNetwork).toHaveBeenCalledTimes(2));
+
+            expect(generateNetwork).toHaveBeenCalledTimes(1);
+            expect(showToast).not.toHaveBeenCalled();
+        });
+
+        it('builds the network of a library that has none yet', async () => {
+            const { getUserNetworks, generateNetwork } = await import('../api/network.js');
+            getUserNetworks.mockResolvedValue([]);
+            generateNetwork.mockResolvedValue({ graph: { id: 'g1' }, stats: { nodeCount: 2 } });
+
+            await graphView.mount(appState);
+
+            await vi.waitFor(() => expect(generateNetwork).toHaveBeenCalled());
+        });
+
+        it('tells how many lookups are left and tries again later', async () => {
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+            try {
+                const { generateNetwork } = await import('../api/network.js');
+                generateNetwork.mockResolvedValue({ graph: { id: 'g1' }, stats: { nodeCount: 2, pendingLookups: 40 } });
+
+                const run = graphView.handleGenerate();
+                await run;
+                expect(document.getElementById('graph-status').textContent).toMatch(/^Finding links for 40 more papers…/);
+
+                await vi.advanceTimersByTimeAsync(30000);
+                expect(generateNetwork).toHaveBeenCalledTimes(2);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('shows a suggested paper and adds it to the open library', async () => {
+            const { addPaper, getPaperByDoi } = await import('../db.js');
+            await graphView.mount(appState);
+
+            graphView.handleNodeClick('suggested:https://openalex.org/W9');
+            const panel = document.getElementById('panel-content').textContent;
+            expect(panel).toContain('Classic');
+            expect(panel).toContain('Cited by 2 of your papers');
+            const button = document.getElementById('panel-open-btn');
+            expect(button.textContent).toBe('Add to library');
+
+            button.click();
+            await vi.waitFor(() => expect(button.textContent).toBe('Added to library'));
+            expect(getPaperByDoi).toHaveBeenCalledWith('10.1/z');
+            expect(addPaper).toHaveBeenCalledWith(expect.objectContaining({ title: 'Classic', doi: '10.1/z', readingStatus: 'To Read' }));
+            expect(mockNetworkInstance.body.data.nodes.update).toHaveBeenCalledWith(expect.objectContaining({ id: 'suggested:https://openalex.org/W9', suggested: false }));
+        });
+
+        it('does not add a paper the library already has', async () => {
+            const { addPaper, getPaperByDoi } = await import('../db.js');
+            getPaperByDoi.mockResolvedValueOnce({ id: 5, title: 'Classic' });
+            await graphView.mount(appState);
+
+            graphView.handleNodeClick('suggested:https://openalex.org/W9');
+            await graphView.addSuggestion(graphView.selectedSuggestion);
+
+            expect(addPaper).not.toHaveBeenCalled();
+        });
+
+        it('opens a paper\'s panel from the server\'s copy when this device lacks it', async () => {
+            await graphView.mount(appState);
+            graphView.handleNodeClick(2);
+            expect(document.getElementById('panel-content').textContent).toContain('Paper 2');
+            expect(document.getElementById('panel-open-btn').textContent).toBe('Open Full Details');
         });
     });
 });

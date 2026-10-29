@@ -35,22 +35,19 @@ export const graphView = `
                         <option value="">All Tags</option>
                     </select>
 
-                    <button id="graph-generate-btn" class="h-9 px-3 bg-primary hover:bg-primary/90 text-white text-xs font-semibold rounded-lg transition-colors shadow-lg shadow-primary/20 flex items-center gap-1">
+                    <button id="graph-generate-btn" title="Look for new citation links" class="h-9 px-3 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition-colors shadow-lg shadow-primary/20 flex items-center gap-1">
                         <span class="material-symbols-outlined text-sm">refresh</span>
-                        <span class="hidden sm:inline">Generate</span>
+                        <span class="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Warning Banner -->
-            <div class="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-amber-500/90 text-white px-4 py-2.5 rounded-xl backdrop-blur-md shadow-lg border border-amber-400 text-sm font-medium flex items-center gap-3 w-[90%] sm:w-auto max-w-2xl text-left pointer-events-auto">
-                <span class="material-symbols-outlined text-2xl flex-shrink-0">warning</span>
-                <span>The Network feature is currently experimental and may not work as intended. We are actively working on improvements.</span>
-            </div>
+            <!-- Status: what the network holds, or what it is doing -->
+            <div id="graph-status" role="status" class="hidden absolute top-[7.5rem] sm:top-20 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-20 bg-slate-800/80 backdrop-blur-md border border-slate-700/50 text-slate-300 px-3 py-1.5 rounded-lg shadow-lg text-xs text-center pointer-events-none"></div>
 
 
             <!-- Side Panel (Details) -->
-            <div id="graph-side-panel" class="absolute top-4 bottom-4 right-4 w-80 sm:w-96 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-2xl z-30 transform translate-x-[110%] transition-transform duration-300 ease-in-out flex flex-col">
+            <div id="graph-side-panel" class="absolute top-4 bottom-4 right-4 left-4 sm:left-auto sm:w-96 bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-2xl z-30 transform translate-x-[110%] transition-transform duration-300 ease-in-out flex flex-col">
                 <!-- Panel Header -->
                 <div class="p-4 border-b border-slate-700/50 flex items-start justify-between gap-2">
                     <h2 id="panel-title" class="text-lg font-bold text-white leading-snug">Paper Details</h2>
@@ -69,31 +66,54 @@ export const graphView = `
                 </div>
                 <!-- Panel Footer -->
                 <div class="p-4 border-t border-slate-700/50 bg-slate-900/30 rounded-b-xl">
-                    <button id="panel-open-btn" class="w-full py-2 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-primary/20">
+                    <button id="panel-open-btn" class="w-full py-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-primary/20">
                         Open Full Details
                     </button>
                 </div>
             </div>
 
-            <!-- Legend (Bottom Left) -->
-            <div class="absolute bottom-4 left-4 z-20 bg-slate-800/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl shadow-lg">
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Legend</h3>
-                <div class="space-y-1.5">
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
-                        <span class="text-xs text-slate-300">Reading</span>
+            <!-- Legend (Bottom Left; folded on phones) -->
+            <div class="absolute bottom-4 left-4 z-20 bg-slate-800/80 backdrop-blur-md border border-slate-700/50 p-3 rounded-xl shadow-lg max-w-[calc(100%-6rem)]">
+                <button id="graph-legend-toggle" type="button" class="sm:hidden flex items-center gap-1 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    <span class="material-symbols-outlined text-base">info</span> Legend
+                </button>
+                <div id="graph-legend-body" class="hidden sm:block mt-2 sm:mt-0">
+                    <h3 class="hidden sm:block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Legend</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-1 gap-x-4 gap-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
+                            <span class="text-xs text-slate-300">Reading</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]"></span>
+                            <span class="text-xs text-slate-300">To Read</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span>
+                            <span class="text-xs text-slate-300">Finished</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-slate-500"></span>
+                            <span class="text-xs text-slate-300">Other</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full border-2 border-slate-400"></span>
+                            <span class="text-xs text-slate-300">Suggested</span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]"></span>
-                        <span class="text-xs text-slate-300">To Read</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span>
-                        <span class="text-xs text-slate-300">Finished</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-slate-500"></span>
-                        <span class="text-xs text-slate-300">Other</span>
+                    <div class="mt-2 pt-2 border-t border-slate-700/50 grid grid-cols-2 sm:grid-cols-1 gap-x-4 gap-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="w-5 h-0 border-t-2 border-blue-300/70"></span>
+                            <span class="text-xs text-slate-300">Cites →</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-5 h-0 border-t-2 border-dashed border-white/30"></span>
+                            <span class="text-xs text-slate-300">Same author</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-5 h-0 border-t-2 border-violet-400/80"></span>
+                            <span class="text-xs text-slate-300">Linked by you</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -118,7 +138,7 @@ export const graphView = `
                 </div>
                 <h3 class="text-2xl font-bold text-white mb-2">No Connections Yet</h3>
                 <p class="text-slate-400 max-w-md mb-6">
-                    Start building your knowledge graph by adding "Related Papers" in the paper details view.
+                    Papers with a DOI are linked by their citations and shared authors once they are in this library.
                 </p>
                 <a href="#/app" class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-primary/20 pointer-events-auto">
                     Browse Library

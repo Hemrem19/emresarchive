@@ -1,80 +1,44 @@
 import { parseJsonResponse, withRateLimitCheck } from './utils.js';
-import { getAccessToken } from './auth.js';
 import { API_CONFIG } from '../config.js';
 
 /**
- * Generate a new paper network automatically
- * @returns {Promise<Object>} The generated network data
+ * Network requests act on the library the app has open: apiRequest sends it
+ * (X-Library), along with the token, refreshing it when it has expired.
  */
-export async function generateNetwork() {
+async function request(path, options, failure) {
     return withRateLimitCheck(async () => {
-        const token = getAccessToken();
-        if (!token) throw new Error('Authentication required');
-
-        const response = await fetch(`${API_CONFIG.BASE_URL}/api/networks/auto-generate`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
+        // Loaded on use, like the other api/ modules that import sync.js
+        const { apiRequest } = await import('./sync.js');
+        const response = await apiRequest(`${API_CONFIG.BASE_URL}${path}`, { credentials: 'include', ...options });
         const data = await parseJsonResponse(response);
-        if (data.success) {
-            return data.data;
-        } else {
-            throw new Error(data.error?.message || 'Failed to generate network');
-        }
+        if (!data.success) throw new Error(data.error?.message || failure);
+        return data.data;
     });
 }
 
 /**
- * Get a specific network by ID
+ * Build (or rebuild) the network of the open library
+ * @returns {Promise<{ graph: Object, stats: Object }>} stats: nodeCount,
+ *   edgeCount, citationEdges, withoutDoi, notFound, pendingLookups, suggestions
+ */
+export function generateNetwork() {
+    return request('/api/networks/auto-generate', { method: 'POST' }, 'Failed to generate network');
+}
+
+/**
+ * A network: { graph: { …, stale }, nodes, edges, suggestions }
  * @param {string} id - The network ID
- * @returns {Promise<Object>} The network data (nodes and edges)
  */
-export async function getNetwork(id) {
-    return withRateLimitCheck(async () => {
-        const token = getAccessToken();
-        if (!token) throw new Error('Authentication required');
-
-        const response = await fetch(`${API_CONFIG.BASE_URL}/api/networks/${id}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        const data = await parseJsonResponse(response);
-        if (data.success) {
-            return data.data;
-        } else {
-            throw new Error(data.error?.message || 'Failed to fetch network');
-        }
-    });
+export function getNetwork(id) {
+    return request(`/api/networks/${id}`, {}, 'Failed to fetch network');
 }
 
 /**
- * Get all networks for the current user
+ * The networks of the open library, newest first
  * @returns {Promise<Array>} List of networks
  */
-export async function getUserNetworks() {
-    return withRateLimitCheck(async () => {
-        const token = getAccessToken();
-        if (!token) throw new Error('Authentication required');
-
-        const response = await fetch(`${API_CONFIG.BASE_URL}/api/networks`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        const data = await parseJsonResponse(response);
-        if (data.success) {
-            return data.data;
-        } else {
-            throw new Error(data.error?.message || 'Failed to fetch networks');
-        }
-    });
+export function getUserNetworks() {
+    return request('/api/networks', {}, 'Failed to fetch networks');
 }
 
 /**

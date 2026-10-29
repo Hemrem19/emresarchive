@@ -280,3 +280,8 @@ CREATE TABLE `notifications` (
 );
 CREATE INDEX `notifications_user_created_idx` ON `notifications` (`user_id`, `created_at`);
 CREATE INDEX `notifications_comment_idx` ON `notifications` (`comment_id`);
+
+-- 0006_network_libraries
+ALTER TABLE `network_graphs` ADD `group_id` integer REFERENCES `groups`(`id`) ON DELETE cascade;
+ALTER TABLE `network_graphs` ADD `suggestions` text;
+CREATE INDEX IF NOT EXISTS `network_graphs_group_id_idx` ON `network_graphs` (`group_id`);

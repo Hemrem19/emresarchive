@@ -4,14 +4,10 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as networkApi from '../api/network.js';
-import * as authApi from '../api/auth.js';
 import * as utilsApi from '../api/utils.js';
-import * as configModule from '../config.js';
 
-// Mock dependencies
-vi.mock('../api/auth.js', () => ({
-    getAccessToken: vi.fn(() => 'mock-token')
-}));
+const apiRequest = vi.fn(async () => ({ ok: true, status: 200 }));
+vi.mock('../api/sync.js', () => ({ apiRequest: (...a) => apiRequest(...a) }));
 
 vi.mock('../api/utils.js', () => ({
     parseJsonResponse: vi.fn(),
@@ -25,219 +21,45 @@ vi.mock('../config.js', () => ({
 }));
 
 describe('api/network.js - Network API', () => {
-    let mockFetch;
-
     beforeEach(() => {
         vi.clearAllMocks();
-        localStorage.clear();
-        
-        // Mock fetch
-        mockFetch = vi.fn();
-        global.fetch = mockFetch;
     });
 
-    describe('generateNetwork', () => {
-        it('should successfully generate a network', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: true,
-                data: {
-                    nodes: [{ id: 1, label: 'Paper 1' }],
-                    edges: [{ from: 1, to: 2 }]
-                }
-            };
+    describe.each([
+        ['generateNetwork', [], 'https://api.example.com/api/networks/auto-generate', 'POST', 'Failed to generate network'],
+        ['getNetwork', ['net-1'], 'https://api.example.com/api/networks/net-1', undefined, 'Failed to fetch network'],
+        ['getUserNetworks', [], 'https://api.example.com/api/networks', undefined, 'Failed to fetch networks'],
+    ])('%s', (name, args, url, method, failure) => {
+        it('requests it through apiRequest, which names the open library', async () => {
+            utilsApi.parseJsonResponse.mockResolvedValueOnce({ success: true, data: { ok: 1 } });
 
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
+            const result = await networkApi[name](...args);
 
-            const result = await networkApi.generateNetwork();
-
-            expect(mockFetch).toHaveBeenCalledWith(
-                'https://api.example.com/api/networks/auto-generate',
-                expect.objectContaining({
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer mock-token',
-                        'Content-Type': 'application/json'
-                    }
-                })
-            );
-            expect(result.nodes).toHaveLength(1);
-            expect(result.edges).toHaveLength(1);
+            expect(apiRequest).toHaveBeenCalledWith(url, expect.objectContaining({ credentials: 'include' }));
+            expect(apiRequest.mock.calls[0][1].method).toBe(method);
+            expect(result).toEqual({ ok: 1 });
         });
 
-        it('should throw error when not authenticated', async () => {
-            authApi.getAccessToken.mockReturnValueOnce(null);
+        it('throws the server\'s message, or a default one', async () => {
+            utilsApi.parseJsonResponse.mockResolvedValueOnce({ success: false, error: { message: 'Library not found' } });
+            await expect(networkApi[name](...args)).rejects.toThrow('Library not found');
 
-            await expect(networkApi.generateNetwork()).rejects.toThrow('Authentication required');
+            utilsApi.parseJsonResponse.mockResolvedValueOnce({ success: false });
+            await expect(networkApi[name](...args)).rejects.toThrow(failure);
         });
 
-        it('should handle API errors', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: false,
-                error: { message: 'Failed to generate network' }
-            };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            await expect(networkApi.generateNetwork()).rejects.toThrow('Failed to generate network');
-        });
-
-        it('should handle network errors', async () => {
-            mockFetch.mockRejectedValueOnce(new Error('Network error'));
-
-            await expect(networkApi.generateNetwork()).rejects.toThrow('Network error');
-        });
-
-        it('should use rate limit check wrapper', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = { success: true, data: {} };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            await networkApi.generateNetwork();
-
+        it('passes on request failures, inside the rate-limit check', async () => {
+            apiRequest.mockRejectedValueOnce(new Error('Not authenticated'));
+            await expect(networkApi[name](...args)).rejects.toThrow('Not authenticated');
             expect(utilsApi.withRateLimitCheck).toHaveBeenCalled();
         });
     });
 
-    describe('getNetwork', () => {
-        it('should fetch a network by ID', async () => {
-            const networkId = 'network-123';
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: true,
-                data: {
-                    id: networkId,
-                    nodes: [{ id: 1, label: 'Paper 1' }],
-                    edges: []
-                }
-            };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            const result = await networkApi.getNetwork(networkId);
-
-            expect(mockFetch).toHaveBeenCalledWith(
-                `https://api.example.com/api/networks/${networkId}`,
-                expect.objectContaining({
-                    headers: {
-                        'Authorization': 'Bearer mock-token'
-                    }
-                })
-            );
-            expect(result.id).toBe(networkId);
-        });
-
-        it('should throw error when not authenticated', async () => {
-            authApi.getAccessToken.mockReturnValueOnce(null);
-
-            await expect(networkApi.getNetwork('network-123')).rejects.toThrow('Authentication required');
-        });
-
-        it('should handle invalid network ID', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: false,
-                error: { message: 'Network not found' }
-            };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            await expect(networkApi.getNetwork('invalid-id')).rejects.toThrow('Network not found');
-        });
-
-        it('should use rate limit check wrapper', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = { success: true, data: {} };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            await networkApi.getNetwork('network-123');
-
-            expect(utilsApi.withRateLimitCheck).toHaveBeenCalled();
-        });
-    });
-
-    describe('getUserNetworks', () => {
-        it('should fetch all user networks', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: true,
-                data: [
-                    { id: 'network-1', name: 'Network 1' },
-                    { id: 'network-2', name: 'Network 2' }
-                ]
-            };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            const result = await networkApi.getUserNetworks();
-
-            expect(mockFetch).toHaveBeenCalledWith(
-                'https://api.example.com/api/networks',
-                expect.objectContaining({
-                    headers: {
-                        'Authorization': 'Bearer mock-token'
-                    }
-                })
-            );
-            expect(result).toHaveLength(2);
-            expect(result[0].id).toBe('network-1');
-        });
-
-        it('should handle empty results', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: true,
-                data: []
-            };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            const result = await networkApi.getUserNetworks();
-
-            expect(result).toEqual([]);
-        });
-
-        it('should throw error when not authenticated', async () => {
-            authApi.getAccessToken.mockReturnValueOnce(null);
-
-            await expect(networkApi.getUserNetworks()).rejects.toThrow('Authentication required');
-        });
-
-        it('should handle API errors', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = {
-                success: false,
-                error: { message: 'Failed to fetch networks' }
-            };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            await expect(networkApi.getUserNetworks()).rejects.toThrow('Failed to fetch networks');
-        });
-
-        it('should use rate limit check wrapper', async () => {
-            const mockResponse = { ok: true, status: 200 };
-            const mockData = { success: true, data: [] };
-
-            mockFetch.mockResolvedValueOnce(mockResponse);
-            utilsApi.parseJsonResponse.mockResolvedValueOnce(mockData);
-
-            await networkApi.getUserNetworks();
-
-            expect(utilsApi.withRateLimitCheck).toHaveBeenCalled();
+    describe('getPaperConnections', () => {
+        it('returns the connections', async () => {
+            utilsApi.parseJsonResponse.mockResolvedValueOnce({ success: true, data: { connections: [{ paper: { id: 2 } }] } });
+            expect(await networkApi.getPaperConnections(7)).toEqual([{ paper: { id: 2 } }]);
+            expect(apiRequest).toHaveBeenCalledWith('https://api.example.com/api/networks/papers/7/connections', { credentials: 'include' });
         });
     });
 });
-

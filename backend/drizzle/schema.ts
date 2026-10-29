@@ -207,6 +207,10 @@ export const networkGraphs = sqliteTable('network_graphs', {
   nodeCount: integer('node_count').default(0).notNull(),
   edgeCount: integer('edge_count').default(0).notNull(),
   layout: text('layout', { mode: 'json' }),
+  // Set for a group's network (migration 0006); NULL for a personal one
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
+  // Papers the library cites but lacks: [{ openAlexId, doi, title, year, citedByCount, citedBy }]
+  suggestions: text('suggestions', { mode: 'json' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
@@ -215,7 +219,7 @@ export const paperConnections = sqliteTable('paper_connections', {
   id: text('id').primaryKey(),
   fromPaperId: integer('from_paper_id').notNull().references(() => papers.id, { onDelete: 'cascade' }),
   toPaperId: integer('to_paper_id').notNull().references(() => papers.id, { onDelete: 'cascade' }),
-  connectionType: text('connection_type').notNull(), // "cites" | "cited_by"
+  connectionType: text('connection_type').notNull(), // "cites" | "common_author" (legacy rows: "common_tag")
   source: text('source').notNull(),
   confidence: real('confidence').default(1.0),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
