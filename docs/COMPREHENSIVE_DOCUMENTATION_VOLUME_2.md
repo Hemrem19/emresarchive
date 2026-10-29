@@ -622,61 +622,53 @@ PDF Viewer
 
 ## 2.1.6 Paper Network Graph Features
 
-### Feature: Network Graph Visualization
-**Location**: `graph.view.js`, `views/pages/graph.js`, `api/network.js`
+### Feature: Paper Network
+**Location**: `graph.view.js`, `views/pages/graph.js`, `api/network.js`, `backend/src/routes/network.js`, `backend/src/services/citation.js`
+
+Personal library only: the Network link is hidden inside groups.
 
 **User Flow**:
-1. User navigates to "Paper Network" (sidebar)
-2. Graph view loads
-3. Network generated:
-   - Nodes: Papers
-   - Edges: Relationships (relatedPaperIds)
-4. Active notification banner displays, warning the user about the feature's experimental, work-in-progress state.
-5. vis-network renders interactive graph
-6. User can:
-   - Zoom (mouse wheel)
-   - Pan (drag)
-   - Click node → Navigate to paper details
-   - Filter by status/tags
-7. Graph layout auto-calculated (physics simulation)
+1. User opens "Network" (sidebar)
+2. The library's stored network is shown at once:
+   - Nodes: the library's papers, coloured by reading status
+   - Edges: citations (arrows, citing → cited), shared authors (dashed), links the user made under Related Papers (violet, from this device)
+   - Suggested papers: hollow nodes for works 2 or more of the user's papers cite but the library lacks
+3. If papers were added or removed, or their DOIs or authors changed, the network rebuilds itself in the background and redraws; no click needed. A first visit builds it the same way
+4. A status line says what the network holds ("108 citation links · 15 suggested papers · 2 papers without a DOI") or what it is doing ("Finding links for 40 more papers…"); lookups a rate limit left over are retried up to 3 times while the page is open
+5. User can:
+   - Zoom, pan, fit
+   - Tap a paper → side panel; "Open Full Details" or double-click → paper details
+   - Tap a suggested paper → which of their papers cite it, and **Add to library** (by DOI, as Quick Add)
+   - Filter by status, tags or title
+   - Press Refresh to rebuild by hand
+6. On phones the side panel is full width and the legend folds into a button
+
+Signed out, the graph shows only the Related Papers links stored on the device.
 
 **Code Flow**:
 ```
-Graph View
+Network page
   → graph.view.js (mount)
-    → db.getAllPapers()
-      → Build nodes and edges
-        → vis-network renders graph
-          → User interacts
-            → Click node → Router (#/details/{id})
+    → db.getAllPapers()                       (panel details, Related Papers links)
+    → api/network.js getUserNetworks → getNetwork(id)
+      → draw nodes, edges, suggestions (vis-network)
+      → graph.stale? → refresh()
+          → POST /api/networks/auto-generate
+            → services/citation.js generateNetwork
+              → citation_cache (D1) → missing DOIs:
+                  OpenAlex /works?filter=doi:a|b|… (100 per call)
+                  → Semantic Scholar /paper/batch for the rest
+              → buildConnections (cites, common_author)
+              → suggestions: OpenAlex /works?filter=openalex:W…|W…
+              → write only changed paper_connections; save network_graphs
+          → getNetwork(id) → redraw
 ```
 
-**Graph Filters**:
-- Filter nodes by status
-- Filter nodes by tags
-- Filter updates graph in real-time
-
----
-
-### Feature: Network Graph Generation (Cloud)
-**Location**: `api/network.js`, `backend/src/routes/network.js`
-
-**User Flow**:
-1. User clicks "Generate Network" (if cloud sync enabled)
-2. API call to `POST /api/networks/generate`
-3. Backend analyzes papers and creates connections
-4. Network graph stored in database
-5. Graph displayed
-
-**Code Flow**:
-```
-Generate Network
-  → api/network.js (generateNetwork)
-    → Backend: POST /api/networks/generate
-      → Backend analyzes papers
-        → Creates PaperConnection records
-          → Returns network graph
-```
+**Free-plan budget**: a rebuild with nothing new costs about one OpenAlex
+call ($0.0001 of the $1/day a free key gives) and one D1 row write; the
+first build of a 67-paper library is 2–3 OpenAlex calls and about 1,000 row
+writes. Keys: `OPENALEX_API_KEY` (Worker secret, free at openalex.org),
+`S2_API_KEY` optional.
 
 ---
 
