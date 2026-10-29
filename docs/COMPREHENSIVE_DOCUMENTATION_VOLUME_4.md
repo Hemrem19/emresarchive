@@ -673,6 +673,8 @@ the `X-Library` header (`group:12`, or none for the personal library);
 `apiRequest` in `api/sync.js` sends it for the open library. Requests by id
 use the row's own library.
 
+<!-- api-routes:start (generated from contract/api.js: npm run docs:api) -->
+
 ### Authentication
 
 | Method | Path | Access | Called by |
@@ -792,6 +794,8 @@ use the row's own library.
 | Method | Path | Access | Called by |
 |---|---|---|---|
 | GET | `/health` | public | `not called by the app (uptime check)` |
+
+<!-- api-routes:end -->
 
 ### Paper network in detail
 

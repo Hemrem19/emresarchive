@@ -61,6 +61,7 @@ Tests enforce it in both suites, and CI runs them on every push:
 - `tests/api-contract.test.js`: every exported `api/*.js` function is listed, and calling it really requests the listed method and path.
 - `backend/tests/contract.test.js`: every route is listed and every listed call has a route; every non-public route refuses anonymous callers; scanner probes (`/.env`, `/.git/config`…) get a bare 404; the route-module list above matches; the contract holds no secrets.
 - `tests/build-output.test.js`: `dist/` (what citavers.com serves) never contains `contract/`, `backend/`, tests, env files or git data.
+- `tests/api-docs.test.js`: the route tables in the API reference (`docs/COMPREHENSIVE_DOCUMENTATION_VOLUME_4.md` §4.8, between the `api-routes` markers) match the contract. After changing the contract, run `npm run docs:api` (`contract/docs.js`) and commit the doc with it. A changed request or response shape is described by hand under "Paper network in detail" or the module's §4.3 entry.
 
 `SERVER_ONLY` holds routes the app doesn't call, `NOT_REQUESTS` holds `api/*.js` exports that make no request, and `KNOWN_DRIFT` holds mismatches awaiting a decision. Only remove items from `KNOWN_DRIFT` (once fixed); never add one to make a change pass.
 
