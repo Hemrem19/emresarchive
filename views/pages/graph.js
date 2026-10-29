@@ -43,7 +43,7 @@ export const graphView = `
             </div>
 
             <!-- Status: what the network holds, or what it is doing -->
-            <div id="graph-status" role="status" class="hidden absolute top-[7.5rem] sm:top-20 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-20 bg-slate-800/80 backdrop-blur-md border border-slate-700/50 text-slate-300 px-3 py-1.5 rounded-lg shadow-lg text-xs text-center pointer-events-none"></div>
+            <div id="graph-status" role="status" class="hidden absolute top-[8.75rem] sm:top-20 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-20 bg-slate-800/80 backdrop-blur-md border border-slate-700/50 text-slate-300 px-3 py-1.5 rounded-lg shadow-lg text-xs text-center pointer-events-none"></div>
 
 
             <!-- Side Panel (Details) -->
