@@ -91,6 +91,29 @@ describe('network of the open library', () => {
         expect(new URL(openAlex.mock.calls[0][0]).searchParams.get('filter')).toMatch(/^openalex:/);
     });
 
+    it('rewrites only the links that changed', async () => {
+        await generate(alice);
+        const before = t.rows('SELECT id FROM paper_connections ORDER BY id');
+        await generate(alice);
+        expect(t.rows('SELECT id FROM paper_connections ORDER BY id')).toEqual(before);
+
+        // A paper gone from the library takes only its own links with it
+        t.db.sqlite.prepare("UPDATE papers SET deleted_at = '2026-10-29' WHERE doi = '10.1/c' AND group_id = ?").run(group);
+        await generate(alice);
+        const after = t.rows('SELECT id FROM paper_connections ORDER BY id');
+        expect(after.length).toBe(before.length - 1);
+        expect(after.every((row) => before.some((b) => b.id === row.id))).toBe(true);
+    });
+
+    it('is not stale after edits that cannot change it', async () => {
+        const { body } = await generate(alice);
+        t.db.sqlite.prepare("UPDATE papers SET status = 'Reading', notes = 'x', updated_at = '2099-01-01' WHERE group_id = ?").run(group);
+        expect((await show(alice, body.data.graph.id)).body.data.graph.stale).toBe(false);
+
+        t.db.sqlite.prepare("UPDATE papers SET authors = '[\"Ada\"]' WHERE doi = '10.1/a' AND group_id = ?").run(group);
+        expect((await show(alice, body.data.graph.id)).body.data.graph.stale).toBe(true);
+    });
+
     it('is stale once papers change, and drops suggestions the library now has', async () => {
         const { body } = await generate(alice);
         t.insert('papers', { user_id: alice.id, group_id: group, title: 'Classic', doi: 'https://doi.org/10.1/Z' });

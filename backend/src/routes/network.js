@@ -5,7 +5,7 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import * as schema from '../../drizzle/schema.js';
 import { authenticate } from '../middleware/auth.js';
 import { READ, accessible, findAccessible, inLibrary, libraryOf, parseLibrary } from '../lib/access.js';
-import { generateNetwork, normalizeDoi, sharedAuthors } from '../services/citation.js';
+import { generateNetwork, normalizeDoi, papersFingerprint, sharedAuthors } from '../services/citation.js';
 
 const network = new Hono();
 network.use('*', authenticate);
@@ -22,13 +22,6 @@ const parseJson = (value, fallback) => {
 const requestLibrary = (c) => parseLibrary(c.get('user'), c.req.header('x-library'));
 
 const notFound = (c) => c.json({ success: false, error: { message: 'Library not found' } }, 404);
-
-// D1 CURRENT_TIMESTAMP ("2026-10-29 12:00:00") is UTC but has no zone mark
-const toTime = (value) => {
-    if (!value) return 0;
-    const text = /^\d{4}-\d\d-\d\d \d/.test(value) ? `${value.replace(' ', 'T')}Z` : value;
-    return new Date(text).getTime() || 0;
-};
 
 const G = schema.networkGraphs;
 const GRAPH_COLUMNS = {
@@ -135,7 +128,6 @@ network.get('/:id', async (c) => {
 
     const papers = await db.select({
         id: P.id, title: P.title, doi: P.doi, status: P.status, year: P.year, authors: P.authors, tags: P.tags,
-        updatedAt: P.updatedAt,
     }).from(P).where(visiblePaper(P));
 
     // Only edges whose both ends are visible papers of this library. Shared-tag
@@ -149,17 +141,17 @@ network.get('/:id', async (c) => {
         .innerJoin(to, and(eq(to.id, PC.toPaperId), visiblePaper(to)))
         .where(ne(PC.connectionType, 'common_tag'));
 
-    const { userId, groupId, layout, suggestions, ...graphFields } = graph;
-    // Papers added, removed or changed since the network was made: the app refreshes it
-    const builtAt = toTime(graph.updatedAt);
-    const stale = papers.length !== graph.nodeCount || papers.some((p) => toTime(p.updatedAt) > builtAt);
+    const { userId, groupId, layout, suggestions, papersHash, ...graphFields } = graph;
+    // Papers added or removed, or their DOIs or authors changed, since the
+    // network was made: the app refreshes it
+    const stale = papersHash !== await papersFingerprint(papers);
     const shown = new Set(papers.map((p) => p.id));
     const owned = new Set(papers.map((p) => normalizeDoi(p.doi)).filter(Boolean));
     return c.json({
         success: true,
         data: {
             graph: { ...graphFields, stale },
-            nodes: papers.map(({ updatedAt, ...p }) => ({
+            nodes: papers.map(p => ({
                 id: String(p.id),
                 label: p.title,
                 data: { ...p, authors: parseJson(p.authors, []), tags: parseJson(p.tags, []) },

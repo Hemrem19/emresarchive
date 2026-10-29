@@ -211,6 +211,8 @@ export const networkGraphs = sqliteTable('network_graphs', {
   groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
   // Papers the library cites but lacks: [{ openAlexId, doi, title, year, citedByCount, citedBy }]
   suggestions: text('suggestions', { mode: 'json' }),
+  // Fingerprint of the papers it was made from (ids, DOIs, authors): stale when it differs
+  papersHash: text('papers_hash'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

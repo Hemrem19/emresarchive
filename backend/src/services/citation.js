@@ -346,6 +346,23 @@ export async function describeSuggestions(missing, env) {
 }
 
 /**
+ * Fingerprint of what a network is made from: each live paper's id, DOI and
+ * authors. Other edits (status, notes, reading progress) leave it alone, so
+ * they do not make the network stale.
+ */
+export async function papersFingerprint(papers) {
+    const text = [...papers]
+        .sort((a, b) => a.id - b.id)
+        .map((p) => {
+            const authors = asArray(p.authors).map((v) => normalizeKey(typeof v === 'object' ? v?.name : v)).sort();
+            return `${p.id}|${normalizeDoi(p.doi) ?? ''}|${authors.join(';')}`;
+        })
+        .join('\n');
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * Regenerate the auto network of a library. The caller must have checked that
  * the user may read it.
  * @param {import('drizzle-orm/d1').DrizzleD1Database} db
@@ -371,13 +388,27 @@ export async function generateNetwork(db, library, user, env = {}, options = {})
     const connections = buildConnections(papers, citations);
     const suggestions = await describeSuggestions(missingReferences(papers, citations), env);
 
-    // Replace previous auto connections of this library's papers
-    await db.delete(PC).where(and(
-        eq(PC.source, 'auto'),
-        inArray(PC.fromPaperId, db.select({ id: P.id }).from(P).where(inLibrary(P, library)))
-    ));
-    for (let i = 0; i < connections.length; i += INSERT_CHUNK) {
-        const rows = connections.slice(i, i + INSERT_CHUNK)
+    // Write only what changed: D1's free plan counts every row written (and
+    // each index entry), and most refreshes find the same links again
+    const key = (c) => `${c.fromPaperId}-${c.toPaperId}-${c.connectionType}`;
+    const stored = await db.select({ id: PC.id, fromPaperId: PC.fromPaperId, toPaperId: PC.toPaperId, connectionType: PC.connectionType })
+        .from(PC)
+        .where(and(
+            eq(PC.source, 'auto'),
+            inArray(PC.fromPaperId, db.select({ id: P.id }).from(P).where(inLibrary(P, library)))
+        ));
+    const wanted = new Set(connections.map(key));
+    const have = new Set(stored.map(key));
+    const gone = stored.filter((c) => !wanted.has(key(c))).map((c) => c.id);
+    const added = connections.filter((c) => !have.has(key(c)));
+    for (let i = 0; i < gone.length; i += INSERT_CHUNK) {
+        await db.run(sql`
+            DELETE FROM paper_connections
+            WHERE id IN (SELECT value FROM json_each(${JSON.stringify(gone.slice(i, i + INSERT_CHUNK))}))
+        `);
+    }
+    for (let i = 0; i < added.length; i += INSERT_CHUNK) {
+        const rows = added.slice(i, i + INSERT_CHUNK)
             .map(c => [c.fromPaperId, c.toPaperId, c.connectionType]);
         await db.run(sql`
             INSERT INTO paper_connections (id, from_paper_id, to_paper_id, connection_type, source, confidence)
@@ -392,7 +423,8 @@ export async function generateNetwork(db, library, user, env = {}, options = {})
         .where(and(inLibrary(G, library), eq(G.isAuto, true)))
         .limit(1);
     const graphId = existing?.id || crypto.randomUUID();
-    const fields = { nodeCount: papers.length, edgeCount: connections.length, suggestions, updatedAt: now };
+    const papersHash = await papersFingerprint(papers);
+    const fields = { nodeCount: papers.length, edgeCount: connections.length, suggestions, papersHash, updatedAt: now };
     if (existing) {
         await db.update(G).set(fields).where(eq(G.id, graphId));
     } else {
